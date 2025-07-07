@@ -3,6 +3,14 @@
 		{
 			"name": "eps-assist-me-monorepo",
 			"path": ".."
+		},
+		{
+			"name": "packages/querytool",
+			"path": "../packages/querytool"
+		},
+		{
+			"name": "packages/slackbot",
+			"path": "../packages/slackbot"
 		}
 	],
 	"settings": {
