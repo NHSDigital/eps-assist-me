@@ -65,7 +65,7 @@
           }
     }
   },
-  "postCreateCommand": "rm -f ~/.docker/config.json; git config --global --add safe.directory /workspaces/eps-assist-me; make install; direnv allow ."
+  "postCreateCommand": "rm -f ~/.docker/config.json; git config --global --add safe.directory /workspaces/eps-assist-me; make install; direnv allow .; docker build -f /workspaces/eps-workflow-quality-checks/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets ."
   // "features": {},
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   // "forwardPorts": [],
