@@ -6,13 +6,16 @@ guard-%:
 
 .PHONY: install build test publish release clean
 
-install: install-python install-hooks
+install: install-python install-hooks install-node
 
 install-python:
 	poetry install
 
 install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
+
+install-node:
+	npm ci
 
 pre-commit: git-secrets-docker-setup
 	poetry run pre-commit run --all-files

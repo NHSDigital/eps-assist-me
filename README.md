@@ -42,6 +42,36 @@ This will ensure that your VSCode bash terminal prompts you for your GPG key pas
 
 You can cache the gpg key passphrase by following instructions at https://superuser.com/questions/624343/keep-gnupg-credentials-cached-for-entire-user-session
 
+### Setup
+
+Ensure you have the following lines in the file .envrc
+
+```bash
+export AWS_DEFAULT_PROFILE=prescription-dev
+```
+
+Once you have saved .envrc, start a new terminal in vscode and run this command to authenticate against AWS
+
+```bash
+make aws-configure
+```
+
+Put the following values in:
+
+```text
+SSO session name (Recommended): sso-session
+SSO start URL [None]: <USE VALUE OF SSO START URL FROM AWS LOGIN COMMAND LINE ACCESS INSTRUCTIONS ACCESSED FROM https://myapps.microsoft.com>
+SSO region [None]: eu-west-2
+SSO registration scopes [sso:account:access]:
+```
+
+This will then open a browser window and you should authenticate with your hscic credentials
+You should then select the development account and set default region to be eu-west-2.
+
+You will now be able to use AWS and SAM CLI commands to access the dev account. You can also use the AWS extension to view resources.
+
+When the token expires, you may need to reauthorise using `make aws-login`
+
 ### CI Setup
 
 The GitHub Actions require a secret to exist on the repo called "SONAR_TOKEN".

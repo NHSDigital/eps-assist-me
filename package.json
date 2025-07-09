@@ -1,0 +1,23 @@
+{
+  "name": "eps-assist-me-monorepo",
+  "version": "1.0.0",
+  "description": "![Build](https://github.com/NHSDigital/eps-assist-me/workflows/Build/badge.svg?branch=main)",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "check-licenses": "node_modules/.bin/license-checker --failOn GPL --failOn LGPL"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NHSDigital/eps-assist-me"
+  },
+  "keywords": [],
+  "author": "NHS Digital",
+  "license": "MIT",
+  "workspaces": [
+    "packages/querytool",
+    "packages/slackbot"
+  ],
+  "devDependencies": {
+    "widdershins": "^4.0.1"
+  }
+}
