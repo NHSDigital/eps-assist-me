@@ -34,7 +34,7 @@ unpyclib = "^0.8.1"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^4.1.0"
-cfn-lint = "^1.27.0"
+cfn-lint = "^1.37.2"
 black = "^25.1.0"
 flake8 = "^7.1.2"
 jinja2 = "^3.1.5"
