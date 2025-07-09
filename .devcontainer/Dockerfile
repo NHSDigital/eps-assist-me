@@ -24,6 +24,8 @@ ENV PATH="$PATH:/home/vscode/.asdf/bin/:/workspaces/eps-assist-me/node_modules/.
 # Install ASDF plugins
 RUN asdf plugin add python; \
     asdf plugin add poetry https://github.com/asdf-community/asdf-poetry.git; \
+    asdf plugin add shellcheck https://github.com/luizm/asdf-shellcheck.git; \
+    asdf plugin add nodejs https://github.com/asdf-vm/asdf-nodejs.git; \
     asdf plugin add direnv; \
     asdf plugin add actionlint; \
     asdf plugin add ruby https://github.com/asdf-vm/asdf-ruby.git
@@ -32,7 +34,7 @@ RUN asdf plugin add python; \
 WORKDIR /workspaces/eps-assist-me
 
 # Copy .tool-versions
-ADD .tool-versions /workspaces/prescriptionsforpatients/.tool-versions
+ADD .tool-versions /workspaces/eps-assist-me/.tool-versions
 ADD .tool-versions /home/vscode/.tool-versions
 
 # Install tools
