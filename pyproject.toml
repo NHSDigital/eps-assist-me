@@ -44,6 +44,16 @@ rich = "^13.9.4"
 
 [tool.poetry.scripts]
 
+[[tool.poetry.source]]
+name = "nvidia"
+url = "https://pypi.ngc.nvidia.com"
+priority = "supplemental"
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "supplemental"
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
