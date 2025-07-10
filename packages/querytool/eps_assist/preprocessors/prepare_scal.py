@@ -1,10 +1,7 @@
 import csv
 
-file_paths = ["./querytool/eps_assist/preprocessors/prescribing_scal.csv",
-              "./querytool/eps_assist/preprocessors/dispensing_scal.csv"]
-
-
-file_paths = ["./querytool/eps_assist/preprocessors/prescribing_scal.csv"]
+file_paths = ["packages/querytool/eps_assist/preprocessors/prescribing_scal.csv",
+              "packages/querytool/eps_assist/preprocessors/dispensing_scal.csv"]
 
 
 def clean_texts(texts: list[str]) -> str:
@@ -50,7 +47,17 @@ def process_file(path: str) -> str:
 
                     doc.append(
                         clean_texts(
-                            [section_id, item, detail, ". Related docs: ", helpful_docs, ". Risk Logs: ", risk_logs, ". Requirement assessed by: ", assessment_type]
+                            [
+                                section_id,
+                                item,
+                                detail,
+                                ". Related docs: ",
+                                helpful_docs,
+                                ". Risk Logs: ",
+                                risk_logs,
+                                ". Requirement assessed by: ",
+                                assessment_type,
+                            ]
                         )
                     )
                 continue
@@ -74,11 +81,13 @@ def process_file(path: str) -> str:
             else:
                 if len(related_desc) > 0:
                     doc.append(
-                        f"SCAL Requirement {section_id} {clean_text(requirement_section)}: {clean_text(requirement_or_section)} related info: {bullet_points_to_sentences(related_desc)}"
+                        f"SCAL Requirement {section_id} {clean_text(requirement_section)}: "
+                        f"{clean_text(requirement_or_section)} related info: {clean_text(related_desc)}"
                     )
                 else:
                     doc.append(
-                        f"SCAL Requirement {section_id} {clean_text(requirement_section)}: {clean_text(requirement_or_section)}"
+                        f"SCAL Requirement {section_id} {clean_text(requirement_section)}: "
+                        f"{clean_text(requirement_or_section)}"
                     )
 
     return "\n\n".join(doc)

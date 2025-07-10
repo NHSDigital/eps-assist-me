@@ -1,41 +1,92 @@
-# Query tool
+# Query Tool
 
-This is the tool that augments incoming user queries with EPS specific data.
+This module powers EPS Assist's ability to interpret technical queries by leveraging EPS documentation and returning answers generated from retrieved context.
+
+It uses LangChain, semantic embeddings, and DuckDB to provide retrieval-augmented generation (RAG) for queries related to EPS APIs, SCAL, and other NHS documentation.
 
 ## Prerequisites
 
-- Python 3.12
-- Poetry
-- .env file 
+All runtime and development dependencies (Python, Node, Poetry, Widdershins, etc.) are installed automatically when you open the project in the devcontainer.
 
-Widdershins:
+Environment variables required for authentication are managed via `.envrc`.
 
-    npm install -g widdershins
+Ensure your .envrc file includes the following:
 
-Load environment variables:
+```bash
+export TOKENIZERS_PARALLELISM=false
+export BEDROCK_MODEL_ID=<your_bedrock_model_id>
+export AWS_BEARER_TOKEN_BEDROCK=<your_bearer_token>
+```
 
-    source .env
+If you're working outside the devcontainer, you can install all dependencies manually by running:
 
-To set up run:
+```bash
+make install
+```
 
-    poetry install
+## Preparing the Document Corpus
 
-## Updating corpus
+Before the assistant can answer queries, the EPS documentation must be parsed and embedded into a searchable vector store (DuckDB).
 
-To prepare the SCAL files for processing, run:
+### 1. Convert SCAL CSVs to Markdown
 
-    poetry run python querytool/eps_assist/preprocessors/prepare_scal.py
+```bash
+poetry run python packages/querytool/eps_assist/preprocessors/prepare_scal.py
+```
 
-To prepare the OAS file for processing, run:
+### 2. Convert OAS JSON to Markdown
 
-    poetry run python querytool/eps_assist/preprocessors/prepare_oas.py
+This pulls the latest NHS OpenAPI specification and converts it to Markdown using Widdershins.
 
-To run the ingestion and transformation of documents into the vector store, run:
+> **Note**: To suppress noisy Node.js warnings during the conversion, use the `NODE_NO_WARNINGS=1` environment variable as shown below.
 
-    poetry run python querytool/eps_assist/transform.py
+```bash
+NODE_NO_WARNINGS=1 poetry run python packages/querytool/eps_assist/preprocessors/prepare_oas.py
+```
 
-## Running samples queries
+### 3. Build or Rebuild the Vector Store
 
-To run a query, run:
+This loads all Markdown files into DuckDB with semantic chunking and embeddings.
 
-    poetry run python querytool/eps_assist/query.py
+```bash
+poetry run python packages/querytool/eps_assist/transform.py
+```
+
+A new `eps_corpus.db` file will be created in the same directory.
+
+## Running Queries Locally
+
+You can run sample questions against the vector store directly:
+
+```bash
+poetry run python packages/querytool/eps_assist/query.py
+```
+
+This script:
+- Connects to `eps_corpus.db`
+- Retrieves relevant document chunks
+- Sends the prompt to Claude 3 via Amazon Bedrock
+- Outputs the model's answer in your terminal
+
+## Notes
+
+- Ensure that `eps_corpus.db` exists before querying. If in doubt, re-run the transformation step.
+- Claude 3 is accessed using the AWS Bedrock API via `boto3` and LangChain.
+- Vector storage is file-based (DuckDB), so no external database or service is required.
+- Environment variables (e.g., AWS credentials) are expected to be managed via `.envrc` in the project root.
+
+## File Structure Overview
+
+```
+eps_assist/
+├── docs/               # Source documentation (.md) for SCAL, OAS, etc.
+├── preprocessors/      # Scripts for cleaning and converting raw files
+├── query.py            # Executes a full question-answering example
+├── transform.py        # Converts docs to vector store (DuckDB)
+
+preprocessors/
+├── prepare_scal.py     # Converts SCAL CSV to Markdown
+├── prepare_oas.py      # Fetches & converts OpenAPI to Markdown
+```
+
+This module is a self-contained tool that can also be used outside of Slack for testing or integration in other EPS-related projects.
