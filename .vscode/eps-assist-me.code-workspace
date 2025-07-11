@@ -3,6 +3,10 @@
 		{
 			"name": "eps-assist-me-monorepo",
 			"path": ".."
+		},
+		{
+			"name": "packages/cdk",
+			"path": "../packages/cdk"
 		}
 	],
 	"settings": {

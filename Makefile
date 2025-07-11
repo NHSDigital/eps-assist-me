@@ -32,5 +32,54 @@ lint-githubaction-scripts:
 
 lint: lint-githubactions lint-githubaction-scripts
 
+check-licenses: check-licenses-node check-licenses-python
+
+check-licenses-node:
+	npm run check-licenses --workspace packages/cdk
+
 check-licenses-python:
 	scripts/check_python_licenses.sh
+
+aws-configure:
+	aws configure sso --region eu-west-2
+
+cdk-deploy: guard-stack_name
+	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
+	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
+	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
+		npx cdk deploy \
+		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--all \
+		--ci true \
+		--require-approval $${REQUIRE_APPROVAL} \
+		--context stackName=$$stack_name \
+		--context VERSION_NUMBER=$$VERSION_NUMBER \
+		--context COMMIT_ID=$$COMMIT_ID 
+
+cdk-synth:
+	npx cdk synth \
+		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--context stackName=eps-am \
+		--context VERSION_NUMBER=undefined \
+		--context COMMIT_ID=undefined 
+
+cdk-diff:
+	npx cdk diff \
+		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--context stackName=$$stack_name \
+		--context VERSION_NUMBER=$$VERSION_NUMBER \
+		--context COMMIT_ID=$$COMMIT_ID 
+
+cdk-watch: guard-stack_name
+	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
+	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
+	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
+		npx cdk deploy \
+		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--watch \
+		--all \
+		--ci true \
+		--require-approval $${REQUIRE_APPROVAL} \
+		--context stackName=$$stack_name \
+		--context VERSION_NUMBER=$$VERSION_NUMBER \
+		--context COMMIT_ID=$$COMMIT_ID
