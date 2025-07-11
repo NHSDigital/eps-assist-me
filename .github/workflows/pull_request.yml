@@ -52,3 +52,26 @@ jobs:
         id: commit_id
         run: |
           echo "commit_id=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+  package_code:
+    needs: [get_issue_number, get_commit_id]
+    uses: ./.github/workflows/cdk_package_code.yml
+    with:
+      VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
+      COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
+
+  release_code:
+    needs: [get_issue_number, package_code, get_commit_id]
+    uses: ./.github/workflows/cdk_release_code.yml
+    with:
+      STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
+      TARGET_ENVIRONMENT: dev-pr
+      VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
+      COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
+      CDK_APP_NAME: EpsAssistMeApp
+      LOG_RETENTION_IN_DAYS: 30
+      LOG_LEVEL: DEBUG
+      ENABLE_MUTUAL_TLS: false
+
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_DEPLOY_ROLE }}
+      CDK_PULL_IMAGE_ROLE: ${{ secrets.DEV_CDK_PULL_IMAGE_ROLE }}
