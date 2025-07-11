@@ -59,7 +59,7 @@ cdk-deploy: guard-stack_name
 cdk-synth:
 	npx cdk synth \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context stackName=eps-am \
+		--context stackName=epsam \
 		--context VERSION_NUMBER=undefined \
 		--context COMMIT_ID=undefined 
 
