@@ -35,11 +35,6 @@ fix_boolean_number_key() {
     mv .build/cdk.new.json .build/cdk.json
 }
 
-# get some values from AWS
-TRUSTSTORE_BUCKET_ARN=$(aws cloudformation describe-stacks --stack-name account-resources --query "Stacks[0].Outputs[?OutputKey=='TrustStoreBucket'].OutputValue" --output text)
-TRUSTSTORE_BUCKET_NAME=$(echo "${TRUSTSTORE_BUCKET_ARN}" | cut -d ":" -f 6)
-TRUSTSTORE_VERSION=$(aws s3api list-object-versions --bucket "${TRUSTSTORE_BUCKET_NAME}" --prefix "${TRUSTSTORE_FILE}" --query 'Versions[?IsLatest].[VersionId]' --output text)
-
 # go through all the key values we need to set
 fix_string_key accountId "${ACCOUNT_ID}"
 fix_string_key stackName "${STACK_NAME}"
@@ -47,7 +42,3 @@ fix_string_key versionNumber "${VERSION_NUMBER}"
 fix_string_key commitId "${COMMIT_ID}"
 fix_string_key logRetentionInDays "${LOG_RETENTION_IN_DAYS}"
 fix_string_key logLevel "${LOG_LEVEL}"
-fix_string_key targetSpineServer "${TARGET_SPINE_SERVER}"
-fix_boolean_number_key enableMutualTls "${ENABLE_MUTUAL_TLS}"
-fix_string_key trustStoreFile "${TRUSTSTORE_FILE}"
-fix_string_key trustStoreVersion "${TRUSTSTORE_VERSION}"

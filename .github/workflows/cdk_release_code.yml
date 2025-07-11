@@ -24,9 +24,6 @@ on:
       LOG_LEVEL:
         required: true
         type: string
-      ENABLE_MUTUAL_TLS:
-        required: true
-        type: boolean
       MARK_JIRA_RELEASED:
         type: boolean
         default: false
@@ -110,7 +107,6 @@ jobs:
           COMMIT_ID: "${{ inputs.COMMIT_ID }}"
           LOG_RETENTION_IN_DAYS: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
           LOG_LEVEL: "${{ inputs.LOG_LEVEL }}"
-          ENABLE_MUTUAL_TLS: "${{ inputs.ENABLE_MUTUAL_TLS }}"
 
       - name: Show diff
         run: |

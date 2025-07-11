@@ -131,7 +131,6 @@ jobs:
       CDK_APP_NAME: EpsAssistMeApp
       LOG_RETENTION_IN_DAYS: 30
       LOG_LEVEL: DEBUG
-      ENABLE_MUTUAL_TLS: false
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_DEPLOY_ROLE }}
       CDK_PULL_IMAGE_ROLE: ${{ secrets.DEV_CDK_PULL_IMAGE_ROLE }}
