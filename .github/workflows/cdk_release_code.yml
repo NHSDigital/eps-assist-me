@@ -149,7 +149,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.VERSION_NUMBER }}
           DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
       - name: Checkout gh-pages
-        if: ${{ !startsWith(inputs.STACK_NAME, 'cpt-pr-') }}
+        if: ${{ !startsWith(inputs.STACK_NAME, 'epsam-pr-') }}
         uses: actions/checkout@v4
         with:
           ref: gh-pages
