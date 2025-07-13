@@ -14,10 +14,13 @@
   "author": "NHS Digital",
   "license": "MIT",
   "workspaces": [
+    "packages/cdk",
     "packages/querytool",
     "packages/slackbot"
   ],
   "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
     "widdershins": "^4.0.1"
   }
 }
