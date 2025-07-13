@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib'
-import {EpsAssistMeStack} from '../stacks/epsAssistMeStack'
+import {EpsAssistMeStack} from '../stacks/EpsAssistMeStack'
 
 const app = new cdk.App()
 
