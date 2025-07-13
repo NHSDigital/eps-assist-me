@@ -8,7 +8,7 @@ cat <<EOF > payload.json
   "targetEnvironment": "$ENV",
   "productName": "EPS Assist Me",
   "releaseNotesPageId": "$PAGE_ID",
-  "releaseNotesPageTitle": "Current EPSAM release notes - $ENV"
+  "releaseNotesPageTitle": "Current EPS Assist Me release notes - $ENV"
 }
 EOF
 cat payload.json
