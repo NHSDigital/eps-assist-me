@@ -24,13 +24,25 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
+lint: lint-githubactions lint-githubaction-scripts
+
 lint-githubactions:
 	actionlint
 
 lint-githubaction-scripts:
 	shellcheck .github/scripts/*.sh
 
-lint: lint-githubactions lint-githubaction-scripts
+test: compile
+	npm run test --workspace packages/cdk
+
+clean:
+	rm -rf packages/cdk/coverage
+	rm -rf packages/cdk/lib
+	rm -rf cdk.out
+
+deep-clean: clean
+	rm -rf .venv
+	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
 
 check-licenses: check-licenses-node check-licenses-python
 
@@ -42,6 +54,12 @@ check-licenses-python:
 
 aws-configure:
 	aws configure sso --region eu-west-2
+
+aws-login:
+	aws sso login --sso-session sso-session
+
+cfn-guard:
+	./scripts/run_cfn_guard.sh
 
 cdk-deploy: guard-stack_name
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
