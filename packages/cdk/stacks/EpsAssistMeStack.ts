@@ -1,4 +1,4 @@
-import {App, Stack, StackProps} from 'aws-cdk-lib'
+import {App, Stack, StackProps} from "aws-cdk-lib"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -10,6 +10,6 @@ export class EpsAssistMeStack extends Stack {
   constructor(scope: App, id: string, props: EpsAssistMeStackProps) {
     super(scope, id, props)
 
-    console.log('EpsAssistMeStack is being synthesized.')
+    console.log("EpsAssistMeStack is being synthesized.")
   }
 }
