@@ -68,6 +68,7 @@ jobs:
       VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
       COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
       CDK_APP_NAME: EpsAssistMeApp
+      DEPLOY_CODE: false
       LOG_RETENTION_IN_DAYS: 30
       LOG_LEVEL: DEBUG
 

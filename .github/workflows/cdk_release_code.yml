@@ -18,6 +18,9 @@ on:
       CDK_APP_NAME:
         required: true
         type: string
+      DEPLOY_CODE:
+        type: boolean
+        default: false
       LOG_RETENTION_IN_DAYS:
         required: true
         type: string
@@ -126,6 +129,7 @@ jobs:
         shell: bash
 
       - name: Deploy code
+        if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
           docker run \
           -v "$(pwd)/.build":/home/cdkuser/workspace/ \
