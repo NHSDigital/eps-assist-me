@@ -17,6 +17,9 @@ install-hooks: install-python
 install-node:
 	npm ci
 
+compile-node:
+	npx tsc --build tsconfig.build.json
+
 pre-commit: git-secrets-docker-setup
 	poetry run pre-commit run --all-files
 
@@ -36,7 +39,7 @@ lint-githubactions:
 lint-githubaction-scripts:
 	shellcheck .github/scripts/*.sh
 
-test: compile
+test: compile-node
 	npm run test --workspace packages/cdk
 
 clean:

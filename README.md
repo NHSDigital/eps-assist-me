@@ -126,10 +126,7 @@ These are used to do common commands related to cdk
 
 #### Compiling
 
-- `compile` Compiles all code.
 - `compile-node` Runs TypeScript compiler (tsc) for the project.
-- `compile-packages` Compiles specific packages.
-- `compile-specification` Compiles the OpenAPI specification files.
 
 #### Check licenses
 
