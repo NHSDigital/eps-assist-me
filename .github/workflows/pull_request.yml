@@ -18,6 +18,7 @@ jobs:
 
   get_issue_number:
     runs-on: ubuntu-22.04
+    needs: quality_checks
     outputs:
       issue_number: ${{steps.get_issue_number.outputs.result}}
 
