@@ -25,9 +25,9 @@ const logLevel = app.node.tryGetContext("logLevel")
 Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
 
 Tags.of(app).add("cdkApp", "EpsAssistMe")
-Tags.of(app).add("stackName", stackName)
-Tags.of(app).add("version", version)
-Tags.of(app).add("commit", commit)
+Tags.of(app).add("stackName", stackName ?? "unknown")
+Tags.of(app).add("version", version ?? "dev")
+Tags.of(app).add("commit", commit ?? "none")
 
 new EpsAssistMeStack(app, "EpsAssistMeStack", {
   env: {
