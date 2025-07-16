@@ -74,21 +74,13 @@ export class LambdaFunction extends Construct {
       bundling: {
         command: [
           "bash", "-c",
-          // Redirect all stdout and stderr to a log file inside asset-output
-          "mkdir -p /asset-output && " + // Ensure /asset-output exists and is writable from the start
-          "exec &> /asset-output/bundling-log.txt; " + // Redirect all subsequent output
-          "set -ex; " + // Enable immediate exit on error
-          'echo "--- Starting bundling process (Deep Dive) ---"; ' +
-          'echo "Current working directory: $(pwd)"; ' +
-          'echo "Contents of /asset-input:"; ls -al /asset-input; ' +
-          'echo "Verifying Python version..."; ' +
-          "python3.12 --version; " + // Output captured in log file
-          'echo "Creating virtual environment..."; ' +
-          "python3.12 -m venv /tmp/lambda-venv; " +
-          'echo "Virtual environment created. Listing contents of venv/bin..."; ' +
-          "ls -al /tmp/lambda-venv/bin; " +
-          'echo "--- Deep Dive Test Complete ---"; ' +
-          "exit 0" // Exit cleanly if all goes well
+          [
+            "echo 'Checking input path...'; ls -la /asset-input",
+            "mkdir -p /asset-output",
+            "shopt -s nullglob",
+            "cp -r /asset-input/* /asset-output/",
+            "echo 'Copied to output.'; ls -la /asset-output"
+          ].join(" && ")
         ]
       }
     })
