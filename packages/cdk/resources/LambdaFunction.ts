@@ -9,7 +9,7 @@ import {
   IManagedPolicy
 } from "aws-cdk-lib/aws-iam"
 import {PythonFunction} from "@aws-cdk/aws-lambda-python-alpha"
-import {LogGroup, RetentionDays} from "aws-cdk-lib/aws-logs"
+import {LogGroup} from "aws-cdk-lib/aws-logs"
 
 export interface LambdaFunctionProps {
   readonly stackName: string
