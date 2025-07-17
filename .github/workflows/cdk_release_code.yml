@@ -38,6 +38,10 @@ on:
         required: false
       REGRESSION_TESTS_PEM:
         required: false
+      SLACK_BOT_TOKEN:
+        required: false
+      SLACK_SIGNING_SECRET:
+        required: false
 
 jobs:
   release_code:
@@ -107,6 +111,8 @@ jobs:
           COMMIT_ID: "${{ inputs.COMMIT_ID }}"
           LOG_RETENTION_IN_DAYS: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
           LOG_LEVEL: "${{ inputs.LOG_LEVEL }}"
+          SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
+          SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
 
       - name: Show diff
         run: |
