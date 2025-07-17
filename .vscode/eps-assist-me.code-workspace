@@ -7,6 +7,14 @@
 		{
 			"name": "packages/cdk",
 			"path": "../packages/cdk"
+		},
+		{
+			"name": "packages/querytool",
+			"path": "../packages/querytool"
+		},
+		{
+			"name": "packages/slackbot",
+			"path": "../packages/slackbot"
 		}
 	],
 	"settings": {

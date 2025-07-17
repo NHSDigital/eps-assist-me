@@ -72,6 +72,19 @@ You will now be able to use AWS and SAM CLI commands to access the dev account. 
 
 When the token expires, you may need to reauthorise using `make aws-login`
 
+### Running locally
+
+If you want to test the EPS query functionality without starting the Slack bot, you can run the application in local mode. This is useful for development, debugging, or when Slack credentials are not available.
+
+To do this, set the `LOCAL_MODE` environment variable to `1`:
+
+```bash
+export LOCAL_MODE=1
+poetry run python packages/slackbot/app.py
+```
+
+For running the query tool only, see the [querytool instructions](packages/querytool/README.md).
+
 ### CI Setup
 
 The GitHub Actions require a secret to exist on the repo called "SONAR_TOKEN".
