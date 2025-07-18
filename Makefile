@@ -83,14 +83,15 @@ cdk-deploy: guard-stack_name
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-synth:
+cdk-synth: download-get-secrets-layer
 	npx cdk synth \
+		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=undefined \
 		--context stackName=epsam \
 		--context versionNumber=undefined \
 		--context commitId=undefined \
-		-context logRetentionInDays=30
+		--context logRetentionInDays=30
 
 cdk-diff:
 	npx cdk diff \

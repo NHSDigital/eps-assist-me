@@ -50,8 +50,8 @@ def get_parameter(parameter_name):
 
 
 # Get parameter names from environment variables
-bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
-signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
+bot_token_parameter = os.environ["SLACK_BOT_TOKEN"]
+signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET"]
 
 # Retrieve the parameters
 bot_token = get_parameter(bot_token_parameter)

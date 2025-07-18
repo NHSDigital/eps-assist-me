@@ -1,6 +1,5 @@
 import {Construct} from "constructs"
 import {Duration, Fn, RemovalPolicy} from "aws-cdk-lib"
-import {Runtime} from "aws-cdk-lib/aws-lambda"
 import {
   ManagedPolicy,
   PolicyStatement,
@@ -8,8 +7,20 @@ import {
   ServicePrincipal,
   IManagedPolicy
 } from "aws-cdk-lib/aws-iam"
-import {PythonFunction} from "@aws-cdk/aws-lambda-python-alpha"
-import {LogGroup} from "aws-cdk-lib/aws-logs"
+import * as lambda from "aws-cdk-lib/aws-lambda"
+import {Key} from "aws-cdk-lib/aws-kms"
+import {Stream} from "aws-cdk-lib/aws-kinesis"
+import {
+  Architecture,
+  CfnFunction,
+  Code,
+  LayerVersion,
+  Runtime
+} from "aws-cdk-lib/aws-lambda"
+import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
+import {join, resolve} from "path"
+import {existsSync} from "fs"
+import {execSync} from "child_process"
 
 export interface LambdaFunctionProps {
   readonly stackName: string
@@ -22,30 +33,93 @@ export interface LambdaFunctionProps {
   readonly logLevel: string
 }
 
-export class LambdaFunction extends Construct {
-  public readonly function: PythonFunction
-  public readonly executionPolicy: ManagedPolicy
+const insightsLayerArn = "arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsightsExtension:55"
+const baseDir = resolve(__dirname, "../../..")
 
-  constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
+export class LambdaFunction extends Construct {
+  public readonly executionPolicy: ManagedPolicy
+  public readonly function: lambda.Function
+
+  public constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
     super(scope, id)
 
-    const lambdaDecryptSecretsKMSPolicy = ManagedPolicy.fromManagedPolicyArn(
-      this, "lambdaDecryptSecretsKMSPolicy",
-      Fn.importValue("account-resources:LambdaDecryptSecretsKMSPolicy")
-    )
+    // Imports
+    const cloudWatchLogsKmsKey = Key.fromKeyArn(
+      this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn"))
 
-    const logGroup = new LogGroup(this, `${props.functionName}LogGroup`, {
-      logGroupName: `/aws/lambda/${props.functionName}`,
+    const splunkDeliveryStream = Stream.fromStreamArn(
+      this, "SplunkDeliveryStream", Fn.importValue("lambda-resources:SplunkDeliveryStream"))
+
+    const splunkSubscriptionFilterRole = Role.fromRoleArn(
+      this, "splunkSubscriptionFilterRole", Fn.importValue("lambda-resources:SplunkSubscriptionFilterRole"))
+
+    const lambdaInsightsLogGroupPolicy = ManagedPolicy.fromManagedPolicyArn(
+      this, "lambdaInsightsLogGroupPolicy", Fn.importValue("lambda-resources:LambdaInsightsLogGroupPolicy"))
+
+    const cloudwatchEncryptionKMSPolicy = ManagedPolicy.fromManagedPolicyArn(
+      this, "cloudwatchEncryptionKMSPolicyArn", Fn.importValue("account-resources:CloudwatchEncryptionKMSPolicyArn"))
+
+    const lambdaDecryptSecretsKMSPolicy = ManagedPolicy.fromManagedPolicyArn(
+      this, "lambdaDecryptSecretsKMSPolicy", Fn.importValue("account-resources:LambdaDecryptSecretsKMSPolicy"))
+
+    const insightsLambdaLayer = LayerVersion.fromLayerVersionArn(
+      this, "LayerFromArn", insightsLayerArn)
+
+    // Resources
+    const logGroup = new LogGroup(this, "LambdaLogGroup", {
+      encryptionKey: cloudWatchLogsKmsKey,
+      logGroupName: `/aws/lambda/${props.functionName!}`,
       retention: props.logRetentionInDays,
       removalPolicy: RemovalPolicy.DESTROY
     })
 
-    const role = new Role(this, `${props.functionName}ExecutionRole`, {
+    const cfnlogGroup = logGroup.node.defaultChild as CfnLogGroup
+    cfnlogGroup.cfnOptions.metadata = {
+      guard: {
+        SuppressedRules: [
+          "CW_LOGGROUP_RETENTION_PERIOD_CHECK"
+        ]
+      }
+    }
+
+    new CfnSubscriptionFilter(this, "LambdaLogsSplunkSubscriptionFilter", {
+      destinationArn: splunkDeliveryStream.streamArn,
+      filterPattern: "",
+      logGroupName: logGroup.logGroupName,
+      roleArn: splunkSubscriptionFilterRole.roleArn
+
+    })
+
+    const putLogsManagedPolicy = new ManagedPolicy(this, "LambdaPutLogsManagedPolicy", {
+      description: `write to ${props.functionName} logs`,
+      statements: [
+        new PolicyStatement({
+          actions: [
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          resources: [
+            logGroup.logGroupArn,
+            `${logGroup.logGroupArn}:log-stream:*`
+          ]
+        })]
+    })
+
+    const role = new Role(this, "LambdaRole", {
       assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
       managedPolicies: [
+        putLogsManagedPolicy,
+        lambdaInsightsLogGroupPolicy,
+        cloudwatchEncryptionKMSPolicy,
         lambdaDecryptSecretsKMSPolicy,
-        ...props.additionalPolicies ?? []
+        ...(props.additionalPolicies ?? [])
       ]
+    })
+
+    const getSecretsLambdaLayer = new LayerVersion(this, "GetSecretsLambdaLayer", {
+      description: "get secrets layer",
+      code: Code.fromAsset(join(baseDir, "packages/getSecretLayer/lib/get-secrets-layer.zip")),
+      removalPolicy: RemovalPolicy.RETAIN
     })
 
     const putLogsPolicy = new ManagedPolicy(this, `${props.functionName}PutLogsPolicy`, {
@@ -59,41 +133,76 @@ export class LambdaFunction extends Construct {
 
     role.addManagedPolicy(putLogsPolicy)
 
-    const lambdaFunction = new PythonFunction(this, props.functionName, {
-      entry: props.packageBasePath,
-      runtime: Runtime.PYTHON_3_12,
-      handler: "handler",
-      index: props.entryPoint,
-      timeout: Duration.seconds(60),
+    const lambdaFunction = new lambda.Function(this, props.functionName, {
+      runtime: Runtime.PYTHON_3_13,
       memorySize: 256,
+      timeout: Duration.seconds(50),
+      architecture: Architecture.X86_64,
+      handler: "handler",
+      code: lambda.Code.fromAsset(props.packageBasePath, {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+          local: {
+            tryBundle(outputDir: string) {
+              try {
+                execSync("pip3 --version", {stdio: "inherit"})
+              } catch {
+                return false
+              }
+
+              const cwd = resolve(props.packageBasePath)
+              const commands = []
+
+              if (existsSync(join(cwd, "requirements.txt"))) {
+                commands.push(`pip3 install -r requirements.txt -t ${outputDir}`)
+              }
+
+              commands.push(`cp -a . ${outputDir}`)
+
+              execSync(commands.join(" && "), {
+                cwd,
+                stdio: "inherit"
+              })
+
+              return true
+            }
+          }
+        }
+      }),
       role,
       environment: {
         ...props.environmentVariables,
         LOG_LEVEL: props.logLevel
       },
-      bundling: {
-        command: [
-          "bash", "-c",
-          [
-            "echo 'Checking input path...'; ls -la /asset-input",
-            "mkdir -p /asset-output",
-            "shopt -s nullglob",
-            "cp -r /asset-input/* /asset-output/",
-            "echo 'Copied to output.'; ls -la /asset-output"
-          ].join(" && ")
-        ]
-      }
+      logGroup,
+      layers: [
+        insightsLambdaLayer,
+        getSecretsLambdaLayer
+      ]
     })
 
-    this.function = lambdaFunction
+    const cfnLambda = lambdaFunction.node.defaultChild as CfnFunction
+    cfnLambda.cfnOptions.metadata = {
+      guard: {
+        SuppressedRules: [
+          "LAMBDA_DLQ_CHECK",
+          "LAMBDA_INSIDE_VPC",
+          "LAMBDA_CONCURRENCY_CHECK"
+        ]
+      }
+    }
 
-    this.executionPolicy = new ManagedPolicy(this, `${props.functionName}InvokePolicy`, {
+    const executionManagedPolicy = new ManagedPolicy(this, "ExecuteLambdaManagedPolicy", {
+      description: `execute lambda ${props.functionName}`,
       statements: [
         new PolicyStatement({
           actions: ["lambda:InvokeFunction"],
           resources: [lambdaFunction.functionArn]
-        })
-      ]
+        })]
     })
+
+    // Outputs
+    this.function = lambdaFunction
+    this.executionPolicy = executionManagedPolicy
   }
 }

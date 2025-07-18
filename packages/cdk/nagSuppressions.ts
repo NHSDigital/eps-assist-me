@@ -1,12 +1,14 @@
+/* eslint-disable max-len */
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack) => {
+  // Suppress wildcard log permissions for SlackBot
   safeAddNagSuppressionGroup(
     stack,
     [
-      "/EpsAssistMeStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource",
-      "/EpsAssistMeStack/SlackBotLambda/SlackBotFunctionPutLogsPolicy/Resource"
+      "/EpsAssistMeStack/SlackBotLambda/SlackBotFunctionPutLogsPolicy/Resource",
+      "/EpsAssistMeStack/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource"
     ],
     [
       {
@@ -16,9 +18,25 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress wildcard log permissions for CreateIndex Lambda
+  safeAddNagSuppressionGroup(
+    stack,
+    [
+      "/EpsAssistMeStack/CreateIndexFunction/CreateIndexFunctionPutLogsPolicy/Resource",
+      "/EpsAssistMeStack/CreateIndexFunction/LambdaPutLogsManagedPolicy/Resource"
+    ],
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions are required for log stream access under known paths."
+      }
+    ]
+  )
+
+  // Suppress API Gateway validation warning
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/EpsAssistApiGateway/RestApi/Resource",
+    "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Resource",
     [
       {
         id: "AwsSolutions-APIG2",
@@ -27,9 +45,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress AWS managed policy warning for default CDK log retention resource
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource",
+    "/EpsAssistMeStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -38,10 +57,11 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress unauthenticated API Gateway route warnings
   safeAddNagSuppressionGroup(
     stack,
     [
-      "/EpsAssistMeStack/EpsAssistApiGateway/RestApi/Default/slack/ask-eps/POST/Resource"
+      "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource"
     ],
     [
       {
@@ -55,7 +75,7 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // 🔒 Suppress missing S3 access logs (AwsSolutions-S1)
+  // Suppress missing S3 access logs (AwsSolutions-S1)
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/EpsAssistDocsBucket/Resource",
@@ -82,10 +102,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // 🛡️ Suppress lack of WAF on API Gateway stage
+  // Suppress lack of WAF on API Gateway stage
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/EpsAssistApiGateway/RestApi/DeploymentStage.prod/Resource",
+    "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
     [
       {
         id: "AwsSolutions-APIG3",
@@ -94,7 +114,7 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // ⚠️ Suppress non-latest Lambda runtime
+  // Suppress non-latest Lambda runtime
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/SlackBotLambda/SlackBotFunction/Resource",
@@ -110,13 +130,15 @@ export const nagSuppressions = (stack: Stack) => {
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
   try {
     NagSuppressions.addResourceSuppressionsByPath(stack, path, suppressions)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     console.log(`Could not find path ${path}`)
   }
 }
 
-const safeAddNagSuppressionGroup = (stack: Stack, paths: string[], suppressions: Array<NagPackSuppression>) => {
-  for (const path of paths) {
-    safeAddNagSuppression(stack, path, suppressions)
+// Apply the same nag suppression to multiple resources
+const safeAddNagSuppressionGroup = (stack: Stack, path: Array<string>, suppressions: Array<NagPackSuppression>) => {
+  for (const p of path) {
+    safeAddNagSuppression(stack, p, suppressions)
   }
 }

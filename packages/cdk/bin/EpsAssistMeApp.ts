@@ -18,16 +18,13 @@ const accountId = app.node.tryGetContext("accountId")
 const stackName = app.node.tryGetContext("stackName")
 const version = app.node.tryGetContext("versionNumber")
 const commit = app.node.tryGetContext("commitId")
-// Retrieve new context values
-const logRetentionInDays = app.node.tryGetContext("logRetentionInDays")
-const logLevel = app.node.tryGetContext("logLevel")
 
 Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
 
 Tags.of(app).add("cdkApp", "EpsAssistMe")
-Tags.of(app).add("stackName", stackName ?? "unknown")
-Tags.of(app).add("version", version ?? "dev")
-Tags.of(app).add("commit", commit ?? "none")
+Tags.of(app).add("stackName", stackName)
+Tags.of(app).add("version", version)
+Tags.of(app).add("commit", commit)
 
 new EpsAssistMeStack(app, "EpsAssistMeStack", {
   env: {
@@ -36,7 +33,5 @@ new EpsAssistMeStack(app, "EpsAssistMeStack", {
   },
   stackName: stackName,
   version: version,
-  commitId: commit,
-  logRetentionInDays: parseInt(logRetentionInDays),
-  logLevel: logLevel
+  commitId: commit
 })
