@@ -80,7 +80,7 @@ cdk-deploy: guard-stack_name
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-synth: download-get-secrets-layer
+cdk-synth:
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
