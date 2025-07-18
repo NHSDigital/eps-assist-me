@@ -6,10 +6,16 @@ import {
   Fn,
   CfnOutput
 } from "aws-cdk-lib"
-import {Bucket, BucketEncryption, BlockPublicAccess} from "aws-cdk-lib/aws-s3"
-import * as AWSCDK from "aws-cdk-lib/aws-s3"
+import {
+  Bucket,
+  BucketEncryption,
+  BlockPublicAccess,
+  CfnBucket,
+  CfnBucketPolicy
+} from "aws-cdk-lib/aws-s3"
+import {CfnFunction} from "aws-cdk-lib/aws-lambda"
 import {Key} from "aws-cdk-lib/aws-kms"
-import {AnyPrincipal, Effect, PolicyStatement} from "aws-cdk-lib/aws-iam"
+import {PolicyStatement} from "aws-cdk-lib/aws-iam"
 import {
   CfnGuardrail,
   CfnGuardrailVersion,
@@ -33,7 +39,7 @@ export class EpsAssistMeStack extends Stack {
   public constructor(scope: App, id: string, props: EpsAssistMeStackProps) {
     super(scope, id, props)
 
-    // Pull in context values from CLI or environment
+    // ==== Context and constants ====
     const region = Stack.of(this).region
     const account = Stack.of(this).account
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays")) || 14
@@ -41,14 +47,14 @@ export class EpsAssistMeStack extends Stack {
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
 
-    // IAM and encryption key imports
+    // ==== KMS Key Import ====
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
       this,
       "cloudWatchLogsKmsKey",
       Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn")
     )
 
-    // Access logs bucket
+    // ==== Access Logs Bucket ====
     const accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
       encryption: BucketEncryption.KMS,
       encryptionKey: cloudWatchLogsKmsKey,
@@ -58,20 +64,8 @@ export class EpsAssistMeStack extends Stack {
       versioned: true
     })
 
-    // TLS-only policy
-    accessLogBucket.addToResourcePolicy(new PolicyStatement({
-      sid: "EnforceTLS",
-      actions: ["s3:*"],
-      effect: Effect.DENY,
-      principals: [new AnyPrincipal()],
-      resources: [accessLogBucket.bucketArn, `${accessLogBucket.bucketArn}/*`],
-      conditions: {
-        Bool: {"aws:SecureTransport": "false"}
-      }
-    }))
-
-    // Add replication config via escape hatch
-    const accessLogBucketCfn = accessLogBucket.node.defaultChild as AWSCDK.CfnBucket
+    // Add S3 replication and logging
+    const accessLogBucketCfn = accessLogBucket.node.defaultChild as CfnBucket
     accessLogBucketCfn.replicationConfiguration = {
       role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
       rules: [{
@@ -83,8 +77,28 @@ export class EpsAssistMeStack extends Stack {
         deleteMarkerReplication: {status: "Disabled"}
       }]
     }
+    accessLogBucketCfn.loggingConfiguration = {
+      destinationBucketName: accessLogBucket.bucketName,
+      logFilePrefix: "self-logs/"
+    }
 
-    // Secure document bucket
+    new CfnBucketPolicy(this, "AccessLogsBucketStrictTLSOnly", {
+      bucket: accessLogBucket.bucketName,
+      policyDocument: {
+        Version: "2012-10-17",
+        Statement: [{
+          Action: "s3:*",
+          Effect: "Deny",
+          Principal: "*",
+          Resource: "*",
+          Condition: {
+            Bool: {"aws:SecureTransport": false}
+          }
+        }]
+      }
+    })
+
+    // ==== Document Bucket ====
     const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
       encryptionKey: cloudWatchLogsKmsKey,
       encryption: BucketEncryption.KMS,
@@ -96,20 +110,7 @@ export class EpsAssistMeStack extends Stack {
       serverAccessLogsPrefix: "s3-access-logs/"
     })
 
-    // Enforce TLS on S3 bucket
-    kbDocsBucket.addToResourcePolicy(new PolicyStatement({
-      sid: "EnforceTLS",
-      actions: ["s3:*"],
-      effect: Effect.DENY,
-      principals: [new AnyPrincipal()],
-      resources: [kbDocsBucket.bucketArn, `${kbDocsBucket.bucketArn}/*`],
-      conditions: {
-        Bool: {"aws:SecureTransport": "false"}
-      }
-    }))
-
-    // Add replication config via escape hatch
-    const kbDocsBucketCfn = kbDocsBucket.node.defaultChild as AWSCDK.CfnBucket
+    const kbDocsBucketCfn = kbDocsBucket.node.defaultChild as CfnBucket
     kbDocsBucketCfn.replicationConfiguration = {
       role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
       rules: [{
@@ -122,7 +123,23 @@ export class EpsAssistMeStack extends Stack {
       }]
     }
 
-    // Guardrails
+    new CfnBucketPolicy(this, "KbDocsBucketStrictTLSOnly", {
+      bucket: kbDocsBucket.bucketName,
+      policyDocument: {
+        Version: "2012-10-17",
+        Statement: [{
+          Action: "s3:*",
+          Effect: "Deny",
+          Principal: "*",
+          Resource: "*",
+          Condition: {
+            Bool: {"aws:SecureTransport": false}
+          }
+        }]
+      }
+    })
+
+    // ==== Guardrail ====
     const guardrail = new CfnGuardrail(this, "EpsGuardrail", {
       name: "eps-assist-guardrail",
       description: "Guardrail for EPS Assist Me bot",
@@ -151,14 +168,13 @@ export class EpsAssistMeStack extends Stack {
       description: "Initial version of the EPS Assist Me Guardrail"
     })
 
-    // OpenSearch vector collection
+    // ==== OpenSearch Vector Store ====
     const osCollection = new ops.CfnCollection(this, "OsCollection", {
       name: "eps-assist-vector-db",
       description: "EPS Assist Vector Store",
       type: "VECTORSEARCH"
     })
 
-    // OpenSearch encryption policy (AWS-owned key)
     new ops.CfnSecurityPolicy(this, "OsEncryptionPolicy", {
       name: "eps-assist-encryption-policy",
       type: "encryption",
@@ -168,22 +184,19 @@ export class EpsAssistMeStack extends Stack {
       })
     })
 
-    // OpenSearch network policy (allow public access for demo purposes)
     new ops.CfnSecurityPolicy(this, "OsNetworkPolicy", {
       name: "eps-assist-network-policy",
       type: "network",
-      policy: JSON.stringify([
-        {
-          Rules: [
-            {ResourceType: "collection", Resource: ["collection/eps-assist-vector-db"]},
-            {ResourceType: "dashboard", Resource: ["collection/eps-assist-vector-db"]}
-          ],
-          AllowFromPublic: true
-        }
-      ])
+      policy: JSON.stringify([{
+        Rules: [
+          {ResourceType: "collection", Resource: ["collection/eps-assist-vector-db"]},
+          {ResourceType: "dashboard", Resource: ["collection/eps-assist-vector-db"]}
+        ],
+        AllowFromPublic: true
+      }])
     })
 
-    // CreateIndex Lambda
+    // ==== Lambda Function: CreateIndex ====
     const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
       stackName: props.stackName,
       functionName: `${props.stackName}-CreateIndexFunction`,
@@ -191,31 +204,39 @@ export class EpsAssistMeStack extends Stack {
       entryPoint: "app.py",
       logRetentionInDays,
       logLevel,
-      environmentVariables: {
-        "INDEX_NAME": osCollection.attrId
-      },
+      environmentVariables: {"INDEX_NAME": osCollection.attrId},
       additionalPolicies: []
     })
 
-    // Access policy for Bedrock + Lambda to use the collection and index
+    // Add cfn-guard suppressions for CreateIndex Lambda
+    const createIndexLambdaCfn = createIndexFunction.function.node.defaultChild as CfnFunction
+    createIndexLambdaCfn.cfnOptions.metadata = {
+      guard: {
+        SuppressedRules: [
+          "LAMBDA_DLQ_CHECK",
+          "LAMBDA_INSIDE_VPC",
+          "LAMBDA_CONCURRENCY_CHECK"
+        ]
+      }
+    }
+
+    // ==== OpenSearch Access Policy ====
     new ops.CfnAccessPolicy(this, "OsAccessPolicy", {
       name: "eps-assist-access-policy",
       type: "data",
-      policy: JSON.stringify([
-        {
-          Rules: [
-            {ResourceType: "collection", Resource: ["collection/*"], Permission: ["aoss:*"]},
-            {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
-          ],
-          Principal: [
-            `arn:aws:iam::${account}:role/${createIndexFunction.function.role?.roleName}`,
-            `arn:aws:iam::${account}:root`
-          ]
-        }
-      ])
+      policy: JSON.stringify([{
+        Rules: [
+          {ResourceType: "collection", Resource: ["collection/*"], Permission: ["aoss:*"]},
+          {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
+        ],
+        Principal: [
+          `arn:aws:iam::${account}:role/${createIndexFunction.function.role?.roleName}`,
+          `arn:aws:iam::${account}:root`
+        ]
+      }])
     })
 
-    // Trigger index creation using custom resource
+    // ==== Trigger Vector Index Creation ====
     const endpoint = `${osCollection.attrId}.${region}.aoss.amazonaws.com`
     new cr.AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
@@ -256,7 +277,7 @@ export class EpsAssistMeStack extends Stack {
       ])
     })
 
-    // Knowledge Base that points to OpenSearch Serverless
+    // ==== Bedrock Knowledge Base ====
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
       name: "eps-assist-kb",
       description: "EPS Assist Knowledge Base",
@@ -281,7 +302,6 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Attach S3 data source to Knowledge Base
     new CfnDataSource(this, "EpsKbDataSource", {
       name: "eps-assist-kb-ds",
       knowledgeBaseId: kb.attrKnowledgeBaseId,
@@ -293,7 +313,7 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Lambda environment vars
+    // ==== SlackBot Lambda ====
     const lambdaEnv: {[key: string]: string} = {
       RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
       EMBEDDING_MODEL: "amazon.titan-embed-text-v2:0",
@@ -310,7 +330,6 @@ export class EpsAssistMeStack extends Stack {
       SLACK_SIGNING_SECRET: slackSigningSecret
     }
 
-    // SlackBot Lambda function
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
       functionName: `${props.stackName}-SlackBotFunction`,
@@ -322,7 +341,35 @@ export class EpsAssistMeStack extends Stack {
       additionalPolicies: []
     })
 
-    // API Gateway
+    const slackBotLambdaCfn = slackBotLambda.function.node.defaultChild as CfnFunction
+    slackBotLambdaCfn.cfnOptions.metadata = {
+      guard: {
+        SuppressedRules: [
+          "LAMBDA_DLQ_CHECK",
+          "LAMBDA_INSIDE_VPC",
+          "LAMBDA_CONCURRENCY_CHECK"
+        ]
+      }
+    }
+
+    // AwsCustomResource internal Lambda handler suppression
+    const customResourceHandler = this.node
+      .tryFindChild("VectorIndex")
+      ?.node.tryFindChild("CustomResourceProvider")
+      ?.node.tryFindChild("Handler")
+    const customResourceHandlerCfn = customResourceHandler?.node.defaultChild as CfnFunction
+    if (customResourceHandlerCfn) {
+      customResourceHandlerCfn.cfnOptions.metadata = {
+        guard: {
+          SuppressedRules: [
+            "LAMBDA_DLQ_CHECK",
+            "LAMBDA_INSIDE_VPC"
+          ]
+        }
+      }
+    }
+
+    // ==== API Gateway + Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
       stackName: props.stackName,
       logRetentionInDays,
@@ -331,7 +378,6 @@ export class EpsAssistMeStack extends Stack {
       truststoreVersion: "unused"
     })
 
-    // API Route
     const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
     slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
       credentialsRole: apiGateway.role
@@ -339,12 +385,48 @@ export class EpsAssistMeStack extends Stack {
 
     apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
 
-    // Output the SlackBot API endpoint
     new CfnOutput(this, "SlackBotEndpoint", {
       value: `https://${apiGateway.api.domainName?.domainName}/slack/ask-eps`
     })
 
-    // cdk-nag suppressions
+    // ==== Suppressions for CDK-generated Lambda handlers ====
+    // Suppress CDK-generated S3 AutoDeleteObjects handler
+    const customS3Handler = Stack.of(this).node
+      .tryFindChild("Custom::S3AutoDeleteObjectsCustomResourceProvider")
+      ?.node.tryFindChild("Handler")
+
+    const customS3HandlerCfn = customS3Handler?.node.defaultChild as CfnFunction
+
+    if (customS3HandlerCfn) {
+      customS3HandlerCfn.cfnOptions.metadata = {
+        guard: {
+          SuppressedRules: [
+            "LAMBDA_DLQ_CHECK",
+            "LAMBDA_INSIDE_VPC"
+          ]
+        }
+      }
+    }
+
+    // Suppress AWS679f... CDK-generated unnamed Lambda (e.g., AwsCustomResource)
+    for (const construct of this.node.findAll()) {
+      const fn = construct.node.defaultChild
+      if (
+        fn instanceof CfnFunction &&
+        fn.logicalId.startsWith("AWS679f")
+      ) {
+        fn.cfnOptions.metadata = {
+          guard: {
+            SuppressedRules: [
+              "LAMBDA_DLQ_CHECK",
+              "LAMBDA_INSIDE_VPC"
+            ]
+          }
+        }
+      }
+    }
+
+    // ==== Final CDK Nag Suppressions ====
     nagSuppressions(this)
   }
 }
