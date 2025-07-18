@@ -51,12 +51,12 @@ pushd $DOCS_DIR
 # download the docs
 for doc in "${DOC_LIST[@]}"
 do
-  curl -L -o "$DOCS_DIR/$(basename $doc)" $doc
+  curl -L -o "$DOCS_DIR/$(basename "$doc")" "$doc"
 done
 
-aws s3 sync $DOCS_DIR $S3_URI
+aws s3 sync $DOCS_DIR "$S3_URI"
 # popd
 rm -rf $DOCS_DIR
 
 # sync kb
-aws bedrock-agent start-ingestion-job --knowledge-base-id $KB_ID --data-source-id $DS_ID
+aws bedrock-agent start-ingestion-job --knowledge-base-id "$KB_ID" --data-source-id "$DS_ID"

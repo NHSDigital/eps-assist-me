@@ -37,6 +37,7 @@ lint-githubactions:
 	actionlint
 
 lint-githubaction-scripts:
+	shellcheck scripts/*.sh
 	shellcheck .github/scripts/*.sh
 
 test: compile-node
