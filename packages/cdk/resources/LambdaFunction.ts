@@ -13,13 +13,10 @@ import {Stream} from "aws-cdk-lib/aws-kinesis"
 import {
   Architecture,
   CfnFunction,
-  Code,
   LayerVersion,
   Runtime
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
-import {Queue} from "aws-cdk-lib/aws-sqs"
-import {Vpc, SubnetType, SecurityGroup} from "aws-cdk-lib/aws-ec2"
 import {join, resolve} from "path"
 import {existsSync} from "fs"
 import {execSync} from "child_process"
@@ -115,18 +112,6 @@ export class LambdaFunction extends Construct {
       ]
     })
 
-    // DLQ for Lambda (required by ncsc.guard)
-    const dlq = new Queue(this, `${props.functionName}DLQ`, {
-      retentionPeriod: Duration.days(14)
-    })
-
-    // Lambda inside VPC (required by ncsc.guard)
-    const vpc = Vpc.fromLookup(this, "Vpc", {isDefault: true})
-    const securityGroup = new SecurityGroup(this, "LambdaSecurityGroup", {
-      vpc,
-      description: "Lambda SG for internal access"
-    })
-
     // Define the Lambda function
     const lambdaFunction = new lambda.Function(this, props.functionName, {
       runtime: Runtime.PYTHON_3_13,
@@ -167,15 +152,7 @@ export class LambdaFunction extends Construct {
         LOG_LEVEL: props.logLevel
       },
       logGroup,
-      layers: [
-        insightsLambdaLayer
-      ],
-      deadLetterQueue: dlq,
-      vpc,
-      securityGroups: [securityGroup],
-      vpcSubnets: {
-        subnetType: SubnetType.PRIVATE_WITH_EGRESS
-      }
+      layers: [insightsLambdaLayer]
     })
 
     // Guard rule suppressions (can be removed after full compliance)

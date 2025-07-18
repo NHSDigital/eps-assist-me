@@ -36,7 +36,7 @@ export class EpsAssistMeStack extends Stack {
     // Pull in context values from CLI or environment
     const region = Stack.of(this).region
     const account = Stack.of(this).account
-    let logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays")) || 14
+    const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays")) || 14
     const logLevel: string = this.node.tryGetContext("logLevel")
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
