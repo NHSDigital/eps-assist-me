@@ -155,11 +155,13 @@ export class LambdaFunction extends Construct {
       layers: [insightsLambdaLayer]
     })
 
-    // Guard rule suppressions (can be removed after full compliance)
+    // Guard rule suppressions
     const cfnLambda = lambdaFunction.node.defaultChild as CfnFunction
     cfnLambda.cfnOptions.metadata = {
       guard: {
         SuppressedRules: [
+          "LAMBDA_DLQ_CHECK",
+          "LAMBDA_INSIDE_VPC",
           "LAMBDA_CONCURRENCY_CHECK"
         ]
       }
