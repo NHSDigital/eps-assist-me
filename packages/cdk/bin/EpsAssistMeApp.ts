@@ -10,8 +10,6 @@ const app = new App()
 - stackName
 - version
 - commit
-- logRetentionInDays
-- logLevel
 */
 
 const accountId = app.node.tryGetContext("accountId")
@@ -22,6 +20,7 @@ const commit = app.node.tryGetContext("commitId")
 Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
 
 Tags.of(app).add("cdkApp", "EpsAssistMe")
+Tags.of(app).add("accountId", accountId)
 Tags.of(app).add("stackName", stackName)
 Tags.of(app).add("version", version)
 Tags.of(app).add("commit", commit)
