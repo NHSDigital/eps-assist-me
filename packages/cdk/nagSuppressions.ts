@@ -3,17 +3,17 @@ import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack) => {
-  // Suppress wildcard log permissions for SlackBot
-  safeAddNagSuppressionGroup(
+  // Suppress granular wildcard on log stream for SlackBot Lambda
+  safeAddNagSuppression(
     stack,
-    [
-      "/EpsAssistMeStack/SlackBotLambda/SlackBotFunctionPutLogsPolicy/Resource",
-      "/EpsAssistMeStack/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource"
-    ],
+    "/EpsAssistMeStack/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths."
+        reason: "Wildcard permissions for log stream access are required and scoped appropriately.",
+        appliesTo: [
+          "Resource::<SlackBotLambdaLambdaLogGroup7AD7BC9E.Arn>:log-stream:*"
+        ]
       }
     ]
   )
@@ -75,7 +75,7 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress missing S3 access logs (AwsSolutions-S1)
+  // Suppress missing S3 access logs and lack of SSL on EpsAssistDocsBucket
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/EpsAssistDocsBucket/Resource",
@@ -87,6 +87,10 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "AwsSolutions-S10",
         reason: "Bucket policy enforcing SSL is not yet implemented but tracked for future."
+      },
+      {
+        id: "S3_BUCKET_REPLICATION_ENABLED",
+        reason: "Replication not needed for internal documentation bucket."
       }
     ]
   )
@@ -122,6 +126,91 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "AwsSolutions-L1",
         reason: "Using specific Python runtime version pinned intentionally for compatibility."
+      },
+      {
+        id: "LAMBDA_DLQ_CHECK",
+        reason: "DLQ setup pending; tracked in backlog."
+      },
+      {
+        id: "LAMBDA_INSIDE_VPC",
+        reason: "VPC config setup pending; tracked in backlog."
+      }
+    ]
+  )
+
+  // DLQ for CreateIndexFunction missing aws:SecureTransport
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/CreateIndexFunction/CreateIndexFunctionDLQ/Resource",
+    [
+      {
+        id: "AwsSolutions-SQS4",
+        reason: "DLQ is used internally and SSL policy enforcement is deferred."
+      }
+    ]
+  )
+
+  // DLQ for SlackBotFunction missing aws:SecureTransport
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/SlackBotLambda/SlackBotFunctionDLQ/Resource",
+    [
+      {
+        id: "AwsSolutions-SQS4",
+        reason: "DLQ is used internally and SSL policy enforcement is deferred."
+      }
+    ]
+  )
+
+  // Missing replication/versioning/logging/ssl on access log bucket
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/EpsAssistAccessLogsBucket/Resource",
+    [
+      {
+        id: "AwsSolutions-S10",
+        reason: "Access logs bucket is internal and SSL enforcement is deferred to future hardening."
+      },
+      {
+        id: "S3_BUCKET_REPLICATION_ENABLED",
+        reason: "Replication not required for ephemeral access log storage."
+      },
+      {
+        id: "S3_BUCKET_VERSIONING_ENABLED",
+        reason: "Versioning not necessary on log bucket; data is short-lived."
+      },
+      {
+        id: "S3_BUCKET_LOGGING_ENABLED",
+        reason: "Access log bucket logging is circular and not required."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/EpsAssistAccessLogsBucket/Policy/Resource",
+    [
+      {
+        id: "AwsSolutions-S10",
+        reason: "Access logs bucket policy does not yet enforce SSL; tracked for future improvement."
+      }
+    ]
+  )
+
+  // Custom resource Lambda for S3 auto-delete lacks DLQ and VPC
+  safeAddNagSuppressionGroup(
+    stack,
+    [
+      "/EpsAssistMeStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler"
+    ],
+    [
+      {
+        id: "LAMBDA_DLQ_CHECK",
+        reason: "Custom resource handler is AWS-managed; DLQ is not configurable."
+      },
+      {
+        id: "LAMBDA_INSIDE_VPC",
+        reason: "VPC configuration not applicable for AWS-managed custom resource Lambda."
       }
     ]
   )

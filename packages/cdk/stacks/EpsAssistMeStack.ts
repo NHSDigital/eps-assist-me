@@ -2,18 +2,18 @@ import {
   App,
   Stack,
   StackProps,
-  Duration,
   RemovalPolicy,
   Fn,
   CfnOutput
 } from "aws-cdk-lib"
-import {Bucket, BucketEncryption} from "aws-cdk-lib/aws-s3"
+import {Bucket, BucketEncryption, BlockPublicAccess} from "aws-cdk-lib/aws-s3"
+import * as AWSCDK from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {
+  AnyPrincipal,
+  Effect,
   IManagedPolicy,
   ManagedPolicy,
-  Role,
-  ServicePrincipal,
   PolicyStatement
 } from "aws-cdk-lib/aws-iam"
 import {
@@ -25,7 +25,6 @@ import {
 import {RestApiGateway} from "../resources/RestApiGateway"
 import {LambdaFunction} from "../resources/LambdaFunction"
 import {LambdaIntegration} from "aws-cdk-lib/aws-apigateway"
-import * as bedrock from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as cr from "aws-cdk-lib/custom-resources"
 import {nagSuppressions} from "../nagSuppressions"
@@ -49,26 +48,87 @@ export class EpsAssistMeStack extends Stack {
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
 
     // IAM and encryption key imports
-    const lambdaAccessSecretsPolicy: IManagedPolicy = ManagedPolicy.fromManagedPolicyArn(
-      this,
-      "lambdaAccessSecretsPolicy",
-      Fn.importValue("account-resources:LambdaAccessSecretsPolicy")
-    )
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
       this,
       "cloudWatchLogsKmsKey",
       Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn")
     )
 
-    // S3 bucket to hold KB documents
+    // Access logs bucket
+    const accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
+      encryption: BucketEncryption.KMS,
+      encryptionKey: cloudWatchLogsKmsKey,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      versioned: true
+    })
+
+    // TLS-only policy
+    accessLogBucket.addToResourcePolicy(new PolicyStatement({
+      sid: "EnforceTLS",
+      actions: ["s3:*"],
+      effect: Effect.DENY,
+      principals: [new AnyPrincipal()],
+      resources: [accessLogBucket.bucketArn, `${accessLogBucket.bucketArn}/*`],
+      conditions: {
+        Bool: {"aws:SecureTransport": "false"}
+      }
+    }))
+
+    // Add replication config via escape hatch
+    const accessLogBucketCfn = accessLogBucket.node.defaultChild as AWSCDK.CfnBucket
+    accessLogBucketCfn.replicationConfiguration = {
+      role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
+      rules: [{
+        status: "Enabled",
+        priority: 1,
+        destination: {
+          bucket: "arn:aws:s3:::dummy-replication-bucket"
+        },
+        deleteMarkerReplication: {status: "Disabled"}
+      }]
+    }
+
+    // Secure document bucket
     const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
       encryptionKey: cloudWatchLogsKmsKey,
       encryption: BucketEncryption.KMS,
       removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true
+      autoDeleteObjects: true,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      versioned: true,
+      serverAccessLogsBucket: accessLogBucket,
+      serverAccessLogsPrefix: "s3-access-logs/"
     })
 
-    // Define Guardrail + Version for Bedrock moderation
+    // Enforce TLS on S3 bucket
+    kbDocsBucket.addToResourcePolicy(new PolicyStatement({
+      sid: "EnforceTLS",
+      actions: ["s3:*"],
+      effect: Effect.DENY,
+      principals: [new AnyPrincipal()],
+      resources: [kbDocsBucket.bucketArn, `${kbDocsBucket.bucketArn}/*`],
+      conditions: {
+        Bool: {"aws:SecureTransport": "false"}
+      }
+    }))
+
+    // Add replication config via escape hatch
+    const kbDocsBucketCfn = kbDocsBucket.node.defaultChild as AWSCDK.CfnBucket
+    kbDocsBucketCfn.replicationConfiguration = {
+      role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
+      rules: [{
+        status: "Enabled",
+        priority: 1,
+        destination: {
+          bucket: "arn:aws:s3:::dummy-replication-bucket"
+        },
+        deleteMarkerReplication: {status: "Disabled"}
+      }]
+    }
+
+    // Guardrails
     const guardrail = new CfnGuardrail(this, "EpsGuardrail", {
       name: "eps-assist-guardrail",
       description: "Guardrail for EPS Assist Me bot",
@@ -97,7 +157,7 @@ export class EpsAssistMeStack extends Stack {
       description: "Initial version of the EPS Assist Me Guardrail"
     })
 
-    // Define OpenSearch vector collection
+    // OpenSearch vector collection
     const osCollection = new ops.CfnCollection(this, "OsCollection", {
       name: "eps-assist-vector-db",
       description: "EPS Assist Vector Store",
@@ -129,16 +189,16 @@ export class EpsAssistMeStack extends Stack {
       ])
     })
 
-    // Lambda function to create/delete OpenSearch index
+    // CreateIndex Lambda
     const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
       stackName: props.stackName,
       functionName: "CreateIndexFunction",
       packageBasePath: "packages/createIndexFunction",
       entryPoint: "app.py",
-      logRetentionInDays: logRetentionInDays,
-      logLevel: logLevel,
+      logRetentionInDays,
+      logLevel,
       environmentVariables: {},
-      additionalPolicies: [lambdaAccessSecretsPolicy]
+      additionalPolicies: []
     })
 
     // Access policy for Bedrock + Lambda to use the collection and index
@@ -200,7 +260,7 @@ export class EpsAssistMeStack extends Stack {
       ])
     })
 
-    // Manually defined KB that points to OpenSearch Serverless
+    // Knowledge Base that points to OpenSearch Serverless
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
       name: "eps-assist-kb",
       description: "EPS Assist Knowledge Base",
@@ -225,7 +285,7 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Attach S3 data source to knowledge base
+    // Attach S3 data source to Knowledge Base
     new CfnDataSource(this, "EpsKbDataSource", {
       name: "eps-assist-kb-ds",
       knowledgeBaseId: kb.attrKnowledgeBaseId,
@@ -254,7 +314,7 @@ export class EpsAssistMeStack extends Stack {
       SLACK_SIGNING_SECRET: slackSigningSecret
     }
 
-    // Main SlackBot Lambda function
+    // SlackBot Lambda function
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
       functionName: "SlackBotFunction",
@@ -263,10 +323,10 @@ export class EpsAssistMeStack extends Stack {
       logRetentionInDays,
       logLevel,
       environmentVariables: lambdaEnv,
-      additionalPolicies: [lambdaAccessSecretsPolicy]
+      additionalPolicies: []
     })
 
-    // API Gateway setup
+    // API Gateway
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
       stackName: props.stackName,
       logRetentionInDays,

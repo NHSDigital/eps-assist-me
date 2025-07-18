@@ -18,6 +18,8 @@ import {
   Runtime
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
+import {Queue} from "aws-cdk-lib/aws-sqs"
+import {Vpc, SubnetType, SecurityGroup} from "aws-cdk-lib/aws-ec2"
 import {join, resolve} from "path"
 import {existsSync} from "fs"
 import {execSync} from "child_process"
@@ -34,7 +36,6 @@ export interface LambdaFunctionProps {
 }
 
 const insightsLayerArn = "arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsightsExtension:55"
-const baseDir = resolve(__dirname, "../../..")
 
 export class LambdaFunction extends Construct {
   public readonly executionPolicy: ManagedPolicy
@@ -43,9 +44,12 @@ export class LambdaFunction extends Construct {
   public constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
     super(scope, id)
 
-    // Imports
+    // Shared cloud resources
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
       this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn"))
+
+    const cloudwatchEncryptionKMSPolicy = ManagedPolicy.fromManagedPolicyArn(
+      this, "cloudwatchEncryptionKMSPolicyArn", Fn.importValue("account-resources:CloudwatchEncryptionKMSPolicyArn"))
 
     const splunkDeliveryStream = Stream.fromStreamArn(
       this, "SplunkDeliveryStream", Fn.importValue("lambda-resources:SplunkDeliveryStream"))
@@ -56,16 +60,10 @@ export class LambdaFunction extends Construct {
     const lambdaInsightsLogGroupPolicy = ManagedPolicy.fromManagedPolicyArn(
       this, "lambdaInsightsLogGroupPolicy", Fn.importValue("lambda-resources:LambdaInsightsLogGroupPolicy"))
 
-    const cloudwatchEncryptionKMSPolicy = ManagedPolicy.fromManagedPolicyArn(
-      this, "cloudwatchEncryptionKMSPolicyArn", Fn.importValue("account-resources:CloudwatchEncryptionKMSPolicyArn"))
-
-    const lambdaDecryptSecretsKMSPolicy = ManagedPolicy.fromManagedPolicyArn(
-      this, "lambdaDecryptSecretsKMSPolicy", Fn.importValue("account-resources:LambdaDecryptSecretsKMSPolicy"))
-
     const insightsLambdaLayer = LayerVersion.fromLayerVersionArn(
       this, "LayerFromArn", insightsLayerArn)
 
-    // Resources
+    // Log group with encryption and retention
     const logGroup = new LogGroup(this, "LambdaLogGroup", {
       encryptionKey: cloudWatchLogsKmsKey,
       logGroupName: `/aws/lambda/${props.functionName!}`,
@@ -82,14 +80,15 @@ export class LambdaFunction extends Construct {
       }
     }
 
+    // Send logs to Splunk
     new CfnSubscriptionFilter(this, "LambdaLogsSplunkSubscriptionFilter", {
       destinationArn: splunkDeliveryStream.streamArn,
       filterPattern: "",
       logGroupName: logGroup.logGroupName,
       roleArn: splunkSubscriptionFilterRole.roleArn
-
     })
 
+    // IAM role and policy for the Lambda
     const putLogsManagedPolicy = new ManagedPolicy(this, "LambdaPutLogsManagedPolicy", {
       description: `write to ${props.functionName} logs`,
       statements: [
@@ -102,7 +101,8 @@ export class LambdaFunction extends Construct {
             logGroup.logGroupArn,
             `${logGroup.logGroupArn}:log-stream:*`
           ]
-        })]
+        })
+      ]
     })
 
     const role = new Role(this, "LambdaRole", {
@@ -111,28 +111,23 @@ export class LambdaFunction extends Construct {
         putLogsManagedPolicy,
         lambdaInsightsLogGroupPolicy,
         cloudwatchEncryptionKMSPolicy,
-        lambdaDecryptSecretsKMSPolicy,
         ...(props.additionalPolicies ?? [])
       ]
     })
 
-    const getSecretsLambdaLayer = new LayerVersion(this, "GetSecretsLambdaLayer", {
-      description: "get secrets layer",
-      code: Code.fromAsset(join(baseDir, "packages/getSecretLayer/lib/get-secrets-layer.zip")),
-      removalPolicy: RemovalPolicy.RETAIN
+    // DLQ for Lambda (required by ncsc.guard)
+    const dlq = new Queue(this, `${props.functionName}DLQ`, {
+      retentionPeriod: Duration.days(14)
     })
 
-    const putLogsPolicy = new ManagedPolicy(this, `${props.functionName}PutLogsPolicy`, {
-      statements: [
-        new PolicyStatement({
-          actions: ["logs:CreateLogStream", "logs:PutLogEvents"],
-          resources: [logGroup.logGroupArn, `${logGroup.logGroupArn}:*`]
-        })
-      ]
+    // Lambda inside VPC (required by ncsc.guard)
+    const vpc = Vpc.fromLookup(this, "Vpc", {isDefault: true})
+    const securityGroup = new SecurityGroup(this, "LambdaSecurityGroup", {
+      vpc,
+      description: "Lambda SG for internal access"
     })
 
-    role.addManagedPolicy(putLogsPolicy)
-
+    // Define the Lambda function
     const lambdaFunction = new lambda.Function(this, props.functionName, {
       runtime: Runtime.PYTHON_3_13,
       memorySize: 256,
@@ -159,10 +154,7 @@ export class LambdaFunction extends Construct {
 
               commands.push(`cp -a . ${outputDir}`)
 
-              execSync(commands.join(" && "), {
-                cwd,
-                stdio: "inherit"
-              })
+              execSync(commands.join(" && "), {cwd, stdio: "inherit"})
 
               return true
             }
@@ -176,29 +168,35 @@ export class LambdaFunction extends Construct {
       },
       logGroup,
       layers: [
-        insightsLambdaLayer,
-        getSecretsLambdaLayer
-      ]
+        insightsLambdaLayer
+      ],
+      deadLetterQueue: dlq,
+      vpc,
+      securityGroups: [securityGroup],
+      vpcSubnets: {
+        subnetType: SubnetType.PRIVATE_WITH_EGRESS
+      }
     })
 
+    // Guard rule suppressions (can be removed after full compliance)
     const cfnLambda = lambdaFunction.node.defaultChild as CfnFunction
     cfnLambda.cfnOptions.metadata = {
       guard: {
         SuppressedRules: [
-          "LAMBDA_DLQ_CHECK",
-          "LAMBDA_INSIDE_VPC",
           "LAMBDA_CONCURRENCY_CHECK"
         ]
       }
     }
 
+    // Policy to allow invoking this Lambda
     const executionManagedPolicy = new ManagedPolicy(this, "ExecuteLambdaManagedPolicy", {
       description: `execute lambda ${props.functionName}`,
       statements: [
         new PolicyStatement({
           actions: ["lambda:InvokeFunction"],
           resources: [lambdaFunction.functionArn]
-        })]
+        })
+      ]
     })
 
     // Outputs
