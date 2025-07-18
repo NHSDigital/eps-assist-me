@@ -9,13 +9,7 @@ import {
 import {Bucket, BucketEncryption, BlockPublicAccess} from "aws-cdk-lib/aws-s3"
 import * as AWSCDK from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
-import {
-  AnyPrincipal,
-  Effect,
-  IManagedPolicy,
-  ManagedPolicy,
-  PolicyStatement
-} from "aws-cdk-lib/aws-iam"
+import {AnyPrincipal, Effect, PolicyStatement} from "aws-cdk-lib/aws-iam"
 import {
   CfnGuardrail,
   CfnGuardrailVersion,
@@ -192,12 +186,14 @@ export class EpsAssistMeStack extends Stack {
     // CreateIndex Lambda
     const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
       stackName: props.stackName,
-      functionName: "CreateIndexFunction",
+      functionName: `${props.stackName}-CreateIndexFunction`,
       packageBasePath: "packages/createIndexFunction",
       entryPoint: "app.py",
       logRetentionInDays,
       logLevel,
-      environmentVariables: {},
+      environmentVariables: {
+        "INDEX_NAME": osCollection.attrId
+      },
       additionalPolicies: []
     })
 
@@ -317,7 +313,7 @@ export class EpsAssistMeStack extends Stack {
     // SlackBot Lambda function
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
-      functionName: "SlackBotFunction",
+      functionName: `${props.stackName}-SlackBotFunction`,
       packageBasePath: "packages/slackBotFunction",
       entryPoint: "app.py",
       logRetentionInDays,
