@@ -149,13 +149,12 @@ jobs:
             -w /home/cdkuser/workspace \
             ubuntu \
             bash -c '
-              echo "Current working directory (in container): $(pwd)"
-              echo "Listing contents of CDK_APP_PATH:"
-              ls -l packages/cdk/bin/
-              echo "Listing bundled functions:"
+              echo "Working dir: $(pwd)"
+              echo "CDK app path:"; ls -l packages/cdk/bin/
+              echo "Lambda bundles:"
               ls -l .build/
-              ls -l .build/epsam-pr-${{ inputs.STACK_NAME }}-SlackBotFunction || true
-              ls -l .build/epsam-pr-${{ inputs.STACK_NAME }}-CreateIndexFunction || true
+              ls -l .build/${{ inputs.STACK_NAME }}-SlackBotFunction || true
+              ls -l .build/${{ inputs.STACK_NAME }}-CreateIndexFunction || true
             '
 
       - name: Show diff
