@@ -139,7 +139,17 @@ export class LambdaFunction extends Construct {
 
               commands.push(`cp -a . ${outputDir}`)
 
-              execSync(commands.join(" && "), {cwd, stdio: "inherit"})
+              execSync(commands.join(" && "), {
+                cwd,
+                stdio: "inherit",
+                env: {
+                  ...process.env, // Propagate parent environment
+                  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || "",
+                  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || "",
+                  AWS_SESSION_TOKEN: process.env.AWS_SESSION_TOKEN || "",
+                  AWS_REGION: process.env.AWS_REGION || "eu-west-2"
+                }
+              })
 
               return true
             }
