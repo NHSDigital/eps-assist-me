@@ -18,6 +18,12 @@ const stackName = app.node.tryGetContext("stackName")
 const version = app.node.tryGetContext("versionNumber")
 const commit = app.node.tryGetContext("commitId")
 
+console.log("CDK context:", {accountId, stackName, version, commit})
+
+if (!accountId || !stackName || !version || !commit) {
+  throw new Error(`Missing required CDK context values: ${JSON.stringify({accountId, stackName, version, commit})}`)
+}
+
 Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
 
 Tags.of(app).add("cdkApp", "EpsAssistMe")
@@ -25,12 +31,6 @@ Tags.of(app).add("accountId", accountId)
 Tags.of(app).add("stackName", stackName)
 Tags.of(app).add("version", version)
 Tags.of(app).add("commit", commit)
-
-console.log("CDK context:", {accountId, stackName, version, commit})
-
-if (!accountId || !stackName || !version || !commit) {
-  throw new Error(`Missing required CDK context values: ${JSON.stringify({accountId, stackName, version, commit})}`)
-}
 
 const EpsAssistMe = new EpsAssistMeStack(app, "EpsAssistMeStack", {
   env: {
