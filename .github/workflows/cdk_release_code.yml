@@ -132,22 +132,15 @@ jobs:
 
       - name: Bundle Lambda Functions (manual)
         run: |
-          echo "Current working directory: $(pwd)"
-          echo "Contents of current directory:"
-          ls -la
-
-          echo "Contents of packages/slackBotFunction:"
-          ls -l packages/slackBotFunction/
-
           # SlackBotFunction
           mkdir -p .build/${{ inputs.STACK_NAME }}-SlackBotFunction
-          pip3 install -r packages/slackBotFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-SlackBotFunction
-          cp -r packages/slackBotFunction/* .build/${{ inputs.STACK_NAME }}-SlackBotFunction/
+          pip3 install -r .build/packages/slackBotFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-SlackBotFunction
+          cp -r .build/packages/slackBotFunction/* .build/${{ inputs.STACK_NAME }}-SlackBotFunction/
       
           # CreateIndexFunction
           mkdir -p .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
-          pip3 install -r packages/createIndexFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
-          cp -r packages/createIndexFunction/* .build/${{ inputs.STACK_NAME }}-CreateIndexFunction/
+          pip3 install -r .build/packages/createIndexFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
+          cp -r .build/packages/createIndexFunction/* .build/${{ inputs.STACK_NAME }}-CreateIndexFunction/
 
       - name: Show diff
         run: |
