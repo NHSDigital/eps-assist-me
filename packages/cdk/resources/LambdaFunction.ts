@@ -17,9 +17,6 @@ import {
   Runtime
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
-import {join, resolve} from "path"
-import {existsSync} from "fs"
-import {execSync} from "child_process"
 
 export interface LambdaFunctionProps {
   readonly stackName: string
@@ -118,44 +115,8 @@ export class LambdaFunction extends Construct {
       memorySize: 256,
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
-      handler: "handler",
-      code: lambda.Code.fromAsset(props.packageBasePath, {
-        bundling: {
-          image: lambda.Runtime.PYTHON_3_13.bundlingImage,
-          local: {
-            tryBundle(outputDir: string) {
-              try {
-                execSync("pip3 --version", {stdio: "inherit"})
-              } catch {
-                return false
-              }
-
-              const cwd = resolve(props.packageBasePath)
-              const commands = []
-
-              if (existsSync(join(cwd, "requirements.txt"))) {
-                commands.push(`pip3 install -r requirements.txt -t ${outputDir}`)
-              }
-
-              commands.push(`cp -a . ${outputDir}`)
-
-              execSync(commands.join(" && "), {
-                cwd,
-                stdio: "inherit",
-                env: {
-                  ...process.env, // Propagate parent environment
-                  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || "",
-                  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || "",
-                  AWS_SESSION_TOKEN: process.env.AWS_SESSION_TOKEN || "",
-                  AWS_REGION: process.env.AWS_REGION || "eu-west-2"
-                }
-              })
-
-              return true
-            }
-          }
-        }
-      }),
+      handler: "app.handler",
+      code: lambda.Code.fromAsset(`.build/${props.functionName}`),
       role,
       environment: {
         ...props.environmentVariables,

@@ -130,6 +130,17 @@ jobs:
               echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:0:8}***" | tee -a /github-step-summary
             '
     
+      - name: Bundle Lambda Functions (manual)
+        run: |
+          mkdir -p .build/epsam-pr-${{ inputs.STACK_NAME }}-SlackBotFunction
+          mkdir -p .build/epsam-pr-${{ inputs.STACK_NAME }}-CreateIndexFunction
+      
+          pip3 install -r .build/packages/slackBotFunction/requirements.txt -t .build/epsam-pr-${{ inputs.STACK_NAME }}-SlackBotFunction
+          cp -r .build/packages/slackBotFunction/* .build/epsam-pr-${{ inputs.STACK_NAME }}-SlackBotFunction/
+      
+          pip3 install -r .build/packages/createIndexFunction/requirements.txt -t .build/epsam-pr-${{ inputs.STACK_NAME }}-CreateIndexFunction
+          cp -r .build/packages/createIndexFunction/* .build/epsam-pr-${{ inputs.STACK_NAME }}-CreateIndexFunction/
+           
       - name: Show diff
         run: |
           docker run \
