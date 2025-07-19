@@ -175,14 +175,8 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // ==== OpenSearch Vector Store ====
-    const osCollection = new ops.CfnCollection(this, "OsCollection", {
-      name: "eps-assist-vector-db",
-      description: "EPS Assist Vector Store",
-      type: "VECTORSEARCH"
-    })
-
     // OpenSearch encryption policy (AWS-owned key)
-    new ops.CfnSecurityPolicy(this, "OsEncryptionPolicy", {
+    const osEncryptionPolicy = new ops.CfnSecurityPolicy(this, "OsEncryptionPolicy", {
       name: "eps-assist-encryption-policy",
       type: "encryption",
       policy: JSON.stringify({
@@ -190,6 +184,16 @@ export class EpsAssistMeStack extends Stack {
         AWSOwnedKey: true
       })
     })
+
+    // Create the collection after the encryption policy
+    const osCollection = new ops.CfnCollection(this, "OsCollection", {
+      name: "eps-assist-vector-db",
+      description: "EPS Assist Vector Store",
+      type: "VECTORSEARCH"
+    })
+
+    // Add explicit dependency to ensure correct creation order
+    osCollection.addDependency(osEncryptionPolicy)
 
     // OpenSearch network policy (allow public access for demo purposes)
     new ops.CfnSecurityPolicy(this, "OsNetworkPolicy", {
