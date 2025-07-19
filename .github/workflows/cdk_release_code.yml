@@ -174,7 +174,7 @@ jobs:
             -e COMMIT_ID="${{ inputs.COMMIT_ID }}" \
             -e SHOW_DIFF="true" \
             -e DEPLOY_CODE="false" \
-            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+            -e CDK_APP_PATH=".build/packages/cdk/bin/EpsAssistMeApp.ts" \
             cdk-utils-build-repo:latest
 
       - name: Deploy code
@@ -192,7 +192,7 @@ jobs:
             -e COMMIT_ID="${{ inputs.COMMIT_ID }}" \
             -e SHOW_DIFF="false" \
             -e DEPLOY_CODE="true" \
-            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+            -e CDK_APP_PATH=".build/packages/cdk/bin/EpsAssistMeApp.ts" \
             cdk-utils-build-repo:latest
         shell: bash
 
