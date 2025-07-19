@@ -19,12 +19,9 @@ export const nagSuppressions = (stack: Stack) => {
   )
 
   // Suppress wildcard log permissions for CreateIndex Lambda
-  safeAddNagSuppressionGroup(
+  safeAddNagSuppression(
     stack,
-    [
-      "/EpsAssistMeStack/CreateIndexFunction/CreateIndexFunctionPutLogsPolicy/Resource",
-      "/EpsAssistMeStack/CreateIndexFunction/LambdaPutLogsManagedPolicy/Resource"
-    ],
+    "/EpsAssistMeStack/CreateIndexFunction/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -45,7 +42,7 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress AWS managed policy warning for default CDK log retention resource
+  // Suppress AWS managed policy usage in default CDK role
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource",
@@ -57,12 +54,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress unauthenticated API Gateway route warnings
+  // Suppress unauthenticated API route warnings
   safeAddNagSuppressionGroup(
     stack,
-    [
-      "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource"
-    ],
+    ["/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource"],
     [
       {
         id: "AwsSolutions-APIG4",
@@ -70,147 +65,99 @@ export const nagSuppressions = (stack: Stack) => {
       },
       {
         id: "AwsSolutions-COG4",
-        reason: "Cognito authorizer is not required for public Slack integration endpoint."
+        reason: "Cognito not required for this public endpoint."
       }
     ]
   )
 
-  // Suppress missing S3 access logs and lack of SSL on EpsAssistDocsBucket
+  // Suppress S3 warnings on EpsAssistDocsBucket
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/EpsAssistDocsBucket/Resource",
     [
       {
         id: "AwsSolutions-S1",
-        reason: "Access logs not required for internal, ephemeral S3 usage during development."
+        reason: "No access logs needed for internal development usage."
       },
       {
         id: "AwsSolutions-S10",
-        reason: "Bucket policy enforcing SSL is not yet implemented but tracked for future."
+        reason: "SSL enforcement via bucket policy is deferred."
       },
       {
         id: "S3_BUCKET_REPLICATION_ENABLED",
-        reason: "Replication not needed for internal documentation bucket."
+        reason: "Replication not required for internal bucket."
       }
     ]
   )
 
+  // Suppress SSL requirement on Docs bucket policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/EpsAssistDocsBucket/Policy/Resource",
+    "/EpsAssistMeStack/KbDocsTlsPolicy",
     [
       {
         id: "AwsSolutions-S10",
-        reason: "Bucket policy lacks aws:SecureTransport condition; known and acceptable short-term."
+        reason: "SSL enforcement for docs bucket policy is deferred; tracked for future hardening."
       }
     ]
   )
 
-  // Suppress lack of WAF on API Gateway stage
+  // Suppress missing WAF on API stage
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
     [
       {
         id: "AwsSolutions-APIG3",
-        reason: "WAF integration is not part of the current scope but may be added later."
+        reason: "WAF not in current scope; may be added later."
       }
     ]
   )
 
-  // Suppress non-latest Lambda runtime
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/SlackBotLambda/SlackBotFunction/Resource",
-    [
-      {
-        id: "AwsSolutions-L1",
-        reason: "Using specific Python runtime version pinned intentionally for compatibility."
-      },
-      {
-        id: "LAMBDA_DLQ_CHECK",
-        reason: "DLQ setup pending; tracked in backlog."
-      },
-      {
-        id: "LAMBDA_INSIDE_VPC",
-        reason: "VPC config setup pending; tracked in backlog."
-      }
-    ]
-  )
-
-  // DLQ for CreateIndexFunction missing aws:SecureTransport
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/CreateIndexFunction/CreateIndexFunctionDLQ/Resource",
-    [
-      {
-        id: "AwsSolutions-SQS4",
-        reason: "DLQ is used internally and SSL policy enforcement is deferred."
-      }
-    ]
-  )
-
-  // DLQ for SlackBotFunction missing aws:SecureTransport
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/SlackBotLambda/SlackBotFunctionDLQ/Resource",
-    [
-      {
-        id: "AwsSolutions-SQS4",
-        reason: "DLQ is used internally and SSL policy enforcement is deferred."
-      }
-    ]
-  )
-
-  // Missing replication/versioning/logging/ssl on access log bucket
+  // Suppress warnings on access logs bucket
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/EpsAssistAccessLogsBucket/Resource",
     [
       {
         id: "AwsSolutions-S10",
-        reason: "Access logs bucket is internal and SSL enforcement is deferred to future hardening."
+        reason: "SSL policy is pending; logged for follow-up."
       },
       {
         id: "S3_BUCKET_REPLICATION_ENABLED",
-        reason: "Replication not required for ephemeral access log storage."
+        reason: "Replication not needed."
       },
       {
         id: "S3_BUCKET_VERSIONING_ENABLED",
-        reason: "Versioning not necessary on log bucket; data is short-lived."
+        reason: "Short-lived logs don't need versioning."
       },
       {
         id: "S3_BUCKET_LOGGING_ENABLED",
-        reason: "Access log bucket logging is circular and not required."
+        reason: "No logging needed on logging bucket."
       }
     ]
   )
 
+  // Suppress SSL enforcement warning on AccessLogs bucket TLS policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/AccessLogsBucketTlsPolicy",
+    [
+      {
+        id: "AwsSolutions-S10",
+        reason: "SSL enforcement for access logs bucket TLS policy is deferred; tracked for future hardening."
+      }
+    ]
+  )
+
+  // Suppress SSL warning on actual access log bucket policy resource
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/EpsAssistAccessLogsBucket/Policy/Resource",
     [
       {
         id: "AwsSolutions-S10",
-        reason: "Access logs bucket policy does not yet enforce SSL; tracked for future improvement."
-      }
-    ]
-  )
-
-  // Custom resource Lambda for S3 auto-delete lacks DLQ and VPC
-  safeAddNagSuppressionGroup(
-    stack,
-    [
-      "/EpsAssistMeStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler"
-    ],
-    [
-      {
-        id: "LAMBDA_DLQ_CHECK",
-        reason: "Custom resource handler is AWS-managed; DLQ is not configurable."
-      },
-      {
-        id: "LAMBDA_INSIDE_VPC",
-        reason: "VPC configuration not applicable for AWS-managed custom resource Lambda."
+        reason: "SSL enforcement on access logs bucket policy is deferred and documented."
       }
     ]
   )
@@ -226,8 +173,8 @@ const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<N
 }
 
 // Apply the same nag suppression to multiple resources
-const safeAddNagSuppressionGroup = (stack: Stack, path: Array<string>, suppressions: Array<NagPackSuppression>) => {
-  for (const p of path) {
+const safeAddNagSuppressionGroup = (stack: Stack, paths: Array<string>, suppressions: Array<NagPackSuppression>) => {
+  for (const p of paths) {
     safeAddNagSuppression(stack, p, suppressions)
   }
 }
