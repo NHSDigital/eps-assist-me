@@ -142,39 +142,56 @@ jobs:
           pip3 install -r .build/packages/createIndexFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
           cp -r .build/packages/createIndexFunction/* .build/${{ inputs.STACK_NAME }}-CreateIndexFunction/
 
+      - name: Debug container filesystem layout
+        run: |
+          docker run --rm \
+            -v "$(pwd)":/home/cdkuser/workspace \
+            -w /home/cdkuser/workspace \
+            ubuntu \
+            bash -c '
+              echo "Current working directory (in container): $(pwd)"
+              echo "Listing contents of CDK_APP_PATH:"
+              ls -l packages/cdk/bin/
+              echo "Listing bundled functions:"
+              ls -l .build/
+              ls -l .build/epsam-pr-${{ inputs.STACK_NAME }}-SlackBotFunction || true
+              ls -l .build/epsam-pr-${{ inputs.STACK_NAME }}-CreateIndexFunction || true
+            '
+
       - name: Show diff
         run: |
           docker run \
-          -v "$(pwd)":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e stack_name="${{ inputs.STACK_NAME }}" \
-          -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER}}" \
-          -e COMMIT_ID="${{ inputs.COMMIT_ID}}" \
-          -e SHOW_DIFF="true" \
-          -e DEPLOY_CODE="false" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
-        shell: bash
+            -v "$(pwd)":/home/cdkuser/workspace \
+            -w /home/cdkuser/workspace \
+            -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
+            -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
+            -e AWS_REGION="eu-west-2" \
+            -e stack_name="${{ inputs.STACK_NAME }}" \
+            -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER}}" \
+            -e COMMIT_ID="${{ inputs.COMMIT_ID}}" \
+            -e SHOW_DIFF="true" \
+            -e DEPLOY_CODE="false" \
+            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+            cdk-utils-build-repo:latest
 
       - name: Deploy code
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
           docker run \
-          -v "$(pwd)":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e stack_name="${{ inputs.STACK_NAME }}" \
-          -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER}}" \
-          -e COMMIT_ID="${{ inputs.COMMIT_ID}}" \
-          -e SHOW_DIFF="false" \
-          -e DEPLOY_CODE="true" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
+            -v "$(pwd)":/home/cdkuser/workspace/ \
+            -w /home/cdkuser/workspace \
+            -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
+            -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
+            -e AWS_REGION="eu-west-2" \
+            -e stack_name="${{ inputs.STACK_NAME }}" \
+            -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER}}" \
+            -e COMMIT_ID="${{ inputs.COMMIT_ID}}" \
+            -e SHOW_DIFF="false" \
+            -e DEPLOY_CODE="true" \
+            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+            cdk-utils-build-repo:latest
         shell: bash
 
       - name: mark_released_in_jira
