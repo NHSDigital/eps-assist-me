@@ -284,10 +284,29 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // ==== Bedrock Knowledge Base ====
+    // Create a service role for Bedrock Knowledge Base
+    // const bedrockKbRole = new Role(this, "BedrockKbRole", {
+    //   assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
+    //   description: "Role for Bedrock Knowledge Base to access OpenSearch and S3"
+    // })
+
+    // // Add permissions to access OpenSearch and S3
+    // bedrockKbRole.addToPolicy(new PolicyStatement({
+    //   actions: ["aoss:*"],
+    //   resources: [osCollection.attrArn, `${osCollection.attrArn}/*`]
+    // }))
+
+    // bedrockKbRole.addToPolicy(new PolicyStatement({
+    //   actions: ["s3:GetObject", "s3:ListBucket"],
+    //   resources: [kbDocsBucket.bucketArn, `${kbDocsBucket.bucketArn}/*`]
+    // }))
+
+    // Use existing Bedrock role that already has trust relationship with Bedrock service
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
       name: "eps-assist-kb",
       description: "EPS Assist Knowledge Base",
-      roleArn: Fn.importValue("ci-resources:CloudFormationExecutionRole"),
+      // roleArn: bedrockKbRole.roleArn,
+      roleArn: "arn:aws:iam::591291862413:role/AmazonBedrockKnowledgebas-BedrockExecutionRole9C52C-3tluDlUTJ2DW",
       knowledgeBaseConfiguration: {
         type: "VECTOR",
         vectorKnowledgeBaseConfiguration: {
