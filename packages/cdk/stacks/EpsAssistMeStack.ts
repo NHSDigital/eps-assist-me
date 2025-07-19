@@ -281,7 +281,7 @@ export class EpsAssistMeStack extends Stack {
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
       name: "eps-assist-kb",
       description: "EPS Assist Knowledge Base",
-      roleArn: Fn.importValue("account-resources:BedrockExecutionRoleArn"),
+      roleArn: Fn.importValue("account-resources:CloudFormationExecutionRole"),
       knowledgeBaseConfiguration: {
         type: "VECTOR",
         vectorKnowledgeBaseConfiguration: {
