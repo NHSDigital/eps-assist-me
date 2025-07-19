@@ -58,7 +58,7 @@ export class EpsAssistMeStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       versioned: true,
-      objectLockEnabled: true,
+      // objectLockEnabled: true, deployment role lacks s3:PutBucketObjectLockConfiguration permission
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
@@ -104,7 +104,7 @@ export class EpsAssistMeStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       versioned: true,
-      objectLockEnabled: true,
+      // objectLockEnabled: true, deployment role lacks s3:PutBucketObjectLockConfiguration permission
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
       serverAccessLogsBucket: accessLogBucket,
       serverAccessLogsPrefix: "s3-access-logs/"
