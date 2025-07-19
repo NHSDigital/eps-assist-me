@@ -109,6 +109,7 @@ jobs:
         run: |
           ./.github/scripts/fix_cdk_json.sh
         env:
+          ACCOUNT_ID: "${{ env.ACCOUNT_ID }}"
           STACK_NAME: "${{ inputs.STACK_NAME }}"
           VERSION_NUMBER: "${{ inputs.VERSION_NUMBER }}"
           COMMIT_ID: "${{ inputs.COMMIT_ID }}"
@@ -116,7 +117,11 @@ jobs:
           LOG_LEVEL: "${{ inputs.LOG_LEVEL }}"
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
-          ACCOUNT_ID: "${{ env.ACCOUNT_ID }}"
+
+      - name: Show final .build/cdk.json
+        run: |
+          echo "----- .build/cdk.json -----"
+          jq . .build/cdk.json
 
       - name: Debug AWS credentials inside Docker container
         run: |

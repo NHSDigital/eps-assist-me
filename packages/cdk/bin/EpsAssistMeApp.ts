@@ -26,6 +26,12 @@ Tags.of(app).add("stackName", stackName)
 Tags.of(app).add("version", version)
 Tags.of(app).add("commit", commit)
 
+console.log("CDK context:", {accountId, stackName, version, commit})
+
+if (!accountId || !stackName || !version || !commit) {
+  throw new Error(`Missing required CDK context values: ${JSON.stringify({accountId, stackName, version, commit})}`)
+}
+
 const EpsAssistMe = new EpsAssistMeStack(app, "EpsAssistMeStack", {
   env: {
     region: "eu-west-2",
