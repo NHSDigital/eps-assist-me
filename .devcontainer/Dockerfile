@@ -1,12 +1,23 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
 # Install system dependencies
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-  && apt-get -y install --no-install-recommends \
-     curl git build-essential libssl-dev zlib1g-dev \
-     libbz2-dev libreadline-dev libsqlite3-dev wget llvm \
-     libncurses5-dev libncursesw5-dev xz-utils tk-dev \
-     liblzma-dev python3-pip libffi-dev libyaml-dev
+RUN apt-get update \
+    && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y dist-upgrade \
+    && apt-get -y install --no-install-recommends htop vim curl git build-essential \
+    libffi-dev libssl-dev libxml2-dev libxslt1-dev libjpeg8-dev libbz2-dev \
+    zlib1g-dev unixodbc unixodbc-dev libsecret-1-0 libsecret-1-dev libsqlite3-dev \
+    jq apt-transport-https ca-certificates gnupg-agent \
+    software-properties-common bash-completion python3-pip make libbz2-dev \
+    libreadline-dev libsqlite3-dev wget llvm libncurses5-dev libncursesw5-dev \
+    xz-utils tk-dev liblzma-dev netcat-openbsd libyaml-dev
+
+# Install aws stuff
+RUN wget -O /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" && \
+    unzip /tmp/awscliv2.zip -d /tmp/aws-cli && \
+    /tmp/aws-cli/aws/install && \
+    rm tmp/awscliv2.zip && \
+    rm -rf /tmp/aws-cli
 
 # Set user to vscode
 USER vscode
@@ -41,4 +52,5 @@ ADD .tool-versions /home/vscode/.tool-versions
 RUN asdf install; \
     asdf reshim python; \
     asdf reshim poetry; \
+    asdf reshim nodejs; \
     asdf direnv setup --shell bash --version 2.32.2;

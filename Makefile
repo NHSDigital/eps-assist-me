@@ -17,6 +17,9 @@ install-hooks: install-python
 install-node:
 	npm ci
 
+compile-node:
+	npx tsc --build tsconfig.build.json
+
 pre-commit: git-secrets-docker-setup
 	poetry run pre-commit run --all-files
 
@@ -24,13 +27,26 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
+lint: lint-githubactions lint-githubaction-scripts
+
 lint-githubactions:
 	actionlint
 
 lint-githubaction-scripts:
+	shellcheck ./scripts/*.sh
 	shellcheck .github/scripts/*.sh
 
-lint: lint-githubactions lint-githubaction-scripts
+test: compile-node
+	npm run test --workspace packages/cdk
+
+clean:
+	rm -rf packages/cdk/coverage
+	rm -rf packages/cdk/lib
+	rm -rf cdk.out
+
+deep-clean: clean
+	rm -rf .venv
+	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
 
 check-licenses: check-licenses-node check-licenses-python
 
@@ -43,6 +59,12 @@ check-licenses-python:
 aws-configure:
 	aws configure sso --region eu-west-2
 
+aws-login:
+	aws sso login --sso-session sso-session
+
+cfn-guard:
+	./scripts/run_cfn_guard.sh
+
 cdk-deploy: guard-stack_name
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
@@ -52,23 +74,30 @@ cdk-deploy: guard-stack_name
 		--all \
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
+		--context accountId=$$ACCOUNT_ID \
 		--context stackName=$$stack_name \
-		--context VERSION_NUMBER=$$VERSION_NUMBER \
-		--context COMMIT_ID=$$COMMIT_ID 
+		--context versionNumber=$$VERSION_NUMBER \
+		--context commitId=$$COMMIT_ID \
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
 cdk-synth:
 	npx cdk synth \
+		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--context accountId=undefined \
 		--context stackName=epsam \
-		--context VERSION_NUMBER=undefined \
-		--context COMMIT_ID=undefined 
+		--context versionNumber=undefined \
+		--context commitId=undefined \
+		--context logRetentionInDays=30
 
 cdk-diff:
 	npx cdk diff \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--context accountId=$$ACCOUNT_ID \
 		--context stackName=$$stack_name \
-		--context VERSION_NUMBER=$$VERSION_NUMBER \
-		--context COMMIT_ID=$$COMMIT_ID 
+		--context versionNumber=$$VERSION_NUMBER \
+		--context commitId=$$COMMIT_ID \
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
 cdk-watch: guard-stack_name
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
@@ -80,6 +109,8 @@ cdk-watch: guard-stack_name
 		--all \
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
+		--context accountId=$$ACCOUNT_ID \
 		--context stackName=$$stack_name \
-		--context VERSION_NUMBER=$$VERSION_NUMBER \
-		--context COMMIT_ID=$$COMMIT_ID
+		--context versionNumber=$$VERSION_NUMBER \
+		--context commitId=$$COMMIT_ID \
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
