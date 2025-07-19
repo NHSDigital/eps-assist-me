@@ -1,32 +1,10 @@
 import json
 import logging
 import os
-import sys
 
 import boto3
-import requests  # noqa: F401
 from botocore.exceptions import NoCredentialsError
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
-
-# Install dependencies in /tmp (for AWS Lambda or local packaging)
-from pip._internal import main
-
-main(
-    [
-        "install",
-        "-I",
-        "-q",
-        "boto3",
-        "requests",
-        "opensearch-py==2.4.2",
-        "urllib3",
-        "--target",
-        "/tmp/",
-        "--no-cache-dir",
-        "--disable-pip-version-check",
-    ]
-)
-sys.path.insert(0, "/tmp/")
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
