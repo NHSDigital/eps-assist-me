@@ -132,6 +132,13 @@ jobs:
 
       - name: Bundle Lambda Functions (manual)
         run: |
+          echo "Current working directory: $(pwd)"
+          echo "Contents of current directory:"
+          ls -la
+
+          echo "Contents of packages/slackBotFunction:"
+          ls -l packages/slackBotFunction/
+
           # SlackBotFunction
           mkdir -p .build/${{ inputs.STACK_NAME }}-SlackBotFunction
           pip3 install -r packages/slackBotFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-SlackBotFunction
