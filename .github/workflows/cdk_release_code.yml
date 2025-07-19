@@ -116,6 +116,7 @@ jobs:
           LOG_LEVEL: "${{ inputs.LOG_LEVEL }}"
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
+          ACCOUNT_ID: "${{ env.ACCOUNT_ID }}"
 
       - name: Debug AWS credentials inside Docker container
         run: |
