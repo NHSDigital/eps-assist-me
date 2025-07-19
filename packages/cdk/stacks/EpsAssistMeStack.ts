@@ -244,7 +244,7 @@ export class EpsAssistMeStack extends Stack {
 
     // ==== Trigger Vector Index Creation ====
     const endpoint = `${osCollection.attrId}.${region}.aoss.amazonaws.com`
-    new cr.AwsCustomResource(this, "VectorIndex", {
+    const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
       onCreate: {
         service: "Lambda",
@@ -302,6 +302,7 @@ export class EpsAssistMeStack extends Stack {
     // }))
 
     // Use existing Bedrock role that already has trust relationship with Bedrock service
+    // Make sure the Knowledge Base depends on the vector index creation
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
       name: "eps-assist-kb",
       description: "EPS Assist Knowledge Base",
@@ -326,6 +327,9 @@ export class EpsAssistMeStack extends Stack {
         }
       }
     })
+
+    // Add explicit dependency to ensure the vector index is created before the Knowledge Base
+    kb.addDependency(vectorIndex)
 
     // Attach S3 data source to Knowledge Base
     new CfnDataSource(this, "EpsKbDataSource", {
