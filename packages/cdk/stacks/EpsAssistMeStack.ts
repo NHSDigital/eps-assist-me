@@ -15,6 +15,7 @@ import {
 import * as AWSCDK from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {PolicyStatement} from "aws-cdk-lib/aws-iam"
+import {CfnResource} from "aws-cdk-lib"
 import {
   CfnGuardrail,
   CfnGuardrailVersion,
@@ -329,7 +330,9 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Add explicit dependency to ensure the vector index is created before the Knowledge Base
-    kb.addDependency(vectorIndex)
+    // Get the underlying CloudFormation resource
+    const cfnVectorIndex = vectorIndex.node.defaultChild as CfnResource
+    kb.addDependency(cfnVectorIndex)
 
     // Attach S3 data source to Knowledge Base
     new CfnDataSource(this, "EpsKbDataSource", {
