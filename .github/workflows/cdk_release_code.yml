@@ -169,7 +169,7 @@ jobs:
             -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
             -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
             -e AWS_REGION="eu-west-2" \
-            -e stack_name="${{ inputs.STACK_NAME }}" \
+            -e STACK_NAME="${{ inputs.STACK_NAME }}" \
             -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER }}" \
             -e COMMIT_ID="${{ inputs.COMMIT_ID }}" \
             -e SHOW_DIFF="true" \
@@ -187,7 +187,7 @@ jobs:
             -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
             -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
             -e AWS_REGION="eu-west-2" \
-            -e stack_name="${{ inputs.STACK_NAME }}" \
+            -e STACK_NAME="${{ inputs.STACK_NAME }}" \
             -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER }}" \
             -e COMMIT_ID="${{ inputs.COMMIT_ID }}" \
             -e SHOW_DIFF="false" \
