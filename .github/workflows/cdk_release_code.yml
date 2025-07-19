@@ -120,7 +120,6 @@ jobs:
       - name: Show diff
         run: |
           docker run \
-          -v /var/run/docker.sock:/var/run/docker.sock \
           -v "$(pwd)/.build":/home/cdkuser/workspace/ \
           -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
           -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
@@ -139,7 +138,6 @@ jobs:
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
           docker run \
-          -v /var/run/docker.sock:/var/run/docker.sock \
           -v "$(pwd)/.build":/home/cdkuser/workspace/ \
           -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
           -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
