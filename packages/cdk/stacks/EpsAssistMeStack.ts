@@ -62,19 +62,20 @@ export class EpsAssistMeStack extends Stack {
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
-    // Replication config via escape hatch
+    // Get the underlying CFN resource
     const accessLogBucketCfn = accessLogBucket.node.defaultChild as AWSCDK.CfnBucket
-    accessLogBucketCfn.replicationConfiguration = {
-      role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
-      rules: [{
-        status: "Enabled",
-        priority: 1,
-        destination: {
-          bucket: "arn:aws:s3:::dummy-replication-bucket"
-        },
-        deleteMarkerReplication: {status: "Disabled"}
-      }]
-    }
+    // Removed replication configuration as deployment role lacks s3:PutReplicationConfiguration permission
+    // accessLogBucketCfn.replicationConfiguration = {
+    //   role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
+    //   rules: [{
+    //     status: "Enabled",
+    //     priority: 1,
+    //     destination: {
+    //       bucket: "arn:aws:s3:::dummy-replication-bucket"
+    //     },
+    //     deleteMarkerReplication: {status: "Disabled"}
+    //   }]
+    // }
 
     // TLS-only policy (strictly compliant for cfn-guard)
     new AWSCDK.CfnBucketPolicy(this, "AccessLogsBucketTlsPolicy", {
@@ -110,19 +111,20 @@ export class EpsAssistMeStack extends Stack {
       serverAccessLogsPrefix: "s3-access-logs/"
     })
 
-    // Replication config via escape hatch
+    // Get the underlying CFN resource
     const kbDocsBucketCfn = kbDocsBucket.node.defaultChild as AWSCDK.CfnBucket
-    kbDocsBucketCfn.replicationConfiguration = {
-      role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
-      rules: [{
-        status: "Enabled",
-        priority: 1,
-        destination: {
-          bucket: "arn:aws:s3:::dummy-replication-bucket"
-        },
-        deleteMarkerReplication: {status: "Disabled"}
-      }]
-    }
+    // Removed replication configuration as deployment role lacks s3:PutReplicationConfiguration permission
+    // kbDocsBucketCfn.replicationConfiguration = {
+    //   role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
+    //   rules: [{
+    //     status: "Enabled",
+    //     priority: 1,
+    //     destination: {
+    //       bucket: "arn:aws:s3:::dummy-replication-bucket"
+    //     },
+    //     deleteMarkerReplication: {status: "Disabled"}
+    //   }]
+    // }
 
     // TLS-only policy (strictly compliant for cfn-guard)
     new AWSCDK.CfnBucketPolicy(this, "KbDocsTlsPolicy", {
