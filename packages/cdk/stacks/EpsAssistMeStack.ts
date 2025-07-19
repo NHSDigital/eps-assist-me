@@ -48,9 +48,7 @@ export class EpsAssistMeStack extends Stack {
 
     // ==== KMS Key Import ====
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
-      this,
-      "cloudWatchLogsKmsKey",
-      Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn")
+      this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn")
     )
 
     // ==== Access Logs Bucket ====
