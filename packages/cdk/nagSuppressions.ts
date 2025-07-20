@@ -161,6 +161,25 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  // Suppress wildcard and granular permissions for Bedrock execution role
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/EpsAssistMeBedrockExecutionRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason:
+          "Bedrock execution role requires wildcard and resource-wide permissions for access to S3 bucket and AOSS. Permissions are scoped to specific resources where possible; further scoping is tracked for future hardening.",
+        appliesTo: [
+          "Resource::<EpsAssistDocsBucketD6886E55.Arn>/*",
+          "Resource::<OsCollection.Arn>/*",
+          "Action::aoss:*",
+          "Resource::*"
+        ]
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
