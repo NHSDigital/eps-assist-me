@@ -134,6 +134,41 @@ export class EpsAssistMeStack extends Stack {
       }])
     })
 
+    // ==== Bedrock Execution Role for Knowledge Base ====
+    // This role allows Bedrock to access S3 documents, use OpenSearch Serverless, and call the embedding model.
+    const bedrockKbRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {
+      assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
+      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch"
+    })
+
+    // Allow Bedrock to read/list objects in the docs S3 bucket
+    bedrockKbRole.addToPolicy(new PolicyStatement({
+      actions: ["s3:GetObject", "s3:ListBucket"],
+      resources: [
+        kbDocsBucket.bucketArn,
+        `${kbDocsBucket.bucketArn}/*`
+      ]
+    }))
+
+    // Allow Bedrock full access to your OpenSearch Serverless collection and its indexes
+    // For production, consider narrowing to only what you need
+    bedrockKbRole.addToPolicy(new PolicyStatement({
+      actions: ["aoss:*"],
+      resources: [
+        osCollection.attrArn, // Collection itself
+        `${osCollection.attrArn}/*`, // All child resources (indexes)
+        "*" // For initial development, broad access
+      ]
+    }))
+
+    // Allow Bedrock to call the embedding model
+    bedrockKbRole.addToPolicy(new PolicyStatement({
+      actions: ["bedrock:InvokeModel"],
+      resources: [
+        `arn:aws:bedrock:${region}::foundation-model/amazon.titan-embed-text-v2:0`
+      ]
+    }))
+
     // ==== Lambda Function for Vector Index Creation ====
     const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
       stackName: props.stackName,
@@ -218,41 +253,6 @@ export class EpsAssistMeStack extends Stack {
         })
       ])
     })
-
-    // ==== Bedrock Execution Role for Knowledge Base ====
-    // This role allows Bedrock to access S3 documents, use OpenSearch Serverless, and call the embedding model.
-    const bedrockKbRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {
-      assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
-      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch"
-    })
-
-    // Allow Bedrock to read/list objects in the docs S3 bucket
-    bedrockKbRole.addToPolicy(new PolicyStatement({
-      actions: ["s3:GetObject", "s3:ListBucket"],
-      resources: [
-        kbDocsBucket.bucketArn,
-        `${kbDocsBucket.bucketArn}/*`
-      ]
-    }))
-
-    // Allow Bedrock full access to your OpenSearch Serverless collection and its indexes
-    // For production, consider narrowing to only what you need
-    bedrockKbRole.addToPolicy(new PolicyStatement({
-      actions: ["aoss:*"],
-      resources: [
-        osCollection.attrArn, // Collection itself
-        `${osCollection.attrArn}/*`, // All child resources (indexes)
-        "*" // For initial development, broad access
-      ]
-    }))
-
-    // Allow Bedrock to call the embedding model
-    bedrockKbRole.addToPolicy(new PolicyStatement({
-      actions: ["bedrock:InvokeModel"],
-      resources: [
-        `arn:aws:bedrock:${region}::foundation-model/amazon.titan-embed-text-v2:0`
-      ]
-    }))
 
     // ==== Bedrock Knowledge Base Resource ====
     // Reference the execution role created above
