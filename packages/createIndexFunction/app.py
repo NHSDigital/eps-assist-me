@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 
 import boto3
 from botocore.exceptions import NoCredentialsError
@@ -30,6 +31,29 @@ def get_opensearch_client(endpoint):
         connection_class=RequestsHttpConnection,
         pool_maxsize=10,
     )
+
+
+def wait_for_index(opensearch_client, index_name, timeout=120, poll_interval=4):
+    """
+    Waits for the OpenSearch index to exist and be at least 'yellow' health.
+    """
+    logger.info(f"Polling for index '{index_name}' to exist and be ready...")
+    start = time.time()
+    while True:
+        try:
+            if opensearch_client.indices.exists(index=index_name):
+                health = opensearch_client.cluster.health(index=index_name, wait_for_status="yellow", timeout="5s")
+                status = health.get("status")
+                logger.info(f"Index '{index_name}' exists, health: {status}")
+                if status in ("yellow", "green"):
+                    return
+            else:
+                logger.info(f"Index '{index_name}' does not exist yet...")
+        except Exception as exc:
+            logger.info(f"Error checking index status: {exc}")
+        if time.time() - start > timeout:
+            raise TimeoutError(f"Timed out waiting for index '{index_name}' to become ready.")
+        time.sleep(poll_interval)
 
 
 def handler(event, context):
@@ -86,14 +110,14 @@ def handler(event, context):
                     opensearch_client.indices.create(
                         index=params["index"], body=params["body"]
                     )
-                    # Wait for the index to be available
-                    logger.info(f"Waiting for index {params['index']} to be ready")
-                    opensearch_client.cluster.health(index=params["index"], wait_for_status="yellow")
-                    logger.info(f"Index {params['index']} is ready")
+                    logger.info(f"Index {params['index']} creation initiated.")
                 else:
                     logger.info(f"Index {params['index']} already exists")
+                # Wait for the index to be available and ready
+                wait_for_index(opensearch_client, params["index"])
+                logger.info(f"Index {params['index']} is ready.")
             except Exception as e:
-                logger.error(f"Error creating index: {e}")
+                logger.error(f"Error creating or waiting for index: {e}")
                 raise e  # Re-raise to fail the custom resource
 
         elif event["RequestType"] == "Delete":

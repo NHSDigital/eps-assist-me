@@ -346,34 +346,8 @@ export class EpsAssistMeStack extends Stack {
         }
       }
     })
-
-    // Add a delay using a custom resource that doesn't do anything but wait
-    const delay = new cr.AwsCustomResource(this, "IndexReadyDelay", {
-      installLatestAwsSdk: true,
-      onCreate: {
-        service: "CloudFormation",
-        action: "describeStacks",
-        parameters: {
-          StackName: this.stackName
-        },
-        physicalResourceId: cr.PhysicalResourceId.of(`Delay-${Date.now()}`)
-      },
-      onUpdate: {
-        service: "CloudFormation",
-        action: "describeStacks",
-        parameters: {
-          StackName: this.stackName
-        },
-        physicalResourceId: cr.PhysicalResourceId.of(`Delay-${Date.now()}`)
-      },
-      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({
-        resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE
-      })
-    })
-
-    // Create dependency chain: vectorIndex -> delay -> kb
-    delay.node.addDependency(vectorIndex)
-    kb.node.addDependency(delay)
+    // Ensure the Knowledge Base is created after the vector index
+    kb.node.addDependency(vectorIndex)
 
     // Attach S3 data source to Knowledge Base
     new CfnDataSource(this, "EpsKbDataSource", {
