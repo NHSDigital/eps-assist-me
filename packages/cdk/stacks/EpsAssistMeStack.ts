@@ -157,6 +157,7 @@ export class EpsAssistMeStack extends Stack {
         ],
         Principal: [
           `arn:aws:iam::${account}:role/${createIndexFunction.function.role?.roleName}`,
+          bedrockKbRole.roleArn,
           `arn:aws:iam::${account}:root`
         ]
       }])
