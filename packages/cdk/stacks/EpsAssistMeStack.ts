@@ -261,7 +261,24 @@ export class EpsAssistMeStack extends Stack {
             Endpoint: endpoint
           })
         },
-        physicalResourceId: cr.PhysicalResourceId.of("VectorIndex")
+        // Use a timestamp to ensure this resource is always updated
+        physicalResourceId: cr.PhysicalResourceId.of(`VectorIndex-${Date.now()}`)
+      },
+      onUpdate: {
+        service: "Lambda",
+        action: "invoke",
+        parameters: {
+          FunctionName: createIndexFunction.function.functionName,
+          InvocationType: "RequestResponse",
+          Payload: JSON.stringify({
+            RequestType: "Create",
+            CollectionName: osCollection.name,
+            IndexName: "eps-assist-os-index",
+            Endpoint: endpoint
+          })
+        },
+        // Use a timestamp to ensure this resource is always updated
+        physicalResourceId: cr.PhysicalResourceId.of(`VectorIndex-${Date.now()}`)
       },
       onDelete: {
         service: "Lambda",
@@ -330,9 +347,32 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Make sure the Knowledge Base depends on the vector index creation
-    // Use the node.addDependency method instead of CfnResource.addDependency
-    kb.node.addDependency(vectorIndex)
+    // Add a delay after vector index creation to ensure the index is fully ready
+    const delay = new cr.AwsCustomResource(this, "IndexReadyDelay", {
+      installLatestAwsSdk: true,
+      onCreate: {
+        service: "Lambda",
+        action: "invoke",
+        parameters: {
+          FunctionName: "arn:aws:lambda:eu-west-2:591291862413:function:wait-function",
+          InvocationType: "RequestResponse",
+          Payload: JSON.stringify({
+            seconds: 30
+          })
+        },
+        physicalResourceId: cr.PhysicalResourceId.of(`Delay-${Date.now()}`)
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new PolicyStatement({
+          actions: ["lambda:InvokeFunction"],
+          resources: ["arn:aws:lambda:eu-west-2:591291862413:function:wait-function"]
+        })
+      ])
+    })
+
+    // Create dependency chain: vectorIndex -> delay -> kb
+    delay.node.addDependency(vectorIndex)
+    kb.node.addDependency(delay)
 
     // Attach S3 data source to Knowledge Base
     new CfnDataSource(this, "EpsKbDataSource", {

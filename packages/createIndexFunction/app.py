@@ -66,11 +66,11 @@ def handler(event, context):
                                     "space_type": "l2",
                                 },
                             },
-                            "AMAZON_BEDROCK_METADATA\t": {
+                            "AMAZON_BEDROCK_METADATA": {
                                 "type": "text",
                                 "index": "false",
                             },
-                            "AMAZON_BEDROCK_TEXT_CHUNK\t": {
+                            "AMAZON_BEDROCK_TEXT_CHUNK": {
                                 "type": "text",
                                 "index": "true",
                             },
@@ -80,11 +80,21 @@ def handler(event, context):
             }
 
             try:
-                opensearch_client.indices.create(
-                    index=params["index"], body=params["body"]
-                )
+                # Check if index exists first
+                if not opensearch_client.indices.exists(index=params["index"]):
+                    logger.info(f"Creating index {params['index']}")
+                    opensearch_client.indices.create(
+                        index=params["index"], body=params["body"]
+                    )
+                    # Wait for the index to be available
+                    logger.info(f"Waiting for index {params['index']} to be ready")
+                    opensearch_client.cluster.health(index=params["index"], wait_for_status="yellow")
+                    logger.info(f"Index {params['index']} is ready")
+                else:
+                    logger.info(f"Index {params['index']} already exists")
             except Exception as e:
-                logger.error(e)
+                logger.error(f"Error creating index: {e}")
+                raise e  # Re-raise to fail the custom resource
 
         elif event["RequestType"] == "Delete":
             try:
