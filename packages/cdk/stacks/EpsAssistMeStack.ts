@@ -151,12 +151,11 @@ export class EpsAssistMeStack extends Stack {
     }))
 
     // Allow Bedrock full access to your OpenSearch Serverless collection and its indexes
-    // For production, consider narrowing to only what you need
     bedrockKbRole.addToPolicy(new PolicyStatement({
       actions: ["aoss:*"],
       resources: [
-        osCollection.attrArn, // Collection itself
-        `${osCollection.attrArn}/*`, // All child resources (indexes)
+        osCollection.attrArn,
+        `${osCollection.attrArn}/*`,
         "*" // For initial development, broad access
       ]
     }))
@@ -180,6 +179,30 @@ export class EpsAssistMeStack extends Stack {
       environmentVariables: {"INDEX_NAME": osCollection.attrId},
       additionalPolicies: []
     })
+
+    // Add AOSS Index permissions for Lambda
+    const collectionArn = `arn:aws:aoss:${region}:${account}:collection/*`
+    const indexArn = `arn:aws:aoss:${region}:${account}:index/*`
+
+    createIndexFunction.function.role?.addToPolicy(new PolicyStatement({
+      actions: [
+        "aoss:APIAccessAll",
+        "aoss:CreateCollectionItems",
+        "aoss:CreateIndex",
+        "aoss:DeleteCollectionItems",
+        "aoss:DeleteIndex",
+        "aoss:DescribeCollectionItems",
+        "aoss:DescribeIndex",
+        "aoss:ReadDocument",
+        "aoss:UpdateCollectionItems",
+        "aoss:UpdateIndex",
+        "aoss:WriteDocument"
+      ],
+      resources: [
+        collectionArn,
+        indexArn
+      ]
+    }))
 
     // ==== AOSS Access Policy for Lambda & Bedrock ====
     new ops.CfnAccessPolicy(this, "OsAccessPolicy", {
@@ -255,7 +278,6 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // ==== Bedrock Knowledge Base Resource ====
-    // Reference the execution role created above
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
       name: "eps-assist-kb",
       description: "EPS Assist Knowledge Base",
