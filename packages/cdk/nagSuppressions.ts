@@ -161,6 +161,16 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  // Suppress CDK-nag warning for the delay custom resource
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/IndexReadyDelay/CustomResourcePolicy/Resource",
+    [{
+      id: "AwsSolutions-IAM5",
+      reason: "This is a temporary resource used only for creating a delay in the deployment sequence."
+    }]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
