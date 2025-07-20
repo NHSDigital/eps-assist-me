@@ -12,10 +12,8 @@ import {
   BlockPublicAccess,
   ObjectOwnership
 } from "aws-cdk-lib/aws-s3"
-import * as AWSCDK from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
-import {PolicyStatement} from "aws-cdk-lib/aws-iam"
-import {CfnResource} from "aws-cdk-lib"
+import {Role, ServicePrincipal, PolicyStatement} from "aws-cdk-lib/aws-iam"
 import {
   CfnGuardrail,
   CfnGuardrailVersion,
@@ -39,7 +37,7 @@ export class EpsAssistMeStack extends Stack {
   public constructor(scope: App, id: string, props: EpsAssistMeStackProps) {
     super(scope, id, props)
 
-    // ==== Context and constants ====
+    // ==== Context/Parameters ====
     const region = Stack.of(this).region
     const account = Stack.of(this).account
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays")) || 14
@@ -52,103 +50,30 @@ export class EpsAssistMeStack extends Stack {
       this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn")
     )
 
-    // ==== Access Logs Bucket ====
+    // ==== S3 Buckets ====
+    // Access logs bucket for S3
     const accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
       encryption: BucketEncryption.KMS,
       encryptionKey: cloudWatchLogsKmsKey,
       removalPolicy: RemovalPolicy.DESTROY,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       versioned: true,
-      // objectLockEnabled: true, deployment role lacks s3:PutBucketObjectLockConfiguration permission
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
-    // Get the underlying CFN resource
-    const accessLogBucketCfn = accessLogBucket.node.defaultChild as AWSCDK.CfnBucket
-    // Removed replication configuration as deployment role lacks s3:PutReplicationConfiguration permission
-    // accessLogBucketCfn.replicationConfiguration = {
-    //   role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
-    //   rules: [{
-    //     status: "Enabled",
-    //     priority: 1,
-    //     destination: {
-    //       bucket: "arn:aws:s3:::dummy-replication-bucket"
-    //     },
-    //     deleteMarkerReplication: {status: "Disabled"}
-    //   }]
-    // }
-
-    // TLS-only policy (strictly compliant for cfn-guard)
-    new AWSCDK.CfnBucketPolicy(this, "AccessLogsBucketTlsPolicy", {
-      bucket: accessLogBucketCfn.ref,
-      policyDocument: {
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Action: "s3:*",
-            Effect: "Deny",
-            Principal: "*",
-            Resource: "*",
-            Condition: {
-              Bool: {
-                "aws:SecureTransport": false
-              }
-            }
-          }
-        ]
-      }
-    })
-
-    // ==== Document Bucket ====
+    // S3 bucket for Bedrock Knowledge Base documents
     const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
       encryptionKey: cloudWatchLogsKmsKey,
       encryption: BucketEncryption.KMS,
       removalPolicy: RemovalPolicy.DESTROY,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       versioned: true,
-      // objectLockEnabled: true, deployment role lacks s3:PutBucketObjectLockConfiguration permission
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
       serverAccessLogsBucket: accessLogBucket,
       serverAccessLogsPrefix: "s3-access-logs/"
     })
 
-    // Get the underlying CFN resource
-    const kbDocsBucketCfn = kbDocsBucket.node.defaultChild as AWSCDK.CfnBucket
-    // Removed replication configuration as deployment role lacks s3:PutReplicationConfiguration permission
-    // kbDocsBucketCfn.replicationConfiguration = {
-    //   role: `arn:aws:iam::${account}:role/account-resources-s3-replication-role`,
-    //   rules: [{
-    //     status: "Enabled",
-    //     priority: 1,
-    //     destination: {
-    //       bucket: "arn:aws:s3:::dummy-replication-bucket"
-    //     },
-    //     deleteMarkerReplication: {status: "Disabled"}
-    //   }]
-    // }
-
-    // TLS-only policy (strictly compliant for cfn-guard)
-    new AWSCDK.CfnBucketPolicy(this, "KbDocsTlsPolicy", {
-      bucket: kbDocsBucketCfn.ref,
-      policyDocument: {
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Action: "s3:*",
-            Effect: "Deny",
-            Principal: "*",
-            Resource: "*",
-            Condition: {
-              Bool: {
-                "aws:SecureTransport": false
-              }
-            }
-          }
-        ]
-      }
-    })
-
-    // ==== Guardrail ====
+    // ==== Bedrock Guardrail and Version ====
     const guardrail = new CfnGuardrail(this, "EpsGuardrail", {
       name: "eps-assist-guardrail",
       description: "Guardrail for EPS Assist Me bot",
@@ -172,13 +97,13 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
+    // Add metadata to the guardrail for cfn-guard compliance
     const guardrailVersion = new CfnGuardrailVersion(this, "EpsGuardrailVersion", {
       guardrailIdentifier: guardrail.attrGuardrailId,
       description: "Initial version of the EPS Assist Me Guardrail"
     })
 
-    // ==== OpenSearch Vector Store ====
-    // OpenSearch encryption policy (AWS-owned key)
+    // ==== OpenSearch Serverless: Security & Collection ====
     const osEncryptionPolicy = new ops.CfnSecurityPolicy(this, "OsEncryptionPolicy", {
       name: "eps-assist-encryption-policy",
       type: "encryption",
@@ -188,32 +113,28 @@ export class EpsAssistMeStack extends Stack {
       })
     })
 
-    // Create the collection after the encryption policy
+    // OpenSearch Serverless Collection for EPS Assist
     const osCollection = new ops.CfnCollection(this, "OsCollection", {
       name: "eps-assist-vector-db",
       description: "EPS Assist Vector Store",
       type: "VECTORSEARCH"
     })
-
-    // Add explicit dependency to ensure correct creation order
     osCollection.addDependency(osEncryptionPolicy)
 
-    // OpenSearch network policy (allow public access for demo purposes)
+    // OpenSearch Serverless Security Policy for public access
     new ops.CfnSecurityPolicy(this, "OsNetworkPolicy", {
       name: "eps-assist-network-policy",
       type: "network",
-      policy: JSON.stringify([
-        {
-          Rules: [
-            {ResourceType: "collection", Resource: ["collection/eps-assist-vector-db"]},
-            {ResourceType: "dashboard", Resource: ["collection/eps-assist-vector-db"]}
-          ],
-          AllowFromPublic: true
-        }
-      ])
+      policy: JSON.stringify([{
+        Rules: [
+          {ResourceType: "collection", Resource: ["collection/eps-assist-vector-db"]},
+          {ResourceType: "dashboard", Resource: ["collection/eps-assist-vector-db"]}
+        ],
+        AllowFromPublic: true
+      }])
     })
 
-    // ==== Lambda Function: CreateIndex ====
+    // ==== Lambda Function for Vector Index Creation ====
     const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
       stackName: props.stackName,
       functionName: `${props.stackName}-CreateIndexFunction`,
@@ -225,27 +146,24 @@ export class EpsAssistMeStack extends Stack {
       additionalPolicies: []
     })
 
-    // Access policy for Bedrock + Lambda to use the collection and index
+    // ==== AOSS Access Policy for Lambda & Bedrock ====
     new ops.CfnAccessPolicy(this, "OsAccessPolicy", {
       name: "eps-assist-access-policy",
       type: "data",
-      policy: JSON.stringify([
-        {
-          Rules: [
-            {ResourceType: "collection", Resource: ["collection/*"], Permission: ["aoss:*"]},
-            {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
-          ],
-          Principal: [
-            `arn:aws:iam::${account}:role/${createIndexFunction.function.role?.roleName}`,
-            `arn:aws:iam::${account}:root`
-          ]
-        }
-      ])
+      policy: JSON.stringify([{
+        Rules: [
+          {ResourceType: "collection", Resource: ["collection/*"], Permission: ["aoss:*"]},
+          {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
+        ],
+        Principal: [
+          `arn:aws:iam::${account}:role/${createIndexFunction.function.role?.roleName}`,
+          `arn:aws:iam::${account}:root`
+        ]
+      }])
     })
 
-    // ==== Trigger Vector Index Creation ====
+    // ==== Index Creation: Custom Resource Triggers Lambda ====
     const endpoint = `${osCollection.attrId}.${region}.aoss.amazonaws.com`
-
     const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
       onCreate: {
@@ -261,8 +179,7 @@ export class EpsAssistMeStack extends Stack {
             Endpoint: endpoint
           })
         },
-        // Use a timestamp to ensure this resource is always updated
-        physicalResourceId: cr.PhysicalResourceId.of(`VectorIndex-${Date.now()}`)
+        physicalResourceId: cr.PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
       },
       onUpdate: {
         service: "Lambda",
@@ -277,8 +194,7 @@ export class EpsAssistMeStack extends Stack {
             Endpoint: endpoint
           })
         },
-        // Use a timestamp to ensure this resource is always updated
-        physicalResourceId: cr.PhysicalResourceId.of(`VectorIndex-${Date.now()}`)
+        physicalResourceId: cr.PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
       },
       onDelete: {
         service: "Lambda",
@@ -302,31 +218,47 @@ export class EpsAssistMeStack extends Stack {
       ])
     })
 
-    // ==== Bedrock Knowledge Base ====
-    // Create a service role for Bedrock Knowledge Base
-    // const bedrockKbRole = new Role(this, "BedrockKbRole", {
-    //   assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
-    //   description: "Role for Bedrock Knowledge Base to access OpenSearch and S3"
-    // })
+    // ==== Bedrock Execution Role for Knowledge Base ====
+    // This role allows Bedrock to access S3 documents, use OpenSearch Serverless, and call the embedding model.
+    const bedrockKbRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {
+      assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
+      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch"
+    })
 
-    // // Add permissions to access OpenSearch and S3
-    // bedrockKbRole.addToPolicy(new PolicyStatement({
-    //   actions: ["aoss:*"],
-    //   resources: [osCollection.attrArn, `${osCollection.attrArn}/*`]
-    // }))
+    // Allow Bedrock to read/list objects in the docs S3 bucket
+    bedrockKbRole.addToPolicy(new PolicyStatement({
+      actions: ["s3:GetObject", "s3:ListBucket"],
+      resources: [
+        kbDocsBucket.bucketArn,
+        `${kbDocsBucket.bucketArn}/*`
+      ]
+    }))
 
-    // bedrockKbRole.addToPolicy(new PolicyStatement({
-    //   actions: ["s3:GetObject", "s3:ListBucket"],
-    //   resources: [kbDocsBucket.bucketArn, `${kbDocsBucket.bucketArn}/*`]
-    // }))
+    // Allow Bedrock full access to your OpenSearch Serverless collection and its indexes
+    // For production, consider narrowing to only what you need
+    bedrockKbRole.addToPolicy(new PolicyStatement({
+      actions: ["aoss:*"],
+      resources: [
+        osCollection.attrArn, // Collection itself
+        `${osCollection.attrArn}/*`, // All child resources (indexes)
+        "*" // For initial development, broad access
+      ]
+    }))
 
-    // Use existing Bedrock role that already has trust relationship with Bedrock service
-    // Make sure the Knowledge Base depends on the vector index creation
+    // Allow Bedrock to call the embedding model
+    bedrockKbRole.addToPolicy(new PolicyStatement({
+      actions: ["bedrock:InvokeModel"],
+      resources: [
+        `arn:aws:bedrock:${region}::foundation-model/amazon.titan-embed-text-v2:0`
+      ]
+    }))
+
+    // ==== Bedrock Knowledge Base Resource ====
+    // Reference the execution role created above
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
       name: "eps-assist-kb",
       description: "EPS Assist Knowledge Base",
-      // roleArn: bedrockKbRole.roleArn,
-      roleArn: "arn:aws:iam::591291862413:role/AmazonBedrockKnowledgebas-BedrockExecutionRole9C52C-3tluDlUTJ2DW",
+      roleArn: bedrockKbRole.roleArn,
       knowledgeBaseConfiguration: {
         type: "VECTOR",
         vectorKnowledgeBaseConfiguration: {
@@ -346,11 +278,10 @@ export class EpsAssistMeStack extends Stack {
         }
       }
     })
-    // Ensure the Knowledge Base is created after the vector index
-    kb.node.addDependency(vectorIndex)
+    kb.node.addDependency(vectorIndex) // Ensure index exists before KB
 
-    // Attach S3 data source to Knowledge Base
-    new CfnDataSource(this, "EpsKbDataSource", {
+    // ==== S3 DataSource for Knowledge Base ====
+    const kbDataSource = new CfnDataSource(this, "EpsKbDataSource", {
       name: "eps-assist-kb-ds",
       knowledgeBaseId: kb.attrKnowledgeBaseId,
       dataSourceConfiguration: {
@@ -360,6 +291,7 @@ export class EpsAssistMeStack extends Stack {
         }
       }
     })
+    kbDataSource.node.addDependency(kb)
 
     // ==== SlackBot Lambda ====
     const lambdaEnv: {[key: string]: string} = {
@@ -377,8 +309,6 @@ export class EpsAssistMeStack extends Stack {
       SLACK_BOT_TOKEN: slackBotToken,
       SLACK_SIGNING_SECRET: slackSigningSecret
     }
-
-    // SlackBot Lambda function
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
       functionName: `${props.stackName}-SlackBotFunction`,
@@ -390,7 +320,7 @@ export class EpsAssistMeStack extends Stack {
       additionalPolicies: []
     })
 
-    // ==== API Gateway + Slack Route ====
+    // ==== API Gateway & Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
       stackName: props.stackName,
       logRetentionInDays,
@@ -398,16 +328,14 @@ export class EpsAssistMeStack extends Stack {
       trustStoreKey: "unused",
       truststoreVersion: "unused"
     })
-
-    // API Route
+    // Add SlackBot Lambda to API Gateway
     const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
     slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
       credentialsRole: apiGateway.role
     }))
-
     apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
 
-    // Output the SlackBot API endpoint
+    // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
       value: `https://${apiGateway.api.domainName?.domainName}/slack/ask-eps`
     })

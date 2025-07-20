@@ -49,7 +49,7 @@ def wait_for_index(opensearch_client, index_name, timeout=120, poll_interval=5):
             else:
                 logger.info(f"Index '{index_name}' does not exist yet...")
         except Exception as exc:
-            logger.info(f"Error checking index status: {exc}")
+            logger.warning(f"Error checking index status: {exc}")
 
         if time.time() - start > timeout:
             logger.error(f"Timed out waiting for index '{index_name}' to become ready.")
