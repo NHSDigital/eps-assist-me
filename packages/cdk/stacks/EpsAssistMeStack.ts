@@ -245,6 +245,7 @@ export class EpsAssistMeStack extends Stack {
 
     // ==== Trigger Vector Index Creation ====
     const endpoint = `${osCollection.attrId}.${region}.aoss.amazonaws.com`
+
     const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
       onCreate: {
@@ -329,10 +330,9 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Add explicit dependency to ensure the vector index is created before the Knowledge Base
-    // Get the underlying CloudFormation resource
-    const cfnVectorIndex = vectorIndex.node.defaultChild as CfnResource
-    kb.addDependency(cfnVectorIndex)
+    // Make sure the Knowledge Base depends on the vector index creation
+    // Use the node.addDependency method instead of CfnResource.addDependency
+    kb.node.addDependency(vectorIndex)
 
     // Attach S3 data source to Knowledge Base
     new CfnDataSource(this, "EpsKbDataSource", {
