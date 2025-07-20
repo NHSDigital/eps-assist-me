@@ -347,27 +347,28 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Add a delay after vector index creation to ensure the index is fully ready
+    // Add a delay using a custom resource that doesn't do anything but wait
     const delay = new cr.AwsCustomResource(this, "IndexReadyDelay", {
       installLatestAwsSdk: true,
       onCreate: {
-        service: "Lambda",
-        action: "invoke",
+        service: "CloudFormation",
+        action: "describeStacks",
         parameters: {
-          FunctionName: "arn:aws:lambda:eu-west-2:591291862413:function:wait-function",
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            seconds: 30
-          })
+          StackName: this.stackName
         },
         physicalResourceId: cr.PhysicalResourceId.of(`Delay-${Date.now()}`)
       },
-      policy: cr.AwsCustomResourcePolicy.fromStatements([
-        new PolicyStatement({
-          actions: ["lambda:InvokeFunction"],
-          resources: ["arn:aws:lambda:eu-west-2:591291862413:function:wait-function"]
-        })
-      ])
+      onUpdate: {
+        service: "CloudFormation",
+        action: "describeStacks",
+        parameters: {
+          StackName: this.stackName
+        },
+        physicalResourceId: cr.PhysicalResourceId.of(`Delay-${Date.now()}`)
+      },
+      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({
+        resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE
+      })
     })
 
     // Create dependency chain: vectorIndex -> delay -> kb
