@@ -114,7 +114,9 @@ def handler(event, context):
                 else:
                     logger.info(f"Index {params['index']} already exists")
                 # Wait for the index to be available and ready
-                wait_for_index(opensearch_client, params["index"])
+                wait_for_index(opensearch_client, params["index"], timeout=300)
+                logger.info(f"Index {params['index']} is ready.")
+                time.sleep(10)
                 logger.info(f"Index {params['index']} is ready.")
             except Exception as e:
                 logger.error(f"Error creating or waiting for index: {e}")
