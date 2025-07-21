@@ -430,7 +430,7 @@ export class EpsAssistMeStack extends Stack {
     slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
       credentialsRole: apiGateway.role
     }))
-    apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
+    // apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
