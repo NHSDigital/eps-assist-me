@@ -22,12 +22,13 @@ import {
 } from "aws-cdk-lib/aws-bedrock"
 import {RestApiGateway} from "../resources/RestApiGateway"
 import {LambdaFunction} from "../resources/LambdaFunction"
+import {LambdaEndpoint} from "../resources/RestApiGateway/LambdaEndpoint"
+import {nagSuppressions} from "../nagSuppressions"
+import {HttpMethod} from "aws-cdk-lib/aws-lambda"
 import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
-import * as cr from "aws-cdk-lib/custom-resources"
 import * as ssm from "aws-cdk-lib/aws-ssm"
-import {nagSuppressions} from "../nagSuppressions"
-import {LambdaEndpoint} from "../resources/RestApiGateway/LambdaEndpoint"
+import * as cr from "aws-cdk-lib/custom-resources"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -451,7 +452,7 @@ export class EpsAssistMeStack extends Stack {
     new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
       parentResource: apiGateway.api.root.addResource("slack"),
       resourceName: "ask-eps",
-      method: "POST",
+      method: HttpMethod.POST,
       lambdaFunction: slackBotLambda
     })
 
