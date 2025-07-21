@@ -256,6 +256,21 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+  
+  // Suppress wildcard permissions for Lambda self-invoke policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Lambda needs to invoke itself for Slack Bolt lazy handlers.",
+        appliesTo: [
+          "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*"
+        ]
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
