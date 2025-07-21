@@ -367,16 +367,7 @@ export class EpsAssistMeStack extends Stack {
     })
     kbDataSource.node.addDependency(kb)
 
-    // ==== IAM Policy for Lambda to read SSM parameters ====
-    const slackLambdaSSMPolicy = new PolicyStatement({
-      actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"],
-      resources: [
-        slackBotTokenParameter.parameterArn,
-        slackSigningSecretParameter.parameterArn
-      ]
-    })
-
-    // ==== SlackBot Lambda ====
+    // ==== Lambda environment variables ====
     const lambdaEnv: {[key: string]: string} = {
       RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
       EMBEDDING_MODEL: "amazon.titan-embed-text-v2:0",
@@ -392,6 +383,8 @@ export class EpsAssistMeStack extends Stack {
       SLACK_BOT_TOKEN_PARAMETER: slackBotTokenParameter.parameterName,
       SLACK_SIGNING_SECRET_PARAMETER: slackSigningSecretParameter.parameterName
     }
+
+    // ==== SlackBot Lambda ====
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
       functionName: `${props.stackName}-SlackBotFunction`,
@@ -403,8 +396,47 @@ export class EpsAssistMeStack extends Stack {
       additionalPolicies: []
     })
 
-    // Attach SSM permissions to SlackBot Lambda role
+    // ==== IAM Policy for Lambda to read SSM parameters ====
+    const slackLambdaSSMPolicy = new PolicyStatement({
+      actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"],
+      resources: [
+        slackBotTokenParameter.parameterArn,
+        slackSigningSecretParameter.parameterArn
+      ]
+    })
+
+    // ==== Lambda self-invoke policy (needed for Slack Bolt lazy handlers) ====
+    const slackLambdaSelfInvokePolicy = new PolicyStatement({
+      actions: ["lambda:InvokeFunction"],
+      resources: [
+        slackBotLambda.function.functionArn
+      ]
+    })
+
+    // ==== Bedrock model invocation policy ====
+    const slackLambdaBedrockModelPolicy = new PolicyStatement({
+      actions: ["bedrock:InvokeModel"],
+      resources: [`arn:aws:bedrock:${region}::foundation-model/${lambdaEnv.RAG_MODEL_ID}`]
+    })
+
+    // ==== Bedrock KB retrieve and retrieveAndGenerate policy ====
+    const slackLambdaBedrockKbPolicy = new PolicyStatement({
+      actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
+      resources: [`arn:aws:bedrock:${region}:${account}:knowledge-base/${kb.attrKnowledgeBaseId}`]
+    })
+
+    // ==== Guardrail policy ====
+    const slackLambdaGuardrailPolicy = new PolicyStatement({
+      actions: ["bedrock:ApplyGuardrail"],
+      resources: [`arn:aws:bedrock:${region}:${account}:guardrail/*`]
+    })
+
+    // ==== Attach all policies to SlackBot Lambda role ====
     slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaSelfInvokePolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaBedrockModelPolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaBedrockKbPolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaGuardrailPolicy)
 
     // ==== API Gateway & Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
