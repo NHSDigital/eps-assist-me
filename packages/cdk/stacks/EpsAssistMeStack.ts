@@ -450,10 +450,10 @@ export class EpsAssistMeStack extends Stack {
     // Define the /slack/ask-eps resource and method
     const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
 
-    // Allow API Gateway to invoke the SlackBot Lambda function
+    // Grant API Gateway role permission to call the Lambda (resource policy on Lambda)
     slackBotLambda.function.grantInvoke(apiGateway.role)
 
-    // Set up POST /slack/ask-eps → SlackBot Lambda
+    // Connects POST /slack/ask-eps to the Lambda
     slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function))
 
     // ==== Output: SlackBot Endpoint ====
