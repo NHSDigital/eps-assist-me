@@ -77,7 +77,7 @@ jobs:
         with:
           name: build_artifact
   
-      - name: extract build_artifact
+      - name: Extract build_artifact
         run: |
           mkdir -p .build
           tar -xf artifact.tar -C .build
@@ -118,25 +118,7 @@ jobs:
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
 
-      - name: Show final .build/cdk.json
-        run: |
-          echo "----- .build/cdk.json -----"
-          jq . .build/cdk.json
-
-      - name: Debug AWS credentials inside Docker container
-        run: |
-          docker run --rm \
-            -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
-            -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
-            amazonlinux:2 \
-            bash -c '
-              echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" | tee -a /github-step-summary
-              echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:0:4}***" | tee -a /github-step-summary
-              echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:0:8}***" | tee -a /github-step-summary
-            '
-
-      - name: Bundle Lambda Functions (manual)
+      - name: Package Lambda Functions with Python Dependencies
         run: |
           # SlackBotFunction
           mkdir -p .build/${{ inputs.STACK_NAME }}-SlackBotFunction
@@ -147,21 +129,6 @@ jobs:
           mkdir -p .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
           pip3 install -r .build/packages/createIndexFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
           cp -r .build/packages/createIndexFunction/* .build/${{ inputs.STACK_NAME }}-CreateIndexFunction/
-
-      - name: Debug container filesystem layout
-        run: |
-          docker run --rm \
-            -v "$(pwd)":/home/cdkuser/workspace \
-            -w /home/cdkuser/workspace \
-            ubuntu \
-            bash -c '
-              echo "Working dir: $(pwd)"
-              echo "CDK app path:"; ls -l packages/cdk/bin/
-              echo "Lambda bundles:"
-              ls -l .build/
-              ls -l .build/${{ inputs.STACK_NAME }}-SlackBotFunction || true
-              ls -l .build/${{ inputs.STACK_NAME }}-CreateIndexFunction || true
-            '
 
       - name: Create version.txt for CDK tooling
         run: echo "${{ inputs.VERSION_NUMBER }}" > version.txt
