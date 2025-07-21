@@ -22,12 +22,12 @@ import {
 } from "aws-cdk-lib/aws-bedrock"
 import {RestApiGateway} from "../resources/RestApiGateway"
 import {LambdaFunction} from "../resources/LambdaFunction"
-import {nagSuppressions} from "../nagSuppressions"
 import {LambdaIntegration} from "aws-cdk-lib/aws-apigateway"
 import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
-import * as ssm from "aws-cdk-lib/aws-ssm"
 import * as cr from "aws-cdk-lib/custom-resources"
+import * as ssm from "aws-cdk-lib/aws-ssm"
+import {nagSuppressions} from "../nagSuppressions"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -367,6 +367,15 @@ export class EpsAssistMeStack extends Stack {
     })
     kbDataSource.node.addDependency(kb)
 
+    // ==== IAM Policy for Lambda to read SSM parameters ====
+    const slackLambdaSSMPolicy = new PolicyStatement({
+      actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"],
+      resources: [
+        slackBotTokenParameter.parameterArn,
+        slackSigningSecretParameter.parameterArn
+      ]
+    })
+
     // ==== Lambda environment variables ====
     const lambdaEnv: {[key: string]: string} = {
       RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
@@ -394,15 +403,6 @@ export class EpsAssistMeStack extends Stack {
       logLevel,
       environmentVariables: lambdaEnv,
       additionalPolicies: []
-    })
-
-    // ==== IAM Policy for Lambda to read SSM parameters ====
-    const slackLambdaSSMPolicy = new PolicyStatement({
-      actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"],
-      resources: [
-        slackBotTokenParameter.parameterArn,
-        slackSigningSecretParameter.parameterArn
-      ]
     })
 
     // ==== Lambda self-invoke policy (needed for Slack Bolt lazy handlers) ====
@@ -446,18 +446,12 @@ export class EpsAssistMeStack extends Stack {
       trustStoreKey: "unused",
       truststoreVersion: "unused"
     })
-
-    // Grant the API Gateway role permission to invoke the Lambda function
-    apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
-
-    // Create API resources directly to avoid circular dependencies
-    const slackResource = apiGateway.api.root.addResource("slack")
-    const askEpsResource = slackResource.addResource("ask-eps")
-
-    // Add the method with Lambda integration and explicit role
-    askEpsResource.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
+    // Add SlackBot Lambda to API Gateway
+    const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
+    slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
       credentialsRole: apiGateway.role
     }))
+    apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {

@@ -32,8 +32,8 @@ export interface LambdaFunctionProps {
 const insightsLayerArn = "arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsightsExtension:55"
 
 export class LambdaFunction extends Construct {
-  public readonly function: lambda.Function
   public readonly executionPolicy: ManagedPolicy
+  public readonly function: lambda.Function
 
   public constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
     super(scope, id)
@@ -138,9 +138,9 @@ export class LambdaFunction extends Construct {
       }
     }
 
-    // Create an execution policy for external use
-    this.executionPolicy = new ManagedPolicy(this, "ExecutionPolicy", {
-      description: `Allow invoking ${props.functionName}`,
+    // Policy to allow invoking this Lambda
+    const executionManagedPolicy = new ManagedPolicy(this, "ExecuteLambdaManagedPolicy", {
+      description: `execute lambda ${props.functionName}`,
       statements: [
         new PolicyStatement({
           actions: ["lambda:InvokeFunction"],
@@ -151,5 +151,6 @@ export class LambdaFunction extends Construct {
 
     // Outputs
     this.function = lambdaFunction
+    this.executionPolicy = executionManagedPolicy
   }
 }
