@@ -41,7 +41,7 @@ def wait_for_index(opensearch_client, index_name, timeout=120, poll_interval=5):
     while True:
         try:
             if opensearch_client.indices.exists(index=index_name):
-                health = opensearch_client.cluster.health(index=index_name, wait_for_status="yellow", timeout="5s")
+                health = opensearch_client.cluster.health(index=index_name, wait_for_status="yellow", timeout=5)
                 status = health.get("status")
                 logger.info(f"Index '{index_name}' exists, health: {status}")
                 if status in ("yellow", "green"):
