@@ -27,6 +27,7 @@ import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as cr from "aws-cdk-lib/custom-resources"
 import * as ssm from "aws-cdk-lib/aws-ssm"
+import * as lambda from "aws-cdk-lib/aws-lambda"
 import {nagSuppressions} from "../nagSuppressions"
 
 export interface EpsAssistMeStackProps extends StackProps {
@@ -376,6 +377,38 @@ export class EpsAssistMeStack extends Stack {
       ]
     })
 
+    // ==== Bedrock model invocation policy ====
+    const slackLambdaBedrockModelPolicy = new PolicyStatement({
+      actions: ["bedrock:InvokeModel"],
+      resources: [
+        `arn:aws:bedrock:${this.region}::foundation-model/${lambdaEnv.RAG_MODEL_ID}`
+      ]
+    })
+
+    // ==== Bedrock KB retrieve and retrieveAndGenerate policy ====
+    const slackLambdaBedrockKbPolicy = new PolicyStatement({
+      actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
+      resources: [
+        `arn:aws:bedrock:${this.region}:${this.account}:knowledge-base/${kb.attrKnowledgeBaseId}`
+      ]
+    })
+
+    // ==== Guardrail policy ====
+    const slackLambdaGuardrailPolicy = new PolicyStatement({
+      actions: ["bedrock:ApplyGuardrail"],
+      resources: [
+        `arn:aws:bedrock:${this.region}:${this.account}:guardrail/*`
+      ]
+    })
+
+    // ==== Lambda self-invoke policy ====
+    const slackLambdaSelfInvokePolicy = new PolicyStatement({
+      actions: ["lambda:InvokeFunction"],
+      resources: [
+        `arn:aws:lambda:${this.region}:${this.account}:function:*`
+      ]
+    })
+
     // ==== Lambda environment variables ====
     const lambdaEnv: {[key: string]: string} = {
       RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
@@ -407,16 +440,10 @@ export class EpsAssistMeStack extends Stack {
 
     // ==== Attach all policies to SlackBot Lambda role ====
     slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
-
-    // ==== IAM Policy for Lambda to invoke itself ====
-    const lambdaSelfInvokePolicy = new PolicyStatement({
-      actions: ["lambda:InvokeFunction"],
-      resources: [
-        `arn:aws:lambda:${this.region}:${this.account}:function:*`
-      ]
-    })
-    // Attach the self-invoke policy to the SlackBot Lambda
-    slackBotLambda.function.addToRolePolicy(lambdaSelfInvokePolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaSelfInvokePolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaBedrockModelPolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaBedrockKbPolicy)
+    slackBotLambda.function.addToRolePolicy(slackLambdaGuardrailPolicy)
 
     // ==== API Gateway & Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
@@ -426,12 +453,18 @@ export class EpsAssistMeStack extends Stack {
       trustStoreKey: "unused",
       truststoreVersion: "unused"
     })
-    // Add SlackBot Lambda to API Gateway
     const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
     slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
       credentialsRole: apiGateway.role
     }))
-    // apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
+
+    // ==== Allow API Gateway to invoke the Lambda ====
+    new lambda.CfnPermission(this, "ApiGatewayInvokeSlackBotLambda", {
+      action: "lambda:InvokeFunction",
+      functionName: slackBotLambda.function.functionName,
+      principal: "apigateway.amazonaws.com",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${apiGateway.api.restApiId}/*/POST/slack/ask-eps`
+    })
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
