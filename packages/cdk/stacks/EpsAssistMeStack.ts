@@ -23,6 +23,7 @@ import {
 import {RestApiGateway} from "../resources/RestApiGateway"
 import {LambdaFunction} from "../resources/LambdaFunction"
 import {LambdaIntegration} from "aws-cdk-lib/aws-apigateway"
+import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as cr from "aws-cdk-lib/custom-resources"
 import {nagSuppressions} from "../nagSuppressions"
@@ -168,23 +169,23 @@ export class EpsAssistMeStack extends Stack {
       ]
     }))
 
-    // ==== Lambda Function for Vector Index Creation ====
-    const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
-      stackName: props.stackName,
-      functionName: `${props.stackName}-CreateIndexFunction`,
-      packageBasePath: "packages/createIndexFunction",
-      entryPoint: "app.py",
-      logRetentionInDays,
-      logLevel,
-      environmentVariables: {"INDEX_NAME": osCollection.attrId},
-      additionalPolicies: []
+    // ==== IAM Role for Lambda: Create OpenSearch Index ====
+    // This role allows the Lambda to create and manage indexes in OpenSearch Serverless.
+    const createIndexFunctionRole = new iam.Role(this, "CreateIndexFunctionRole", {
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      description: "Lambda role for creating OpenSearch index"
     })
 
-    // Add AOSS Index permissions for Lambda
+    // Attach managed policy for CloudWatch Logs
+    createIndexFunctionRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
+    )
+
+    // Grant the role permissions to manage OpenSearch collections and indexes
     const collectionArn = `arn:aws:aoss:${region}:${account}:collection/*`
     const indexArn = `arn:aws:aoss:${region}:${account}:index/*`
 
-    createIndexFunction.function.role?.addToPolicy(new PolicyStatement({
+    createIndexFunctionRole.addToPolicy(new iam.PolicyStatement({
       actions: [
         "aoss:APIAccessAll",
         "aoss:CreateCollectionItems",
@@ -198,11 +199,47 @@ export class EpsAssistMeStack extends Stack {
         "aoss:UpdateIndex",
         "aoss:WriteDocument"
       ],
-      resources: [
-        collectionArn,
-        indexArn
-      ]
+      resources: [collectionArn, indexArn]
     }))
+
+    // ==== IAM Managed Policy: OpenSearch Index Permissions for Lambda ====
+    const aossIndexPolicy = new iam.ManagedPolicy(this, "CreateIndexFunctionAossPolicy", {
+      description: "Allow Lambda to manage OpenSearch Serverless indices",
+      statements: [
+        new iam.PolicyStatement({
+          actions: [
+            "aoss:APIAccessAll",
+            "aoss:CreateCollectionItems",
+            "aoss:CreateIndex",
+            "aoss:DeleteCollectionItems",
+            "aoss:DeleteIndex",
+            "aoss:DescribeCollectionItems",
+            "aoss:DescribeIndex",
+            "aoss:ReadDocument",
+            "aoss:UpdateCollectionItems",
+            "aoss:UpdateIndex",
+            "aoss:WriteDocument"
+          ],
+          resources: [
+            `arn:aws:aoss:${region}:${account}:collection/*`,
+            `arn:aws:aoss:${region}:${account}:index/*`
+          ]
+        })
+      ]
+    })
+
+    // ==== Lambda Function for Vector Index Creation ====
+    // This Lambda uses the role above to create the index when triggered by a Custom Resource.
+    const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
+      stackName: props.stackName,
+      functionName: `${props.stackName}-CreateIndexFunction`,
+      packageBasePath: "packages/createIndexFunction",
+      entryPoint: "app.py",
+      logRetentionInDays,
+      logLevel,
+      environmentVariables: {"INDEX_NAME": osCollection.attrId},
+      additionalPolicies: [aossIndexPolicy]
+    })
 
     // ==== AOSS Access Policy for Lambda & Bedrock ====
     new ops.CfnAccessPolicy(this, "OsAccessPolicy", {
