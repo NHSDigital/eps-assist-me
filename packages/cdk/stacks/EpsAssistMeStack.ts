@@ -405,16 +405,17 @@ export class EpsAssistMeStack extends Stack {
       additionalPolicies: []
     })
 
+    // ==== Attach all policies to SlackBot Lambda role ====
+    slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
+
     // ==== IAM Policy for Lambda to invoke itself ====
     const lambdaSelfInvokePolicy = new PolicyStatement({
       actions: ["lambda:InvokeFunction"],
       resources: [
-        `arn:aws:lambda:${this.region}:${this.account}:function:${slackBotLambda.function.functionName}`
+        `arn:aws:lambda:${this.region}:${this.account}:function:*`
       ]
     })
-
-    // ==== Attach all policies to SlackBot Lambda role ====
-    slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
+    // Attach the self-invoke policy to the SlackBot Lambda
     slackBotLambda.function.addToRolePolicy(lambdaSelfInvokePolicy)
 
     // ==== API Gateway & Slack Route ====
