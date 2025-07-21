@@ -22,9 +22,8 @@ import {
 } from "aws-cdk-lib/aws-bedrock"
 import {RestApiGateway} from "../resources/RestApiGateway"
 import {LambdaFunction} from "../resources/LambdaFunction"
-import {LambdaEndpoint} from "../resources/RestApiGateway/LambdaEndpoint"
 import {nagSuppressions} from "../nagSuppressions"
-import {HttpMethod} from "aws-cdk-lib/aws-lambda"
+import {LambdaIntegration} from "aws-cdk-lib/aws-apigateway"
 import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as ssm from "aws-cdk-lib/aws-ssm"
@@ -448,13 +447,12 @@ export class EpsAssistMeStack extends Stack {
       truststoreVersion: "unused"
     })
 
-    // Use custom LambdaEndpoint to connect the SlackBot Lambda to the API Gateway
-    new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
-      parentResource: apiGateway.api.root.addResource("slack"),
-      resourceName: "ask-eps",
-      method: HttpMethod.POST,
-      lambdaFunction: slackBotLambda
-    })
+    // Create API resources directly to avoid circular dependencies
+    const slackResource = apiGateway.api.root.addResource("slack")
+    const askEpsResource = slackResource.addResource("ask-eps")
+
+    // Add the method with Lambda integration
+    askEpsResource.addMethod("POST", new LambdaIntegration(slackBotLambda.function))
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
