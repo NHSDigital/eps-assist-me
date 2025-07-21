@@ -447,12 +447,17 @@ export class EpsAssistMeStack extends Stack {
       truststoreVersion: "unused"
     })
 
+    // Grant the API Gateway role permission to invoke the Lambda function
+    apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
+
     // Create API resources directly to avoid circular dependencies
     const slackResource = apiGateway.api.root.addResource("slack")
     const askEpsResource = slackResource.addResource("ask-eps")
 
-    // Add the method with Lambda integration
-    askEpsResource.addMethod("POST", new LambdaIntegration(slackBotLambda.function))
+    // Add the method with Lambda integration and explicit role
+    askEpsResource.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
+      credentialsRole: apiGateway.role
+    }))
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
