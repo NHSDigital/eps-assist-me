@@ -50,10 +50,10 @@ def get_parameter(parameter_name):
 
 
 # Get parameter names from environment variables
-bot_token_parameter = os.environ["SLACK_BOT_TOKEN"]
-signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET"]
+bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
+signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
 
-# Retrieve the parameters
+# Retrieve the parameters from SSM Parameter Store
 bot_token = get_parameter(bot_token_parameter)
 signing_secret = get_parameter(signing_secret_parameter)
 
