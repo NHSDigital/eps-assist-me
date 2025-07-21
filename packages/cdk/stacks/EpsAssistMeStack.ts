@@ -368,6 +368,23 @@ export class EpsAssistMeStack extends Stack {
     })
     kbDataSource.node.addDependency(kb)
 
+    // ==== Lambda environment variables ====
+    const lambdaEnv: {[key: string]: string} = {
+      RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
+      EMBEDDING_MODEL: "amazon.titan-embed-text-v2:0",
+      SLACK_SLASH_COMMAND: "/ask-eps",
+      COLLECTION_NAME: "eps-assist-vector-db",
+      VECTOR_INDEX_NAME: "eps-assist-os-index",
+      BEDROCK_KB_NAME: "eps-assist-kb",
+      BEDROCK_KB_DATA_SOURCE: "eps-assist-kb-ds",
+      LAMBDA_MEMORY_SIZE: "265",
+      KNOWLEDGEBASE_ID: kb.attrKnowledgeBaseId,
+      GUARD_RAIL_ID: guardrail.attrGuardrailId,
+      GUARD_RAIL_VERSION: guardrailVersion.attrVersion,
+      SLACK_BOT_TOKEN_PARAMETER: slackBotTokenParameter.parameterName,
+      SLACK_SIGNING_SECRET_PARAMETER: slackSigningSecretParameter.parameterName
+    }
+
     // ==== IAM Policy for Lambda to read SSM parameters ====
     const slackLambdaSSMPolicy = new PolicyStatement({
       actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"],
@@ -408,23 +425,6 @@ export class EpsAssistMeStack extends Stack {
         `arn:aws:lambda:${this.region}:${this.account}:function:*`
       ]
     })
-
-    // ==== Lambda environment variables ====
-    const lambdaEnv: {[key: string]: string} = {
-      RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
-      EMBEDDING_MODEL: "amazon.titan-embed-text-v2:0",
-      SLACK_SLASH_COMMAND: "/ask-eps",
-      COLLECTION_NAME: "eps-assist-vector-db",
-      VECTOR_INDEX_NAME: "eps-assist-os-index",
-      BEDROCK_KB_NAME: "eps-assist-kb",
-      BEDROCK_KB_DATA_SOURCE: "eps-assist-kb-ds",
-      LAMBDA_MEMORY_SIZE: "265",
-      KNOWLEDGEBASE_ID: kb.attrKnowledgeBaseId,
-      GUARD_RAIL_ID: guardrail.attrGuardrailId,
-      GUARD_RAIL_VERSION: guardrailVersion.attrVersion,
-      SLACK_BOT_TOKEN_PARAMETER: slackBotTokenParameter.parameterName,
-      SLACK_SIGNING_SECRET_PARAMETER: slackSigningSecretParameter.parameterName
-    }
 
     // ==== SlackBot Lambda ====
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
