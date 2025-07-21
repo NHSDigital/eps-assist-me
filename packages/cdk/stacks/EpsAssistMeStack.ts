@@ -26,6 +26,7 @@ import {LambdaIntegration} from "aws-cdk-lib/aws-apigateway"
 import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as cr from "aws-cdk-lib/custom-resources"
+import * as ssm from "aws-cdk-lib/aws-ssm"
 import {nagSuppressions} from "../nagSuppressions"
 
 export interface EpsAssistMeStackProps extends StackProps {
@@ -45,6 +46,22 @@ export class EpsAssistMeStack extends Stack {
     const logLevel: string = this.node.tryGetContext("logLevel")
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
+
+    // ==== SSM Parameter Store for Slack Secrets ====
+    // Store Slack Bot Token and Signing Secret in SSM Parameters (encrypted)
+    const slackBotTokenParameter = new ssm.StringParameter(this, "SlackBotTokenParameter", {
+      parameterName: "/eps-assist/slack/bot-token",
+      stringValue: slackBotToken,
+      description: "Slack Bot OAuth Token for EPS Assist",
+      tier: ssm.ParameterTier.STANDARD
+    })
+
+    const slackSigningSecretParameter = new ssm.StringParameter(this, "SlackSigningSecretParameter", {
+      parameterName: "/eps-assist/slack/signing-secret",
+      stringValue: slackSigningSecret,
+      description: "Slack Signing Secret for EPS Assist",
+      tier: ssm.ParameterTier.STANDARD
+    })
 
     // ==== KMS Key Import ====
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
@@ -220,10 +237,7 @@ export class EpsAssistMeStack extends Stack {
             "aoss:UpdateIndex",
             "aoss:WriteDocument"
           ],
-          resources: [
-            `arn:aws:aoss:${region}:${account}:collection/*`,
-            `arn:aws:aoss:${region}:${account}:index/*`
-          ]
+          resources: [collectionArn, indexArn]
         })
       ]
     })
@@ -353,6 +367,15 @@ export class EpsAssistMeStack extends Stack {
     })
     kbDataSource.node.addDependency(kb)
 
+    // ==== IAM Policy for Lambda to read SSM parameters ====
+    const slackLambdaSSMPolicy = new PolicyStatement({
+      actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"],
+      resources: [
+        slackBotTokenParameter.parameterArn,
+        slackSigningSecretParameter.parameterArn
+      ]
+    })
+
     // ==== SlackBot Lambda ====
     const lambdaEnv: {[key: string]: string} = {
       RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
@@ -366,8 +389,8 @@ export class EpsAssistMeStack extends Stack {
       KNOWLEDGEBASE_ID: kb.attrKnowledgeBaseId,
       GUARD_RAIL_ID: guardrail.attrGuardrailId,
       GUARD_RAIL_VERSION: guardrailVersion.attrVersion,
-      SLACK_BOT_TOKEN: slackBotToken,
-      SLACK_SIGNING_SECRET: slackSigningSecret
+      SLACK_BOT_TOKEN_PARAMETER: slackBotTokenParameter.parameterName,
+      SLACK_SIGNING_SECRET_PARAMETER: slackSigningSecretParameter.parameterName
     }
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
@@ -379,6 +402,9 @@ export class EpsAssistMeStack extends Stack {
       environmentVariables: lambdaEnv,
       additionalPolicies: []
     })
+
+    // Attach SSM permissions to SlackBot Lambda role
+    slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
 
     // ==== API Gateway & Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
