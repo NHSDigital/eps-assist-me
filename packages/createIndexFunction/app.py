@@ -11,15 +11,16 @@ logger.setLevel(logging.INFO)
 
 
 def get_opensearch_client(endpoint):
+    """
+    Create an OpenSearch (AOSS) client using AWS credentials.
+    Works for both AOSS and legacy OpenSearch domains by checking the endpoint.
+    """
     service = "aoss" if "aoss" in endpoint else "es"
+    # Remove protocol, because the OpenSearch client expects only the host part.
+    endpoint = endpoint.replace("https://", "").replace("http://", "")
     logger.debug(f"Connecting to OpenSearch service: {service} at {endpoint}")
     return OpenSearch(
-        hosts=[
-            {
-                "host": endpoint,
-                "port": 443,
-            }
-        ],
+        hosts=[{"host": endpoint, "port": 443}],
         http_auth=AWSV4SignerAuth(
             boto3.Session().get_credentials(),
             os.getenv("AWS_REGION", "eu-west-2"),
@@ -32,34 +33,35 @@ def get_opensearch_client(endpoint):
     )
 
 
-def wait_for_index(opensearch_client, index_name, timeout=120, poll_interval=5):
+def wait_for_index_aoss(opensearch_client, index_name, timeout=60, poll_interval=3):
     """
-    Waits for the OpenSearch index to exist and be at least 'yellow' health.
+    Wait until the index exists in OpenSearch Serverless (AOSS).
+    AOSS does not support cluster health checks, so existence == ready.
     """
-    logger.info(f"Polling for index '{index_name}' to exist and be ready...")
+    logger.info(f"Waiting for index '{index_name}' to exist in AOSS...")
     start = time.time()
     while True:
         try:
+            # HEAD API: Does the index exist yet?
             if opensearch_client.indices.exists(index=index_name):
-                health = opensearch_client.cluster.health(index=index_name, wait_for_status="yellow", timeout=5)
-                status = health.get("status")
-                logger.info(f"Index '{index_name}' exists, health: {status}")
-                if status in ("yellow", "green"):
-                    return True
+                logger.info(f"Index '{index_name}' exists and is considered ready (AOSS).")
+                return True
             else:
                 logger.info(f"Index '{index_name}' does not exist yet...")
         except Exception as exc:
-            logger.warning(f"Error checking index status: {exc}")
-
+            logger.warning(f"Error checking index existence: {exc}")
+        # Exit on timeout to avoid infinite loop during stack failures.
         if time.time() - start > timeout:
-            logger.error(f"Timed out waiting for index '{index_name}' to become ready.")
+            logger.error(f"Timed out waiting for index '{index_name}' to exist.")
             return False
-
         time.sleep(poll_interval)
 
 
 def create_and_wait_for_index(client, index_name):
-    """Create the index and wait for it to be ready"""
+    """
+    Creates the index (if not present) and waits until it's ready for use.
+    Idempotent: Does nothing if the index is already present.
+    """
     params = {
         "index": index_name,
         "body": {
@@ -95,30 +97,32 @@ def create_and_wait_for_index(client, index_name):
     }
 
     try:
-        # Check if index exists first
+        # Only create if not present (safe for repeat runs/rollbacks)
         if not client.indices.exists(index=params["index"]):
             logger.info(f"Creating index {params['index']}")
-            client.indices.create(
-                index=params["index"], body=params["body"]
-            )
+            client.indices.create(index=params["index"], body=params["body"])
             logger.info(f"Index {params['index']} creation initiated.")
         else:
             logger.info(f"Index {params['index']} already exists")
 
-        # Wait for the index to be available and ready
-        if not wait_for_index(client, params["index"]):
-            raise Exception(f"Index {params['index']} failed to become ready in time")
+        # Wait until available for downstream resources
+        if not wait_for_index_aoss(client, params["index"]):
+            raise Exception(f"Index {params['index']} failed to appear in time")
 
         logger.info(f"Index {params['index']} is ready and active.")
     except Exception as e:
         logger.error(f"Error creating or waiting for index: {e}")
-        raise e  # Re-raise to fail the custom resource
+        raise e  # Fail stack if this fails
 
 
 def extract_parameters(event):
-    """Extract parameters from the event"""
+    """
+    Extract parameters from Lambda event, handling both:
+      - CloudFormation custom resource invocations
+      - Direct Lambda/test calls
+    """
     if "ResourceProperties" in event:
-        # CloudFormation custom resource event
+        # From CloudFormation custom resource
         properties = event["ResourceProperties"]
         return {
             "endpoint": properties.get("Endpoint"),
@@ -126,7 +130,7 @@ def extract_parameters(event):
             "request_type": event.get("RequestType")
         }
     else:
-        # Direct Lambda invocation
+        # From direct Lambda invocation (e.g., manual test)
         return {
             "endpoint": event.get("Endpoint"),
             "index_name": event.get("IndexName"),
@@ -135,32 +139,38 @@ def extract_parameters(event):
 
 
 def handler(event, context):
-    """Main Lambda handler function"""
+    """
+    Entrypoint: create, update, or delete the OpenSearch index.
+    Invoked via CloudFormation custom resource or manually.
+    """
     logger.info("Received event: %s", json.dumps(event, indent=2))
 
     try:
-        # Handle CloudFormation custom resource wrapped in Lambda invoke
+        # CloudFormation custom resources may pass the actual event as a JSON string in "Payload"
         if "Payload" in event:
             event = json.loads(event["Payload"])
 
-        # Extract parameters
+        # Get parameters (handles both invocation types)
         params = extract_parameters(event)
         endpoint = params["endpoint"]
         index_name = params["index_name"]
         request_type = params["request_type"]
 
+        # Sanity check required parameters
         if not endpoint or not index_name or not request_type:
             raise ValueError("Missing required parameters: Endpoint, IndexName, or RequestType")
 
         client = get_opensearch_client(endpoint)
 
         if request_type in ["Create", "Update"]:
+            # Idempotent: will not fail if index already exists
             create_and_wait_for_index(client, index_name)
             return {
                 "PhysicalResourceId": f"index-{index_name}",
                 "Status": "SUCCESS"
             }
         elif request_type == "Delete":
+            # Clean up the index if it exists
             try:
                 if client.indices.exists(index=index_name):
                     client.indices.delete(index=index_name)
