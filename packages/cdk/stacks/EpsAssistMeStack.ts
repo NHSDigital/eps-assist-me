@@ -376,14 +376,6 @@ export class EpsAssistMeStack extends Stack {
       ]
     })
 
-    // ==== IAM Policy for Lambda to invoke itself ====
-    const lambdaSelfInvokePolicy = new PolicyStatement({
-      actions: ["lambda:InvokeFunction"],
-      resources: [
-        `arn:aws:lambda:${this.region}:${this.account}:function:${slackBotLambda.function.functionName}`
-      ]
-    })
-
     // ==== Lambda environment variables ====
     const lambdaEnv: {[key: string]: string} = {
       RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
@@ -411,6 +403,14 @@ export class EpsAssistMeStack extends Stack {
       logLevel,
       environmentVariables: lambdaEnv,
       additionalPolicies: []
+    })
+
+    // ==== IAM Policy for Lambda to invoke itself ====
+    const lambdaSelfInvokePolicy = new PolicyStatement({
+      actions: ["lambda:InvokeFunction"],
+      resources: [
+        `arn:aws:lambda:${this.region}:${this.account}:function:${slackBotLambda.function.functionName}`
+      ]
     })
 
     // ==== Attach all policies to SlackBot Lambda role ====
