@@ -179,6 +179,53 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  // Suppress AWS managed policy usage in CreateIndexFunctionRole
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/CreateIndexFunctionRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Lambda requires basic execution role for CloudWatch logs access.",
+        appliesTo: [
+          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ]
+      }
+    ]
+  )
+
+  // Suppress wildcard permissions in CreateIndexFunctionRole policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/CreateIndexFunctionRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
+        appliesTo: [
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
+        ]
+      }
+    ]
+  )
+
+  // Suppress wildcard permissions in CreateIndexFunctionAossPolicy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/CreateIndexFunctionAossPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
+        appliesTo: [
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
+        ]
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
