@@ -446,12 +446,15 @@ export class EpsAssistMeStack extends Stack {
       trustStoreKey: "unused",
       truststoreVersion: "unused"
     })
-    // Add SlackBot Lambda to API Gateway
+
+    // Define the /slack/ask-eps resource and method
     const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
-    slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
-      credentialsRole: apiGateway.role
-    }))
-    apiGateway.role.addManagedPolicy(slackBotLambda.executionPolicy)
+
+    // Allow API Gateway to invoke the SlackBot Lambda function
+    slackBotLambda.function.grantInvoke(apiGateway.role)
+
+    // Set up POST /slack/ask-eps → SlackBot Lambda
+    slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function))
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
