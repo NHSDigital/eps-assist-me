@@ -376,13 +376,13 @@ export class EpsAssistMeStack extends Stack {
       ]
     })
 
-    // ==== Lambda self-invoke policy (needed for Slack Bolt lazy handlers) ====
-    // const slackLambdaSelfInvokePolicy = new PolicyStatement({
-    //   actions: ["lambda:InvokeFunction"],
-    //   resources: [
-    //     slackBotLambda.function.functionArn
-    //   ]
-    // })
+    // ==== IAM Policy for Lambda to invoke itself ====
+    const lambdaSelfInvokePolicy = new PolicyStatement({
+      actions: ["lambda:InvokeFunction"],
+      resources: [
+        `arn:aws:lambda:${this.region}:${this.account}:function:${slackBotLambda.function.functionName}`
+      ]
+    })
 
     // ==== Lambda environment variables ====
     const lambdaEnv: {[key: string]: string} = {
@@ -415,7 +415,7 @@ export class EpsAssistMeStack extends Stack {
 
     // ==== Attach all policies to SlackBot Lambda role ====
     slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
-    // slackBotLambda.function.addToRolePolicy(slackLambdaSelfInvokePolicy)
+    slackBotLambda.function.addToRolePolicy(lambdaSelfInvokePolicy)
 
     // ==== API Gateway & Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
