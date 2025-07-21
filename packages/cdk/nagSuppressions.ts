@@ -256,7 +256,7 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
-  
+
   // Suppress wildcard permissions for Lambda self-invoke policy
   safeAddNagSuppression(
     stack,
