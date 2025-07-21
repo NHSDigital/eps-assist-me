@@ -226,6 +226,21 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+  
+  // Suppress wildcard permissions for SlackBot Lambda guardrail access
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "SlackBot Lambda needs access to all guardrails to apply content filtering.",
+        appliesTo: [
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*"
+        ]
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
