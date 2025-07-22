@@ -13,7 +13,7 @@ import {
   ObjectOwnership
 } from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
-import {Role, ServicePrincipal, PolicyStatement} from "aws-cdk-lib/aws-iam"
+import {PolicyStatement} from "aws-cdk-lib/aws-iam"
 import {
   CfnGuardrail,
   CfnGuardrailVersion,
@@ -48,7 +48,6 @@ export class EpsAssistMeStack extends Stack {
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
 
     // ==== SSM Parameter Store for Slack Secrets ====
-    // Store Slack Bot Token and Signing Secret in SSM Parameters (encrypted)
     const slackBotTokenParameter = new ssm.StringParameter(this, "SlackBotTokenParameter", {
       parameterName: "/eps-assist/slack/bot-token",
       stringValue: slackBotToken,
@@ -69,27 +68,76 @@ export class EpsAssistMeStack extends Stack {
     )
 
     // ==== S3 Buckets ====
-    // Access logs bucket for S3
     const accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.KMS,
       encryptionKey: cloudWatchLogsKmsKey,
       removalPolicy: RemovalPolicy.DESTROY,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      versioned: true,
+      autoDeleteObjects: true,
+      enforceSSL: true,
+      versioned: false,
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
-    // S3 bucket for Bedrock Knowledge Base documents
     const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryptionKey: cloudWatchLogsKmsKey,
       encryption: BucketEncryption.KMS,
       removalPolicy: RemovalPolicy.DESTROY,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      autoDeleteObjects: true,
+      enforceSSL: true,
       versioned: true,
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
       serverAccessLogsBucket: accessLogBucket,
       serverAccessLogsPrefix: "s3-access-logs/"
     })
+
+    // ==== IAM Policies for S3 access (Bedrock Execution Role) ====
+    const s3AccessListPolicy = new iam.PolicyStatement({
+      actions: ["s3:ListBucket"],
+      resources: [kbDocsBucket.bucketArn]
+    })
+    s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
+
+    const s3AccessGetPolicy = new iam.PolicyStatement({
+      actions: ["s3:GetObject", "s3:Delete*"],
+      resources: [`${kbDocsBucket.bucketArn}/*`]
+    })
+    s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
+
+    // ==== IAM Policy to invoke Bedrock Embedding Model ====
+    const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
+    const bedrockExecutionRolePolicy = new iam.PolicyStatement()
+    bedrockExecutionRolePolicy.addActions("bedrock:InvokeModel")
+    bedrockExecutionRolePolicy.addResources(`arn:aws:bedrock:${region}::foundation-model/${EMBEDDING_MODEL}`)
+
+    // ==== IAM Policy to delete Bedrock knowledge base ====
+    const bedrockKBDeleteRolePolicy = new iam.PolicyStatement()
+    bedrockKBDeleteRolePolicy.addActions("bedrock:Delete*")
+    bedrockKBDeleteRolePolicy.addResources(`arn:aws:bedrock:${region}:${account}:knowledge-base/*`)
+
+    // ==== IAM Policy to call OpenSearchServerless (AOSS) ====
+    const bedrockOSSPolicyForKnowledgeBase = new iam.PolicyStatement()
+    bedrockOSSPolicyForKnowledgeBase.addActions("aoss:APIAccessAll")
+    bedrockOSSPolicyForKnowledgeBase.addActions(
+      "aoss:DeleteAccessPolicy",
+      "aoss:DeleteCollection",
+      "aoss:DeleteLifecyclePolicy",
+      "aoss:DeleteSecurityConfig",
+      "aoss:DeleteSecurityPolicy"
+    )
+    bedrockOSSPolicyForKnowledgeBase.addResources(`arn:aws:aoss:${region}:${account}:collection/*`)
+
+    // ==== Bedrock Execution Role for Knowledge Base ====
+    const bedrockKbRole = new iam.Role(this, "EpsAssistMeBedrockExecutionRole", {
+      assumedBy: new iam.ServicePrincipal("bedrock.amazonaws.com"),
+      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch"
+    })
+    bedrockKbRole.addToPolicy(bedrockExecutionRolePolicy)
+    bedrockKbRole.addToPolicy(bedrockOSSPolicyForKnowledgeBase)
+    bedrockKbRole.addToPolicy(s3AccessListPolicy)
+    bedrockKbRole.addToPolicy(s3AccessGetPolicy)
+    bedrockKbRole.addToPolicy(bedrockKBDeleteRolePolicy)
 
     // ==== Bedrock Guardrail and Version ====
     const guardrail = new CfnGuardrail(this, "EpsGuardrail", {
@@ -101,13 +149,18 @@ export class EpsAssistMeStack extends Stack {
         filtersConfig: [
           {type: "SEXUAL", inputStrength: "HIGH", outputStrength: "HIGH"},
           {type: "VIOLENCE", inputStrength: "HIGH", outputStrength: "HIGH"},
-          {type: "HATE", inputStrength: "HIGH", outputStrength: "HIGH"}
+          {type: "HATE", inputStrength: "HIGH", outputStrength: "HIGH"},
+          {type: "INSULTS", inputStrength: "HIGH", outputStrength: "HIGH"},
+          {type: "MISCONDUCT", inputStrength: "HIGH", outputStrength: "HIGH"},
+          {type: "PROMPT_ATTACK", inputStrength: "HIGH", outputStrength: "NONE"}
         ]
       },
       sensitiveInformationPolicyConfig: {
         piiEntitiesConfig: [
           {type: "EMAIL", action: "ANONYMIZE"},
-          {type: "NAME", action: "ANONYMIZE"}
+          {type: "PHONE", action: "ANONYMIZE"},
+          {type: "NAME", action: "ANONYMIZE"},
+          {type: "CREDIT_DEBIT_CARD_NUMBER", action: "BLOCK"}
         ]
       },
       wordPolicyConfig: {
@@ -115,10 +168,9 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Add metadata to the guardrail for cfn-guard compliance
     const guardrailVersion = new CfnGuardrailVersion(this, "EpsGuardrailVersion", {
       guardrailIdentifier: guardrail.attrGuardrailId,
-      description: "Initial version of the EPS Assist Me Guardrail"
+      description: "Initial version"
     })
 
     // ==== OpenSearch Serverless: Security & Collection ====
@@ -131,7 +183,6 @@ export class EpsAssistMeStack extends Stack {
       })
     })
 
-    // OpenSearch Serverless Collection for EPS Assist
     const osCollection = new ops.CfnCollection(this, "OsCollection", {
       name: "eps-assist-vector-db",
       description: "EPS Assist Vector Store",
@@ -139,8 +190,7 @@ export class EpsAssistMeStack extends Stack {
     })
     osCollection.addDependency(osEncryptionPolicy)
 
-    // OpenSearch Serverless Security Policy for public access
-    new ops.CfnSecurityPolicy(this, "OsNetworkPolicy", {
+    const osNetworkPolicy = new ops.CfnSecurityPolicy(this, "OsNetworkPolicy", {
       name: "eps-assist-network-policy",
       type: "network",
       policy: JSON.stringify([{
@@ -151,99 +201,37 @@ export class EpsAssistMeStack extends Stack {
         AllowFromPublic: true
       }])
     })
+    osCollection.addDependency(osNetworkPolicy)
 
-    // ==== Bedrock Execution Role for Knowledge Base ====
-    // This role allows Bedrock to access S3 documents, use OpenSearch Serverless, and call the embedding model.
-    const bedrockKbRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {
-      assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
-      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch"
-    })
-
-    // Allow Bedrock to read/list objects in the docs S3 bucket
-    bedrockKbRole.addToPolicy(new PolicyStatement({
-      actions: ["s3:GetObject", "s3:ListBucket"],
-      resources: [
-        kbDocsBucket.bucketArn,
-        `${kbDocsBucket.bucketArn}/*`
-      ]
-    }))
-
-    // Allow Bedrock full access to your OpenSearch Serverless collection and its indexes
-    bedrockKbRole.addToPolicy(new PolicyStatement({
-      actions: ["aoss:*"],
-      resources: [
-        osCollection.attrArn,
-        `${osCollection.attrArn}/*`,
-        "*" // For initial development, broad access
-      ]
-    }))
-
-    // Allow Bedrock to call the embedding model
-    bedrockKbRole.addToPolicy(new PolicyStatement({
-      actions: ["bedrock:InvokeModel"],
-      resources: [
-        `arn:aws:bedrock:${region}::foundation-model/amazon.titan-embed-text-v2:0`
-      ]
-    }))
-
-    // ==== IAM Role for Lambda: Create OpenSearch Index ====
-    // This role allows the Lambda to create and manage indexes in OpenSearch Serverless.
+    // ==== Lambda Role for Creating OpenSearch Index ====
     const createIndexFunctionRole = new iam.Role(this, "CreateIndexFunctionRole", {
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Lambda role for creating OpenSearch index"
     })
-
-    // Attach managed policy for CloudWatch Logs
     createIndexFunctionRole.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
     )
-
-    // Grant the role permissions to manage OpenSearch collections and indexes
-    const collectionArn = `arn:aws:aoss:${region}:${account}:collection/*`
-    const indexArn = `arn:aws:aoss:${region}:${account}:index/*`
-
     createIndexFunctionRole.addToPolicy(new iam.PolicyStatement({
       actions: [
         "aoss:APIAccessAll",
-        "aoss:CreateCollectionItems",
-        "aoss:CreateIndex",
-        "aoss:DeleteCollectionItems",
-        "aoss:DeleteIndex",
-        "aoss:DescribeCollectionItems",
         "aoss:DescribeIndex",
         "aoss:ReadDocument",
-        "aoss:UpdateCollectionItems",
+        "aoss:CreateIndex",
+        "aoss:DeleteIndex",
         "aoss:UpdateIndex",
-        "aoss:WriteDocument"
+        "aoss:WriteDocument",
+        "aoss:CreateCollectionItems",
+        "aoss:DeleteCollectionItems",
+        "aoss:UpdateCollectionItems",
+        "aoss:DescribeCollectionItems"
       ],
-      resources: [collectionArn, indexArn]
+      resources: [
+        `arn:aws:aoss:${region}:${account}:collection/*`,
+        `arn:aws:aoss:${region}:${account}:index/*`
+      ]
     }))
 
-    // ==== IAM Managed Policy: OpenSearch Index Permissions for Lambda ====
-    const aossIndexPolicy = new iam.ManagedPolicy(this, "CreateIndexFunctionAossPolicy", {
-      description: "Allow Lambda to manage OpenSearch Serverless indices",
-      statements: [
-        new iam.PolicyStatement({
-          actions: [
-            "aoss:APIAccessAll",
-            "aoss:CreateCollectionItems",
-            "aoss:CreateIndex",
-            "aoss:DeleteCollectionItems",
-            "aoss:DeleteIndex",
-            "aoss:DescribeCollectionItems",
-            "aoss:DescribeIndex",
-            "aoss:ReadDocument",
-            "aoss:UpdateCollectionItems",
-            "aoss:UpdateIndex",
-            "aoss:WriteDocument"
-          ],
-          resources: [collectionArn, indexArn]
-        })
-      ]
-    })
-
-    // ==== Lambda Function for Vector Index Creation ====
-    // This Lambda uses the role above to create the index when triggered by a Custom Resource.
+    // ==== Lambda to Create OpenSearch Index ====
     const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
       stackName: props.stackName,
       functionName: `${props.stackName}-CreateIndexFunction`,
@@ -252,10 +240,10 @@ export class EpsAssistMeStack extends Stack {
       logRetentionInDays,
       logLevel,
       environmentVariables: {"INDEX_NAME": osCollection.attrId},
-      additionalPolicies: [aossIndexPolicy]
+      additionalPolicies: []
     })
 
-    // ==== AOSS Access Policy for Lambda & Bedrock ====
+    // ==== OpenSearchServerless access policy ====
     new ops.CfnAccessPolicy(this, "OsAccessPolicy", {
       name: "eps-assist-access-policy",
       type: "data",
@@ -265,33 +253,18 @@ export class EpsAssistMeStack extends Stack {
           {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
         ],
         Principal: [
-          `arn:aws:iam::${account}:role/${createIndexFunction.function.role?.roleName}`,
           bedrockKbRole.roleArn,
+          createIndexFunction.function.role?.roleArn,
           `arn:aws:iam::${account}:root`
         ]
       }])
     })
 
-    // ==== Index Creation: Custom Resource Triggers Lambda ====
+    // ==== Custom Resource to create vector index via Lambda ====
     const endpoint = `${osCollection.attrId}.${region}.aoss.amazonaws.com`
     const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
       onCreate: {
-        service: "Lambda",
-        action: "invoke",
-        parameters: {
-          FunctionName: createIndexFunction.function.functionName,
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            RequestType: "Create",
-            CollectionName: osCollection.name,
-            IndexName: "eps-assist-os-index",
-            Endpoint: endpoint
-          })
-        },
-        physicalResourceId: cr.PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
-      },
-      onUpdate: {
         service: "Lambda",
         action: "invoke",
         parameters: {
@@ -321,12 +294,13 @@ export class EpsAssistMeStack extends Stack {
         }
       },
       policy: cr.AwsCustomResourcePolicy.fromStatements([
-        new PolicyStatement({
+        new iam.PolicyStatement({
           actions: ["lambda:InvokeFunction"],
           resources: [createIndexFunction.function.functionArn]
         })
       ])
     })
+    vectorIndex.node.addDependency(osCollection)
 
     // ==== Bedrock Knowledge Base Resource ====
     const kb = new CfnKnowledgeBase(this, "EpsKb", {
@@ -336,7 +310,7 @@ export class EpsAssistMeStack extends Stack {
       knowledgeBaseConfiguration: {
         type: "VECTOR",
         vectorKnowledgeBaseConfiguration: {
-          embeddingModelArn: `arn:aws:bedrock:${region}::foundation-model/amazon.titan-embed-text-v2:0`
+          embeddingModelArn: `arn:aws:bedrock:${region}::foundation-model/${EMBEDDING_MODEL}`
         }
       },
       storageConfiguration: {
@@ -352,7 +326,7 @@ export class EpsAssistMeStack extends Stack {
         }
       }
     })
-    kb.node.addDependency(vectorIndex) // Ensure index exists before KB
+    kb.node.addDependency(vectorIndex)
 
     // ==== S3 DataSource for Knowledge Base ====
     const kbDataSource = new CfnDataSource(this, "EpsKbDataSource", {
@@ -367,7 +341,7 @@ export class EpsAssistMeStack extends Stack {
     })
     kbDataSource.node.addDependency(kb)
 
-    // ==== IAM Policy for Lambda to read SSM parameters ====
+    // ==== SlackBot Lambda Role Policies ====
     const slackLambdaSSMPolicy = new PolicyStatement({
       actions: ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"],
       resources: [
@@ -376,18 +350,10 @@ export class EpsAssistMeStack extends Stack {
       ]
     })
 
-    // ==== Lambda self-invoke policy (needed for Slack Bolt lazy handlers) ====
-    // const slackLambdaSelfInvokePolicy = new PolicyStatement({
-    //   actions: ["lambda:InvokeFunction"],
-    //   resources: [
-    //     slackBotLambda.function.functionArn
-    //   ]
-    // })
-
     // ==== Lambda environment variables ====
     const lambdaEnv: {[key: string]: string} = {
       RAG_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0",
-      EMBEDDING_MODEL: "amazon.titan-embed-text-v2:0",
+      EMBEDDING_MODEL: EMBEDDING_MODEL,
       SLACK_SLASH_COMMAND: "/ask-eps",
       COLLECTION_NAME: "eps-assist-vector-db",
       VECTOR_INDEX_NAME: "eps-assist-os-index",
@@ -412,10 +378,7 @@ export class EpsAssistMeStack extends Stack {
       environmentVariables: lambdaEnv,
       additionalPolicies: []
     })
-
-    // ==== Attach all policies to SlackBot Lambda role ====
     slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
-    // slackBotLambda.function.addToRolePolicy(slackLambdaSelfInvokePolicy)
 
     // ==== API Gateway & Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
@@ -425,7 +388,6 @@ export class EpsAssistMeStack extends Stack {
       trustStoreKey: "unused",
       truststoreVersion: "unused"
     })
-    // Add SlackBot Lambda to API Gateway
     const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
     slackRoute.addMethod("POST", new LambdaIntegration(slackBotLambda.function, {
       credentialsRole: apiGateway.role

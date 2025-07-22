@@ -90,18 +90,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress SSL requirement on Docs bucket policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/KbDocsTlsPolicy",
-    [
-      {
-        id: "AwsSolutions-S10",
-        reason: "SSL enforcement for docs bucket policy is deferred; tracked for future hardening."
-      }
-    ]
-  )
-
   // Suppress missing WAF on API stage
   safeAddNagSuppression(
     stack,
@@ -138,18 +126,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress SSL enforcement warning on AccessLogs bucket TLS policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/AccessLogsBucketTlsPolicy",
-    [
-      {
-        id: "AwsSolutions-S10",
-        reason: "SSL enforcement for access logs bucket TLS policy is deferred; tracked for future hardening."
-      }
-    ]
-  )
-
   // Suppress SSL warning on actual access log bucket policy resource
   safeAddNagSuppression(
     stack,
@@ -174,7 +150,11 @@ export const nagSuppressions = (stack: Stack) => {
           "Resource::<EpsAssistDocsBucketD6886E55.Arn>/*",
           "Action::aoss:*",
           "Resource::*",
-          "Resource::<OsCollection.Arn>/*"
+          "Resource::<OsCollection.Arn>/*",
+          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
+          "Action::s3:Delete*",
+          "Action::bedrock:Delete*",
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*"
         ]
       }
     ]
@@ -205,23 +185,9 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
         appliesTo: [
           "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions in CreateIndexFunctionAossPolicy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/CreateIndexFunctionAossPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
-        appliesTo: [
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*",
+          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:123456789012:index/*"
         ]
       }
     ]
@@ -237,21 +203,6 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "SlackBot Lambda needs access to all guardrails to apply content filtering.",
         appliesTo: [
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions for API Gateway role
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/EpsAssistApiGateway/ApiGatewayRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "API Gateway needs to invoke all versions of the Lambda function.",
-        appliesTo: [
-          "Resource::<SlackBotLambdaepsampr11SlackBotFunction3A9FEA45.Arn>:*"
         ]
       }
     ]
