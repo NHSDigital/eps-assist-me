@@ -33,29 +33,26 @@ def get_opensearch_client(endpoint):
     )
 
 
-def wait_for_index_aoss(opensearch_client, index_name, timeout=150, poll_interval=5):
+def wait_for_index_aoss(opensearch_client, index_name, timeout=60, poll_interval=3):
     """
     Wait until the index exists in OpenSearch Serverless (AOSS).
     AOSS does not support cluster health checks, so existence == ready.
     """
-    logger.info(f"Waiting for index '{index_name}' to be available in AOSS...")
+    logger.info(f"Waiting for index '{index_name}' to exist in AOSS...")
     start = time.time()
     while True:
         try:
-            # Use .exists and then attempt to get mapping
+            # HEAD API: Does the index exist yet?
             if opensearch_client.indices.exists(index=index_name):
-                # Now check if mappings are available (index is queryable)
-                mapping = opensearch_client.indices.get_mapping(index=index_name)
-                if mapping and index_name in mapping:
-                    logger.info(f"Index '{index_name}' exists and mappings are ready.")
-                    return True
+                logger.info(f"Index '{index_name}' exists and is considered ready (AOSS).")
+                return True
             else:
                 logger.info(f"Index '{index_name}' does not exist yet...")
         except Exception as exc:
-            logger.info(f"Still waiting for index '{index_name}': {exc}")
+            logger.warning(f"Error checking index existence: {exc}")
         # Exit on timeout to avoid infinite loop during stack failures.
         if time.time() - start > timeout:
-            logger.error(f"Timed out waiting for index '{index_name}' to be available.")
+            logger.error(f"Timed out waiting for index '{index_name}' to exist.")
             return False
         time.sleep(poll_interval)
 
@@ -88,11 +85,11 @@ def create_and_wait_for_index(client, index_name):
                     },
                     "AMAZON_BEDROCK_METADATA": {
                         "type": "text",
-                        "index": False,
+                        "index": "false",
                     },
                     "AMAZON_BEDROCK_TEXT_CHUNK": {
                         "type": "text",
-                        "index": True,
+                        "index": "true",
                     },
                 }
             },
