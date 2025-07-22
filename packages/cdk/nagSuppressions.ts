@@ -152,9 +152,11 @@ export const nagSuppressions = (stack: Stack) => {
           "Resource::*",
           "Resource::<OsCollection.Arn>/*",
           "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
           "Action::s3:Delete*",
           "Action::bedrock:Delete*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*"
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*",
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*"
         ]
       }
     ]
