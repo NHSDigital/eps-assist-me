@@ -33,7 +33,7 @@ def get_opensearch_client(endpoint):
     )
 
 
-def wait_for_index_aoss(opensearch_client, index_name, timeout=60, poll_interval=3):
+def wait_for_index_aoss(opensearch_client, index_name, timeout=180, poll_interval=3):
     """
     Wait until the index exists in OpenSearch Serverless (AOSS).
     AOSS does not support cluster health checks, so existence == ready.
@@ -85,11 +85,11 @@ def create_and_wait_for_index(client, index_name):
                     },
                     "AMAZON_BEDROCK_METADATA": {
                         "type": "text",
-                        "index": "false",
+                        "index": False,
                     },
                     "AMAZON_BEDROCK_TEXT_CHUNK": {
                         "type": "text",
-                        "index": "true",
+                        "index": True,
                     },
                 }
             },
