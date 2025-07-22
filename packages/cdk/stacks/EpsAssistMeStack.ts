@@ -394,37 +394,37 @@ export class EpsAssistMeStack extends Stack {
       ]
     })
 
-    // ==== Bedrock model invocation policy ====
-    const slackLambdaBedrockModelPolicy = new PolicyStatement({
-      actions: ["bedrock:InvokeModel"],
-      resources: [
-        `arn:aws:bedrock:${this.region}::foundation-model/${lambdaEnv.RAG_MODEL_ID}`
-      ]
-    })
+    // // ==== Bedrock model invocation policy ====
+    // const slackLambdaBedrockModelPolicy = new PolicyStatement({
+    //   actions: ["bedrock:InvokeModel"],
+    //   resources: [
+    //     `arn:aws:bedrock:${this.region}::foundation-model/${lambdaEnv.RAG_MODEL_ID}`
+    //   ]
+    // })
 
-    // ==== Bedrock KB retrieve and retrieveAndGenerate policy ====
-    const slackLambdaBedrockKbPolicy = new PolicyStatement({
-      actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
-      resources: [
-        `arn:aws:bedrock:${this.region}:${this.account}:knowledge-base/${kb.attrKnowledgeBaseId}`
-      ]
-    })
+    // // ==== Bedrock KB retrieve and retrieveAndGenerate policy ====
+    // const slackLambdaBedrockKbPolicy = new PolicyStatement({
+    //   actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
+    //   resources: [
+    //     `arn:aws:bedrock:${this.region}:${this.account}:knowledge-base/${kb.attrKnowledgeBaseId}`
+    //   ]
+    // })
 
-    // ==== Guardrail policy ====
-    const slackLambdaGuardrailPolicy = new PolicyStatement({
-      actions: ["bedrock:ApplyGuardrail"],
-      resources: [
-        `arn:aws:bedrock:${this.region}:${this.account}:guardrail/*`
-      ]
-    })
+    // // ==== Guardrail policy ====
+    // const slackLambdaGuardrailPolicy = new PolicyStatement({
+    //   actions: ["bedrock:ApplyGuardrail"],
+    //   resources: [
+    //     `arn:aws:bedrock:${this.region}:${this.account}:guardrail/*`
+    //   ]
+    // })
 
-    // ==== Lambda self-invoke policy ====
-    const slackLambdaSelfInvokePolicy = new PolicyStatement({
-      actions: ["lambda:InvokeFunction"],
-      resources: [
-        `arn:aws:lambda:${this.region}:${this.account}:function:*`
-      ]
-    })
+    // // ==== Lambda self-invoke policy ====
+    // const slackLambdaSelfInvokePolicy = new PolicyStatement({
+    //   actions: ["lambda:InvokeFunction"],
+    //   resources: [
+    //     `arn:aws:lambda:${this.region}:${this.account}:function:*`
+    //   ]
+    // })
 
     // ==== SlackBot Lambda ====
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
@@ -440,10 +440,10 @@ export class EpsAssistMeStack extends Stack {
 
     // ==== Attach all policies to SlackBot Lambda role ====
     slackBotLambda.function.addToRolePolicy(slackLambdaSSMPolicy)
-    slackBotLambda.function.addToRolePolicy(slackLambdaSelfInvokePolicy)
-    slackBotLambda.function.addToRolePolicy(slackLambdaBedrockModelPolicy)
-    slackBotLambda.function.addToRolePolicy(slackLambdaBedrockKbPolicy)
-    slackBotLambda.function.addToRolePolicy(slackLambdaGuardrailPolicy)
+    // slackBotLambda.function.addToRolePolicy(slackLambdaSelfInvokePolicy)
+    // slackBotLambda.function.addToRolePolicy(slackLambdaBedrockModelPolicy)
+    // slackBotLambda.function.addToRolePolicy(slackLambdaBedrockKbPolicy)
+    // slackBotLambda.function.addToRolePolicy(slackLambdaGuardrailPolicy)
 
     // ==== API Gateway & Slack Route ====
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
