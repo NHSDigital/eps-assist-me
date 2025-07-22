@@ -74,7 +74,7 @@ export class EpsAssistMeStack extends Stack {
     const accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
       encryption: BucketEncryption.KMS,
       encryptionKey: cloudWatchLogsKmsKey,
-      removalPolicy: RemovalPolicy.RETAIN,
+      removalPolicy: RemovalPolicy.DESTROY,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       versioned: true,
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
@@ -84,7 +84,7 @@ export class EpsAssistMeStack extends Stack {
     const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
       encryptionKey: cloudWatchLogsKmsKey,
       encryption: BucketEncryption.KMS,
-      removalPolicy: RemovalPolicy.RETAIN,
+      removalPolicy: RemovalPolicy.DESTROY,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       versioned: true,
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
