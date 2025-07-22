@@ -26,6 +26,6 @@
     ]
   },
   "references": [],
-  "include": ["resources/**/*", "stacks/**/*", "tests/**/*", "nagSuppressions.ts"],
+  "include": ["constructs/**/*", "stacks/**/*", "tests/**/*", "nagSuppressions.ts"],
   "exclude": ["node_modules", "cdk.out"]
 }

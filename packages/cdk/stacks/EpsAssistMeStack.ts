@@ -20,8 +20,8 @@ import {
   CfnKnowledgeBase,
   CfnDataSource
 } from "aws-cdk-lib/aws-bedrock"
-import {RestApiGateway} from "../resources/RestApiGateway"
-import {LambdaFunction} from "../resources/LambdaFunction"
+import {RestApiGateway} from "../constructs/RestApiGateway"
+import {LambdaFunction} from "../constructs/LambdaFunction"
 import {LambdaIntegration} from "aws-cdk-lib/aws-apigateway"
 import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
