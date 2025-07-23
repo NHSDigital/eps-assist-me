@@ -22,6 +22,7 @@ import {
 import {RestApiGateway} from "../constructs/RestApiGateway"
 import {LambdaFunction} from "../constructs/LambdaFunction"
 import {LambdaEndpoint} from "../constructs/RestApiGateway/LambdaEndpoint"
+import {HttpMethod} from "aws-cdk-lib/aws-lambda"
 import {PolicyStatement} from "aws-cdk-lib/aws-iam"
 import * as cdk from "aws-cdk-lib"
 import * as iam from "aws-cdk-lib/aws-iam"
@@ -481,7 +482,7 @@ export class EpsAssistMeStack extends Stack {
     new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
       parentResource: slackResource,
       resourceName: "ask-eps",
-      method: "POST",
+      method: HttpMethod.POST,
       restApiGatewayRole: apiGateway.role,
       lambdaFunction: slackBotLambda
     })
