@@ -394,7 +394,6 @@ export class EpsAssistMeStack extends Stack {
         }
       }
     })
-    // kbDataSource.node.addDependency(bedrockkb)
 
     // Create an IAM policy to allow the lambda to invoke models in Amazon Bedrock
     const lambdaBedrockModelPolicy = new PolicyStatement()
@@ -426,7 +425,11 @@ export class EpsAssistMeStack extends Stack {
 
     const lambdaReinvokePolicy = new PolicyStatement()
     lambdaReinvokePolicy.addActions("lambda:InvokeFunction")
-    lambdaReinvokePolicy.addResources(`arn:aws:lambda:${region}:${account}:function:AmazonBedrock*`)
+    lambdaReinvokePolicy.addResources(
+      `arn:aws:lambda:${region}:${account}:function:${slackBotLambda.function.functionName}`,
+      `arn:aws:lambda:${region}:${account}:function:AmazonBedrock*`
+    )
+    slackBotLambda.function.addToRolePolicy(lambdaReinvokePolicy)
 
     const lambdaGRinvokePolicy = new PolicyStatement()
     lambdaGRinvokePolicy.addActions("bedrock:ApplyGuardrail")
