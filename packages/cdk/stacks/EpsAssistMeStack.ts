@@ -423,18 +423,6 @@ export class EpsAssistMeStack extends Stack {
     //"arn:aws:ssm:us-east-2:123456789012:parameter/prod-*"
     //(`arn:aws:bedrock:${region}:${account}:knowledge-base/${bedrockkb.attrKnowledgeBaseId}`);
 
-    const lambdaReinvokePolicy = new PolicyStatement()
-    lambdaReinvokePolicy.addActions("lambda:InvokeFunction")
-    lambdaReinvokePolicy.addResources(
-      `arn:aws:lambda:${region}:${account}:function:${slackBotLambda.function.functionName}`,
-      `arn:aws:lambda:${region}:${account}:function:AmazonBedrock*`
-    )
-    slackBotLambda.function.addToRolePolicy(lambdaReinvokePolicy)
-
-    const lambdaGRinvokePolicy = new PolicyStatement()
-    lambdaGRinvokePolicy.addActions("bedrock:ApplyGuardrail")
-    lambdaGRinvokePolicy.addResources(`arn:aws:bedrock:${region}:${account}:guardrail/*`)
-
     // Create the SlackBot (slash command) integration to Amazon Bedrock Knowledge base responses.
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
@@ -462,6 +450,18 @@ export class EpsAssistMeStack extends Stack {
     // Grant the Lambda function permission to read the secrets
     slackBotTokenSecret.grantRead(slackBotLambda.function)
     slackBotSigningSecret.grantRead(slackBotLambda.function)
+
+    // Create the policy using the actual Lambda function name
+    const lambdaReinvokePolicy = new PolicyStatement()
+    lambdaReinvokePolicy.addActions("lambda:InvokeFunction")
+    lambdaReinvokePolicy.addResources(
+      `arn:aws:lambda:${region}:${account}:function:${slackBotLambda.function.functionName}`,
+      `arn:aws:lambda:${region}:${account}:function:AmazonBedrock*`
+    )
+
+    const lambdaGRinvokePolicy = new PolicyStatement()
+    lambdaGRinvokePolicy.addActions("bedrock:ApplyGuardrail")
+    lambdaGRinvokePolicy.addResources(`arn:aws:bedrock:${region}:${account}:guardrail/*`)
 
     // Attach listed IAM policies to the Lambda functions Execution role
     slackBotLambda.function.addToRolePolicy(lambdaBedrockModelPolicy)
