@@ -213,7 +213,7 @@ export class EpsAssistMeStack extends Stack {
 
     //Define OpenSearchServerless Collection & depends on policies
     const osCollection = new ops.CfnCollection(this, "osCollection", {
-      name: `${COLLECTION_NAME}-${props.version}`,
+      name: COLLECTION_NAME,
       description: "EPS Assist Vector Store",
       type: "VECTORSEARCH"
     })
