@@ -54,7 +54,7 @@ export class RestApiGateway extends Construct {
       encryptionKey: cloudWatchLogsKmsKey,
       logGroupName: `/aws/apigateway/${props.stackName}-apigw`,
       retention: props.logRetentionInDays,
-      removalPolicy: RemovalPolicy.RETAIN
+      removalPolicy: RemovalPolicy.DESTROY
     })
 
     new CfnSubscriptionFilter(this, "ApiGatewayAccessLogsSplunkSubscriptionFilter", {
