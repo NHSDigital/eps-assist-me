@@ -51,7 +51,7 @@ export class EpsAssistMeStack extends Stack {
   public constructor(scope: App, id: string, props: EpsAssistMeStackProps) {
     super(scope, id, props)
 
-    // ==== Context/Parameters ====
+    // Get variables from context
     const region = Stack.of(this).region
     const account = Stack.of(this).account
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays")) || 14
@@ -97,16 +97,10 @@ export class EpsAssistMeStack extends Stack {
       tier: ssm.ParameterTier.STANDARD
     })
 
-    // ==== KMS Key Import ====
-    const cloudWatchLogsKmsKey = Key.fromKeyArn(
-      this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn")
-    )
-
-    // ==== S3 Buckets ====
+    // Define the S3 bucket for access logs
     const accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.KMS,
-      encryptionKey: cloudWatchLogsKmsKey,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       enforceSSL: true,
@@ -114,9 +108,9 @@ export class EpsAssistMeStack extends Stack {
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
+    // Define the S3 bucket for knowledge base documents
     const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      encryptionKey: cloudWatchLogsKmsKey,
       encryption: BucketEncryption.KMS,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
@@ -127,13 +121,14 @@ export class EpsAssistMeStack extends Stack {
       serverAccessLogsPrefix: "s3-access-logs/"
     })
 
-    // ==== IAM Policies for S3 access (Bedrock Execution Role) ====
+    // Create an IAM policy for S3 access
     const s3AccessListPolicy = new PolicyStatement({
       actions: ["s3:ListBucket"],
       resources: [kbDocsBucket.bucketArn]
     })
     s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
 
+    // Create an IAM policy for S3 access
     const s3AccessGetPolicy = new PolicyStatement({
       actions: ["s3:GetObject", "s3:Delete*"],
       resources: [`${kbDocsBucket.bucketArn}/*`]
