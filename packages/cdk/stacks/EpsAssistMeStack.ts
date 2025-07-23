@@ -21,6 +21,7 @@ import {
 } from "aws-cdk-lib/aws-bedrock"
 import {RestApiGateway} from "../constructs/RestApiGateway"
 import {LambdaFunction} from "../constructs/LambdaFunction"
+import {LambdaEndpoint} from "../constructs/RestApiGateway/LambdaEndpoint"
 import {PolicyStatement} from "aws-cdk-lib/aws-iam"
 import * as cdk from "aws-cdk-lib"
 import * as iam from "aws-cdk-lib/aws-iam"
@@ -465,7 +466,7 @@ export class EpsAssistMeStack extends Stack {
     slackBotLambda.function.addToRolePolicy(lambdaGRinvokePolicy)
     slackBotLambda.function.addToRolePolicy(lambdaSSMPolicy)
 
-    // Define the API Gateway resource and associate the trigger for Industrial Query Lambda function=
+    // Define the API Gateway and connect the '/slack/ask-eps' POST endpoint to the SlackBot Lambda function
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
       stackName: props.stackName,
       logRetentionInDays,
@@ -474,9 +475,16 @@ export class EpsAssistMeStack extends Stack {
       truststoreVersion: "unused"
     })
 
-    // Define the '/industrial/query' API resource with a POST method
-    const slackRoute = apiGateway.api.root.addResource("slack").addResource("ask-eps")
-    slackRoute.addMethod("POST")
+    const slackResource = apiGateway.api.root.addResource("slack")
+
+    // Create the '/slack/ask-eps' POST endpoint and integrate it with the SlackBot Lambda
+    new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
+      parentResource: slackResource,
+      resourceName: "ask-eps",
+      method: "POST",
+      restApiGatewayRole: apiGateway.role,
+      lambdaFunction: slackBotLambda
+    })
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
