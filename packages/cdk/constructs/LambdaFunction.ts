@@ -25,6 +25,7 @@ export interface LambdaFunctionProps {
   readonly entryPoint: string
   readonly environmentVariables: {[key: string]: string}
   readonly additionalPolicies?: Array<IManagedPolicy>
+  readonly role?: Role
   readonly logRetentionInDays: number
   readonly logLevel: string
 }
@@ -99,15 +100,27 @@ export class LambdaFunction extends Construct {
       ]
     })
 
-    const role = new Role(this, "LambdaRole", {
-      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-      managedPolicies: [
-        putLogsManagedPolicy,
-        lambdaInsightsLogGroupPolicy,
-        cloudwatchEncryptionKMSPolicy,
-        ...(props.additionalPolicies ?? [])
-      ]
-    })
+    // Role/Policy Aggregation
+    const requiredPolicies: Array<IManagedPolicy> = [
+      putLogsManagedPolicy,
+      lambdaInsightsLogGroupPolicy,
+      cloudwatchEncryptionKMSPolicy,
+      ...(props.additionalPolicies ?? [])
+    ]
+
+    let role: Role
+    if (props.role) {
+      role = props.role
+      // Attach any missing managed policies to the provided role
+      for (const policy of requiredPolicies) {
+        role.addManagedPolicy(policy)
+      }
+    } else {
+      role = new Role(this, "LambdaRole", {
+        assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+        managedPolicies: requiredPolicies
+      })
+    }
 
     // Define the Lambda function
     const lambdaFunction = new lambda.Function(this, props.functionName, {

@@ -204,7 +204,8 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "SlackBot Lambda needs access to all guardrails to apply content filtering.",
         appliesTo: [
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*"
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*",
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:guardrail/*"
         ]
       }
     ]
@@ -219,8 +220,32 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "Lambda needs to invoke itself for Slack Bolt lazy handlers.",
         appliesTo: [
-          "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*"
+          "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
+          "Resource::arn:aws:lambda:eu-west-2:123456789012:function:AmazonBedrock*"
         ]
+      }
+    ]
+  )
+
+  // Suppress secrets without rotation
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/SlackBotTokenSecret/Resource",
+    [
+      {
+        id: "AwsSolutions-SMG4",
+        reason: "Slack bot token rotation is handled manually as part of the Slack app configuration process."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/SlackBotSigningSecret/Resource",
+    [
+      {
+        id: "AwsSolutions-SMG4",
+        reason: "Slack signing secret rotation is handled manually as part of the Slack app configuration process."
       }
     ]
   )
