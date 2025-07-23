@@ -35,7 +35,7 @@ import {nagSuppressions} from "../nagSuppressions"
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const SLACK_SLASH_COMMAND = "/ask-eps"
-const COLLECTION_NAME = "eps-assist-vector-db"
+// const COLLECTION_NAME = "eps-assist-vector-db"
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 const BEDROCK_KB_NAME = "eps-assist-kb"
 const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
@@ -213,7 +213,7 @@ export class EpsAssistMeStack extends Stack {
 
     //Define OpenSearchServerless Collection & depends on policies
     const osCollection = new ops.CfnCollection(this, "osCollection", {
-      name: COLLECTION_NAME,
+      // name: COLLECTION_NAME,
       description: "EPS Assist Vector Store",
       type: "VECTORSEARCH"
     })
