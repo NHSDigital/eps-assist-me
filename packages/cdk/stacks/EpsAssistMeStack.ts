@@ -3,7 +3,6 @@ import {
   Stack,
   StackProps,
   RemovalPolicy,
-  Fn,
   CfnOutput
 } from "aws-cdk-lib"
 import {
@@ -108,10 +107,17 @@ export class EpsAssistMeStack extends Stack {
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
-    // Define the S3 bucket for knowledge base documents
+    // Create a customer-managed KMS key
+    const kbDocsKey = new Key(this, "KbDocsKey", {
+      enableKeyRotation: true,
+      description: "KMS key for encrypting knowledge base documents"
+    })
+
+    // Use the KMS key in your S3 bucket
     const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.KMS,
+      encryptionKey: kbDocsKey,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       enforceSSL: true,
@@ -168,7 +174,15 @@ export class EpsAssistMeStack extends Stack {
     bedrockExecutionRole.addToPolicy(s3AccessGetPolicy)
     bedrockExecutionRole.addToPolicy(bedrockKBDeleteRolePolicy)
 
-    // ==== Bedrock Guardrail and Version ====
+    // Grant Bedrock permission to decrypt
+    kbDocsKey.addToResourcePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      principals: [new iam.ArnPrincipal(bedrockExecutionRole.roleArn)],
+      actions: ["kms:Decrypt", "kms:DescribeKey"],
+      resources: ["*"]
+    }))
+
+    // Create bedrock Guardrails for the slack bot
     const guardrail = new CfnGuardrail(this, "EpsGuardrail", {
       name: "eps-assist-guardrail",
       description: "Guardrail for EPS Assist Me bot",
@@ -197,6 +211,7 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
+    // Add a dependency for the guardrail to the bedrock execution role
     const guardrailVersion = new CfnGuardrailVersion(this, "EpsGuardrailVersion", {
       guardrailIdentifier: guardrail.attrGuardrailId,
       description: "v1.0"
