@@ -18,7 +18,6 @@ import {
   CfnKnowledgeBase,
   CfnDataSource
 } from "aws-cdk-lib/aws-bedrock"
-import {LambdaFunction} from "../constructs/LambdaFunction"
 import {PolicyStatement} from "aws-cdk-lib/aws-iam"
 import * as cdk from "aws-cdk-lib"
 import * as iam from "aws-cdk-lib/aws-iam"
@@ -28,15 +27,12 @@ import * as ssm from "aws-cdk-lib/aws-ssm"
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
+import {Functions} from "../resources/Functions"
 
-const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
-const SLACK_SLASH_COMMAND = "/ask-eps"
 const COLLECTION_NAME = "eps-assist-vector-db"
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 const BEDROCK_KB_NAME = "eps-assist-kb"
-const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
-const LAMBDA_MEMORY_SIZE = "265"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -281,85 +277,7 @@ export class EpsAssistMeStack extends Stack {
       effect: iam.Effect.ALLOW
     }))
 
-    // Define a lambda function to create an opensearch serverless index
-    const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
-      stackName: props.stackName,
-      functionName: `${props.stackName}-CreateIndexFunction`,
-      packageBasePath: "packages/createIndexFunction",
-      entryPoint: "app.py",
-      logRetentionInDays,
-      logLevel,
-      environmentVariables: {"INDEX_NAME": osCollection.attrId},
-      additionalPolicies: [],
-      role: createIndexFunctionRole
-    })
-
-    // Define OpenSearchServerless access policy to access the index and collection
-    // from the Amazon Bedrock execution role and the lambda execution role
-    const aossAccessPolicy = new ops.CfnAccessPolicy(this, "aossAccessPolicy", {
-      name: "eps-assist-access-policy",
-      type: "data",
-      policy: JSON.stringify([{
-        Rules: [
-          {ResourceType: "collection", Resource: ["collection/*"], Permission: ["aoss:*"]},
-          {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
-        ],
-        // Add principal of bedrock execution role and lambda execution role
-        Principal: [
-          bedrockExecutionRole.roleArn,
-          createIndexFunction.function.role?.roleArn,
-          `arn:aws:iam::${account}:root`
-        ]
-      }])
-    })
-    //this.serverlessCollection = osCollection;
-    osCollection.addDependency(aossAccessPolicy)
-
     const endpoint = `${osCollection.attrId}.${region}.aoss.amazonaws.com`
-
-    const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
-      installLatestAwsSdk: true,
-      onCreate: {
-        service: "Lambda",
-        action: "invoke",
-        parameters: {
-          FunctionName: createIndexFunction.function.functionName,
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            RequestType: "Create",
-            CollectionName: osCollection.name,
-            IndexName: VECTOR_INDEX_NAME,
-            Endpoint: endpoint
-          })
-        },
-        physicalResourceId: cr.PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
-      },
-      onDelete: {
-        service: "Lambda",
-        action: "invoke",
-        parameters: {
-          FunctionName: createIndexFunction.function.functionName,
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            RequestType: "Delete",
-            CollectionName: osCollection.name,
-            IndexName: VECTOR_INDEX_NAME,
-            Endpoint: endpoint
-          })
-        }
-        //physicalResourceId: cr.PhysicalResourceId.of('vectorIndexResource'),
-      },
-      policy: cr.AwsCustomResourcePolicy.fromStatements([
-        new iam.PolicyStatement({
-          actions: ["lambda:InvokeFunction"],
-          resources: [createIndexFunction.function.functionArn]
-        })
-      ]),
-      timeout: cdk.Duration.seconds(60)
-    })
-
-    // Ensure vectorIndex depends on collection
-    vectorIndex.node.addDependency(osCollection)
 
     // Define a Bedrock knowledge base with type opensearch serverless and titan for embedding model
     const bedrockkb = new CfnKnowledgeBase(this, "EpsKb", {
@@ -385,9 +303,93 @@ export class EpsAssistMeStack extends Stack {
         }
       }
     })
+
+    // Create Functions construct
+    const functions = new Functions(this, "Functions", {
+      stackName: props.stackName,
+      version: props.version,
+      commitId: props.commitId,
+      logRetentionInDays,
+      logLevel,
+      createIndexFunctionRole,
+      slackBotTokenParameter,
+      slackSigningSecretParameter,
+      guardrailId: GUARD_RAIL_ID,
+      guardrailVersion: GUARD_RAIL_VERSION,
+      collectionId: osCollection.attrId,
+      knowledgeBaseId: bedrockkb.attrKnowledgeBaseId,
+      region,
+      account,
+      slackBotTokenSecret,
+      slackBotSigningSecret
+    })
+
+    // Define OpenSearchServerless access policy to access the index and collection
+    // from the Amazon Bedrock execution role and the lambda execution role
+    const aossAccessPolicy = new ops.CfnAccessPolicy(this, "aossAccessPolicy", {
+      name: "eps-assist-access-policy",
+      type: "data",
+      policy: JSON.stringify([{
+        Rules: [
+          {ResourceType: "collection", Resource: ["collection/*"], Permission: ["aoss:*"]},
+          {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
+        ],
+        // Add principal of bedrock execution role and lambda execution role
+        Principal: [
+          bedrockExecutionRole.roleArn,
+          functions.functions.createIndex.function.role?.roleArn,
+          `arn:aws:iam::${account}:root`
+        ]
+      }])
+    })
+    osCollection.addDependency(aossAccessPolicy)
+
+    const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
+      installLatestAwsSdk: true,
+      onCreate: {
+        service: "Lambda",
+        action: "invoke",
+        parameters: {
+          FunctionName: functions.functions.createIndex.function.functionName,
+          InvocationType: "RequestResponse",
+          Payload: JSON.stringify({
+            RequestType: "Create",
+            CollectionName: osCollection.name,
+            IndexName: VECTOR_INDEX_NAME,
+            Endpoint: endpoint
+          })
+        },
+        physicalResourceId: cr.PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
+      },
+      onDelete: {
+        service: "Lambda",
+        action: "invoke",
+        parameters: {
+          FunctionName: functions.functions.createIndex.function.functionName,
+          InvocationType: "RequestResponse",
+          Payload: JSON.stringify({
+            RequestType: "Delete",
+            CollectionName: osCollection.name,
+            IndexName: VECTOR_INDEX_NAME,
+            Endpoint: endpoint
+          })
+        }
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ["lambda:InvokeFunction"],
+          resources: [functions.functions.createIndex.function.functionArn]
+        })
+      ]),
+      timeout: cdk.Duration.seconds(60)
+    })
+
+    // Ensure vectorIndex depends on collection
+    vectorIndex.node.addDependency(osCollection)
+
     // add a dependency for bedrock kb on the custom resource. Enables vector index to be created before KB
     bedrockkb.node.addDependency(vectorIndex)
-    bedrockkb.node.addDependency(createIndexFunction)
+    bedrockkb.node.addDependency(functions.functions.createIndex)
     bedrockkb.node.addDependency(osCollection)
     bedrockkb.node.addDependency(bedrockExecutionRole)
 
@@ -403,84 +405,13 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
-    // Create an IAM policy to allow the lambda to invoke models in Amazon Bedrock
-    const lambdaBedrockModelPolicy = new PolicyStatement()
-    lambdaBedrockModelPolicy.addActions("bedrock:InvokeModel")
-    lambdaBedrockModelPolicy.addResources(`arn:aws:bedrock:${region}::foundation-model/${RAG_MODEL_ID}`)
-
-    // Create an IAM policy to allow the lambda to call Retrieve and Retrieve and Generate on a Bedrock Knowledge Base
-    const lambdaBedrockKbPolicy = new PolicyStatement()
-    lambdaBedrockKbPolicy.addActions("bedrock:Retrieve")
-    lambdaBedrockKbPolicy.addActions("bedrock:RetrieveAndGenerate")
-    lambdaBedrockKbPolicy.addResources(
-      `arn:aws:bedrock:${region}:${account}:knowledge-base/${bedrockkb.attrKnowledgeBaseId}`
-    )
-
-    // Create an IAM policy to allow the lambda to call SSM
-    const lambdaSSMPolicy = new PolicyStatement()
-    lambdaSSMPolicy.addActions("ssm:GetParameter")
-    //lambdaSSMPolicy.addActions("ssm:GetParameters");
-    // lambdaSSMPolicy.addResources("slackBotTokenParameter.parameterArn");
-    // lambdaSSMPolicy.addResources("slackBotSigningSecret.parameterArn");
-    lambdaSSMPolicy.addResources(
-      `arn:aws:ssm:${region}:${account}:parameter${slackBotTokenParameter.parameterName}`)
-    lambdaSSMPolicy.addResources(
-      `arn:aws:ssm:${region}:${account}:parameter${slackSigningSecretParameter.parameterName}`)
-
-    //arn:aws:ssm:us-east-1:859498851685:parameter/slack/bot-token/parameter
-    //"arn:aws:ssm:us-east-2:123456789012:parameter/prod-*"
-    //(`arn:aws:bedrock:${region}:${account}:knowledge-base/${bedrockkb.attrKnowledgeBaseId}`);
-
-    const lambdaReinvokePolicy = new PolicyStatement()
-    lambdaReinvokePolicy.addActions("lambda:InvokeFunction")
-    lambdaReinvokePolicy.addResources(`arn:aws:lambda:${region}:${account}:function:*`)
-
-    const lambdaGRinvokePolicy = new PolicyStatement()
-    lambdaGRinvokePolicy.addActions("bedrock:ApplyGuardrail")
-    lambdaGRinvokePolicy.addResources(`arn:aws:bedrock:${region}:${account}:guardrail/*`)
-
-    // Create the SlackBot (slash command) integration to Amazon Bedrock Knowledge base responses.
-    const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
-      stackName: props.stackName,
-      functionName: `${props.stackName}-SlackBotFunction`,
-      packageBasePath: "packages/slackBotFunction",
-      entryPoint: "app.py",
-      logRetentionInDays,
-      logLevel,
-      additionalPolicies: [],
-      environmentVariables: {
-        "RAG_MODEL_ID": RAG_MODEL_ID,
-        "SLACK_SLASH_COMMAND": SLACK_SLASH_COMMAND,
-        "KNOWLEDGEBASE_ID": bedrockkb.attrKnowledgeBaseId,
-        "BEDROCK_KB_DATA_SOURCE": BEDROCK_KB_DATA_SOURCE,
-        "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
-        // "SLACK_BOT_TOKEN": SLACK_BOT_TOKEN,
-        // "SLACK_SIGNING_SECRET": SLACK_SIGNING_SECRET,
-        "SLACK_BOT_TOKEN_PARAMETER": slackBotTokenParameter.parameterName,
-        "SLACK_SIGNING_SECRET_PARAMETER": slackSigningSecretParameter.parameterName,
-        "GUARD_RAIL_ID": GUARD_RAIL_ID,
-        "GUARD_RAIL_VERSION": GUARD_RAIL_VERSION
-      }
-    })
-
-    // Grant the Lambda function permission to read the secrets
-    slackBotTokenSecret.grantRead(slackBotLambda.function)
-    slackBotSigningSecret.grantRead(slackBotLambda.function)
-
-    // Attach listed IAM policies to the Lambda functions Execution role
-    slackBotLambda.function.addToRolePolicy(lambdaBedrockModelPolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaBedrockKbPolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaReinvokePolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaGRinvokePolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaSSMPolicy)
-
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
       stackName: props.stackName,
       logRetentionInDays,
       enableMutalTls: false,
       functions: {
-        slackBot: slackBotLambda
+        slackBot: functions.functions.slackBot
       }
     })
 
