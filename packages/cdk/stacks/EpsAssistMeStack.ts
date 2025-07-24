@@ -18,10 +18,7 @@ import {
   CfnKnowledgeBase,
   CfnDataSource
 } from "aws-cdk-lib/aws-bedrock"
-import {RestApiGateway} from "../constructs/RestApiGateway"
 import {LambdaFunction} from "../constructs/LambdaFunction"
-import {LambdaEndpoint} from "../constructs/RestApiGateway/LambdaEndpoint"
-import {HttpMethod} from "aws-cdk-lib/aws-lambda"
 import {PolicyStatement} from "aws-cdk-lib/aws-iam"
 import * as cdk from "aws-cdk-lib"
 import * as iam from "aws-cdk-lib/aws-iam"
@@ -30,6 +27,7 @@ import * as cr from "aws-cdk-lib/custom-resources"
 import * as ssm from "aws-cdk-lib/aws-ssm"
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager"
 import {nagSuppressions} from "../nagSuppressions"
+import {Apis} from "../resources/Apis"
 
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -476,29 +474,19 @@ export class EpsAssistMeStack extends Stack {
     slackBotLambda.function.addToRolePolicy(lambdaGRinvokePolicy)
     slackBotLambda.function.addToRolePolicy(lambdaSSMPolicy)
 
-    // Define the API Gateway and connect the '/slack/ask-eps' POST endpoint to the SlackBot Lambda function
-    const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
+    // Create Apis and pass the Lambda function
+    const apis = new Apis(this, "Apis", {
       stackName: props.stackName,
       logRetentionInDays,
-      enableMutualTls: false,
-      trustStoreKey: "unused",
-      truststoreVersion: "unused"
-    })
-
-    const slackResource = apiGateway.api.root.addResource("slack")
-
-    // Create the '/slack/ask-eps' POST endpoint and integrate it with the SlackBot Lambda
-    new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
-      parentResource: slackResource,
-      resourceName: "ask-eps",
-      method: HttpMethod.POST,
-      restApiGatewayRole: apiGateway.role,
-      lambdaFunction: slackBotLambda
+      enableMutalTls: false,
+      functions: {
+        status: slackBotLambda
+      }
     })
 
     // ==== Output: SlackBot Endpoint ====
     new CfnOutput(this, "SlackBotEndpoint", {
-      value: `https://${apiGateway.api.domainName?.domainName}/slack/ask-eps`
+      value: `https://${apis.apiGateway.api.domainName?.domainName}/slack/ask-eps`
     })
 
     // ==== Final CDK Nag Suppressions ====
