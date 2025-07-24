@@ -12,7 +12,7 @@ export interface ApisProps {
 }
 
 export class Apis extends Construct {
-  public readonly apiGateway: RestApiGateway
+  public apis: {[key: string]: RestApiGateway}
 
   public constructor(scope: Construct, id: string, props: ApisProps) {
     super(scope, id)
@@ -32,8 +32,10 @@ export class Apis extends Construct {
       resourceName: "ask-eps",
       method: HttpMethod.POST,
       restApiGatewayRole: apiGateway.role,
-      lambdaFunction: props.functions.status
+      lambdaFunction: props.functions.slackBot
     })
-    this.apiGateway = apiGateway
+    this.apis = {
+      api: apiGateway
+    }
   }
 }

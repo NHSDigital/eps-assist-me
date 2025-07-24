@@ -480,16 +480,16 @@ export class EpsAssistMeStack extends Stack {
       logRetentionInDays,
       enableMutalTls: false,
       functions: {
-        status: slackBotLambda
+        slackBot: slackBotLambda
       }
     })
 
-    // ==== Output: SlackBot Endpoint ====
+    // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEndpoint", {
-      value: `https://${apis.apiGateway.api.domainName?.domainName}/slack/ask-eps`
+      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/ask-eps`
     })
 
-    // ==== Final CDK Nag Suppressions ====
+    // Final CDK Nag Suppressions
     nagSuppressions(this)
   }
 }
