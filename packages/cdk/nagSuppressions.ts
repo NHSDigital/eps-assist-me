@@ -42,6 +42,18 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress API Gateway validation warning for Apis construct
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG2",
+        reason: "Validation is handled within Lambda; request validation is intentionally omitted."
+      }
+    ]
+  )
+
   // Suppress AWS managed policy usage in default CDK role
   safeAddNagSuppression(
     stack,
@@ -57,7 +69,10 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress unauthenticated API route warnings
   safeAddNagSuppressionGroup(
     stack,
-    ["/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource"],
+    [
+      "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource",
+      "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource"
+    ],
     [
       {
         id: "AwsSolutions-APIG4",
@@ -94,6 +109,18 @@ export const nagSuppressions = (stack: Stack) => {
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG3",
+        reason: "WAF not in current scope; may be added later."
+      }
+    ]
+  )
+
+  // Suppress missing WAF on API stage for Apis construct
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
     [
       {
         id: "AwsSolutions-APIG3",
