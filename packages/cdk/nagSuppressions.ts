@@ -6,13 +6,13 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
+    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
         reason: "Wildcard permissions for log stream access are required and scoped appropriately.",
         appliesTo: [
-          "Resource::<SlackBotLambdaLambdaLogGroup7AD7BC9E.Arn>:log-stream:*"
+          "Resource::<FunctionsSlackBotLambdaLambdaLogGroup3597D783.Arn>:log-stream:*"
         ]
       }
     ]
@@ -21,11 +21,14 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress wildcard log permissions for CreateIndex Lambda
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/CreateIndexFunction/LambdaPutLogsManagedPolicy/Resource",
+    "/EpsAssistMeStack/Functions/CreateIndexFunction/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths."
+        reason: "Wildcard permissions are required for log stream access under known paths.",
+        appliesTo: [
+          "Resource::<FunctionsCreateIndexFunctionLambdaLogGroupB45008DF.Arn>:log-stream:*"
+        ]
       }
     ]
   )
@@ -225,7 +228,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress wildcard permissions for SlackBot Lambda guardrail access
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -241,7 +244,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress wildcard permissions for Lambda self-invoke policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
