@@ -15,12 +15,11 @@ import * as cdk from "aws-cdk-lib"
 import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as cr from "aws-cdk-lib/custom-resources"
-import * as ssm from "aws-cdk-lib/aws-ssm"
-import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
 import {Storage} from "../resources/Storage"
+import {Secrets} from "../resources/Secrets"
 
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const COLLECTION_NAME = "eps-assist-vector-db"
@@ -51,36 +50,10 @@ export class EpsAssistMeStack extends Stack {
       throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
     }
 
-    // Create secrets in Secrets Manager
-    const slackBotTokenSecret = new secretsmanager.Secret(this, "SlackBotTokenSecret", {
-      secretName: "/eps-assist/slack/bot-token",
-      description: "Slack Bot OAuth Token for EPS Assist",
-      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
-        token: slackBotToken
-      }))
-    })
-
-    const slackBotSigningSecret = new secretsmanager.Secret(this, "SlackBotSigningSecret", {
-      secretName: "/eps-assist/slack/signing-secret",
-      description: "Slack Signing Secret",
-      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
-        secret: slackSigningSecret
-      }))
-    })
-
-    // Create SSM parameters that reference the secrets
-    const slackBotTokenParameter = new ssm.StringParameter(this, "SlackBotTokenParameter", {
-      parameterName: "/eps-assist/slack/bot-token/parameter",
-      stringValue: `{{resolve:secretsmanager:${slackBotTokenSecret.secretName}}}`,
-      description: "Reference to Slack Bot Token in Secrets Manager",
-      tier: ssm.ParameterTier.STANDARD
-    })
-
-    const slackSigningSecretParameter = new ssm.StringParameter(this, "SlackSigningSecretParameter", {
-      parameterName: "/eps-assist/slack/signing-secret/parameter",
-      stringValue: `{{resolve:secretsmanager:${slackBotSigningSecret.secretName}}}`,
-      description: "Reference to Slack Signing Secret in Secrets Manager",
-      tier: ssm.ParameterTier.STANDARD
+    // Create Secrets construct
+    const secrets = new Secrets(this, "Secrets", {
+      slackBotToken,
+      slackSigningSecret
     })
 
     // Create an IAM policy to invoke Bedrock models and access titan v1 embedding model
@@ -272,16 +245,16 @@ export class EpsAssistMeStack extends Stack {
       logRetentionInDays,
       logLevel,
       createIndexFunctionRole,
-      slackBotTokenParameter,
-      slackSigningSecretParameter,
+      slackBotTokenParameter: secrets.slackBotTokenParameter,
+      slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: GUARD_RAIL_ID,
       guardrailVersion: GUARD_RAIL_VERSION,
       collectionId: osCollection.attrId,
       knowledgeBaseId: bedrockkb.attrKnowledgeBaseId,
       region,
       account,
-      slackBotTokenSecret,
-      slackBotSigningSecret
+      slackBotTokenSecret: secrets.slackBotTokenSecret,
+      slackBotSigningSecret: secrets.slackBotSigningSecret
     })
 
     // Define OpenSearchServerless access policy to access the index and collection
