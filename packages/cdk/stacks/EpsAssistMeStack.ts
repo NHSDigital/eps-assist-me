@@ -20,9 +20,9 @@ import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
 import {Storage} from "../resources/Storage"
 import {Secrets} from "../resources/Secrets"
+import {OpenSearchResources} from "../resources/OpenSearchResources"
 
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
-const COLLECTION_NAME = "eps-assist-vector-db"
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 const BEDROCK_KB_NAME = "eps-assist-kb"
 
@@ -148,38 +148,6 @@ export class EpsAssistMeStack extends Stack {
     const GUARD_RAIL_ID = guardrail.attrGuardrailId
     const GUARD_RAIL_VERSION = guardrailVersion.attrVersion
 
-    //Define OpenSearchServerless Collection & depends on policies
-    const osCollection = new ops.CfnCollection(this, "osCollection", {
-      name: COLLECTION_NAME,
-      description: "EPS Assist Vector Store",
-      type: "VECTORSEARCH"
-    })
-
-    // Define AOSS vector DB encryption policy with AWSOwned key true
-    const aossEncryptionPolicy = new ops.CfnSecurityPolicy(this, "aossEncryptionPolicy", {
-      name: "eps-assist-encryption-policy",
-      type: "encryption",
-      policy: JSON.stringify({
-        Rules: [{ResourceType: "collection", Resource: ["collection/eps-assist-vector-db"]}],
-        AWSOwnedKey: true
-      })
-    })
-    osCollection.addDependency(aossEncryptionPolicy)
-
-    // Define Vector DB network policy with AllowFromPublic true. include collection & dashboard
-    const aossNetworkPolicy = new ops.CfnSecurityPolicy(this, "aossNetworkPolicy", {
-      name: "eps-assist-network-policy",
-      type: "network",
-      policy: JSON.stringify([{
-        Rules: [
-          {ResourceType: "collection", Resource: ["collection/eps-assist-vector-db"]},
-          {ResourceType: "dashboard", Resource: ["collection/eps-assist-vector-db"]}
-        ],
-        AllowFromPublic: true
-      }])
-    })
-    osCollection.addDependency(aossNetworkPolicy)
-
     // Define createIndexFunction execution role and policy. Managed role 'AWSLambdaBasicExecutionRole'
     const createIndexFunctionRole = new iam.Role(this, "CreateIndexFunctionRole", {
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
@@ -210,7 +178,14 @@ export class EpsAssistMeStack extends Stack {
       effect: iam.Effect.ALLOW
     }))
 
-    const endpoint = `${osCollection.attrId}.${region}.aoss.amazonaws.com`
+    // Create OpenSearch Resources
+    const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
+      bedrockExecutionRole,
+      createIndexFunctionRole,
+      account
+    })
+
+    const endpoint = openSearchResources.collection.endpoint
 
     // Define a Bedrock knowledge base with type opensearch serverless and titan for embedding model
     const bedrockkb = new CfnKnowledgeBase(this, "EpsKb", {
@@ -226,7 +201,7 @@ export class EpsAssistMeStack extends Stack {
       storageConfiguration: {
         type: "OPENSEARCH_SERVERLESS",
         opensearchServerlessConfiguration: {
-          collectionArn: osCollection.attrArn,
+          collectionArn: openSearchResources.collection.collection.attrArn,
           fieldMapping: {
             vectorField: "bedrock-knowledge-base-default-vector",
             textField: "AMAZON_BEDROCK_TEXT_CHUNK",
@@ -249,7 +224,7 @@ export class EpsAssistMeStack extends Stack {
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: GUARD_RAIL_ID,
       guardrailVersion: GUARD_RAIL_VERSION,
-      collectionId: osCollection.attrId,
+      collectionId: openSearchResources.collection.collection.attrId,
       knowledgeBaseId: bedrockkb.attrKnowledgeBaseId,
       region,
       account,
@@ -275,7 +250,7 @@ export class EpsAssistMeStack extends Stack {
         ]
       }])
     })
-    osCollection.addDependency(aossAccessPolicy)
+    openSearchResources.collection.collection.addDependency(aossAccessPolicy)
 
     const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
@@ -287,7 +262,7 @@ export class EpsAssistMeStack extends Stack {
           InvocationType: "RequestResponse",
           Payload: JSON.stringify({
             RequestType: "Create",
-            CollectionName: osCollection.name,
+            CollectionName: openSearchResources.collection.collection.name,
             IndexName: VECTOR_INDEX_NAME,
             Endpoint: endpoint
           })
@@ -302,7 +277,7 @@ export class EpsAssistMeStack extends Stack {
           InvocationType: "RequestResponse",
           Payload: JSON.stringify({
             RequestType: "Delete",
-            CollectionName: osCollection.name,
+            CollectionName: openSearchResources.collection.collection.name,
             IndexName: VECTOR_INDEX_NAME,
             Endpoint: endpoint
           })
@@ -318,12 +293,12 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Ensure vectorIndex depends on collection
-    vectorIndex.node.addDependency(osCollection)
+    vectorIndex.node.addDependency(openSearchResources.collection.collection)
 
     // add a dependency for bedrock kb on the custom resource. Enables vector index to be created before KB
     bedrockkb.node.addDependency(vectorIndex)
     bedrockkb.node.addDependency(functions.functions.createIndex)
-    bedrockkb.node.addDependency(osCollection)
+    bedrockkb.node.addDependency(openSearchResources.collection.collection)
     bedrockkb.node.addDependency(bedrockExecutionRole)
 
     // Define a bedrock knowledge base data source with S3 bucket

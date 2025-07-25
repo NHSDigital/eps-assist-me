@@ -225,6 +225,7 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "Lambda needs to invoke itself for Slack Bolt lazy handlers.",
         appliesTo: [
           "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
+          "Resource::arn:aws:lambda:eu-west-2:123456789012:function:*",
           "Resource::arn:aws:lambda:eu-west-2:123456789012:function:AmazonBedrock*",
           "Resource::arn:aws:lambda:eu-west-2:591291862413:function:AmazonBedrock*"
         ]
