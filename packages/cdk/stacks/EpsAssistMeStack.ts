@@ -4,19 +4,19 @@ import {
   StackProps,
   CfnOutput
 } from "aws-cdk-lib"
-
 import {PolicyStatement} from "aws-cdk-lib/aws-iam"
 import * as cdk from "aws-cdk-lib"
 import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as cr from "aws-cdk-lib/custom-resources"
+import {bedrock} from "@cdklabs/generative-ai-cdk-constructs"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
 import {Storage} from "../resources/Storage"
 import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
-import {BedrockResources} from "../resources/BedrockResources"
+import {VectorKnowledgeBase} from "../resources/VectorKnowledgeBase"
 
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
@@ -83,9 +83,7 @@ export class EpsAssistMeStack extends Stack {
     bedrockExecutionRole.addToPolicy(bedrockKBDeleteRolePolicy)
 
     // Create Storage construct
-    const storage = new Storage(this, "Storage", {
-      bedrockExecutionRole
-    })
+    const storage = new Storage(this, "Storage", {bedrockExecutionRole})
 
     // Create an IAM policy for S3 access
     const s3AccessListPolicy = new PolicyStatement({
@@ -143,15 +141,15 @@ export class EpsAssistMeStack extends Stack {
 
     const endpoint = openSearchResources.collection.endpoint
 
-    // Create Bedrock Resources
-    const bedrockResources = new BedrockResources(this, "BedrockResources", {
-      bedrockExecutionRole,
-      osCollection: openSearchResources.collection.collection,
-      kbDocsBucket: storage.kbDocsBucket.bucket,
-      region
+    // Create VectorKnowledgeBase construct
+    const vectorKB = new VectorKnowledgeBase(this, "VectorKB", {
+      kbName: "eps-assist-kb",
+      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
+      docsBucket: storage.kbDocsBucket.bucket,
+      bedrockExecutionRole
     })
 
-    // Create Functions construct
+    // Functions construct: use guardrail and kb from the new construct
     const functions = new Functions(this, "Functions", {
       stackName: props.stackName,
       version: props.version,
@@ -161,10 +159,10 @@ export class EpsAssistMeStack extends Stack {
       createIndexFunctionRole,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
-      guardrailId: bedrockResources.guardrail.guardrailId,
-      guardrailVersion: bedrockResources.guardrail.guardrailVersionId,
+      guardrailId: vectorKB.guardrail.guardrailId,
+      guardrailVersion: vectorKB.guardrail.guardrailVersion,
       collectionId: openSearchResources.collection.collection.attrId,
-      knowledgeBaseId: bedrockResources.knowledgeBase.attrKnowledgeBaseId,
+      knowledgeBaseId: vectorKB.knowledgeBase.knowledgeBaseId,
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
@@ -191,6 +189,7 @@ export class EpsAssistMeStack extends Stack {
     })
     openSearchResources.collection.collection.addDependency(aossAccessPolicy)
 
+    // Create a custom resource to create the OpenSearch index
     const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
       onCreate: {
@@ -235,10 +234,10 @@ export class EpsAssistMeStack extends Stack {
     vectorIndex.node.addDependency(openSearchResources.collection.collection)
 
     // add a dependency for bedrock kb on the custom resource. Enables vector index to be created before KB
-    bedrockResources.knowledgeBase.node.addDependency(vectorIndex)
-    bedrockResources.knowledgeBase.node.addDependency(functions.functions.createIndex)
-    bedrockResources.knowledgeBase.node.addDependency(openSearchResources.collection.collection)
-    bedrockResources.knowledgeBase.node.addDependency(bedrockExecutionRole)
+    vectorKB.knowledgeBase.node.addDependency(vectorIndex)
+    vectorKB.knowledgeBase.node.addDependency(functions.functions.createIndex)
+    vectorKB.knowledgeBase.node.addDependency(openSearchResources.collection.collection)
+    vectorKB.knowledgeBase.node.addDependency(bedrockExecutionRole)
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
