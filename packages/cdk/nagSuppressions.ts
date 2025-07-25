@@ -1,4 +1,4 @@
-/* eslint-disable max-len */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
@@ -33,18 +33,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress API Gateway validation warning
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Resource",
-    [
-      {
-        id: "AwsSolutions-APIG2",
-        reason: "Validation is handled within Lambda; request validation is intentionally omitted."
-      }
-    ]
-  )
-
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
@@ -70,12 +58,9 @@ export const nagSuppressions = (stack: Stack) => {
   )
 
   // Suppress unauthenticated API route warnings
-  safeAddNagSuppressionGroup(
+  safeAddNagSuppression(
     stack,
-    [
-      "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource",
-      "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource"
-    ],
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource",
     [
       {
         id: "AwsSolutions-APIG4",
@@ -104,18 +89,6 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "S3_BUCKET_REPLICATION_ENABLED",
         reason: "Replication not required for internal bucket."
-      }
-    ]
-  )
-
-  // Suppress missing WAF on API stage
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
-    [
-      {
-        id: "AwsSolutions-APIG3",
-        reason: "WAF not in current scope; may be added later."
       }
     ]
   )
@@ -286,7 +259,6 @@ export const nagSuppressions = (stack: Stack) => {
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
   try {
     NagSuppressions.addResourceSuppressionsByPath(stack, path, suppressions)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     console.log(`Could not find path ${path}`)
   }
