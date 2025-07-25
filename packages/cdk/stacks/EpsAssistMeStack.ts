@@ -34,7 +34,7 @@ export class EpsAssistMeStack extends Stack {
     // Get variables from context
     const region = Stack.of(this).region
     const account = Stack.of(this).account
-    const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays")) || 14
+    const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
     const logLevel: string = this.node.tryGetContext("logLevel")
 
     // Get secrets from context or fail if not provided
