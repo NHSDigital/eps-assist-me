@@ -153,7 +153,9 @@ jobs:
             -e SHOW_DIFF="true" \
             -e DEPLOY_CODE="false" \
             -e CDK_APP_PATH=".build/packages/cdk/bin/EpsAssistMeApp.ts" \
-            cdk-utils-build-repo:latest
+            --entrypoint /bin/bash \
+            cdk-utils-build-repo:latest \
+            -c "apt-get update && apt-get install -y docker.io && npm exec -- cdk diff --app 'npx ts-node --prefer-ts-exts .build/packages/cdk/bin/EpsAssistMeApp.ts'"
 
       - name: Deploy code
         if: ${{ inputs.DEPLOY_CODE == true }}
@@ -169,7 +171,9 @@ jobs:
             -e SHOW_DIFF="false" \
             -e DEPLOY_CODE="true" \
             -e CDK_APP_PATH=".build/packages/cdk/bin/EpsAssistMeApp.ts" \
-            cdk-utils-build-repo:latest
+            --entrypoint /bin/bash \
+            cdk-utils-build-repo:latest \
+            -c "apt-get update && apt-get install -y docker.io && npm exec -- cdk deploy --app 'npx ts-node --prefer-ts-exts .build/packages/cdk/bin/EpsAssistMeApp.ts' --require-approval never"
         shell: bash
 
       - name: mark_released_in_jira
