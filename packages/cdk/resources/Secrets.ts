@@ -1,7 +1,7 @@
 import {Construct} from "constructs"
-import * as cdk from "aws-cdk-lib"
 import * as ssm from "aws-cdk-lib/aws-ssm"
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager"
+import {SecretWithParameter} from "../constructs/SecretWithParameter"
 
 export interface SecretsProps {
   slackBotToken: string
@@ -17,36 +17,23 @@ export class Secrets extends Construct {
   constructor(scope: Construct, id: string, props: SecretsProps) {
     super(scope, id)
 
-    // Create secrets in Secrets Manager
-    this.slackBotTokenSecret = new secretsmanager.Secret(this, "SlackBotTokenSecret", {
+    const slackBotToken = new SecretWithParameter(this, "SlackBotToken", {
       secretName: "/eps-assist/slack/bot-token",
-      description: "Slack Bot OAuth Token for EPS Assist",
-      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
-        token: props.slackBotToken
-      }))
-    })
-
-    this.slackBotSigningSecret = new secretsmanager.Secret(this, "SlackBotSigningSecret", {
-      secretName: "/eps-assist/slack/signing-secret",
-      description: "Slack Signing Secret",
-      secretStringValue: cdk.SecretValue.unsafePlainText(JSON.stringify({
-        secret: props.slackSigningSecret
-      }))
-    })
-
-    // Create SSM parameters that reference the secrets
-    this.slackBotTokenParameter = new ssm.StringParameter(this, "SlackBotTokenParameter", {
       parameterName: "/eps-assist/slack/bot-token/parameter",
-      stringValue: `{{resolve:secretsmanager:${this.slackBotTokenSecret.secretName}}}`,
-      description: "Reference to Slack Bot Token in Secrets Manager",
-      tier: ssm.ParameterTier.STANDARD
+      description: "Slack Bot OAuth Token for EPS Assist",
+      secretValue: JSON.stringify({token: props.slackBotToken})
     })
 
-    this.slackSigningSecretParameter = new ssm.StringParameter(this, "SlackSigningSecretParameter", {
+    const slackBotSigning = new SecretWithParameter(this, "SlackBotSigning", {
+      secretName: "/eps-assist/slack/signing-secret",
       parameterName: "/eps-assist/slack/signing-secret/parameter",
-      stringValue: `{{resolve:secretsmanager:${this.slackBotSigningSecret.secretName}}}`,
-      description: "Reference to Slack Signing Secret in Secrets Manager",
-      tier: ssm.ParameterTier.STANDARD
+      description: "Slack Signing Secret",
+      secretValue: JSON.stringify({secret: props.slackSigningSecret})
     })
+
+    this.slackBotTokenSecret = slackBotToken.secret
+    this.slackBotSigningSecret = slackBotSigning.secret
+    this.slackBotTokenParameter = slackBotToken.parameter
+    this.slackSigningSecretParameter = slackBotSigning.parameter
   }
 }

@@ -235,7 +235,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress secrets without rotation
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Secrets/SlackBotTokenSecret/Resource",
+    "/EpsAssistMeStack/Secrets/SlackBotToken/Secret/Resource",
     [
       {
         id: "AwsSolutions-SMG4",
@@ -246,7 +246,7 @@ export const nagSuppressions = (stack: Stack) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Secrets/SlackBotSigningSecret/Resource",
+    "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource",
     [
       {
         id: "AwsSolutions-SMG4",
