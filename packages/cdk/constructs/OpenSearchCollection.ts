@@ -15,7 +15,7 @@ export class OpenSearchCollection extends Construct {
 
     // Encryption policy for collection (AWS-owned key)
     const encryptionPolicy = new ops.CfnSecurityPolicy(this, "EncryptionPolicy", {
-      name: `${props.collectionName}-encryption-policy`,
+      name: `${props.collectionName}-encryption`,
       type: "encryption",
       policy: JSON.stringify({
         Rules: [{ResourceType: "collection", Resource: [`collection/${props.collectionName}`]}],
@@ -25,7 +25,7 @@ export class OpenSearchCollection extends Construct {
 
     // Network policy for public access (collection & dashboard)
     const networkPolicy = new ops.CfnSecurityPolicy(this, "NetworkPolicy", {
-      name: `${props.collectionName}-network-policy`,
+      name: `${props.collectionName}-network`,
       type: "network",
       policy: JSON.stringify([{
         Rules: [
@@ -49,7 +49,7 @@ export class OpenSearchCollection extends Construct {
 
     // Access policy for principals (full access to collection & indexes)
     const accessPolicy = new ops.CfnAccessPolicy(this, "AccessPolicy", {
-      name: `${props.collectionName}-access-policy`,
+      name: `${props.collectionName}-access`,
       type: "data",
       policy: JSON.stringify([{
         Rules: [
