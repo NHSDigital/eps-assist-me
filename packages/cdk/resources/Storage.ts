@@ -1,35 +1,24 @@
 import {Construct} from "constructs"
-import {RemovalPolicy} from "aws-cdk-lib"
-import {
-  Bucket,
-  BucketEncryption,
-  BlockPublicAccess,
-  ObjectOwnership
-} from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
 import * as iam from "aws-cdk-lib/aws-iam"
+import {S3Bucket} from "../constructs/S3Bucket"
 
 export interface StorageProps {
   bedrockExecutionRole: iam.Role
 }
 
 export class Storage extends Construct {
-  public readonly kbDocsBucket: Bucket
-  public readonly accessLogBucket: Bucket
+  public readonly kbDocsBucket: S3Bucket
+  public readonly accessLogBucket: S3Bucket
   public readonly kbDocsKey: Key
 
   constructor(scope: Construct, id: string, props: StorageProps) {
     super(scope, id)
 
     // Define the S3 bucket for access logs
-    this.accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      encryption: BucketEncryption.KMS,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      enforceSSL: true,
-      versioned: false,
-      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
+    this.accessLogBucket = new S3Bucket(this, "AccessLogsBucket", {
+      bucketName: "EpsAssistAccessLogsBucket",
+      versioned: false
     })
 
     // Create a customer-managed KMS key
@@ -39,25 +28,12 @@ export class Storage extends Construct {
     })
 
     // Use the KMS key in your S3 bucket
-    this.kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      encryption: BucketEncryption.KMS,
-      encryptionKey: this.kbDocsKey,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      enforceSSL: true,
+    this.kbDocsBucket = new S3Bucket(this, "DocsBucket", {
+      bucketName: "EpsAssistDocsBucket",
+      kmsKey: this.kbDocsKey,
+      accessLogsBucket: this.accessLogBucket.bucket,
       versioned: true,
-      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
-      serverAccessLogsBucket: this.accessLogBucket,
-      serverAccessLogsPrefix: "s3-access-logs/"
+      bedrockExecutionRole: props.bedrockExecutionRole
     })
-
-    // Grant Bedrock permission to decrypt
-    this.kbDocsKey.addToResourcePolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      principals: [new iam.ArnPrincipal(props.bedrockExecutionRole.roleArn)],
-      actions: ["kms:Decrypt", "kms:DescribeKey"],
-      resources: ["*"]
-    }))
   }
 }

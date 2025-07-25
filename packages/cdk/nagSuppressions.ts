@@ -91,7 +91,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress S3 warnings on EpsAssistDocsBucket
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Storage/EpsAssistDocsBucket/Resource",
+    "/EpsAssistMeStack/Storage/DocsBucket/EpsAssistDocsBucket/Resource",
     [
       {
         id: "AwsSolutions-S1",
@@ -135,7 +135,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress warnings on access logs bucket
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Storage/EpsAssistAccessLogsBucket/Resource",
+    "/EpsAssistMeStack/Storage/AccessLogsBucket/EpsAssistAccessLogsBucket/Resource",
     [
       {
         id: "AwsSolutions-S10",
@@ -159,7 +159,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress SSL warning on actual access log bucket policy resource
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Storage/EpsAssistAccessLogsBucket/Policy/Resource",
+    "/EpsAssistMeStack/Storage/AccessLogsBucket/EpsAssistAccessLogsBucket/Policy/Resource",
     [
       {
         id: "AwsSolutions-S10",

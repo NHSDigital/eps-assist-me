@@ -95,14 +95,14 @@ export class EpsAssistMeStack extends Stack {
     // Create an IAM policy for S3 access
     const s3AccessListPolicy = new PolicyStatement({
       actions: ["s3:ListBucket"],
-      resources: [storage.kbDocsBucket.bucketArn]
+      resources: [storage.kbDocsBucket.bucket.bucketArn]
     })
     s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
 
     // Create an IAM policy for S3 access
     const s3AccessGetPolicy = new PolicyStatement({
       actions: ["s3:GetObject", "s3:Delete*"],
-      resources: [`${storage.kbDocsBucket.bucketArn}/*`]
+      resources: [`${storage.kbDocsBucket.bucket.bucketArn}/*`]
     })
     s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
 
@@ -333,7 +333,7 @@ export class EpsAssistMeStack extends Stack {
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
-          bucketArn: storage.kbDocsBucket.bucketArn
+          bucketArn: storage.kbDocsBucket.bucket.bucketArn
         }
       }
     })
