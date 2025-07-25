@@ -144,6 +144,7 @@ jobs:
         run: |
           docker run \
             -v "$(pwd)":/home/cdkuser/workspace \
+            -v /var/run/docker.sock:/var/run/docker.sock \
             -w /home/cdkuser/workspace \
             -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
             -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
@@ -159,6 +160,7 @@ jobs:
         run: |
           docker run \
             -v "$(pwd)":/home/cdkuser/workspace/ \
+            -v /var/run/docker.sock:/var/run/docker.sock \
             -w /home/cdkuser/workspace \
             -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
             -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
