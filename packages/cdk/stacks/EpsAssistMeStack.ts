@@ -149,7 +149,7 @@ export class EpsAssistMeStack extends Stack {
       bedrockExecutionRole
     })
 
-    // Functions construct: use guardrail and kb from the new construct
+    // Create Functions construct
     const functions = new Functions(this, "Functions", {
       stackName: props.stackName,
       version: props.version,
