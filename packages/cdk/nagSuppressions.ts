@@ -91,7 +91,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress S3 warnings on EpsAssistDocsBucket
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/EpsAssistDocsBucket/Resource",
+    "/EpsAssistMeStack/Storage/EpsAssistDocsBucket/Resource",
     [
       {
         id: "AwsSolutions-S1",
@@ -135,7 +135,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress warnings on access logs bucket
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/EpsAssistAccessLogsBucket/Resource",
+    "/EpsAssistMeStack/Storage/EpsAssistAccessLogsBucket/Resource",
     [
       {
         id: "AwsSolutions-S10",
@@ -159,7 +159,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress SSL warning on actual access log bucket policy resource
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/EpsAssistAccessLogsBucket/Policy/Resource",
+    "/EpsAssistMeStack/Storage/EpsAssistAccessLogsBucket/Policy/Resource",
     [
       {
         id: "AwsSolutions-S10",
@@ -177,7 +177,7 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
-          "Resource::<EpsAssistDocsBucketD6886E55.Arn>/*",
+          "Resource::<StorageEpsAssistDocsBucketD6886E55.Arn>/*",
           "Action::aoss:*",
           "Resource::*",
           "Resource::<OsCollection.Arn>/*",

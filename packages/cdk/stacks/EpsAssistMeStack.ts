@@ -2,16 +2,8 @@ import {
   App,
   Stack,
   StackProps,
-  RemovalPolicy,
   CfnOutput
 } from "aws-cdk-lib"
-import {
-  Bucket,
-  BucketEncryption,
-  BlockPublicAccess,
-  ObjectOwnership
-} from "aws-cdk-lib/aws-s3"
-import {Key} from "aws-cdk-lib/aws-kms"
 import {
   CfnGuardrail,
   CfnGuardrailVersion,
@@ -28,6 +20,7 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
+import {Storage} from "../resources/Storage"
 
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const COLLECTION_NAME = "eps-assist-vector-db"
@@ -90,51 +83,6 @@ export class EpsAssistMeStack extends Stack {
       tier: ssm.ParameterTier.STANDARD
     })
 
-    // Define the S3 bucket for access logs
-    const accessLogBucket = new Bucket(this, "EpsAssistAccessLogsBucket", {
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      encryption: BucketEncryption.KMS,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      enforceSSL: true,
-      versioned: false,
-      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
-    })
-
-    // Create a customer-managed KMS key
-    const kbDocsKey = new Key(this, "KbDocsKey", {
-      enableKeyRotation: true,
-      description: "KMS key for encrypting knowledge base documents"
-    })
-
-    // Use the KMS key in your S3 bucket
-    const kbDocsBucket = new Bucket(this, "EpsAssistDocsBucket", {
-      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      encryption: BucketEncryption.KMS,
-      encryptionKey: kbDocsKey,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-      enforceSSL: true,
-      versioned: true,
-      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
-      serverAccessLogsBucket: accessLogBucket,
-      serverAccessLogsPrefix: "s3-access-logs/"
-    })
-
-    // Create an IAM policy for S3 access
-    const s3AccessListPolicy = new PolicyStatement({
-      actions: ["s3:ListBucket"],
-      resources: [kbDocsBucket.bucketArn]
-    })
-    s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
-
-    // Create an IAM policy for S3 access
-    const s3AccessGetPolicy = new PolicyStatement({
-      actions: ["s3:GetObject", "s3:Delete*"],
-      resources: [`${kbDocsBucket.bucketArn}/*`]
-    })
-    s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
-
     // Create an IAM policy to invoke Bedrock models and access titan v1 embedding model
     const bedrockExecutionRolePolicy = new PolicyStatement()
     bedrockExecutionRolePolicy.addActions("bedrock:InvokeModel")
@@ -164,17 +112,29 @@ export class EpsAssistMeStack extends Stack {
     })
     bedrockExecutionRole.addToPolicy(bedrockExecutionRolePolicy)
     bedrockExecutionRole.addToPolicy(bedrockOSSPolicyForKnowledgeBase)
-    bedrockExecutionRole.addToPolicy(s3AccessListPolicy)
-    bedrockExecutionRole.addToPolicy(s3AccessGetPolicy)
     bedrockExecutionRole.addToPolicy(bedrockKBDeleteRolePolicy)
 
-    // Grant Bedrock permission to decrypt
-    kbDocsKey.addToResourcePolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      principals: [new iam.ArnPrincipal(bedrockExecutionRole.roleArn)],
-      actions: ["kms:Decrypt", "kms:DescribeKey"],
-      resources: ["*"]
-    }))
+    // Create Storage construct
+    const storage = new Storage(this, "Storage", {
+      bedrockExecutionRole
+    })
+
+    // Create an IAM policy for S3 access
+    const s3AccessListPolicy = new PolicyStatement({
+      actions: ["s3:ListBucket"],
+      resources: [storage.kbDocsBucket.bucketArn]
+    })
+    s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
+
+    // Create an IAM policy for S3 access
+    const s3AccessGetPolicy = new PolicyStatement({
+      actions: ["s3:GetObject", "s3:Delete*"],
+      resources: [`${storage.kbDocsBucket.bucketArn}/*`]
+    })
+    s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
+
+    bedrockExecutionRole.addToPolicy(s3AccessListPolicy)
+    bedrockExecutionRole.addToPolicy(s3AccessGetPolicy)
 
     // Create bedrock Guardrails for the slack bot
     const guardrail = new CfnGuardrail(this, "EpsGuardrail", {
@@ -400,7 +360,7 @@ export class EpsAssistMeStack extends Stack {
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
-          bucketArn: kbDocsBucket.bucketArn
+          bucketArn: storage.kbDocsBucket.bucketArn
         }
       }
     })
