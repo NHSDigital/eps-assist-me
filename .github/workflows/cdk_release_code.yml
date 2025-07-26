@@ -122,28 +122,28 @@ jobs:
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
 
-      - name: Package Lambda Functions with Python Dependencies
+      - name: Debug container filesystem layout
         run: |
-          # SlackBotFunction
-          mkdir -p .build/${{ inputs.STACK_NAME }}-SlackBotFunction
-          pip3 install -r .build/packages/slackBotFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-SlackBotFunction
-          cp -r .build/packages/slackBotFunction/* .build/${{ inputs.STACK_NAME }}-SlackBotFunction/
+          docker run --rm \
+            -v "$(pwd)":/home/cdkuser/workspace \
+            -w /home/cdkuser/workspace \
+            cdk-utils-build-repo:latest \
+            bash -c '
+              echo "Current working directory (in container): $(pwd)"
+              echo "--- CDK entrypoint directory ---"
+              ls -l .build/packages/cdk/bin/
+              
+              echo "--- SlackBotFunction packaged ---"
+              ls -l .build/packages/slackBotFunction/build/ || echo "SlackBotFunction build not found"
       
-          # CreateIndexFunction
-          mkdir -p .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
-          pip3 install -r .build/packages/createIndexFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
-          cp -r .build/packages/createIndexFunction/* .build/${{ inputs.STACK_NAME }}-CreateIndexFunction/
-
-      - name: Create version.txt for CDK tooling
-        run: echo "${{ inputs.VERSION_NUMBER }}" > version.txt
-
-      - name: Move .build/cdk.json to root for CDK context
-        run: cp .build/cdk.json cdk.json
+              echo "--- CreateIndexFunction packaged ---"
+              ls -l .build/packages/createIndexFunction/build/ || echo "CreateIndexFunction build not found"
+            '
 
       - name: Show diff
         run: |
           docker run \
-            -v "$(pwd)":/home/cdkuser/workspace \
+            -v "$(pwd)/.build":/home/cdkuser/workspace/ \
             -w /home/cdkuser/workspace \
             -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
             -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
@@ -158,7 +158,7 @@ jobs:
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
           docker run \
-            -v "$(pwd)":/home/cdkuser/workspace/ \
+            -v "$(pwd)/.build":/home/cdkuser/workspace/ \
             -w /home/cdkuser/workspace \
             -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
             -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \

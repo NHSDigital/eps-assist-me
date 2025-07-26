@@ -55,7 +55,16 @@ jobs:
       - name: make install
         run: |
           make install
+      - name: Build Python Lambda Functions
+        run: |
+          mkdir -p packages/slackBotFunction/build
+          pip3 install -r packages/slackBotFunction/requirements.txt -t packages/slackBotFunction/build
+          cp -r packages/slackBotFunction/* packages/slackBotFunction/build/
 
+          mkdir -p packages/createIndexFunction/build
+          pip3 install -r packages/createIndexFunction/requirements.txt -t packages/createIndexFunction/build
+          cp -r packages/createIndexFunction/* packages/createIndexFunction/build/
+  
       - name: 'Tar files'
         run: |
           tar -rf artifact.tar \
