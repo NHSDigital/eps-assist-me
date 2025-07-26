@@ -16,7 +16,7 @@ import {Functions} from "../resources/Functions"
 import {Storage} from "../resources/Storage"
 import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
-import {VectorKnowledgeBase} from "../resources/VectorKnowledgeBase"
+import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
@@ -142,7 +142,7 @@ export class EpsAssistMeStack extends Stack {
     const endpoint = openSearchResources.collection.endpoint
 
     // Create VectorKnowledgeBase construct
-    const vectorKB = new VectorKnowledgeBase(this, "VectorKB", {
+    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       kbName: "eps-assist-kb",
       embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
       docsBucket: storage.kbDocsBucket.bucket,

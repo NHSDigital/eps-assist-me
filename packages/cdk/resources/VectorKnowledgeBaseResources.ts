@@ -17,7 +17,7 @@ export interface VectorKnowledgeBaseProps {
   bedrockExecutionRole: Role
 }
 
-export class VectorKnowledgeBase extends Construct {
+export class VectorKnowledgeBaseResources extends Construct {
   public readonly knowledgeBase: bedrock.VectorKnowledgeBase
   public readonly guardrail: bedrock.Guardrail
 
