@@ -19,7 +19,6 @@ export class VectorKnowledgeBaseResources extends Construct {
     super(scope, id)
 
     this.guardrail = new bedrock.CfnGuardrail(this, "Guardrail", {
-      name: "eps-assist-guardrail",
       description: "Guardrail for EPS Assist Me Slackbot",
       blockedInputMessaging: "Your input was blocked.",
       blockedOutputsMessaging: "Your output was blocked.",
@@ -47,7 +46,6 @@ export class VectorKnowledgeBaseResources extends Construct {
     })
 
     this.knowledgeBase = new bedrock.CfnKnowledgeBase(this, "VectorKB", {
-      name: "eps-assist-kb",
       description: "Knowledge base for EPS Assist Me Slackbot",
       roleArn: props.bedrockExecutionRole.roleArn,
       knowledgeBaseConfiguration: {
@@ -72,7 +70,6 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     new bedrock.CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: this.knowledgeBase.attrKnowledgeBaseId,
-      name: "eps-assist-s3-datasource",
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
