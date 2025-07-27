@@ -84,8 +84,6 @@ jobs:
         run: |
           mkdir -p .build
           tar -xf artifact.tar -C .build
-          echo "Extracted files:"
-          find .build -type f | head -20
 
       - name: Retrieve AWS Account ID
         id: retrieve-account-id
@@ -101,6 +99,9 @@ jobs:
           docker pull "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest"
           docker tag "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest" cdk-utils-build-repo:latest
 
+      - name: Copy version.txt from Docker image into .build
+        run: docker run --rm --entrypoint cat cdk-utils-build-repo:latest /version.txt > .build/version.txt
+        
       - name: Configure AWS Credentials
         id: connect-aws
         uses: aws-actions/configure-aws-credentials@v4
