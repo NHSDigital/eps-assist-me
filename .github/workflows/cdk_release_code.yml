@@ -130,6 +130,9 @@ jobs:
           docker run --rm \
             -v "$(pwd)":/home/cdkuser/workspace \
             -w /home/cdkuser/workspace \
+            -e CDK_APP_PATH=".build/packages/cdk/bin/EpsAssistMeApp.ts" \
+            -e SHOW_DIFF="false" \
+            -e DEPLOY_CODE="false" \
             cdk-utils-build-repo:latest \
             bash -c "
               echo 'Current working directory (in container): \$(pwd)'
