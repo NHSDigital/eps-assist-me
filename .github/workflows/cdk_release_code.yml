@@ -122,6 +122,9 @@ jobs:
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
 
+      - name: Create version.txt for CDK utils container
+        run: echo "cdk-utils-latest" > .build/version.txt
+
       - name: Show diff
         run: |
           docker run \
