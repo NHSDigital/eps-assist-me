@@ -1,18 +1,13 @@
 import {Construct} from "constructs"
 import {Key} from "aws-cdk-lib/aws-kms"
-import * as iam from "aws-cdk-lib/aws-iam"
 import {S3Bucket} from "../constructs/S3Bucket"
-
-export interface StorageProps {
-  bedrockExecutionRole: iam.Role
-}
 
 export class Storage extends Construct {
   public readonly kbDocsBucket: S3Bucket
   public readonly accessLogBucket: S3Bucket
   public readonly kbDocsKey: Key
 
-  constructor(scope: Construct, id: string, props: StorageProps) {
+  constructor(scope: Construct, id: string) {
     super(scope, id)
 
     // Define the S3 bucket for access logs
@@ -32,8 +27,7 @@ export class Storage extends Construct {
       bucketName: "EpsAssistDocsBucket",
       kmsKey: this.kbDocsKey,
       accessLogsBucket: this.accessLogBucket.bucket,
-      versioned: true,
-      bedrockExecutionRole: props.bedrockExecutionRole
+      versioned: true
     })
   }
 }

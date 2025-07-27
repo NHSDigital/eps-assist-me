@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable max-len, @typescript-eslint/no-unused-vars */
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
@@ -144,7 +144,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress IAM wildcard permissions for Bedrock execution role
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/EpsAssistMeBedrockExecutionRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/IamResources/EpsAssistMeBedrockExecutionRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -155,10 +155,12 @@ export const nagSuppressions = (stack: Stack) => {
           "Action::aoss:*",
           "Resource::*",
           "Resource::<OsCollection.Arn>/*",
-          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
           "Action::s3:Delete*",
           "Action::bedrock:Delete*",
+          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
           "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*"
         ]
@@ -169,7 +171,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress AWS managed policy usage in CreateIndexFunctionRole
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/CreateIndexFunctionRole/Resource",
+    "/EpsAssistMeStack/IamResources/CreateIndexFunctionRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -184,12 +186,14 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress wildcard permissions in CreateIndexFunctionRole policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/CreateIndexFunctionRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/IamResources/CreateIndexFunctionRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
         reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
         appliesTo: [
+          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:undefined:index/*",
           "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
           "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*",
           "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
@@ -199,31 +203,19 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard permissions for SlackBot Lambda guardrail access
+  // Suppress wildcard permissions for SlackBot Lambda guardrail and function access
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs access to all guardrails to apply content filtering.",
+        reason: "SlackBot Lambda needs access to all guardrails and functions for content filtering and self-invocation.",
         appliesTo: [
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*",
+          "Resource::arn:aws:lambda:eu-west-2:undefined:function:*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:guardrail/*"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions for Lambda self-invoke policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Lambda needs to invoke itself for Slack Bolt lazy handlers.",
-        appliesTo: [
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:guardrail/*",
           "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
           "Resource::arn:aws:lambda:eu-west-2:123456789012:function:*",
           "Resource::arn:aws:lambda:eu-west-2:123456789012:function:AmazonBedrock*",

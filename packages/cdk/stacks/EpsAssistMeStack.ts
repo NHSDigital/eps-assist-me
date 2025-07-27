@@ -17,8 +17,8 @@ import {Storage} from "../resources/Storage"
 import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
+import {IamResources} from "../resources/IamResources"
 
-const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
 export interface EpsAssistMeStackProps extends StackProps {
@@ -51,91 +51,33 @@ export class EpsAssistMeStack extends Stack {
       slackSigningSecret
     })
 
-    // Create an IAM policy to invoke Bedrock models and access titan v1 embedding model
-    const bedrockExecutionRolePolicy = new PolicyStatement()
-    bedrockExecutionRolePolicy.addActions("bedrock:InvokeModel")
-    bedrockExecutionRolePolicy.addResources(`arn:aws:bedrock:${region}::foundation-model/${EMBEDDING_MODEL}`)
+    // Create Storage construct without Bedrock execution role to avoid circular dependency:
+    // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
+    // - IamResources creates the Bedrock role that needs S3 access permissions
+    // - KMS permissions are added manually after both constructs exist
+    const storage = new Storage(this, "Storage")
 
-    // Create an IAM policy to delete Bedrock knowledgebase
-    const bedrockKBDeleteRolePolicy = new PolicyStatement()
-    bedrockKBDeleteRolePolicy.addActions("bedrock:Delete*")
-    bedrockKBDeleteRolePolicy.addResources(`arn:aws:bedrock:${region}:${account}:knowledge-base/*`)
-
-    // Create IAM policy to call OpensearchServerless
-    const bedrockOSSPolicyForKnowledgeBase = new PolicyStatement()
-    bedrockOSSPolicyForKnowledgeBase.addActions("aoss:APIAccessAll")
-    bedrockOSSPolicyForKnowledgeBase.addActions(
-      "aoss:DeleteAccessPolicy",
-      "aoss:DeleteCollection",
-      "aoss:DeleteLifecyclePolicy",
-      "aoss:DeleteSecurityConfig",
-      "aoss:DeleteSecurityPolicy"
-    )
-    bedrockOSSPolicyForKnowledgeBase.addResources(`arn:aws:aoss:${region}:${account}:collection/*`)
-
-    // Define IAM Role and add Iam policies for bedrock execution role
-    const bedrockExecutionRole = new iam.Role(this, "EpsAssistMeBedrockExecutionRole", {
-      assumedBy: new iam.ServicePrincipal("bedrock.amazonaws.com"),
-      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch"
-    })
-    bedrockExecutionRole.addToPolicy(bedrockExecutionRolePolicy)
-    bedrockExecutionRole.addToPolicy(bedrockOSSPolicyForKnowledgeBase)
-    bedrockExecutionRole.addToPolicy(bedrockKBDeleteRolePolicy)
-
-    // Create Storage construct
-    const storage = new Storage(this, "Storage", {bedrockExecutionRole})
-
-    // Create an IAM policy for S3 access
-    const s3AccessListPolicy = new PolicyStatement({
-      actions: ["s3:ListBucket"],
-      resources: [storage.kbDocsBucket.bucket.bucketArn]
-    })
-    s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
-
-    // Create an IAM policy for S3 access
-    const s3AccessGetPolicy = new PolicyStatement({
-      actions: ["s3:GetObject", "s3:Delete*"],
-      resources: [`${storage.kbDocsBucket.bucket.bucketArn}/*`]
-    })
-    s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": account})
-
-    bedrockExecutionRole.addToPolicy(s3AccessListPolicy)
-    bedrockExecutionRole.addToPolicy(s3AccessGetPolicy)
-
-    // Define createIndexFunction execution role and policy. Managed role 'AWSLambdaBasicExecutionRole'
-    const createIndexFunctionRole = new iam.Role(this, "CreateIndexFunctionRole", {
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-      description: "Lambda role for creating OpenSearch index"
+    // Create IAM Resources
+    const iamResources = new IamResources(this, "IamResources", {
+      region,
+      account,
+      kbDocsBucket: storage.kbDocsBucket.bucket
     })
 
-    createIndexFunctionRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
-    )
-    createIndexFunctionRole.addToPolicy(new PolicyStatement({
-      actions: [
-        "aoss:APIAccessAll",
-        "aoss:DescribeIndex",
-        "aoss:ReadDocument",
-        "aoss:CreateIndex",
-        "aoss:DeleteIndex",
-        "aoss:UpdateIndex",
-        "aoss:WriteDocument",
-        "aoss:CreateCollectionItems",
-        "aoss:DeleteCollectionItems",
-        "aoss:UpdateCollectionItems",
-        "aoss:DescribeCollectionItems"
-      ],
-      resources: [
-        `arn:aws:aoss:${region}:${account}:collection/*`,
-        `arn:aws:aoss:${region}:${account}:index/*`
-      ],
-      effect: iam.Effect.ALLOW
-    }))
+    // Update storage with bedrock role for KMS access
+    if (storage.kbDocsBucket.kmsKey) {
+      storage.kbDocsBucket.kmsKey.addToResourcePolicy(new PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.ArnPrincipal(iamResources.bedrockExecutionRole.roleArn)],
+        actions: ["kms:Decrypt", "kms:DescribeKey"],
+        resources: ["*"]
+      }))
+    }
 
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
-      bedrockExecutionRole,
-      createIndexFunctionRole,
+      bedrockExecutionRole: iamResources.bedrockExecutionRole,
+      createIndexFunctionRole: iamResources.createIndexFunctionRole,
       account
     })
 
@@ -143,9 +85,8 @@ export class EpsAssistMeStack extends Stack {
 
     // Create VectorKnowledgeBase construct
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-      embeddingsModel: EMBEDDING_MODEL,
       docsBucket: storage.kbDocsBucket.bucket,
-      bedrockExecutionRole,
+      bedrockExecutionRole: iamResources.bedrockExecutionRole,
       collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
       vectorIndexName: VECTOR_INDEX_NAME
     })
@@ -157,7 +98,7 @@ export class EpsAssistMeStack extends Stack {
       commitId: props.commitId,
       logRetentionInDays,
       logLevel,
-      createIndexFunctionRole,
+      createIndexFunctionRole: iamResources.createIndexFunctionRole,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: vectorKB.guardrail.attrGuardrailId,
@@ -182,7 +123,7 @@ export class EpsAssistMeStack extends Stack {
         ],
         // Add principal of bedrock execution role and lambda execution role
         Principal: [
-          bedrockExecutionRole.roleArn,
+          iamResources.bedrockExecutionRole.roleArn,
           functions.functions.createIndex.function.role?.roleArn,
           `arn:aws:iam::${account}:root`
         ]
@@ -238,7 +179,7 @@ export class EpsAssistMeStack extends Stack {
     vectorKB.knowledgeBase.node.addDependency(vectorIndex)
     vectorKB.knowledgeBase.node.addDependency(functions.functions.createIndex)
     vectorKB.knowledgeBase.node.addDependency(openSearchResources.collection.collection)
-    vectorKB.knowledgeBase.node.addDependency(bedrockExecutionRole)
+    vectorKB.knowledgeBase.node.addDependency(iamResources.bedrockExecutionRole)
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {

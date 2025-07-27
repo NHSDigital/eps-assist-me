@@ -4,8 +4,9 @@ import {Bucket} from "aws-cdk-lib/aws-s3"
 import * as bedrock from "aws-cdk-lib/aws-bedrock"
 import {createHash} from "crypto"
 
+const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
+
 export interface VectorKnowledgeBaseProps {
-  embeddingsModel: string
   docsBucket: Bucket
   bedrockExecutionRole: Role
   collectionArn: string
@@ -54,7 +55,7 @@ export class VectorKnowledgeBaseResources extends Construct {
       knowledgeBaseConfiguration: {
         type: "VECTOR",
         vectorKnowledgeBaseConfiguration: {
-          embeddingModelArn: `arn:aws:bedrock:eu-west-2::foundation-model/${props.embeddingsModel}`
+          embeddingModelArn: `arn:aws:bedrock:eu-west-2::foundation-model/${EMBEDDING_MODEL}`
         }
       },
       storageConfiguration: {

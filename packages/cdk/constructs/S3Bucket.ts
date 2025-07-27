@@ -7,14 +7,12 @@ import {
   ObjectOwnership
 } from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
-import * as iam from "aws-cdk-lib/aws-iam"
 
 export interface S3BucketProps {
   bucketName: string
   kmsKey?: Key
   accessLogsBucket?: Bucket
   versioned?: boolean
-  bedrockExecutionRole?: iam.Role
 }
 
 export class S3Bucket extends Construct {
@@ -36,15 +34,6 @@ export class S3Bucket extends Construct {
       serverAccessLogsBucket: props.accessLogsBucket,
       serverAccessLogsPrefix: props.accessLogsBucket ? "s3-access-logs/" : undefined
     })
-
-    if (props.kmsKey && props.bedrockExecutionRole) {
-      props.kmsKey.addToResourcePolicy(new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        principals: [new iam.ArnPrincipal(props.bedrockExecutionRole.roleArn)],
-        actions: ["kms:Decrypt", "kms:DescribeKey"],
-        resources: ["*"]
-      }))
-    }
 
     this.kmsKey = props.kmsKey
   }
