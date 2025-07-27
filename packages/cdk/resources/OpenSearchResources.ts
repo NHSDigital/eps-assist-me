@@ -15,7 +15,7 @@ export class OpenSearchResources extends Construct {
     super(scope, id)
 
     this.collection = new OpenSearchCollection(this, "OsCollection", {
-      collectionName: "eps-assist-vector-db",
+      collectionName: `eps-vec-${this.node.addr}`, // eps-assist-vector-db
       principals: [
         props.bedrockExecutionRole.roleArn,
         props.createIndexFunctionRole.roleArn,
