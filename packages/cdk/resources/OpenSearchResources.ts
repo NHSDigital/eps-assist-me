@@ -1,6 +1,7 @@
 import {Construct} from "constructs"
 import {OpenSearchCollection} from "../constructs/OpenSearchCollection"
 import * as iam from "aws-cdk-lib/aws-iam"
+import {createHash} from "crypto"
 
 export interface OpenSearchResourcesProps {
   bedrockExecutionRole: iam.Role
@@ -15,7 +16,7 @@ export class OpenSearchResources extends Construct {
     super(scope, id)
 
     this.collection = new OpenSearchCollection(this, "OsCollection", {
-      collectionName: `eps-vec-${this.node.addr}`, // eps-assist-vector-db
+      createHash: `eps-assist-vector-db-${createHash("md5").update(this.node.addr).digest("hex").substring(0, 8)}`,
       principals: [
         props.bedrockExecutionRole.roleArn,
         props.createIndexFunctionRole.roleArn,
