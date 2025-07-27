@@ -101,18 +101,9 @@ jobs:
 
       - name: Copy version.txt from Docker image into .build
         run: |
-          docker run --rm --entrypoint bash cdk-utils-build-repo:latest -c '
-            path=$(find / -name version.txt 2>/dev/null | head -n1)
-            if [ -z "$path" ]; then
-              echo "version.txt not found in container."
-              exit 1
-            fi
-            echo "Found version.txt at: $path"
-            echo "----------------------------------------"
-            cat "$path"
-            echo "----------------------------------------"
-            cat "$path" > /workspace/version.txt
-          ' && mv version.txt .build/version.txt
+          docker run --rm --entrypoint bash cdk-utils-build-repo:latest \
+            -c 'find / -name version.txt 2>/dev/null | head -n1 | xargs cat' \
+            > .build/version.txt
 
       - name: Configure AWS Credentials
         id: connect-aws
