@@ -4,7 +4,6 @@ import {Bucket} from "aws-cdk-lib/aws-s3"
 import * as bedrock from "aws-cdk-lib/aws-bedrock"
 
 export interface VectorKnowledgeBaseProps {
-  kbName: string
   embeddingsModel: string
   docsBucket: Bucket
   bedrockExecutionRole: Role
@@ -48,7 +47,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     })
 
     this.knowledgeBase = new bedrock.CfnKnowledgeBase(this, "VectorKB", {
-      name: props.kbName,
+      name: "eps-assist-kb",
       description: "Knowledge base for EPS Assist Me Slackbot",
       roleArn: props.bedrockExecutionRole.roleArn,
       knowledgeBaseConfiguration: {

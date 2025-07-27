@@ -2,8 +2,6 @@ import {Construct} from "constructs"
 import {OpenSearchCollection} from "../constructs/OpenSearchCollection"
 import * as iam from "aws-cdk-lib/aws-iam"
 
-const COLLECTION_NAME = "eps-assist-vector-db"
-
 export interface OpenSearchResourcesProps {
   bedrockExecutionRole: iam.Role
   createIndexFunctionRole: iam.Role
@@ -17,7 +15,7 @@ export class OpenSearchResources extends Construct {
     super(scope, id)
 
     this.collection = new OpenSearchCollection(this, "OsCollection", {
-      collectionName: COLLECTION_NAME,
+      collectionName: "eps-assist-vector-db",
       principals: [
         props.bedrockExecutionRole.roleArn,
         props.createIndexFunctionRole.roleArn,

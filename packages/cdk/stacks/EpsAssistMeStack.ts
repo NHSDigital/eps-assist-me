@@ -143,7 +143,6 @@ export class EpsAssistMeStack extends Stack {
 
     // Create VectorKnowledgeBase construct
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-      kbName: "eps-assist-kb",
       embeddingsModel: EMBEDDING_MODEL,
       docsBucket: storage.kbDocsBucket.bucket,
       bedrockExecutionRole,
