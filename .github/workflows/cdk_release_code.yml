@@ -122,23 +122,26 @@ jobs:
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
 
+      - name: Create version.txt for CDK tooling
+        run: echo "${{ inputs.VERSION_NUMBER }}" > version.txt
+
       - name: Debug container filesystem layout
         run: |
           docker run --rm \
             -v "$(pwd)":/home/cdkuser/workspace \
             -w /home/cdkuser/workspace \
             cdk-utils-build-repo:latest \
-            bash -c '
-              echo "Current working directory (in container): $(pwd)"
-              echo "--- CDK entrypoint directory ---"
+            bash -c "
+              echo 'Current working directory (in container): \$(pwd)'
+              echo '--- CDK entrypoint directory ---'
               ls -l .build/packages/cdk/bin/
               
-              echo "--- SlackBotFunction packaged ---"
-              ls -l .build/packages/slackBotFunction/build/ || echo "SlackBotFunction build not found"
+              echo '--- SlackBotFunction packaged ---'
+              ls -l .build/packages/slackBotFunction/ || echo 'SlackBotFunction build not found'
       
-              echo "--- CreateIndexFunction packaged ---"
-              ls -l .build/packages/createIndexFunction/build/ || echo "CreateIndexFunction build not found"
-            '
+              echo '--- CreateIndexFunction packaged ---'
+              ls -l .build/packages/createIndexFunction/ || echo 'CreateIndexFunction build not found'
+            "
 
       - name: Show diff
         run: |
