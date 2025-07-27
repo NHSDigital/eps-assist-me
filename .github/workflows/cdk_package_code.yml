@@ -3,6 +3,9 @@ name: cdk package code
 on:
   workflow_call:
     inputs:
+      STACK_NAME:
+        required: true
+        type: string
       VERSION_NUMBER:
         required: true
         type: string
@@ -58,18 +61,19 @@ jobs:
 
       - name: Build Python Lambda Functions
         run: |
-          mkdir -p packages/slackBotFunction/build
-          pip3 install -r packages/slackBotFunction/requirements.txt -t packages/slackBotFunction/build
-          rsync -a --exclude=build packages/slackBotFunction/ packages/slackBotFunction/build/
+          mkdir -p .build/${{ inputs.STACK_NAME }}-SlackBotFunction
+          pip3 install -r packages/slackBotFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-SlackBotFunction
+          cp -r packages/slackBotFunction/* .build/${{ inputs.STACK_NAME }}-SlackBotFunction
 
-          mkdir -p packages/createIndexFunction/build
-          pip3 install -r packages/createIndexFunction/requirements.txt -t packages/createIndexFunction/build
-          rsync -a --exclude=build packages/createIndexFunction/ packages/createIndexFunction/build/
+          mkdir -p .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
+          pip3 install -r packages/createIndexFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
+          cp -r packages/createIndexFunction/* .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
 
       - name: 'Tar files'
         run: |
           tar -rf artifact.tar \
             .tool-versions \
+            .build \
             packages \
             node_modules \
             package.json \
