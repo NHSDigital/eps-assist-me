@@ -123,7 +123,7 @@ jobs:
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
 
       - name: Create version.txt for CDK tooling
-        run: echo "${{ inputs.VERSION_NUMBER }}" > version.txt
+        run: echo "${{ inputs.VERSION_NUMBER }}" > .build/version.txt
 
       - name: Debug container filesystem layout
         run: |
