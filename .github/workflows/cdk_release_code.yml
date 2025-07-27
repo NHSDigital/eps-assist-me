@@ -99,6 +99,27 @@ jobs:
           docker pull "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest"
           docker tag "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest" cdk-utils-build-repo:latest
 
+      - name: Check for version.txt in cdk-utils-build container
+        run: |
+          echo "🔍 Inspecting cdk-utils-build-repo:latest for version.txt"
+          
+          docker run --rm cdk-utils-build-repo:latest /bin/bash -c '
+            echo "Looking for version.txt in common paths..."
+      
+            for path in /version.txt /home/cdkuser/workspace/version.txt /app/version.txt /opt/version.txt; do
+              if [ -f "$path" ]; then
+                echo "✅ Found version.txt at $path"
+                echo "----------------------------------------"
+                cat "$path"
+                echo "----------------------------------------"
+                exit 0
+              fi
+            done
+      
+            echo "❌ version.txt not found in expected locations"
+            exit 1
+          '
+ 
       - name: Configure AWS Credentials
         id: connect-aws
         uses: aws-actions/configure-aws-credentials@v4
