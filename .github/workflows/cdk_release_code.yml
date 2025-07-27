@@ -184,13 +184,6 @@ jobs:
           ref: gh-pages
           path: gh-pages
 
-      - name: Checkout gh-pages
-        if: ${{ !startsWith(inputs.STACK_NAME, 'lambda-resources-pr-') }}
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-
       - name: Update release tag in github pages
         if: ${{ !startsWith(inputs.STACK_NAME, 'epsam-pr-') }}
         run: |
