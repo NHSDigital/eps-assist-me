@@ -7,8 +7,6 @@ import {
 } from "aws-cdk-lib"
 import {PolicyStatement, Effect, ArnPrincipal} from "aws-cdk-lib/aws-iam"
 import {CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
-import {AwsCustomResource, PhysicalResourceId, AwsCustomResourcePolicy} from "aws-cdk-lib/custom-resources"
-
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -17,6 +15,7 @@ import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
+import {VectorIndex} from "../resources/VectorIndex"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -130,52 +129,16 @@ export class EpsAssistMeStack extends Stack {
     })
     openSearchResources.collection.collection.addDependency(aossAccessPolicy)
 
-    // Create a custom resource to create the OpenSearch index
-    const vectorIndex = new AwsCustomResource(this, "VectorIndex", {
-      installLatestAwsSdk: true,
-      onCreate: {
-        service: "Lambda",
-        action: "invoke",
-        parameters: {
-          FunctionName: functions.functions.createIndex.function.functionName,
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            RequestType: "Create",
-            CollectionName: openSearchResources.collection.collection.name,
-            IndexName: VECTOR_INDEX_NAME,
-            Endpoint: endpoint
-          })
-        },
-        physicalResourceId: PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
-      },
-      onDelete: {
-        service: "Lambda",
-        action: "invoke",
-        parameters: {
-          FunctionName: functions.functions.createIndex.function.functionName,
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            RequestType: "Delete",
-            CollectionName: openSearchResources.collection.collection.name,
-            IndexName: VECTOR_INDEX_NAME,
-            Endpoint: endpoint
-          })
-        }
-      },
-      policy: AwsCustomResourcePolicy.fromStatements([
-        new PolicyStatement({
-          actions: ["lambda:InvokeFunction"],
-          resources: [functions.functions.createIndex.function.functionArn]
-        })
-      ]),
-      timeout: Duration.seconds(60)
+    // Create vector index
+    const vectorIndex = new VectorIndex(this, "VectorIndex", {
+      indexName: VECTOR_INDEX_NAME,
+      collection: openSearchResources.collection.collection,
+      createIndexFunction: functions.functions.createIndex,
+      endpoint
     })
 
-    // Ensure vectorIndex depends on collection
-    vectorIndex.node.addDependency(openSearchResources.collection.collection)
-
     // add a dependency for bedrock kb on the custom resource. Enables vector index to be created before KB
-    vectorKB.knowledgeBase.node.addDependency(vectorIndex)
+    vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
     vectorKB.knowledgeBase.node.addDependency(functions.functions.createIndex)
     vectorKB.knowledgeBase.node.addDependency(openSearchResources.collection.collection)
     vectorKB.knowledgeBase.node.addDependency(iamResources.bedrockExecutionRole)
