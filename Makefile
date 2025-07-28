@@ -67,12 +67,12 @@ cfn-guard:
 	./scripts/run_cfn_guard.sh
 
 build-lambda-packages:
-	mkdir -p .build/$${stack_name}-SlackBotFunction
-	mkdir -p .build/$${stack_name}-CreateIndexFunction
-	cp -r packages/slackBotFunction/* .build/$${stack_name}-SlackBotFunction/
-	pip3 install -r packages/slackBotFunction/requirements.txt -t .build/$${stack_name}-SlackBotFunction/
-	cp -r packages/createIndexFunction/* .build/$${stack_name}-CreateIndexFunction/
-	pip3 install -r packages/createIndexFunction/requirements.txt -t .build/$${stack_name}-CreateIndexFunction/
+	mkdir -p .build/epsam-SlackBotFunction
+	mkdir -p .build/epsam-CreateIndexFunction
+	cp -r packages/slackBotFunction/* .build/epsam-SlackBotFunction/
+	pip3 install -r packages/slackBotFunction/requirements.txt -t .build/epsam-SlackBotFunction/
+	cp -r packages/createIndexFunction/* .build/epsam-CreateIndexFunction/
+	pip3 install -r packages/createIndexFunction/requirements.txt -t .build/epsam-CreateIndexFunction/
 
 cdk-deploy: guard-stack_name
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
@@ -96,7 +96,7 @@ cdk-synth: build-lambda-packages
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=undefined \
-		--context stackName=$$stack_name \
+		--context stackName=epsam \
 		--context versionNumber=undefined \
 		--context commitId=undefined \
 		--context logRetentionInDays=30 \
