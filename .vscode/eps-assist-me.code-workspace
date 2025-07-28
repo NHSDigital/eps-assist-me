@@ -19,8 +19,7 @@
 	],
 	"settings": {
 		"jest.disabledWorkspaceFolders": [
-			"eps-assist-me",
-			"packages/getSecretLayer"
+			"eps-assist-me"
 		],
 		"files.exclude": {
 			"packages/": true

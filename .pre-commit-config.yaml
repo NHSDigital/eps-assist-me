@@ -23,14 +23,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: lint-getSecretLayer
-        name: Lint getSecretLayer
-        entry: make
-        args: ["lint-go"]
-        language: system
-        files: ^packages\/getSecretLayer
-        pass_filenames: false
-
       - id: lint-githubactions
         name: Lint github actions
         entry: make
