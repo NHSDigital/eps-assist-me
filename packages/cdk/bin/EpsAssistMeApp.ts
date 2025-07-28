@@ -20,10 +20,6 @@ const commit = app.node.tryGetContext("commitId")
 
 console.log("CDK context:", {accountId, stackName, version, commit})
 
-if (!accountId || !stackName || !version || !commit) {
-  throw new Error(`Missing required CDK context values: ${JSON.stringify({accountId, stackName, version, commit})}`)
-}
-
 Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
 
 Tags.of(app).add("cdkApp", "EpsAssistMe")
