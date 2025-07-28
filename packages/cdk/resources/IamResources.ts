@@ -7,6 +7,7 @@ import {
 } from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
 
+// Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 
 export interface IamResourcesProps {

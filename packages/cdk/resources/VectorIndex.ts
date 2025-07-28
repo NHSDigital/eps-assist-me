@@ -18,8 +18,10 @@ export class VectorIndex extends Construct {
   constructor(scope: Construct, id: string, props: VectorIndexProps) {
     super(scope, id)
 
+    // Custom resource to manage OpenSearch vector index lifecycle via Lambda
     this.vectorIndex = new AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
+      // Create index when stack is deployed
       onCreate: {
         service: "Lambda",
         action: "invoke",
@@ -35,6 +37,7 @@ export class VectorIndex extends Construct {
         },
         physicalResourceId: PhysicalResourceId.of(`VectorIndex-${props.indexName}`)
       },
+      // Delete index when stack is destroyed
       onDelete: {
         service: "Lambda",
         action: "invoke",
@@ -49,6 +52,7 @@ export class VectorIndex extends Construct {
           })
         }
       },
+      // Grant permission to invoke the Lambda function
       policy: AwsCustomResourcePolicy.fromStatements([
         new PolicyStatement({
           actions: ["lambda:InvokeFunction"],
@@ -58,6 +62,7 @@ export class VectorIndex extends Construct {
       timeout: Duration.seconds(60)
     })
 
+    // Ensure collection exists before creating index
     this.vectorIndex.node.addDependency(props.collection)
   }
 }

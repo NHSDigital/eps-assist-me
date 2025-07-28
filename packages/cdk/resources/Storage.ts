@@ -10,19 +10,19 @@ export class Storage extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id)
 
-    // Define the S3 bucket for access logs
+    // Create S3 bucket for storing API Gateway and S3 access logs
     this.accessLogBucket = new S3Bucket(this, "AccessLogsBucket", {
       bucketName: "EpsAssistAccessLogsBucket",
       versioned: false
     })
 
-    // Create a customer-managed KMS key
+    // Create customer-managed KMS key for knowledge base document encryption
     this.kbDocsKey = new Key(this, "KbDocsKey", {
       enableKeyRotation: true,
       description: "KMS key for encrypting knowledge base documents"
     })
 
-    // Use the KMS key in your S3 bucket
+    // Create S3 bucket for knowledge base documents with encryption and access logging
     this.kbDocsBucket = new S3Bucket(this, "DocsBucket", {
       bucketName: "EpsAssistDocsBucket",
       kmsKey: this.kbDocsKey,

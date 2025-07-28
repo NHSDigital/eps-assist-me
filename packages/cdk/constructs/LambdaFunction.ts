@@ -31,6 +31,7 @@ export interface LambdaFunctionProps {
   readonly logLevel: string
 }
 
+// Lambda Insights layer for enhanced monitoring
 const insightsLayerArn = "arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsightsExtension:55"
 
 export class LambdaFunction extends Construct {
@@ -40,7 +41,7 @@ export class LambdaFunction extends Construct {
   public constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
     super(scope, id)
 
-    // Shared cloud resources
+    // Import shared cloud resources from cross-stack references
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
       this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn"))
 
@@ -67,6 +68,7 @@ export class LambdaFunction extends Construct {
       removalPolicy: RemovalPolicy.DESTROY
     })
 
+    // Suppress CFN guard rules for log group
     const cfnlogGroup = logGroup.node.defaultChild as CfnLogGroup
     cfnlogGroup.cfnOptions.metadata = {
       guard: {
@@ -84,7 +86,7 @@ export class LambdaFunction extends Construct {
       roleArn: splunkSubscriptionFilterRole.roleArn
     })
 
-    // IAM role and policy for the Lambda
+    // Create managed policy for Lambda CloudWatch logs access
     const putLogsManagedPolicy = new ManagedPolicy(this, "LambdaPutLogsManagedPolicy", {
       description: `write to ${props.functionName} logs`,
       statements: [
@@ -101,7 +103,7 @@ export class LambdaFunction extends Construct {
       ]
     })
 
-    // Role/Policy Aggregation
+    // Aggregate all required policies for Lambda execution
     const requiredPolicies: Array<IManagedPolicy> = [
       putLogsManagedPolicy,
       lambdaInsightsLogGroupPolicy,
@@ -109,6 +111,7 @@ export class LambdaFunction extends Construct {
       ...(props.additionalPolicies ?? [])
     ]
 
+    // Use provided role or create new one with required policies
     let role: Role
     if (props.role) {
       role = props.role
@@ -123,7 +126,7 @@ export class LambdaFunction extends Construct {
       })
     }
 
-    // Define the Lambda function
+    // Create Lambda function with Python runtime and monitoring
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
       runtime: Runtime.PYTHON_3_13,
       memorySize: 256,
@@ -140,7 +143,7 @@ export class LambdaFunction extends Construct {
       layers: [insightsLambdaLayer]
     })
 
-    // Guard rule suppressions
+    // Suppress CFN guard rules for Lambda function
     const cfnLambda = lambdaFunction.node.defaultChild as CfnFunction
     cfnLambda.cfnOptions.metadata = {
       guard: {
@@ -152,7 +155,7 @@ export class LambdaFunction extends Construct {
       }
     }
 
-    // Policy to allow invoking this Lambda
+    // Create policy for external services to invoke this Lambda
     const executionManagedPolicy = new ManagedPolicy(this, "ExecuteLambdaManagedPolicy", {
       description: `execute lambda ${props.functionName}`,
       statements: [
@@ -163,7 +166,7 @@ export class LambdaFunction extends Construct {
       ]
     })
 
-    // Outputs
+    // Export Lambda function and execution policy for use by other constructs
     this.function = lambdaFunction
     this.executionPolicy = executionManagedPolicy
   }

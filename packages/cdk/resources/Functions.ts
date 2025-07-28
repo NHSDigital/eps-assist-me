@@ -4,6 +4,7 @@ import {Role, PolicyStatement} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 
+// Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 const SLACK_SLASH_COMMAND = "/ask-eps"
 const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
@@ -34,6 +35,7 @@ export class Functions extends Construct {
   constructor(scope: Construct, id: string, props: FunctionsProps) {
     super(scope, id)
 
+    // Lambda function to create OpenSearch vector index
     const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
       stackName: props.stackName,
       functionName: `${props.stackName}-CreateIndexFunction`,
@@ -46,6 +48,7 @@ export class Functions extends Construct {
       role: props.createIndexFunctionRole
     })
 
+    // Lambda function to handle Slack bot interactions
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
       functionName: `${props.stackName}-SlackBotFunction`,
@@ -67,11 +70,12 @@ export class Functions extends Construct {
       }
     })
 
-    // Create Lambda policies
+    // Create Lambda policies for Bedrock model access
     const lambdaBedrockModelPolicy = new PolicyStatement()
     lambdaBedrockModelPolicy.addActions("bedrock:InvokeModel")
     lambdaBedrockModelPolicy.addResources(`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`)
 
+    // Policy for knowledge base retrieval
     const lambdaBedrockKbPolicy = new PolicyStatement()
     lambdaBedrockKbPolicy.addActions("bedrock:Retrieve")
     lambdaBedrockKbPolicy.addActions("bedrock:RetrieveAndGenerate")
@@ -79,6 +83,7 @@ export class Functions extends Construct {
       `arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/${props.knowledgeBaseId}`
     )
 
+    // Policy for SSM parameter access
     const lambdaSSMPolicy = new PolicyStatement()
     lambdaSSMPolicy.addActions("ssm:GetParameter")
     lambdaSSMPolicy.addResources(
@@ -86,15 +91,17 @@ export class Functions extends Construct {
     lambdaSSMPolicy.addResources(
       `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameter.parameterName}`)
 
+    // Policy for Lambda self-invocation
     const lambdaReinvokePolicy = new PolicyStatement()
     lambdaReinvokePolicy.addActions("lambda:InvokeFunction")
     lambdaReinvokePolicy.addResources(`arn:aws:lambda:${props.region}:${props.account}:function:*`)
 
+    // Policy for guardrail access
     const lambdaGRinvokePolicy = new PolicyStatement()
     lambdaGRinvokePolicy.addActions("bedrock:ApplyGuardrail")
     lambdaGRinvokePolicy.addResources(`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`)
 
-    // Grant secrets access and attach policies
+    // Grant secrets access and attach policies to SlackBot Lambda
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 

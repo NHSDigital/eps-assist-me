@@ -17,6 +17,7 @@ export class Apis extends Construct {
   public constructor(scope: Construct, id: string, props: ApisProps) {
     super(scope, id)
 
+    // Create REST API Gateway for EPS Assist endpoints
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
       stackName: props.stackName,
       logRetentionInDays: props.logRetentionInDays,
@@ -24,6 +25,7 @@ export class Apis extends Construct {
       trustStoreKey: "unused",
       truststoreVersion: "unused"
     })
+    // Create /slack resource path
     const slackResource = apiGateway.api.root.addResource("slack")
 
     // Create the '/slack/ask-eps' POST endpoint and integrate it with the SlackBot Lambda
