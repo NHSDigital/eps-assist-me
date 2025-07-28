@@ -5,7 +5,6 @@ import {
   CfnOutput
 } from "aws-cdk-lib"
 import {PolicyStatement, Effect, ArnPrincipal} from "aws-cdk-lib/aws-iam"
-import {CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -107,26 +106,6 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret
     })
-
-    // Define OpenSearchServerless access policy to access the index and collection
-    // from the Amazon Bedrock execution role and the lambda execution role
-    const aossAccessPolicy = new CfnAccessPolicy(this, "aossAccessPolicy", {
-      name: "eps-assist-access-policy",
-      type: "data",
-      policy: JSON.stringify([{
-        Rules: [
-          {ResourceType: "collection", Resource: ["collection/*"], Permission: ["aoss:*"]},
-          {ResourceType: "index", Resource: ["index/*/*"], Permission: ["aoss:*"]}
-        ],
-        // Add principal of bedrock execution role and lambda execution role
-        Principal: [
-          iamResources.bedrockExecutionRole.roleArn,
-          functions.functions.createIndex.function.role?.roleArn,
-          `arn:aws:iam::${account}:root`
-        ]
-      }])
-    })
-    openSearchResources.collection.collection.addDependency(aossAccessPolicy)
 
     // Create vector index
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
