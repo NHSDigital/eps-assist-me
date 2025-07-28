@@ -60,12 +60,17 @@ export const addCfnGuardMetadata = (
     cfnResource.cfnOptions.metadata = {}
   }
 
+  // Preserve existing guard metadata and merge with new rules
+  const existingGuard = cfnResource.cfnOptions.metadata.guard || {}
+  const existingSuppressed = existingGuard.SuppressedRules || []
+  const allSuppressedRules = [...new Set([...existingSuppressed, ...suppressedRules])]
+
   cfnResource.cfnOptions.metadata = {
     ...cfnResource.cfnOptions.metadata,
     guard: {
-      SuppressedRules: suppressedRules
+      SuppressedRules: allSuppressedRules
     }
   }
 
-  console.log(`✅ Suppressed rules for ${cfnResource.logicalId}: [${suppressedRules.join(", ")}]`)
+  console.log(`✅ Suppressed rules for ${cfnResource.logicalId}: [${allSuppressedRules.join(", ")}]`)
 }
