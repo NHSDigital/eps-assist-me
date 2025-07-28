@@ -25,3 +25,4 @@ app = App\(token=bot_token\)
 token=bot_token
 token: props\.slackBotToken
 secretValue: JSON\.stringify\(\{token: props\.slackBotToken\}\)
+token: slackBotToken
