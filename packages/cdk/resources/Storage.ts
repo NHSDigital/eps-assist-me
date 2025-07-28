@@ -4,17 +4,10 @@ import {S3Bucket} from "../constructs/S3Bucket"
 
 export class Storage extends Construct {
   public readonly kbDocsBucket: S3Bucket
-  public readonly accessLogBucket: S3Bucket
   public readonly kbDocsKey: Key
 
   constructor(scope: Construct, id: string) {
     super(scope, id)
-
-    // Create S3 bucket for storing API Gateway and S3 access logs
-    this.accessLogBucket = new S3Bucket(this, "AccessLogsBucket", {
-      bucketName: "AccessLogs",
-      versioned: false
-    })
 
     // Create customer-managed KMS key for knowledge base document encryption
     this.kbDocsKey = new Key(this, "KbDocsKey", {
@@ -22,11 +15,10 @@ export class Storage extends Construct {
       description: "KMS key for encrypting knowledge base documents"
     })
 
-    // Create S3 bucket for knowledge base documents with encryption and access logging
+    // Create S3 bucket for knowledge base documents with encryption
     this.kbDocsBucket = new S3Bucket(this, "DocsBucket", {
       bucketName: "Docs",
       kmsKey: this.kbDocsKey,
-      accessLogsBucket: this.accessLogBucket.bucket,
       versioned: true
     })
   }

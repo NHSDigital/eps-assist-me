@@ -10,9 +10,8 @@ import {Key} from "aws-cdk-lib/aws-kms"
 
 export interface S3BucketProps {
   bucketName: string
-  kmsKey?: Key
-  accessLogsBucket?: Bucket
-  versioned?: boolean
+  kmsKey: Key
+  versioned: boolean
 }
 
 export class S3Bucket extends Construct {
@@ -30,9 +29,7 @@ export class S3Bucket extends Construct {
       autoDeleteObjects: true,
       enforceSSL: true,
       versioned: props.versioned ?? false,
-      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
-      serverAccessLogsBucket: props.accessLogsBucket,
-      serverAccessLogsPrefix: props.accessLogsBucket ? "s3-access-logs/" : undefined
+      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
     this.kmsKey = props.kmsKey
