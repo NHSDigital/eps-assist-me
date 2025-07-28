@@ -43,6 +43,7 @@ clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
 	rm -rf cdk.out
+	rm -rf .build
 
 deep-clean: clean
 	rm -rf .venv
@@ -65,6 +66,14 @@ aws-login:
 cfn-guard:
 	./scripts/run_cfn_guard.sh
 
+build-lambda-packages:
+	mkdir -p .build/$${stack_name}-SlackBotFunction
+	mkdir -p .build/$${stack_name}-CreateIndexFunction
+	cp -r packages/slackBotFunction/* .build/$${stack_name}-SlackBotFunction/
+	pip3 install -r packages/slackBotFunction/requirements.txt -t .build/$${stack_name}-SlackBotFunction/
+	cp -r packages/createIndexFunction/* .build/$${stack_name}-CreateIndexFunction/
+	pip3 install -r packages/createIndexFunction/requirements.txt -t .build/$${stack_name}-CreateIndexFunction/
+
 cdk-deploy: guard-stack_name
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
@@ -78,17 +87,21 @@ cdk-deploy: guard-stack_name
 		--context stackName=$$stack_name \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
-		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
+		--context slackBotToken=$$SLACK_BOT_TOKEN \
+		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 
-cdk-synth:
+cdk-synth: build-lambda-packages
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=undefined \
-		--context stackName=epsam \
+		--context stackName=$$stack_name \
 		--context versionNumber=undefined \
 		--context commitId=undefined \
-		--context logRetentionInDays=30
+		--context logRetentionInDays=30 \
+		--context slackBotToken=dummy \
+		--context slackSigningSecret=dummy
 
 cdk-diff:
 	npx cdk diff \
@@ -113,4 +126,6 @@ cdk-watch: guard-stack_name
 		--context stackName=$$stack_name \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
-		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
+		--context slackBotToken=$$SLACK_BOT_TOKEN \
+		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
