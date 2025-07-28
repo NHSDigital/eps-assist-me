@@ -12,7 +12,7 @@ export class Storage extends Construct {
 
     // Create S3 bucket for storing API Gateway and S3 access logs
     this.accessLogBucket = new S3Bucket(this, "AccessLogsBucket", {
-      bucketName: "EpsAssistAccessLogsBucket",
+      bucketName: "AccessLogs",
       versioned: false
     })
 
@@ -24,7 +24,7 @@ export class Storage extends Construct {
 
     // Create S3 bucket for knowledge base documents with encryption and access logging
     this.kbDocsBucket = new S3Bucket(this, "DocsBucket", {
-      bucketName: "EpsAssistDocsBucket",
+      bucketName: "Docs",
       kmsKey: this.kbDocsKey,
       accessLogsBucket: this.accessLogBucket.bucket,
       versioned: true
