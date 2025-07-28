@@ -115,7 +115,7 @@ export class EpsAssistMeStack extends Stack {
       endpoint
     })
 
-    // Add a dependency for bedrock kb on the custom resource. Enables vector index to be created before KB
+    // Ensure dependencies are created before knowledge base
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
     vectorKB.knowledgeBase.node.addDependency(functions.functions.createIndex)
     vectorKB.knowledgeBase.node.addDependency(openSearchResources.collection.collection)
