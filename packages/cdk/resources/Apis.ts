@@ -21,7 +21,6 @@ export class Apis extends Construct {
     const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
       stackName: props.stackName,
       logRetentionInDays: props.logRetentionInDays,
-      enableMutualTls: props.enableMutalTls,
       trustStoreKey: "unused",
       truststoreVersion: "unused"
     })

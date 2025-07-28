@@ -20,7 +20,6 @@ import {ApiGateway as ApiGatewayTarget} from "aws-cdk-lib/aws-route53-targets"
 export interface RestApiGatewayProps {
   readonly stackName: string
   readonly logRetentionInDays: number
-  readonly enableMutualTls: boolean
   readonly trustStoreKey: string
   readonly truststoreVersion: string
 }
@@ -78,7 +77,6 @@ export class RestApiGateway extends Construct {
         securityPolicy: SecurityPolicy.TLS_1_2,
         endpointType: EndpointType.REGIONAL
       },
-      disableExecuteApiEndpoint: props.enableMutualTls,
       endpointConfiguration: {
         types: [EndpointType.REGIONAL]
       },
