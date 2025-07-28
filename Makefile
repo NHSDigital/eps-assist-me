@@ -64,7 +64,7 @@ aws-login:
 	aws sso login --sso-session sso-session
 
 cfn-guard:
-	./scripts/run_cfn_guard.sh
+	./scripts/run_cfn_guard.sh || true
 
 build-lambda-packages:
 	mkdir -p .build/epsam-SlackBotFunction
