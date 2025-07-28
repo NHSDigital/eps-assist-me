@@ -18,9 +18,9 @@ export class OpenSearchResources extends Construct {
     this.collection = new OpenSearchCollection(this, "OsCollection", {
       collectionName: "eps-assist-vector-db",
       principals: [
-        props.bedrockExecutionRole.roleArn,    // Bedrock Knowledge Base access
+        props.bedrockExecutionRole.roleArn, // Bedrock Knowledge Base access
         props.createIndexFunctionRole.roleArn, // Lambda index creation access
-        `arn:aws:iam::${props.account}:root`   // Account root access
+        `arn:aws:iam::${props.account}:root` // Account root access
       ]
     })
   }
