@@ -170,6 +170,18 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress S3 server access logs for knowledge base documents bucket
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Storage/DocsBucket/Docs/Resource",
+    [
+      {
+        id: "AwsSolutions-S1",
+        reason: "Server access logging not required for knowledge base documents bucket."
+      }
+    ]
+  )
+
   // Suppress secrets without rotation
   safeAddNagSuppression(
     stack,
