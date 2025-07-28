@@ -10,7 +10,6 @@ import * as iam from "aws-cdk-lib/aws-iam"
 import * as ops from "aws-cdk-lib/aws-opensearchserverless"
 import * as cr from "aws-cdk-lib/custom-resources"
 
-import {bedrock} from "@cdklabs/generative-ai-cdk-constructs"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -86,10 +85,10 @@ export class EpsAssistMeStack extends Stack {
 
     // Create VectorKnowledgeBase construct
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-      kbName: "eps-assist-kb",
-      embeddingsModel: bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V2_1024,
       docsBucket: storage.kbDocsBucket.bucket,
-      bedrockExecutionRole: iamResources.bedrockExecutionRole
+      bedrockExecutionRole: iamResources.bedrockExecutionRole,
+      collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
+      vectorIndexName: VECTOR_INDEX_NAME
     })
 
     // Create Functions construct
@@ -102,10 +101,10 @@ export class EpsAssistMeStack extends Stack {
       createIndexFunctionRole: iamResources.createIndexFunctionRole,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
-      guardrailId: vectorKB.guardrail.guardrailId,
-      guardrailVersion: vectorKB.guardrail.guardrailVersion,
+      guardrailId: vectorKB.guardrail.attrGuardrailId,
+      guardrailVersion: vectorKB.guardrail.attrVersion,
       collectionId: openSearchResources.collection.collection.attrId,
-      knowledgeBaseId: vectorKB.knowledgeBase.knowledgeBaseId,
+      knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,

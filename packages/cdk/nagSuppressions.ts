@@ -247,36 +247,6 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
-
-  // Suppress AWS managed policy usage in LogRetention service role
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "LogRetention construct requires AWS managed policy for CloudWatch logs access.",
-        appliesTo: [
-          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions in LogRetention service role policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "LogRetention construct needs wildcard permissions to manage CloudWatch log groups.",
-        appliesTo: [
-          "Resource::*"
-        ]
-      }
-    ]
-  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
