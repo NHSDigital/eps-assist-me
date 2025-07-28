@@ -73,26 +73,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress S3 warnings on EpsAssistDocsBucket
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Storage/DocsBucket/EpsAssistDocsBucket/Resource",
-    [
-      {
-        id: "AwsSolutions-S1",
-        reason: "No access logs needed for internal development usage."
-      },
-      {
-        id: "AwsSolutions-S10",
-        reason: "SSL enforcement via bucket policy is deferred."
-      },
-      {
-        id: "S3_BUCKET_REPLICATION_ENABLED",
-        reason: "Replication not required for internal bucket."
-      }
-    ]
-  )
-
   // Suppress missing WAF on API stage for Apis construct
   safeAddNagSuppression(
     stack,
@@ -101,42 +81,6 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "AwsSolutions-APIG3",
         reason: "WAF not in current scope; may be added later."
-      }
-    ]
-  )
-
-  // Suppress warnings on access logs bucket
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Storage/AccessLogsBucket/EpsAssistAccessLogsBucket/Resource",
-    [
-      {
-        id: "AwsSolutions-S10",
-        reason: "SSL policy is pending; logged for follow-up."
-      },
-      {
-        id: "S3_BUCKET_REPLICATION_ENABLED",
-        reason: "Replication not needed."
-      },
-      {
-        id: "S3_BUCKET_VERSIONING_ENABLED",
-        reason: "Short-lived logs don't need versioning."
-      },
-      {
-        id: "S3_BUCKET_LOGGING_ENABLED",
-        reason: "No logging needed on logging bucket."
-      }
-    ]
-  )
-
-  // Suppress SSL warning on actual access log bucket policy resource
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Storage/AccessLogsBucket/EpsAssistAccessLogsBucket/Policy/Resource",
-    [
-      {
-        id: "AwsSolutions-S10",
-        reason: "SSL enforcement on access logs bucket policy is deferred and documented."
       }
     ]
   )
@@ -152,6 +96,7 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Resource::<StorageDocsBucketEpsAssistDocsBucket7DBA5CCC.Arn>/*",
           "Resource::<StorageEpsAssistDocsBucket3189F25F.Arn>/*",
+          "Resource::<StorageDocsBucketDocs0C9A9D9E.Arn>/*",
           "Action::aoss:*",
           "Resource::*",
           "Resource::<OsCollection.Arn>/*",
