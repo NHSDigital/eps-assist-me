@@ -10,9 +10,13 @@ export const addCfnGuardMetadata = (
   childPath?: string,
   suppressedRules: Array<string> = []
 ) => {
+  console.log(`🔍 Looking for construct at path: ${path}${childPath ? "/" + childPath : ""}`)
+
   const parent = stack.node.tryFindChild(path)
   if (!parent) {
-    console.warn(`Could not find path /${stack.stackName}/${path}`)
+    console.warn(`❌ Could not find path /${stack.stackName}/${path}`)
+    // List available children for debugging
+    console.log("Available children:", stack.node.children.map(c => c.node.id))
     return
   }
 
@@ -21,7 +25,9 @@ export const addCfnGuardMetadata = (
   if (childPath) {
     const child = parent.node.tryFindChild(childPath)
     if (!child) {
-      console.warn(`Could not find path /${stack.stackName}/${path}/${childPath}`)
+      console.warn(`❌ Could not find path /${stack.stackName}/${path}/${childPath}`)
+      // List available children for debugging
+      console.log("Available children of parent:", parent.node.children.map(c => c.node.id))
       return
     }
     target = child
@@ -33,7 +39,7 @@ export const addCfnGuardMetadata = (
 
   if (target instanceof CfnResource) {
     cfnResource = target
-  } else if ("defaultChild" in target.node) {
+  } else if ("defaultChild" in target.node && target.node.defaultChild) {
     const defaultChild = target.node.defaultChild
     if (defaultChild instanceof CfnResource) {
       cfnResource = defaultChild
@@ -42,7 +48,16 @@ export const addCfnGuardMetadata = (
 
   if (!cfnResource) {
     console.warn(`⚠️ Target at ${path}${childPath ? "/" + childPath : ""} is not a CfnResource`)
+    console.log(`Target type: ${target.constructor.name}`)
+    if ("defaultChild" in target.node && target.node.defaultChild) {
+      console.log(`Default child type: ${target.node.defaultChild.constructor.name}`)
+    }
     return
+  }
+
+  // Initialize metadata if it doesn't exist
+  if (!cfnResource.cfnOptions.metadata) {
+    cfnResource.cfnOptions.metadata = {}
   }
 
   cfnResource.cfnOptions.metadata = {
