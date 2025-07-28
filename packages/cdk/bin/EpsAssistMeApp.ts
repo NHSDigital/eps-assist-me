@@ -45,6 +45,9 @@ app.synth()
 addCfnGuardMetadata(EpsAssistMe, "AWS679f53fac002430cb0da5b7982bd2287", "Resource",
   ["LAMBDA_DLQ_CHECK", "LAMBDA_INSIDE_VPC"]
 )
+addCfnGuardMetadata(EpsAssistMe, "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F", "Resource",
+  ["LAMBDA_DLQ_CHECK", "LAMBDA_INSIDE_VPC"]
+)
 addCfnGuardMetadata(EpsAssistMe, "EpsAssistAccessLogsBucket", "Resource",
   ["S3_BUCKET_LOGGING_ENABLED", "S3_BUCKET_SSL_REQUESTS_ONLY"]
 )
