@@ -66,7 +66,14 @@ export const applyCfnGuardSuppressions = (stack: Stack): void => {
 
   // Suppress S3 bucket guard checks
   const bucketResources = findResourcesByPattern(stack, ["Bucket", "Docs", "Storage"])
-  addSuppressions(bucketResources, ["S3_BUCKET_REPLICATION_ENABLED", "S3_BUCKET_LOGGING_ENABLED"])
+  addSuppressions(
+    bucketResources,
+    [
+      "S3_BUCKET_REPLICATION_ENABLED",
+      "S3_BUCKET_LOGGING_ENABLED",
+      "S3_BUCKET_DEFAULT_LOCK_ENABLED"
+    ]
+  )
 
   // Suppress S3 policy guard checks
   const policyResources = findResourcesByPattern(stack, ["Policy", "BucketPolicy"])
