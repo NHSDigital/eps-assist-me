@@ -13,7 +13,7 @@ export class OpenSearchCollection extends Construct {
   constructor(scope: Construct, id: string, props: OpenSearchCollectionProps) {
     super(scope, id)
 
-    // Encryption policy for collection (AWS-owned key)
+    // Encryption policy using AWS-managed keys
     const encryptionPolicy = new CfnSecurityPolicy(this, "EncryptionPolicy", {
       name: `${props.collectionName}-encryption`,
       type: "encryption",
@@ -23,7 +23,7 @@ export class OpenSearchCollection extends Construct {
       })
     })
 
-    // Network policy for public access (collection & dashboard)
+    // Network policy allowing public internet access
     const networkPolicy = new CfnSecurityPolicy(this, "NetworkPolicy", {
       name: `${props.collectionName}-network`,
       type: "network",
@@ -36,18 +36,7 @@ export class OpenSearchCollection extends Construct {
       }])
     })
 
-    // OpenSearch collection (VECTORSEARCH type)
-    this.collection = new CfnCollection(this, "Collection", {
-      name: props.collectionName,
-      description: "EPS Assist Vector Store",
-      type: "VECTORSEARCH"
-    })
-
-    // Ensure collection is created after policies
-    this.collection.addDependency(encryptionPolicy)
-    this.collection.addDependency(networkPolicy)
-
-    // Access policy for principals (full access to collection & indexes)
+    // Data access policy granting full permissions to specified principals
     const accessPolicy = new CfnAccessPolicy(this, "AccessPolicy", {
       name: `${props.collectionName}-access`,
       type: "data",
@@ -60,10 +49,18 @@ export class OpenSearchCollection extends Construct {
       }])
     })
 
-    // Ensure access policy applies after collection creation
+    // Vector search collection for document embeddings
+    this.collection = new CfnCollection(this, "Collection", {
+      name: props.collectionName,
+      description: "EPS Assist Vector Store",
+      type: "VECTORSEARCH"
+    })
+
+    // Ensure collection waits for all policies
+    this.collection.addDependency(encryptionPolicy)
+    this.collection.addDependency(networkPolicy)
     this.collection.addDependency(accessPolicy)
 
-    // Collection endpoint
     this.endpoint = `${this.collection.attrId}.${this.collection.stack.region}.aoss.amazonaws.com`
   }
 }
