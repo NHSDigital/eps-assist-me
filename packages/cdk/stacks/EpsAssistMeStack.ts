@@ -2,8 +2,7 @@ import {
   App,
   Stack,
   StackProps,
-  CfnOutput,
-  Duration
+  CfnOutput
 } from "aws-cdk-lib"
 import {PolicyStatement, Effect, ArnPrincipal} from "aws-cdk-lib/aws-iam"
 import {CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
