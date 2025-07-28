@@ -7,14 +7,15 @@ import {
   ServicePrincipal,
   IManagedPolicy
 } from "aws-cdk-lib/aws-iam"
-import * as lambda from "aws-cdk-lib/aws-lambda"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {Stream} from "aws-cdk-lib/aws-kinesis"
 import {
   Architecture,
   CfnFunction,
   LayerVersion,
-  Runtime
+  Runtime,
+  Function as LambdaFunctionResource,
+  Code
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
 
@@ -34,7 +35,7 @@ const insightsLayerArn = "arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsi
 
 export class LambdaFunction extends Construct {
   public readonly executionPolicy: ManagedPolicy
-  public readonly function: lambda.Function
+  public readonly function: LambdaFunctionResource
 
   public constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
     super(scope, id)
@@ -123,13 +124,13 @@ export class LambdaFunction extends Construct {
     }
 
     // Define the Lambda function
-    const lambdaFunction = new lambda.Function(this, props.functionName, {
+    const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
       runtime: Runtime.PYTHON_3_13,
       memorySize: 256,
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
       handler: "app.handler",
-      code: lambda.Code.fromAsset(`.build/${props.functionName}`),
+      code: Code.fromAsset(`.build/${props.functionName}`),
       role,
       environment: {
         ...props.environmentVariables,

@@ -2,13 +2,12 @@ import {
   App,
   Stack,
   StackProps,
-  CfnOutput
+  CfnOutput,
+  Duration
 } from "aws-cdk-lib"
-import {PolicyStatement} from "aws-cdk-lib/aws-iam"
-import * as cdk from "aws-cdk-lib"
-import * as iam from "aws-cdk-lib/aws-iam"
-import * as ops from "aws-cdk-lib/aws-opensearchserverless"
-import * as cr from "aws-cdk-lib/custom-resources"
+import {PolicyStatement, Effect, ArnPrincipal} from "aws-cdk-lib/aws-iam"
+import {CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
+import {AwsCustomResource, PhysicalResourceId, AwsCustomResourcePolicy} from "aws-cdk-lib/custom-resources"
 
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
@@ -67,8 +66,8 @@ export class EpsAssistMeStack extends Stack {
     // Update storage with bedrock role for KMS access
     if (storage.kbDocsBucket.kmsKey) {
       storage.kbDocsBucket.kmsKey.addToResourcePolicy(new PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        principals: [new iam.ArnPrincipal(iamResources.bedrockExecutionRole.roleArn)],
+        effect: Effect.ALLOW,
+        principals: [new ArnPrincipal(iamResources.bedrockExecutionRole.roleArn)],
         actions: ["kms:Decrypt", "kms:DescribeKey"],
         resources: ["*"]
       }))
@@ -113,7 +112,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Define OpenSearchServerless access policy to access the index and collection
     // from the Amazon Bedrock execution role and the lambda execution role
-    const aossAccessPolicy = new ops.CfnAccessPolicy(this, "aossAccessPolicy", {
+    const aossAccessPolicy = new CfnAccessPolicy(this, "aossAccessPolicy", {
       name: "eps-assist-access-policy",
       type: "data",
       policy: JSON.stringify([{
@@ -132,7 +131,7 @@ export class EpsAssistMeStack extends Stack {
     openSearchResources.collection.collection.addDependency(aossAccessPolicy)
 
     // Create a custom resource to create the OpenSearch index
-    const vectorIndex = new cr.AwsCustomResource(this, "VectorIndex", {
+    const vectorIndex = new AwsCustomResource(this, "VectorIndex", {
       installLatestAwsSdk: true,
       onCreate: {
         service: "Lambda",
@@ -147,7 +146,7 @@ export class EpsAssistMeStack extends Stack {
             Endpoint: endpoint
           })
         },
-        physicalResourceId: cr.PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
+        physicalResourceId: PhysicalResourceId.of("VectorIndex-eps-assist-os-index")
       },
       onDelete: {
         service: "Lambda",
@@ -163,13 +162,13 @@ export class EpsAssistMeStack extends Stack {
           })
         }
       },
-      policy: cr.AwsCustomResourcePolicy.fromStatements([
-        new iam.PolicyStatement({
+      policy: AwsCustomResourcePolicy.fromStatements([
+        new PolicyStatement({
           actions: ["lambda:InvokeFunction"],
           resources: [functions.functions.createIndex.function.functionArn]
         })
       ]),
-      timeout: cdk.Duration.seconds(60)
+      timeout: Duration.seconds(60)
     })
 
     // Ensure vectorIndex depends on collection

@@ -1,11 +1,11 @@
 import {Construct} from "constructs"
 import {OpenSearchCollection} from "../constructs/OpenSearchCollection"
-import * as iam from "aws-cdk-lib/aws-iam"
+import {Role} from "aws-cdk-lib/aws-iam"
 import {createHash} from "crypto"
 
 export interface OpenSearchResourcesProps {
-  bedrockExecutionRole: iam.Role
-  createIndexFunctionRole: iam.Role
+  bedrockExecutionRole: Role
+  createIndexFunctionRole: Role
   account: string
 }
 

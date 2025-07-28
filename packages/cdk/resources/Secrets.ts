@@ -1,6 +1,6 @@
 import {Construct} from "constructs"
-import * as ssm from "aws-cdk-lib/aws-ssm"
-import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager"
+import {StringParameter} from "aws-cdk-lib/aws-ssm"
+import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 import {SecretWithParameter} from "../constructs/SecretWithParameter"
 
 export interface SecretsProps {
@@ -9,10 +9,10 @@ export interface SecretsProps {
 }
 
 export class Secrets extends Construct {
-  public readonly slackBotTokenSecret: secretsmanager.Secret
-  public readonly slackBotSigningSecret: secretsmanager.Secret
-  public readonly slackBotTokenParameter: ssm.StringParameter
-  public readonly slackSigningSecretParameter: ssm.StringParameter
+  public readonly slackBotTokenSecret: Secret
+  public readonly slackBotSigningSecret: Secret
+  public readonly slackBotTokenParameter: StringParameter
+  public readonly slackSigningSecretParameter: StringParameter
 
   constructor(scope: Construct, id: string, props: SecretsProps) {
     super(scope, id)

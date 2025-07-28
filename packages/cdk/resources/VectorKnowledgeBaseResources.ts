@@ -1,7 +1,7 @@
 import {Construct} from "constructs"
 import {Role} from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
-import * as bedrock from "aws-cdk-lib/aws-bedrock"
+import {CfnKnowledgeBase, CfnGuardrail, CfnDataSource} from "aws-cdk-lib/aws-bedrock"
 import {createHash} from "crypto"
 
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -14,13 +14,13 @@ export interface VectorKnowledgeBaseProps {
 }
 
 export class VectorKnowledgeBaseResources extends Construct {
-  public readonly knowledgeBase: bedrock.CfnKnowledgeBase
-  public readonly guardrail: bedrock.CfnGuardrail
+  public readonly knowledgeBase: CfnKnowledgeBase
+  public readonly guardrail: CfnGuardrail
 
   constructor(scope: Construct, id: string, props: VectorKnowledgeBaseProps) {
     super(scope, id)
 
-    this.guardrail = new bedrock.CfnGuardrail(this, "Guardrail", {
+    this.guardrail = new CfnGuardrail(this, "Guardrail", {
       name: `eps-assist-guardrail-${createHash("md5").update(this.node.addr).digest("hex").substring(0, 8)}`,
       description: "Guardrail for EPS Assist Me Slackbot",
       blockedInputMessaging: "Your input was blocked.",
@@ -48,7 +48,7 @@ export class VectorKnowledgeBaseResources extends Construct {
       }
     })
 
-    this.knowledgeBase = new bedrock.CfnKnowledgeBase(this, "VectorKB", {
+    this.knowledgeBase = new CfnKnowledgeBase(this, "VectorKB", {
       name: `eps-assist-kb-${createHash("md5").update(this.node.addr).digest("hex").substring(0, 8)}`,
       description: "Knowledge base for EPS Assist Me Slackbot",
       roleArn: props.bedrockExecutionRole.roleArn,
@@ -72,7 +72,7 @@ export class VectorKnowledgeBaseResources extends Construct {
       }
     })
 
-    new bedrock.CfnDataSource(this, "S3DataSource", {
+    new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: this.knowledgeBase.attrKnowledgeBaseId,
       name: `eps-assist-s3-datasource-${createHash("md5").update(this.node.addr).digest("hex").substring(0, 8)}`,
       dataSourceConfiguration: {

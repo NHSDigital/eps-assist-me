@@ -1,5 +1,5 @@
 import {Construct} from "constructs"
-import * as ops from "aws-cdk-lib/aws-opensearchserverless"
+import {CfnCollection, CfnSecurityPolicy, CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
 
 export interface OpenSearchCollectionProps {
   collectionName: string
@@ -7,14 +7,14 @@ export interface OpenSearchCollectionProps {
 }
 
 export class OpenSearchCollection extends Construct {
-  public readonly collection: ops.CfnCollection
+  public readonly collection: CfnCollection
   public readonly endpoint: string
 
   constructor(scope: Construct, id: string, props: OpenSearchCollectionProps) {
     super(scope, id)
 
     // Encryption policy for collection (AWS-owned key)
-    const encryptionPolicy = new ops.CfnSecurityPolicy(this, "EncryptionPolicy", {
+    const encryptionPolicy = new CfnSecurityPolicy(this, "EncryptionPolicy", {
       name: `${props.collectionName}-encryption`,
       type: "encryption",
       policy: JSON.stringify({
@@ -24,7 +24,7 @@ export class OpenSearchCollection extends Construct {
     })
 
     // Network policy for public access (collection & dashboard)
-    const networkPolicy = new ops.CfnSecurityPolicy(this, "NetworkPolicy", {
+    const networkPolicy = new CfnSecurityPolicy(this, "NetworkPolicy", {
       name: `${props.collectionName}-network`,
       type: "network",
       policy: JSON.stringify([{
@@ -37,7 +37,7 @@ export class OpenSearchCollection extends Construct {
     })
 
     // OpenSearch collection (VECTORSEARCH type)
-    this.collection = new ops.CfnCollection(this, "Collection", {
+    this.collection = new CfnCollection(this, "Collection", {
       name: props.collectionName,
       description: "EPS Assist Vector Store",
       type: "VECTORSEARCH"
@@ -48,7 +48,7 @@ export class OpenSearchCollection extends Construct {
     this.collection.addDependency(networkPolicy)
 
     // Access policy for principals (full access to collection & indexes)
-    const accessPolicy = new ops.CfnAccessPolicy(this, "AccessPolicy", {
+    const accessPolicy = new CfnAccessPolicy(this, "AccessPolicy", {
       name: `${props.collectionName}-access`,
       type: "data",
       policy: JSON.stringify([{

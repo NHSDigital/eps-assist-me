@@ -1,8 +1,8 @@
 import {Construct} from "constructs"
 import {LambdaFunction} from "../constructs/LambdaFunction"
 import {Role, PolicyStatement} from "aws-cdk-lib/aws-iam"
-import * as ssm from "aws-cdk-lib/aws-ssm"
-import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager"
+import {StringParameter} from "aws-cdk-lib/aws-ssm"
+import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 const SLACK_SLASH_COMMAND = "/ask-eps"
@@ -16,16 +16,16 @@ export interface FunctionsProps {
   logRetentionInDays: number
   logLevel: string
   createIndexFunctionRole: Role
-  slackBotTokenParameter: ssm.StringParameter
-  slackSigningSecretParameter: ssm.StringParameter
+  slackBotTokenParameter: StringParameter
+  slackSigningSecretParameter: StringParameter
   guardrailId: string
   guardrailVersion: string
   collectionId: string
   knowledgeBaseId: string
   region: string
   account: string
-  slackBotTokenSecret: secretsmanager.Secret
-  slackBotSigningSecret: secretsmanager.Secret
+  slackBotTokenSecret: Secret
+  slackBotSigningSecret: Secret
 }
 
 export class Functions extends Construct {
