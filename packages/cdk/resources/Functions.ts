@@ -1,6 +1,6 @@
 import {Construct} from "constructs"
 import {LambdaFunction} from "../constructs/LambdaFunction"
-import {PolicyStatement, ManagedPolicy} from "aws-cdk-lib/aws-iam"
+import {ManagedPolicy} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 
@@ -17,6 +17,7 @@ export interface FunctionsProps {
   logRetentionInDays: number
   logLevel: string
   createIndexManagedPolicy: ManagedPolicy
+  slackBotManagedPolicy: ManagedPolicy
   slackBotTokenParameter: StringParameter
   slackSigningSecretParameter: StringParameter
   guardrailId: string
@@ -47,36 +48,6 @@ export class Functions extends Construct {
       additionalPolicies: [props.createIndexManagedPolicy]
     })
 
-    // Create managed policies for SlackBot Lambda
-    const slackBotManagedPolicy = new ManagedPolicy(this, "SlackBotManagedPolicy", {
-      description: "Policy for SlackBot Lambda to access Bedrock, SSM, and Lambda",
-      statements: [
-        new PolicyStatement({
-          actions: ["bedrock:InvokeModel"],
-          resources: [`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`]
-        }),
-        new PolicyStatement({
-          actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
-          resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`]
-        }),
-        new PolicyStatement({
-          actions: ["ssm:GetParameter"],
-          resources: [
-            `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameter.parameterName}`,
-            `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameter.parameterName}`
-          ]
-        }),
-        new PolicyStatement({
-          actions: ["lambda:InvokeFunction"],
-          resources: [`arn:aws:lambda:${props.region}:${props.account}:function:*`]
-        }),
-        new PolicyStatement({
-          actions: ["bedrock:ApplyGuardrail"],
-          resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
-        })
-      ]
-    })
-
     // Lambda function to handle Slack bot interactions
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
@@ -85,7 +56,7 @@ export class Functions extends Construct {
       entryPoint: "app.py",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
-      additionalPolicies: [slackBotManagedPolicy],
+      additionalPolicies: [props.slackBotManagedPolicy],
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
         "SLACK_SLASH_COMMAND": SLACK_SLASH_COMMAND,

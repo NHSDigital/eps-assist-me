@@ -9,16 +9,21 @@ import {Bucket} from "aws-cdk-lib/aws-s3"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
+// Claude model for RAG responses
+const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 
 export interface IamResourcesProps {
   region: string
   account: string
   kbDocsBucket: Bucket
+  slackBotTokenParameterName: string
+  slackSigningSecretParameterName: string
 }
 
 export class IamResources extends Construct {
   public readonly bedrockExecutionRole: Role
   public readonly createIndexManagedPolicy: ManagedPolicy
+  public readonly slackBotManagedPolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string, props: IamResourcesProps) {
     super(scope, id)
@@ -104,5 +109,38 @@ export class IamResources extends Construct {
       description: "Policy for Lambda to create OpenSearch index"
     })
     this.createIndexManagedPolicy.addStatements(createIndexPolicy)
+
+    // Create managed policy for SlackBot Lambda function
+    const slackBotPolicy = new PolicyStatement()
+    slackBotPolicy.addActions("bedrock:InvokeModel")
+    slackBotPolicy.addResources(`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`)
+
+    const slackBotKnowledgeBasePolicy = new PolicyStatement()
+    slackBotKnowledgeBasePolicy.addActions("bedrock:Retrieve", "bedrock:RetrieveAndGenerate")
+    slackBotKnowledgeBasePolicy.addResources(`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`)
+
+    const slackBotSSMPolicy = new PolicyStatement()
+    slackBotSSMPolicy.addActions("ssm:GetParameter")
+    slackBotSSMPolicy.addResources(
+      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
+      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`
+    )
+
+    const slackBotLambdaPolicy = new PolicyStatement()
+    slackBotLambdaPolicy.addActions("lambda:InvokeFunction")
+    slackBotLambdaPolicy.addResources(`arn:aws:lambda:${props.region}:${props.account}:function:*`)
+
+    const slackBotGuardrailPolicy = new PolicyStatement()
+    slackBotGuardrailPolicy.addActions("bedrock:ApplyGuardrail")
+    slackBotGuardrailPolicy.addResources(`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`)
+
+    this.slackBotManagedPolicy = new ManagedPolicy(this, "SlackBotManagedPolicy", {
+      description: "Policy for SlackBot Lambda to access Bedrock, SSM, and Lambda"
+    })
+    this.slackBotManagedPolicy.addStatements(slackBotPolicy)
+    this.slackBotManagedPolicy.addStatements(slackBotKnowledgeBasePolicy)
+    this.slackBotManagedPolicy.addStatements(slackBotSSMPolicy)
+    this.slackBotManagedPolicy.addStatements(slackBotLambdaPolicy)
+    this.slackBotManagedPolicy.addStatements(slackBotGuardrailPolicy)
   }
 }

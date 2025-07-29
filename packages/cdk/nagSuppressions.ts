@@ -127,7 +127,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress wildcard permissions for SlackBot managed policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Functions/SlackBotManagedPolicy/Resource",
+    "/EpsAssistMeStack/IamResources/SlackBotManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",

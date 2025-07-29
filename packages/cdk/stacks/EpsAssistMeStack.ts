@@ -56,7 +56,9 @@ export class EpsAssistMeStack extends Stack {
     const iamResources = new IamResources(this, "IamResources", {
       region,
       account,
-      kbDocsBucket: storage.kbDocsBucket.bucket
+      kbDocsBucket: storage.kbDocsBucket.bucket,
+      slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
+      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName
     })
 
     // Create OpenSearch Resources
@@ -75,6 +77,7 @@ export class EpsAssistMeStack extends Stack {
       logRetentionInDays,
       logLevel,
       createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
+      slackBotManagedPolicy: iamResources.slackBotManagedPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: "", // Will be set after vector KB is created
