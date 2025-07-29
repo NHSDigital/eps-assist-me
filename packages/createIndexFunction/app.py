@@ -108,7 +108,7 @@ def create_and_wait_for_index(client, index_name):
 
         # Wait until available for downstream resources
         if not wait_for_index_aoss(client, params["index"]):
-            raise Exception(f"Index {params['index']} failed to appear in time")
+            raise RuntimeError(f"Index {params['index']} failed to appear in time")
 
         logger.info(f"Index {params['index']} is ready and active.")
     except Exception as e:
