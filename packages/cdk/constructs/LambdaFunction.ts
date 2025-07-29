@@ -63,7 +63,7 @@ export class LambdaFunction extends Construct {
     // Log group with encryption and retention
     const logGroup = new LogGroup(this, "LambdaLogGroup", {
       encryptionKey: cloudWatchLogsKmsKey,
-      logGroupName: `/aws/lambda/${props.functionName!}`,
+      logGroupName: `/aws/lambda/${props.functionName}`,
       retention: props.logRetentionInDays,
       removalPolicy: RemovalPolicy.DESTROY
     })
