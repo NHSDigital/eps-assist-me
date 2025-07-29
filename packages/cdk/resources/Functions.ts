@@ -89,13 +89,13 @@ export class Functions extends Construct {
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
         "SLACK_SLASH_COMMAND": SLACK_SLASH_COMMAND,
-        "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
+        "KNOWLEDGEBASE_ID": props.knowledgeBaseId || "placeholder",
         "BEDROCK_KB_DATA_SOURCE": BEDROCK_KB_DATA_SOURCE,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
-        "GUARD_RAIL_ID": props.guardrailId,
-        "GUARD_RAIL_VERSION": props.guardrailVersion
+        "GUARD_RAIL_ID": props.guardrailId || "placeholder",
+        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder"
       }
     })
 

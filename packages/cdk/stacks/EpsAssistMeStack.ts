@@ -78,15 +78,7 @@ export class EpsAssistMeStack extends Stack {
 
     const endpoint = openSearchResources.collection.endpoint
 
-    // Create VectorKnowledgeBase construct
-    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-      docsBucket: storage.kbDocsBucket.bucket,
-      bedrockExecutionRole: iamResources.bedrockExecutionRole,
-      collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
-      vectorIndexName: VECTOR_INDEX_NAME
-    })
-
-    // Create Functions construct
+    // Create Functions construct without vector KB dependencies
     const functions = new Functions(this, "Functions", {
       stackName: props.stackName,
       version: props.version,
@@ -96,10 +88,10 @@ export class EpsAssistMeStack extends Stack {
       createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
-      guardrailId: vectorKB.guardrail.attrGuardrailId,
-      guardrailVersion: vectorKB.guardrail.attrVersion,
+      guardrailId: "", // Will be set after vector KB is created
+      guardrailVersion: "", // Will be set after vector KB is created
       collectionId: openSearchResources.collection.collection.attrId,
-      knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
+      knowledgeBaseId: "", // Will be set after vector KB is created
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
@@ -114,11 +106,21 @@ export class EpsAssistMeStack extends Stack {
       endpoint
     })
 
-    // Ensure dependencies are created before knowledge base
+    // Create VectorKnowledgeBase construct after vector index
+    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      docsBucket: storage.kbDocsBucket.bucket,
+      bedrockExecutionRole: iamResources.bedrockExecutionRole,
+      collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
+      vectorIndexName: VECTOR_INDEX_NAME
+    })
+
+    // Ensure knowledge base waits for vector index
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
-    vectorKB.knowledgeBase.node.addDependency(functions.functions.createIndex)
-    vectorKB.knowledgeBase.node.addDependency(openSearchResources.collection.collection)
-    vectorKB.knowledgeBase.node.addDependency(iamResources.bedrockExecutionRole)
+
+    // Update SlackBot Lambda environment variables with vector KB info
+    functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_ID", vectorKB.guardrail.attrGuardrailId)
+    functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_VERSION", vectorKB.guardrail.attrVersion)
+    functions.functions.slackBot.function.addEnvironment("KNOWLEDGEBASE_ID", vectorKB.knowledgeBase.attrKnowledgeBaseId)
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
