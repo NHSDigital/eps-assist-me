@@ -29,54 +29,62 @@ export class IamResources extends Construct {
     super(scope, id)
 
     // Create Bedrock execution role policies for embedding model access
-    const bedrockExecutionRolePolicy = new PolicyStatement()
-    bedrockExecutionRolePolicy.addActions("bedrock:InvokeModel")
-    bedrockExecutionRolePolicy.addResources(`arn:aws:bedrock:${props.region}::foundation-model/${EMBEDDING_MODEL}`)
+    const bedrockExecutionRolePolicy = new PolicyStatement({
+      actions: ["bedrock:InvokeModel"],
+      resources: [`arn:aws:bedrock:${props.region}::foundation-model/${EMBEDDING_MODEL}`]
+    })
 
     // Policy for Bedrock Knowledge Base deletion operations
-    const bedrockKBDeleteRolePolicy = new PolicyStatement()
-    bedrockKBDeleteRolePolicy.addActions("bedrock:Delete*")
-    bedrockKBDeleteRolePolicy.addResources(`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`)
+    const bedrockKBDeleteRolePolicy = new PolicyStatement({
+      actions: ["bedrock:Delete*"],
+      resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`]
+    })
 
     // OpenSearch Serverless access policy for Knowledge Base operations
-    const bedrockOSSPolicyForKnowledgeBase = new PolicyStatement()
-    bedrockOSSPolicyForKnowledgeBase.addActions("aoss:APIAccessAll")
-    bedrockOSSPolicyForKnowledgeBase.addActions(
-      "aoss:DeleteAccessPolicy",
-      "aoss:DeleteCollection",
-      "aoss:DeleteLifecyclePolicy",
-      "aoss:DeleteSecurityConfig",
-      "aoss:DeleteSecurityPolicy"
-    )
-    bedrockOSSPolicyForKnowledgeBase.addResources(`arn:aws:aoss:${props.region}:${props.account}:collection/*`)
+    const bedrockOSSPolicyForKnowledgeBase = new PolicyStatement({
+      actions: [
+        "aoss:APIAccessAll",
+        "aoss:DeleteAccessPolicy",
+        "aoss:DeleteCollection",
+        "aoss:DeleteLifecyclePolicy",
+        "aoss:DeleteSecurityConfig",
+        "aoss:DeleteSecurityPolicy"
+      ],
+      resources: [`arn:aws:aoss:${props.region}:${props.account}:collection/*`]
+    })
 
     // S3 bucket-specific access policies
-    const s3AccessListPolicy = new PolicyStatement()
-    s3AccessListPolicy.addActions("s3:ListBucket")
-    s3AccessListPolicy.addResources(props.kbDocsBucket.bucketArn)
-    s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
+    const s3AccessListPolicy = new PolicyStatement({
+      actions: ["s3:ListBucket"],
+      resources: [props.kbDocsBucket.bucketArn],
+      conditions: {"StringEquals": {"aws:ResourceAccount": props.account}}
+    })
 
-    const s3AccessGetPolicy = new PolicyStatement()
-    s3AccessGetPolicy.addActions("s3:GetObject")
-    s3AccessGetPolicy.addResources(`${props.kbDocsBucket.bucketArn}/*`)
-    s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
+    const s3AccessGetPolicy = new PolicyStatement({
+      actions: ["s3:GetObject"],
+      resources: [`${props.kbDocsBucket.bucketArn}/*`],
+      conditions: {"StringEquals": {"aws:ResourceAccount": props.account}}
+    })
 
     // KMS permissions for S3 bucket encryption
-    const kmsAccessPolicy = new PolicyStatement()
-    kmsAccessPolicy.addActions("kms:Decrypt", "kms:DescribeKey")
-    kmsAccessPolicy.addResources("*")
-    kmsAccessPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
+    const kmsAccessPolicy = new PolicyStatement({
+      actions: ["kms:Decrypt", "kms:DescribeKey"],
+      resources: ["*"],
+      conditions: {"StringEquals": {"aws:ResourceAccount": props.account}}
+    })
 
     // Create managed policy for Bedrock execution role
     const bedrockExecutionManagedPolicy = new ManagedPolicy(this, "BedrockExecutionManagedPolicy", {
-      description: "Policy for Bedrock Knowledge Base to access S3 and OpenSearch"
+      description: "Policy for Bedrock Knowledge Base to access S3 and OpenSearch",
+      statements: [
+        bedrockExecutionRolePolicy,
+        bedrockKBDeleteRolePolicy,
+        bedrockOSSPolicyForKnowledgeBase,
+        s3AccessListPolicy,
+        s3AccessGetPolicy,
+        kmsAccessPolicy
+      ]
     })
-    bedrockExecutionManagedPolicy.addStatements(bedrockExecutionRolePolicy)
-    bedrockExecutionManagedPolicy.addStatements(bedrockKBDeleteRolePolicy)
-    bedrockExecutionManagedPolicy.addStatements(bedrockOSSPolicyForKnowledgeBase)
-    bedrockExecutionManagedPolicy.addStatements(s3AccessListPolicy)
-    bedrockExecutionManagedPolicy.addStatements(s3AccessGetPolicy)
-    bedrockExecutionManagedPolicy.addStatements(kmsAccessPolicy)
 
     // Create Bedrock execution role with managed policy
     this.bedrockExecutionRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {
@@ -86,61 +94,69 @@ export class IamResources extends Construct {
     })
 
     // Create managed policy for CreateIndex Lambda function
-    const createIndexPolicy = new PolicyStatement()
-    createIndexPolicy.addActions(
-      "aoss:APIAccessAll",
-      "aoss:DescribeIndex",
-      "aoss:ReadDocument",
-      "aoss:CreateIndex",
-      "aoss:DeleteIndex",
-      "aoss:UpdateIndex",
-      "aoss:WriteDocument",
-      "aoss:CreateCollectionItems",
-      "aoss:DeleteCollectionItems",
-      "aoss:UpdateCollectionItems",
-      "aoss:DescribeCollectionItems"
-    )
-    createIndexPolicy.addResources(
-      `arn:aws:aoss:${props.region}:${props.account}:collection/*`,
-      `arn:aws:aoss:${props.region}:${props.account}:index/*`
-    )
+    const createIndexPolicy = new PolicyStatement({
+      actions: [
+        "aoss:APIAccessAll",
+        "aoss:DescribeIndex",
+        "aoss:ReadDocument",
+        "aoss:CreateIndex",
+        "aoss:DeleteIndex",
+        "aoss:UpdateIndex",
+        "aoss:WriteDocument",
+        "aoss:CreateCollectionItems",
+        "aoss:DeleteCollectionItems",
+        "aoss:UpdateCollectionItems",
+        "aoss:DescribeCollectionItems"
+      ],
+      resources: [
+        `arn:aws:aoss:${props.region}:${props.account}:collection/*`,
+        `arn:aws:aoss:${props.region}:${props.account}:index/*`
+      ]
+    })
 
     this.createIndexManagedPolicy = new ManagedPolicy(this, "CreateIndexManagedPolicy", {
-      description: "Policy for Lambda to create OpenSearch index"
+      description: "Policy for Lambda to create OpenSearch index",
+      statements: [createIndexPolicy]
     })
-    this.createIndexManagedPolicy.addStatements(createIndexPolicy)
 
     // Create managed policy for SlackBot Lambda function
-    const slackBotPolicy = new PolicyStatement()
-    slackBotPolicy.addActions("bedrock:InvokeModel")
-    slackBotPolicy.addResources(`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`)
+    const slackBotPolicy = new PolicyStatement({
+      actions: ["bedrock:InvokeModel"],
+      resources: [`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`]
+    })
 
-    const slackBotKnowledgeBasePolicy = new PolicyStatement()
-    slackBotKnowledgeBasePolicy.addActions("bedrock:Retrieve", "bedrock:RetrieveAndGenerate")
-    slackBotKnowledgeBasePolicy.addResources(`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`)
+    const slackBotKnowledgeBasePolicy = new PolicyStatement({
+      actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
+      resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`]
+    })
 
-    const slackBotSSMPolicy = new PolicyStatement()
-    slackBotSSMPolicy.addActions("ssm:GetParameter")
-    slackBotSSMPolicy.addResources(
-      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
-      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`
-    )
+    const slackBotSSMPolicy = new PolicyStatement({
+      actions: ["ssm:GetParameter"],
+      resources: [
+        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
+        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`
+      ]
+    })
 
-    const slackBotLambdaPolicy = new PolicyStatement()
-    slackBotLambdaPolicy.addActions("lambda:InvokeFunction")
-    slackBotLambdaPolicy.addResources(`arn:aws:lambda:${props.region}:${props.account}:function:*`)
+    const slackBotLambdaPolicy = new PolicyStatement({
+      actions: ["lambda:InvokeFunction"],
+      resources: [`arn:aws:lambda:${props.region}:${props.account}:function:*`]
+    })
 
-    const slackBotGuardrailPolicy = new PolicyStatement()
-    slackBotGuardrailPolicy.addActions("bedrock:ApplyGuardrail")
-    slackBotGuardrailPolicy.addResources(`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`)
+    const slackBotGuardrailPolicy = new PolicyStatement({
+      actions: ["bedrock:ApplyGuardrail"],
+      resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
+    })
 
     this.slackBotManagedPolicy = new ManagedPolicy(this, "SlackBotManagedPolicy", {
-      description: "Policy for SlackBot Lambda to access Bedrock, SSM, and Lambda"
+      description: "Policy for SlackBot Lambda to access Bedrock, SSM, and Lambda",
+      statements: [
+        slackBotPolicy,
+        slackBotKnowledgeBasePolicy,
+        slackBotSSMPolicy,
+        slackBotLambdaPolicy,
+        slackBotGuardrailPolicy
+      ]
     })
-    this.slackBotManagedPolicy.addStatements(slackBotPolicy)
-    this.slackBotManagedPolicy.addStatements(slackBotKnowledgeBasePolicy)
-    this.slackBotManagedPolicy.addStatements(slackBotSSMPolicy)
-    this.slackBotManagedPolicy.addStatements(slackBotLambdaPolicy)
-    this.slackBotManagedPolicy.addStatements(slackBotGuardrailPolicy)
   }
 }
