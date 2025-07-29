@@ -66,14 +66,6 @@ aws-login:
 cfn-guard:
 	./scripts/run_cfn_guard.sh
 
-build-lambda-packages:
-	mkdir -p .build/epsam-SlackBotFunction
-	mkdir -p .build/epsam-CreateIndexFunction
-	cp -r packages/slackBotFunction/* .build/epsam-SlackBotFunction/
-	pip3 install -r packages/slackBotFunction/requirements.txt -t .build/epsam-SlackBotFunction/
-	cp -r packages/createIndexFunction/* .build/epsam-CreateIndexFunction/
-	pip3 install -r packages/createIndexFunction/requirements.txt -t .build/epsam-CreateIndexFunction/
-
 cdk-deploy: guard-stack_name
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
@@ -91,7 +83,7 @@ cdk-deploy: guard-stack_name
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 
-cdk-synth: build-lambda-packages
+cdk-synth:
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
