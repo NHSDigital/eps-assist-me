@@ -16,8 +16,6 @@ def get_opensearch_client(endpoint):
     Works for both AOSS and legacy OpenSearch domains by checking the endpoint.
     """
     service = "aoss" if "aoss" in endpoint else "es"
-    # Remove protocol, because the OpenSearch client expects only the host part.
-    endpoint = endpoint.replace("https://", "").replace("http://", "")
     logger.debug(f"Connecting to OpenSearch service: {service} at {endpoint}")
     return OpenSearch(
         hosts=[{"host": endpoint, "port": 443}],
