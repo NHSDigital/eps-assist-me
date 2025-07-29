@@ -14,7 +14,12 @@ import {CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
 import {Construct} from "constructs"
 import {accessLogFormat} from "./RestApiGateway/accessLogFormat"
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager"
-import {ARecord, HostedZone, RecordTarget} from "aws-cdk-lib/aws-route53"
+import {
+  ARecord,
+  AaaaRecord,
+  HostedZone,
+  RecordTarget
+} from "aws-cdk-lib/aws-route53"
 import {ApiGateway as ApiGatewayTarget} from "aws-cdk-lib/aws-route53-targets"
 
 export interface RestApiGatewayProps {
@@ -95,6 +100,12 @@ export class RestApiGateway extends Construct {
     })
 
     new ARecord(this, "ARecord", {
+      recordName: props.stackName,
+      target: RecordTarget.fromAlias(new ApiGatewayTarget(apiGateway)),
+      zone: hostedZone
+    })
+
+    new AaaaRecord(this, "AAAARecord", {
       recordName: props.stackName,
       target: RecordTarget.fromAlias(new ApiGatewayTarget(apiGateway)),
       zone: hostedZone
