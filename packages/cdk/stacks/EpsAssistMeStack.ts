@@ -4,7 +4,6 @@ import {
   StackProps,
   CfnOutput
 } from "aws-cdk-lib"
-import {PolicyStatement, Effect, ArnPrincipal} from "aws-cdk-lib/aws-iam"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -59,8 +58,6 @@ export class EpsAssistMeStack extends Stack {
       account,
       kbDocsBucket: storage.kbDocsBucket.bucket
     })
-
-
 
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
