@@ -61,19 +61,13 @@ jobs:
 
       - name: Build Python Lambda Functions
         run: |
-          mkdir -p .build/${{ inputs.STACK_NAME }}-SlackBotFunction
-          pip3 install -r packages/slackBotFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-SlackBotFunction
-          cp -r packages/slackBotFunction/* .build/${{ inputs.STACK_NAME }}-SlackBotFunction
-
-          mkdir -p .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
-          pip3 install -r packages/createIndexFunction/requirements.txt -t .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
-          cp -r packages/createIndexFunction/* .build/${{ inputs.STACK_NAME }}-CreateIndexFunction
+          pip3 install -r packages/slackBotFunction/requirements.txt -t packages/slackBotFunction
+          pip3 install -r packages/createIndexFunction/requirements.txt -t packages/createIndexFunction
 
       - name: 'Tar files'
         run: |
           tar -rf artifact.tar \
             .tool-versions \
-            .build \
             packages \
             node_modules \
             package.json \
