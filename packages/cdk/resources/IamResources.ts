@@ -56,6 +56,12 @@ export class IamResources extends Construct {
     s3AccessGetPolicy.addResources(`${props.kbDocsBucket.bucketArn}/*`)
     s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
 
+    // KMS permissions for S3 bucket encryption
+    const kmsAccessPolicy = new PolicyStatement()
+    kmsAccessPolicy.addActions("kms:Decrypt", "kms:DescribeKey")
+    kmsAccessPolicy.addResources("*")
+    kmsAccessPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
+
     // Create managed policy for Bedrock execution role
     const bedrockExecutionManagedPolicy = new ManagedPolicy(this, "BedrockExecutionManagedPolicy", {
       description: "Policy for Bedrock Knowledge Base to access S3 and OpenSearch"
@@ -65,6 +71,7 @@ export class IamResources extends Construct {
     bedrockExecutionManagedPolicy.addStatements(bedrockOSSPolicyForKnowledgeBase)
     bedrockExecutionManagedPolicy.addStatements(s3AccessListPolicy)
     bedrockExecutionManagedPolicy.addStatements(s3AccessGetPolicy)
+    bedrockExecutionManagedPolicy.addStatements(kmsAccessPolicy)
 
     // Create Bedrock execution role with managed policy
     this.bedrockExecutionRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {

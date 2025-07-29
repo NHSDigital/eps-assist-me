@@ -60,15 +60,7 @@ export class EpsAssistMeStack extends Stack {
       kbDocsBucket: storage.kbDocsBucket.bucket
     })
 
-    // Update storage with bedrock role for KMS access
-    if (storage.kbDocsBucket.kmsKey) {
-      storage.kbDocsBucket.kmsKey.addToResourcePolicy(new PolicyStatement({
-        effect: Effect.ALLOW,
-        principals: [new ArnPrincipal(iamResources.bedrockExecutionRole.roleArn)],
-        actions: ["kms:Decrypt", "kms:DescribeKey"],
-        resources: ["*"]
-      }))
-    }
+
 
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
