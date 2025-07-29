@@ -23,7 +23,7 @@ export class S3Bucket extends Construct {
 
     this.bucket = new Bucket(this, props.bucketName, {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      encryption: props.kmsKey ? BucketEncryption.KMS : BucketEncryption.KMS,
+      encryption: BucketEncryption.KMS,
       encryptionKey: props.kmsKey,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
