@@ -54,7 +54,7 @@ export class IamResources extends Construct {
     s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
 
     const s3AccessGetPolicy = new PolicyStatement({
-      actions: ["s3:GetObject", "s3:Delete*"],
+      actions: ["s3:GetObject"],
       resources: [`${props.kbDocsBucket.bucketArn}/*`]
     })
     s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
