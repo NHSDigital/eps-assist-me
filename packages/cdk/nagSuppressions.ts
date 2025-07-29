@@ -184,7 +184,7 @@ const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<N
   try {
     NagSuppressions.addResourceSuppressionsByPath(stack, path, suppressions)
   } catch (err) {
-    console.log(`Could not find path ${path}`)
+    console.log(`Could not find path ${path}: ${err}`)
   }
 }
 
