@@ -57,7 +57,7 @@ export class Functions extends Construct {
         }),
         new PolicyStatement({
           actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
-          resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/${props.knowledgeBaseId}`]
+          resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`]
         }),
         new PolicyStatement({
           actions: ["ssm:GetParameter"],
