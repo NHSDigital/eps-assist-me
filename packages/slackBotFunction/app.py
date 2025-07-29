@@ -146,7 +146,7 @@ def get_bedrock_knowledgebase_response(user_query):
     )
 
     # Create the RetrieveAndGenerateCommand input with the user query.
-    input = {
+    query_input = {
         "text": user_query,
     }
 
@@ -165,7 +165,7 @@ def get_bedrock_knowledgebase_response(user_query):
     }
 
     response = client.retrieve_and_generate(
-        input=input, retrieveAndGenerateConfiguration=config
+        input=query_input, retrieveAndGenerateConfiguration=config
     )
     logging.info(f"Bedrock Knowledge Base Response: {response}")
     return response
