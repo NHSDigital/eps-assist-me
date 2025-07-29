@@ -1,7 +1,33 @@
 # EPS Assist Me
 ![Build](https://github.com/NHSDigital/eps-assist-me/workflows/release/badge.svg?branch=main)
 
-This is an assistant that helps people to query and understand documents relating to onboarding to the FHIR NHS EPS API (used for prescriptions and dispensing).
+This is a Slack-based AI assistant that helps people query and understand documents relating to onboarding to the FHIR NHS EPS API (used for prescriptions and dispensing). The assistant uses Amazon Bedrock Knowledge Base with OpenSearch Serverless to provide intelligent responses to user queries through Slack slash commands.
+
+## Architecture
+
+The solution consists of:
+
+- **Slack Bot Function**: AWS Lambda function that handles Slack slash commands and integrates with Amazon Bedrock Knowledge Base
+- **Create Index Function**: AWS Lambda function that creates and manages OpenSearch vector indices for the knowledge base
+- **OpenSearch Serverless**: Vector database for storing and searching document embeddings
+- **Amazon Bedrock Knowledge Base**: RAG (Retrieval-Augmented Generation) service with guardrails
+- **S3 Storage**: Document storage for the knowledge base
+- **AWS CDK**: Infrastructure as Code for deployment
+
+## Project Structure
+
+This is a monorepo with the following structure:
+
+```
+packages/
+├── cdk/                   # AWS CDK infrastructure code
+│   ├── bin/               # CDK app entry point
+│   ├── constructs/        # Reusable CDK constructs
+│   ├── resources/         # AWS resource definitions
+│   └── stacks/            # CDK stack definitions
+├── createIndexFunction/   # Lambda function for OpenSearch index management
+└── slackBotFunction/      # Lambda function for Slack bot integration
+```
 
 ## Contributing
 
@@ -72,6 +98,18 @@ You will now be able to use AWS and SAM CLI commands to access the dev account. 
 
 When the token expires, you may need to reauthorise using `make aws-login`
 
+### Environment Variables
+
+For deployment, the following environment variables are required:
+
+- `ACCOUNT_ID`: AWS Account ID
+- `stack_name`: Name of the CloudFormation stack
+- `VERSION_NUMBER`: Version number for the deployment
+- `COMMIT_ID`: Git commit ID
+- `LOG_RETENTION_IN_DAYS`: CloudWatch log retention period
+- `SLACK_BOT_TOKEN`: Slack bot OAuth token
+- `SLACK_SIGNING_SECRET`: Slack app signing secret
+
 ### CI Setup
 
 The GitHub Actions require a secret to exist on the repo called "SONAR_TOKEN".
@@ -99,11 +137,10 @@ There are `make` commands that are run as part of the CI pipeline and help alias
 #### CDK targets
 These are used to do common commands related to cdk
 
-- `cdk-deploy` Builds and deploys the code to AWS.
+- `cdk-deploy` Builds and deploys the code to AWS. Requires `stack_name` environment variable.
 - `cdk-synth` Converts the CDK code to cloudformation templates.
 - `cdk-diff` Runs cdk diff, comparing the deployed stack with the local CDK code to identify differences.
-- `cdk-watch` Syncs the code and CDK templates to AWS. This keeps running and automatically uploads changes to AWS.
-- `build-deployment-container-image` Creates a container with all code necessary to run cdk deploy.
+- `cdk-watch` Syncs the code and CDK templates to AWS. This keeps running and automatically uploads changes to AWS. Requires `stack_name` environment variable.
 
 #### Clean and deep-clean targets
 
@@ -112,13 +149,12 @@ These are used to do common commands related to cdk
 
 #### Linting and testing
 
-- `lint` Runs lint for all code.
-- `lint-node` Runs lint for node code including cdk.
-- `lint-python` Runs lint for python code.
+- `lint` Runs lint for GitHub Actions and scripts.
 - `lint-githubactions` Lints the repository's GitHub Actions workflows.
 - `lint-githubaction-scripts` Lints all shell scripts in `.github/scripts` using ShellCheck.
-- `test` Runs unit tests for all code.
+- `test` Runs unit tests for CDK code.
 - `cfn-guard` Runs cfn-guard against CDK resources.
+- `pre-commit` Runs pre-commit hooks on all files.
 
 #### Compiling
 
@@ -164,7 +200,8 @@ Workflows are in the `.github/workflows` folder:
 - `dependabot_auto_approve_and_merge.yml` Workflow to auto merge dependabot updates.
 - `pr_title_check.yml` Checks PR titles for required prefix and ticket or dependabot reference.
 - `pr-link.yaml` This workflow template links Pull Requests to Jira tickets and runs when a pull request is opened.
-- `pull_request.yml` Called when pull request is opened or updated. Calls run_package_code_and_api and run_release_code_and_api to build and deploy the code. Deploys to dev AWS account and internal-dev and internal-dev sandbox apigee environments. The main stack deployed adopts the naming convention clinical-tracker-pr-<PULL_REQUEST_ID>, while the sandbox stack follows the pattern 
+- `pull_request.yml` Called when pull request is opened or updated. Packages and deploys the code to dev AWS account for testing.
 - `release.yml` Runs on demand to create a release and deploy to all environments.
 - `cdk_package_code.yml` Packages code into a docker image and uploads to a github artifact for later deployment.
 - `cdk_release_code.yml` Release code built by cdk_package_code.yml to an environment.
+- `ci.yml` Continuous integration workflow for quality checks and testing.
