@@ -97,7 +97,9 @@ export const nagSuppressions = (stack: Stack) => {
           "Resource::<StorageDocsBucketDocs0C9A9D9E.Arn>/*",
           "Action::bedrock:Delete*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*"
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
+          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*"
         ]
       }
     ]
@@ -113,7 +115,9 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
         appliesTo: [
           "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:undefined:index/*"
+          "Resource::arn:aws:aoss:eu-west-2:undefined:index/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
         ]
       }
     ]
@@ -129,7 +133,9 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "SlackBot Lambda needs access to all guardrails and functions for content filtering and self-invocation.",
         appliesTo: [
           "Resource::arn:aws:lambda:eu-west-2:undefined:function:*",
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*"
+          "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*",
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*"
         ]
       }
     ]
