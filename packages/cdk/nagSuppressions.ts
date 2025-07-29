@@ -127,16 +127,17 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress wildcard permissions for SlackBot managed policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/SlackBotManagedPolicy/Resource",
+    "/EpsAssistMeStack/Functions/SlackBotManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs access to all guardrails and functions for content filtering and self-invocation.",
+        reason: "SlackBot Lambda needs access to all guardrails, knowledge bases, and functions for content filtering and self-invocation.",
         appliesTo: [
           "Resource::arn:aws:lambda:eu-west-2:undefined:function:*",
           "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*",
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*"
         ]
       }
