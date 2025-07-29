@@ -85,86 +85,51 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress IAM wildcard permissions for Bedrock execution role
+  // Suppress IAM wildcard permissions for Bedrock execution managed policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/EpsAssistMeBedrockExecutionRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/IamResources/BedrockExecutionManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
-          "Resource::<StorageDocsBucketEpsAssistDocsBucket7DBA5CCC.Arn>/*",
-          "Resource::<StorageEpsAssistDocsBucket3189F25F.Arn>/*",
           "Resource::<StorageDocsBucketDocs0C9A9D9E.Arn>/*",
-          "Action::aoss:*",
-          "Resource::*",
-          "Resource::<OsCollection.Arn>/*",
-          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Action::s3:Delete*",
           "Action::bedrock:Delete*",
-          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*"
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
+          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*"
         ]
       }
     ]
   )
 
-  // Suppress AWS managed policy usage in CreateIndexFunctionRole
+  // Suppress wildcard permissions for CreateIndex managed policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/CreateIndexFunctionRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Lambda requires basic execution role for CloudWatch logs access.",
-        appliesTo: [
-          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions in CreateIndexFunctionRole policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/IamResources/CreateIndexFunctionRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/IamResources/CreateIndexManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
         reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
         appliesTo: [
           "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:undefined:index/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*",
-          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:123456789012:index/*"
+          "Resource::arn:aws:aoss:eu-west-2:undefined:index/*"
         ]
       }
     ]
   )
 
-  // Suppress wildcard permissions for SlackBot Lambda guardrail and function access
+  // Suppress wildcard permissions for SlackBot managed policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/Functions/SlackBotManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
         reason: "SlackBot Lambda needs access to all guardrails and functions for content filtering and self-invocation.",
         appliesTo: [
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*",
           "Resource::arn:aws:lambda:eu-west-2:undefined:function:*",
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:guardrail/*",
-          "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
-          "Resource::arn:aws:lambda:eu-west-2:123456789012:function:*",
-          "Resource::arn:aws:lambda:eu-west-2:123456789012:function:AmazonBedrock*",
-          "Resource::arn:aws:lambda:eu-west-2:591291862413:function:AmazonBedrock*"
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*"
         ]
       }
     ]

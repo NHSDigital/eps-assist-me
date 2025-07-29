@@ -4,7 +4,6 @@ import {Role} from "aws-cdk-lib/aws-iam"
 
 export interface OpenSearchResourcesProps {
   bedrockExecutionRole: Role
-  createIndexFunctionRole: Role
   account: string
 }
 
@@ -19,7 +18,6 @@ export class OpenSearchResources extends Construct {
       collectionName: "eps-assist-vector-db",
       principals: [
         props.bedrockExecutionRole.roleArn, // Bedrock Knowledge Base access
-        props.createIndexFunctionRole.roleArn, // Lambda index creation access
         `arn:aws:iam::${props.account}:root` // Account root access
       ]
     })

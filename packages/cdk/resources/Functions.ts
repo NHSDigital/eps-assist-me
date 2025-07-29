@@ -1,6 +1,6 @@
 import {Construct} from "constructs"
 import {LambdaFunction} from "../constructs/LambdaFunction"
-import {Role, PolicyStatement} from "aws-cdk-lib/aws-iam"
+import {PolicyStatement, ManagedPolicy} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 
@@ -16,7 +16,7 @@ export interface FunctionsProps {
   commitId: string
   logRetentionInDays: number
   logLevel: string
-  createIndexFunctionRole: Role
+  createIndexManagedPolicy: ManagedPolicy
   slackBotTokenParameter: StringParameter
   slackSigningSecretParameter: StringParameter
   guardrailId: string
@@ -44,8 +44,37 @@ export class Functions extends Construct {
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       environmentVariables: {"INDEX_NAME": props.collectionId},
-      additionalPolicies: [],
-      role: props.createIndexFunctionRole
+      additionalPolicies: [props.createIndexManagedPolicy]
+    })
+
+    // Create managed policies for SlackBot Lambda
+    const slackBotManagedPolicy = new ManagedPolicy(this, "SlackBotManagedPolicy", {
+      description: "Policy for SlackBot Lambda to access Bedrock, SSM, and Lambda",
+      statements: [
+        new PolicyStatement({
+          actions: ["bedrock:InvokeModel"],
+          resources: [`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`]
+        }),
+        new PolicyStatement({
+          actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
+          resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/${props.knowledgeBaseId}`]
+        }),
+        new PolicyStatement({
+          actions: ["ssm:GetParameter"],
+          resources: [
+            `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameter.parameterName}`,
+            `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameter.parameterName}`
+          ]
+        }),
+        new PolicyStatement({
+          actions: ["lambda:InvokeFunction"],
+          resources: [`arn:aws:lambda:${props.region}:${props.account}:function:*`]
+        }),
+        new PolicyStatement({
+          actions: ["bedrock:ApplyGuardrail"],
+          resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
+        })
+      ]
     })
 
     // Lambda function to handle Slack bot interactions
@@ -56,7 +85,7 @@ export class Functions extends Construct {
       entryPoint: "app.py",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
-      additionalPolicies: [],
+      additionalPolicies: [slackBotManagedPolicy],
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
         "SLACK_SLASH_COMMAND": SLACK_SLASH_COMMAND,
@@ -70,46 +99,9 @@ export class Functions extends Construct {
       }
     })
 
-    // Create Lambda policies for Bedrock model access
-    const lambdaBedrockModelPolicy = new PolicyStatement()
-    lambdaBedrockModelPolicy.addActions("bedrock:InvokeModel")
-    lambdaBedrockModelPolicy.addResources(`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`)
-
-    // Policy for knowledge base retrieval
-    const lambdaBedrockKbPolicy = new PolicyStatement()
-    lambdaBedrockKbPolicy.addActions("bedrock:Retrieve")
-    lambdaBedrockKbPolicy.addActions("bedrock:RetrieveAndGenerate")
-    lambdaBedrockKbPolicy.addResources(
-      `arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/${props.knowledgeBaseId}`
-    )
-
-    // Policy for SSM parameter access
-    const lambdaSSMPolicy = new PolicyStatement()
-    lambdaSSMPolicy.addActions("ssm:GetParameter")
-    lambdaSSMPolicy.addResources(
-      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameter.parameterName}`)
-    lambdaSSMPolicy.addResources(
-      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameter.parameterName}`)
-
-    // Policy for Lambda self-invocation
-    const lambdaReinvokePolicy = new PolicyStatement()
-    lambdaReinvokePolicy.addActions("lambda:InvokeFunction")
-    lambdaReinvokePolicy.addResources(`arn:aws:lambda:${props.region}:${props.account}:function:*`)
-
-    // Policy for guardrail access
-    const lambdaGRinvokePolicy = new PolicyStatement()
-    lambdaGRinvokePolicy.addActions("bedrock:ApplyGuardrail")
-    lambdaGRinvokePolicy.addResources(`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`)
-
-    // Grant secrets access and attach policies to SlackBot Lambda
+    // Grant secrets access to SlackBot Lambda
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
-
-    slackBotLambda.function.addToRolePolicy(lambdaBedrockModelPolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaBedrockKbPolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaReinvokePolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaGRinvokePolicy)
-    slackBotLambda.function.addToRolePolicy(lambdaSSMPolicy)
 
     this.functions = {
       createIndex: createIndexFunction,

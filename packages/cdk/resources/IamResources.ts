@@ -18,7 +18,7 @@ export interface IamResourcesProps {
 
 export class IamResources extends Construct {
   public readonly bedrockExecutionRole: Role
-  public readonly createIndexFunctionRole: Role
+  public readonly createIndexManagedPolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string, props: IamResourcesProps) {
     super(scope, id)
@@ -45,58 +45,57 @@ export class IamResources extends Construct {
     )
     bedrockOSSPolicyForKnowledgeBase.addResources(`arn:aws:aoss:${props.region}:${props.account}:collection/*`)
 
-    // S3 bucket-specific access policies - requires the bucket to exist first
-    // This is why Storage must be created before IamResources to avoid circular dependency
-    const s3AccessListPolicy = new PolicyStatement({
-      actions: ["s3:ListBucket"],
-      resources: [props.kbDocsBucket.bucketArn]
-    })
+    // S3 bucket-specific access policies
+    const s3AccessListPolicy = new PolicyStatement()
+    s3AccessListPolicy.addActions("s3:ListBucket")
+    s3AccessListPolicy.addResources(props.kbDocsBucket.bucketArn)
     s3AccessListPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
 
-    const s3AccessGetPolicy = new PolicyStatement({
-      actions: ["s3:GetObject"],
-      resources: [`${props.kbDocsBucket.bucketArn}/*`]
-    })
+    const s3AccessGetPolicy = new PolicyStatement()
+    s3AccessGetPolicy.addActions("s3:GetObject")
+    s3AccessGetPolicy.addResources(`${props.kbDocsBucket.bucketArn}/*`)
     s3AccessGetPolicy.addCondition("StringEquals", {"aws:ResourceAccount": props.account})
 
-    // Create Bedrock execution role with all required policies for S3 and OpenSearch access
+    // Create managed policy for Bedrock execution role
+    const bedrockExecutionManagedPolicy = new ManagedPolicy(this, "BedrockExecutionManagedPolicy", {
+      description: "Policy for Bedrock Knowledge Base to access S3 and OpenSearch"
+    })
+    bedrockExecutionManagedPolicy.addStatements(bedrockExecutionRolePolicy)
+    bedrockExecutionManagedPolicy.addStatements(bedrockKBDeleteRolePolicy)
+    bedrockExecutionManagedPolicy.addStatements(bedrockOSSPolicyForKnowledgeBase)
+    bedrockExecutionManagedPolicy.addStatements(s3AccessListPolicy)
+    bedrockExecutionManagedPolicy.addStatements(s3AccessGetPolicy)
+
+    // Create Bedrock execution role with managed policy
     this.bedrockExecutionRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {
       assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
-      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch"
-    })
-    this.bedrockExecutionRole.addToPolicy(bedrockExecutionRolePolicy)
-    this.bedrockExecutionRole.addToPolicy(bedrockOSSPolicyForKnowledgeBase)
-    this.bedrockExecutionRole.addToPolicy(bedrockKBDeleteRolePolicy)
-    this.bedrockExecutionRole.addToPolicy(s3AccessListPolicy)
-    this.bedrockExecutionRole.addToPolicy(s3AccessGetPolicy)
-
-    // CreateIndex function role
-    this.createIndexFunctionRole = new Role(this, "CreateIndexFunctionRole", {
-      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-      description: "Lambda role for creating OpenSearch index"
+      description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch",
+      managedPolicies: [bedrockExecutionManagedPolicy]
     })
 
-    this.createIndexFunctionRole.addManagedPolicy(
-      ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
+    // Create managed policy for CreateIndex Lambda function
+    const createIndexPolicy = new PolicyStatement()
+    createIndexPolicy.addActions(
+      "aoss:APIAccessAll",
+      "aoss:DescribeIndex",
+      "aoss:ReadDocument",
+      "aoss:CreateIndex",
+      "aoss:DeleteIndex",
+      "aoss:UpdateIndex",
+      "aoss:WriteDocument",
+      "aoss:CreateCollectionItems",
+      "aoss:DeleteCollectionItems",
+      "aoss:UpdateCollectionItems",
+      "aoss:DescribeCollectionItems"
     )
-    this.createIndexFunctionRole.addToPolicy(new PolicyStatement({
-      actions: [
-        "aoss:APIAccessAll",
-        "aoss:DescribeIndex",
-        "aoss:ReadDocument",
-        "aoss:CreateIndex",
-        "aoss:DeleteIndex",
-        "aoss:UpdateIndex",
-        "aoss:WriteDocument",
-        "aoss:CreateCollectionItems",
-        "aoss:DeleteCollectionItems",
-        "aoss:UpdateCollectionItems",
-        "aoss:DescribeCollectionItems"
-      ],
-      resources: [
-        `arn:aws:aoss:${props.region}:${props.account}:collection/*`,
-        `arn:aws:aoss:${props.region}:${props.account}:index/*`
-      ]
-    }))
+    createIndexPolicy.addResources(
+      `arn:aws:aoss:${props.region}:${props.account}:collection/*`,
+      `arn:aws:aoss:${props.region}:${props.account}:index/*`
+    )
+
+    this.createIndexManagedPolicy = new ManagedPolicy(this, "CreateIndexManagedPolicy", {
+      description: "Policy for Lambda to create OpenSearch index"
+    })
+    this.createIndexManagedPolicy.addStatements(createIndexPolicy)
   }
 }

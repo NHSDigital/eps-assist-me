@@ -73,7 +73,6 @@ export class EpsAssistMeStack extends Stack {
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
-      createIndexFunctionRole: iamResources.createIndexFunctionRole,
       account
     })
 
@@ -94,7 +93,7 @@ export class EpsAssistMeStack extends Stack {
       commitId: props.commitId,
       logRetentionInDays,
       logLevel,
-      createIndexFunctionRole: iamResources.createIndexFunctionRole,
+      createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: vectorKB.guardrail.attrGuardrailId,
