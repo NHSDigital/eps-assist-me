@@ -1,29 +1,11 @@
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: MIT-0.
-
-"""
-AWS Lambda hosted Slack ChatBot integration to Amazon Bedrock Knowledge Base.
-Expects Slack Bot Slash Command given by the SLACK_SLASH_COMMAND param and presents
-a user query to the Bedrock Knowledge Base described by the KNOWLEDGEBASE_ID parameter.
-
-The user query is used in a Bedrock KB ReteriveandGenerate API call and the KB
-response is presented to the user in Slack.
-
-Slack integration based on SlackBolt library and examples given at:
-https://github.com/slackapi/bolt-python/blob/main/examples/aws_lambda/lazy_aws_lambda.py
-"""
-
-__version__ = "0.0.1"
-__status__ = "Development"
-__copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
-__author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
-
 import os
 import json
 import boto3
 import logging
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
 
 # Get params from SSM
@@ -45,8 +27,8 @@ def get_parameter(parameter_name):
             return parameter_value
 
     except Exception as e:
-        print(f"Error getting parameter {parameter_name}: {str(e)}")
-        raise e
+        logging.error(f"Error getting parameter {parameter_name}: {str(e)}")
+        raise
 
 
 # Get parameter names from environment variables
@@ -98,15 +80,11 @@ def respond_to_slack_within_3_seconds(body, ack):
     try:
         user_query = body["text"]
         logging.info(
-            f"${SLACK_SLASH_COMMAND} - Acknowledging command: {SLACK_SLASH_COMMAND} - User Query: {user_query}\n"
+            f"Acknowledging slash command {SLACK_SLASH_COMMAND} - User Query: {user_query}"
         )
-        ack(f"\n${SLACK_SLASH_COMMAND} - Processing Request: {user_query}")
-
+        ack(f"\nProcessing Request: {user_query}")
     except Exception as err:
-        print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(
-            f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}"
-        )
+        logging.error(f"Ack handler error: {err}")
 
 
 def process_command_request(respond, body):
@@ -117,19 +95,34 @@ def process_command_request(respond, body):
     try:
         # Get the user query
         user_query = body["text"]
+        channel_id = body["channel_id"]
+        user_id = body["user_id"]
+        # Use thread_ts for thread replies, or fallback to message_ts
+        thread_ts = body.get("thread_ts") or body.get("message_ts")
+
         logging.info(
-            f"${SLACK_SLASH_COMMAND} - Responding to command: {SLACK_SLASH_COMMAND} - User Query: {user_query}"
+            f"Processing command: {SLACK_SLASH_COMMAND} - User Query: {user_query}"
         )
 
         kb_response = get_bedrock_knowledgebase_response(user_query)
         response_text = kb_response["output"]["text"]
-        respond(f"\n${SLACK_SLASH_COMMAND} - Response: {response_text}\n")
 
+        client = WebClient(token=bot_token)
+
+        # Prepare payload: reply in thread if thread_ts is provided.
+        message_payload = {
+            "channel": channel_id,
+            "text": f"*Question from <@{user_id}>:*\n{user_query}\n\n*Answer:*\n{response_text}"
+        }
+        if thread_ts:
+            message_payload["thread_ts"] = thread_ts
+
+        client.chat_postMessage(**message_payload)
+
+    except SlackApiError as e:
+        logging.error(f"Slack API error posting message: {e.response['error']}")
     except Exception as err:
-        print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(
-            f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}"
-        )
+        logging.error(f"Handler error: {err}")
 
 
 def get_bedrock_knowledgebase_response(user_query):
@@ -184,6 +177,6 @@ logging.basicConfig(format="%(asctime)s %(message)s", level=logging.DEBUG)
 
 # Lambda handler method.
 def handler(event, context):
-    print(f"${SLACK_SLASH_COMMAND} - Event: {event}\n")
+    logging.info(f"{SLACK_SLASH_COMMAND} - Event: {event}")
     slack_handler = SlackRequestHandler(app=app)
     return slack_handler.handle(event, context)
