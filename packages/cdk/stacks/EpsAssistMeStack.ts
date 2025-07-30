@@ -63,6 +63,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
+      stackName: props.stackName,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       account
     })

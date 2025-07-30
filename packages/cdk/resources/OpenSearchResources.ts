@@ -3,6 +3,7 @@ import {OpenSearchCollection} from "../constructs/OpenSearchCollection"
 import {Role} from "aws-cdk-lib/aws-iam"
 
 export interface OpenSearchResourcesProps {
+  stackName: string
   bedrockExecutionRole: Role
   account: string
 }
@@ -15,7 +16,7 @@ export class OpenSearchResources extends Construct {
 
     // OpenSearch Serverless collection with vector search capabilities
     this.collection = new OpenSearchCollection(this, "OsCollection", {
-      collectionName: "eps-assist-vector-pr",
+      collectionName: `${props.stackName}-vector-db`,
       principals: [
         props.bedrockExecutionRole.roleArn, // Bedrock Knowledge Base access
         `arn:aws:iam::${props.account}:root` // Account root access
