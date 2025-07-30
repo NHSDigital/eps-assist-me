@@ -15,7 +15,7 @@ export class OpenSearchCollection extends Construct {
 
     // Encryption policy using AWS-managed keys
     const encryptionPolicy = new CfnSecurityPolicy(this, "EncryptionPolicy", {
-      name: `${props.collectionName}-encryption-pr`,
+      name: `${props.collectionName}-encrypt-pr`,
       type: "encryption",
       policy: JSON.stringify({
         Rules: [{ResourceType: "collection", Resource: [`collection/${props.collectionName}`]}],
@@ -25,7 +25,7 @@ export class OpenSearchCollection extends Construct {
 
     // Network policy allowing public internet access
     const networkPolicy = new CfnSecurityPolicy(this, "NetworkPolicy", {
-      name: `${props.collectionName}-network-pr`,
+      name: `${props.collectionName}-net-pr`,
       type: "network",
       policy: JSON.stringify([{
         Rules: [
