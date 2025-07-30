@@ -101,6 +101,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create VectorKnowledgeBase construct after vector index
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
       docsBucket: storage.kbDocsBucket.bucket,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
