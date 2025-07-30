@@ -28,3 +28,4 @@ _site/
 vendor
 .npmrc
 cdk.out
+.build

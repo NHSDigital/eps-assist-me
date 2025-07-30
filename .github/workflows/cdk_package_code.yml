@@ -3,6 +3,9 @@ name: cdk package code
 on:
   workflow_call:
     inputs:
+      STACK_NAME:
+        required: true
+        type: string
       VERSION_NUMBER:
         required: true
         type: string
@@ -55,6 +58,11 @@ jobs:
       - name: make install
         run: |
           make install
+
+      - name: Build Python Lambda Functions
+        run: |
+          pip3 install -r packages/slackBotFunction/requirements.txt -t packages/slackBotFunction
+          pip3 install -r packages/createIndexFunction/requirements.txt -t packages/createIndexFunction
 
       - name: 'Tar files'
         run: |
