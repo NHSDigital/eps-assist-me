@@ -19,16 +19,16 @@ export class Secrets extends Construct {
 
     // Create Slack bot OAuth token secret and parameter
     const slackBotToken = new SecretWithParameter(this, "SlackBotToken", {
-      secretName: "/eps-assist/slack/bot-token",
-      parameterName: "/eps-assist/slack/bot-token/parameter",
+      secretName: "/eps-assist/slack/bot-token-pr",
+      parameterName: "/eps-assist/slack/bot-token/parameter-pr",
       description: "Slack Bot OAuth Token for EPS Assist",
       secretValue: JSON.stringify({token: props.slackBotToken})
     })
 
     // Create Slack signing secret for request verification
     const slackBotSigning = new SecretWithParameter(this, "SlackBotSigning", {
-      secretName: "/eps-assist/slack/signing-secret",
-      parameterName: "/eps-assist/slack/signing-secret/parameter",
+      secretName: "/eps-assist/slack/signing-secret-pr",
+      parameterName: "/eps-assist/slack/signing-secret/parameter-pr",
       description: "Slack Signing Secret",
       secretValue: JSON.stringify({secret: props.slackSigningSecret})
     })
