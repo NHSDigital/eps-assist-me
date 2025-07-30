@@ -50,7 +50,9 @@ export class EpsAssistMeStack extends Stack {
     // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
     // - IamResources creates the Bedrock role that needs S3 access permissions
     // - KMS permissions are added manually after both constructs exist
-    const storage = new Storage(this, "Storage")
+    const storage = new Storage(this, "Storage", {
+      stackName: props.stackName
+    })
 
     // Create IAM Resources
     const iamResources = new IamResources(this, "IamResources", {
