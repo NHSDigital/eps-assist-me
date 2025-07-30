@@ -10,14 +10,14 @@ export class Storage extends Construct {
     super(scope, id)
 
     // Create customer-managed KMS key for knowledge base document encryption
-    this.kbDocsKey = new Key(this, "KbDocsKey", {
+    this.kbDocsKey = new Key(this, "KbDocsKeyPr", {
       enableKeyRotation: true,
       description: "KMS key for encrypting knowledge base documents"
     })
 
     // Create S3 bucket for knowledge base documents with encryption
     this.kbDocsBucket = new S3Bucket(this, "DocsBucket", {
-      bucketName: "Docs",
+      bucketName: "DocsPr",
       kmsKey: this.kbDocsKey,
       versioned: true
     })

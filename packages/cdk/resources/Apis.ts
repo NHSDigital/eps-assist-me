@@ -18,7 +18,7 @@ export class Apis extends Construct {
     super(scope, id)
 
     // Create REST API Gateway for EPS Assist endpoints
-    const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
+    const apiGateway = new RestApiGateway(this, "EpsAssistApiGatewayPr", {
       stackName: props.stackName,
       logRetentionInDays: props.logRetentionInDays,
       trustStoreKey: "unused",
@@ -29,7 +29,7 @@ export class Apis extends Construct {
 
     // Create the '/slack/ask-eps' POST endpoint and integrate it with the SlackBot Lambda
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const slackAskEpsEndpoint = new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
+    const slackAskEpsEndpoint = new LambdaEndpoint(this, "SlackAskEpsEndpointPr", {
       parentResource: slackResource,
       resourceName: "ask-eps",
       method: HttpMethod.POST,

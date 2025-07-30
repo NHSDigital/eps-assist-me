@@ -22,7 +22,7 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     // Create Bedrock guardrail for content filtering
     this.guardrail = new CfnGuardrail(this, "Guardrail", {
-      name: "eps-assist-guardrail",
+      name: "eps-assist-guard-pr",
       description: "Guardrail for EPS Assist Me Slackbot",
       blockedInputMessaging: "Your input was blocked.",
       blockedOutputsMessaging: "Your output was blocked.",
@@ -54,7 +54,7 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     // Create vector knowledge base for document retrieval
     this.knowledgeBase = new CfnKnowledgeBase(this, "VectorKB", {
-      name: "eps-assist-kb",
+      name: "eps-assist-pr",
       description: "Knowledge base for EPS Assist Me Slackbot",
       roleArn: props.bedrockExecutionRole.roleArn,
       knowledgeBaseConfiguration: {
@@ -82,7 +82,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     // Create S3 data source for knowledge base documents
     new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: this.knowledgeBase.attrKnowledgeBaseId,
-      name: "eps-assist-s3-datasource",
+      name: "eps-assist-s3-ds-pr",
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
