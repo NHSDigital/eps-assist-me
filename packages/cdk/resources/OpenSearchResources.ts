@@ -15,7 +15,8 @@ export class OpenSearchResources extends Construct {
 
     // OpenSearch Serverless collection with vector search capabilities
     this.collection = new OpenSearchCollection(this, "OsCollection", {
-      collectionName: "eps-assist-vector-db-pr",
+      0
+      collectionName: "eps-assist-vector-pr",
       principals: [
         props.bedrockExecutionRole.roleArn, // Bedrock Knowledge Base access
         `arn:aws:iam::${props.account}:root` // Account root access
