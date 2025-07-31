@@ -150,6 +150,8 @@ These are used to do common commands related to cdk
 #### Linting and testing
 
 - `lint` Runs lint for GitHub Actions and scripts.
+- `lint-black` Runs black formatter on Python code.
+- `lint-flake8` Runs flake8 linter on Python code.
 - `lint-githubactions` Lints the repository's GitHub Actions workflows.
 - `lint-githubaction-scripts` Lints all shell scripts in `.github/scripts` using ShellCheck.
 - `test` Runs unit tests for CDK code.
