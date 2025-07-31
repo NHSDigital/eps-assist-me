@@ -7,11 +7,11 @@ import {CfnKnowledgeBase, CfnGuardrail, CfnDataSource} from "aws-cdk-lib/aws-bed
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 
 export interface VectorKnowledgeBaseProps {
-  stackName: string
-  docsBucket: Bucket
-  bedrockExecutionRole: Role
-  collectionArn: string
-  vectorIndexName: string
+  readonly stackName: string
+  readonly docsBucket: Bucket
+  readonly bedrockExecutionRole: Role
+  readonly collectionArn: string
+  readonly vectorIndexName: string
 }
 
 export class VectorKnowledgeBaseResources extends Construct {

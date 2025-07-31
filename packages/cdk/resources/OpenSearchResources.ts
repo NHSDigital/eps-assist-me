@@ -3,9 +3,9 @@ import {OpenSearchCollection} from "../constructs/OpenSearchCollection"
 import {Role} from "aws-cdk-lib/aws-iam"
 
 export interface OpenSearchResourcesProps {
-  stackName: string
-  bedrockExecutionRole: Role
-  account: string
+  readonly stackName: string
+  readonly bedrockExecutionRole: Role
+  readonly account: string
 }
 
 export class OpenSearchResources extends Construct {
