@@ -28,7 +28,7 @@ export class Secrets extends Construct {
 
     // Create Slack signing secret for request verification
     const slackBotSigning = new SecretWithParameter(this, "SlackBotSigning", {
-      secretName: `/${props.stackName}/signing-secret-pr`,
+      secretName: `/${props.stackName}/signing-secret`,
       parameterName: `/${props.stackName}/signing-secret/parameter`,
       description: "Slack Signing Secret",
       secretValue: JSON.stringify({secret: props.slackSigningSecret})
