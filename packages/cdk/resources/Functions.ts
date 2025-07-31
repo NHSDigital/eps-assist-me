@@ -16,7 +16,6 @@ export interface FunctionsProps {
   commitId: string
   logRetentionInDays: number
   logLevel: string
-  createIndexManagedPolicy: ManagedPolicy
   slackBotManagedPolicy: ManagedPolicy
   slackBotTokenParameter: StringParameter
   slackSigningSecretParameter: StringParameter
@@ -35,18 +34,6 @@ export class Functions extends Construct {
 
   constructor(scope: Construct, id: string, props: FunctionsProps) {
     super(scope, id)
-
-    // Lambda function to create OpenSearch vector index
-    const createIndexFunction = new LambdaFunction(this, "CreateIndexFunction", {
-      stackName: props.stackName,
-      functionName: `${props.stackName}-CreateIndexFunction`,
-      packageBasePath: "packages/createIndexFunction",
-      entryPoint: "app.py",
-      logRetentionInDays: props.logRetentionInDays,
-      logLevel: props.logLevel,
-      environmentVariables: {"INDEX_NAME": props.collectionId},
-      additionalPolicies: [props.createIndexManagedPolicy]
-    })
 
     // Lambda function to handle Slack bot interactions
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
@@ -75,7 +62,6 @@ export class Functions extends Construct {
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 
     this.functions = {
-      createIndex: createIndexFunction,
       slackBot: slackBotLambda
     }
   }

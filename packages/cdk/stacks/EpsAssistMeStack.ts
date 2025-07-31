@@ -12,7 +12,14 @@ import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
-import {VectorIndex} from "../resources/VectorIndex"
+import {
+  AlgorithmNameType,
+  EngineType,
+  OpensearchFieldType,
+  SpaceType,
+  VectorIndex
+} from "../resources/VectorIndex"
+import {opensearch_vectorindex} from "@cdklabs/generative-ai-cdk-constructs"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -76,7 +83,6 @@ export class EpsAssistMeStack extends Stack {
       commitId: props.commitId,
       logRetentionInDays,
       logLevel,
-      createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
       slackBotManagedPolicy: iamResources.slackBotManagedPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
@@ -94,9 +100,32 @@ export class EpsAssistMeStack extends Stack {
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
       indexName: VECTOR_INDEX_NAME,
       collection: openSearchResources.collection.collection,
-      createIndexFunction: functions.functions.createIndex,
-      endpoint
-    })
+      endpoint,
+      settings: {
+        knn: true
+      },
+      mappings: {
+        properties: {
+          vectorField: {
+            type: OpensearchFieldType.KNN_VECTOR,
+            dimension: 1024,
+            method: {
+              engine: EngineType.FAISS,
+              spaceType: SpaceType.L2,
+              name: AlgorithmNameType.HNSW,
+              parameters: {}
+            }
+          },
+          "AMAZON_BEDROCK_TEXT_CHUNK": {
+            type: OpensearchFieldType.TEXT,
+            index: true
+          },
+          "AMAZON_BEDROCK_METADATA": {
+            type: OpensearchFieldType.TEXT,
+            index: false
+          }
+        }
+      }})
 
     // Create VectorKnowledgeBase construct after vector index
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
