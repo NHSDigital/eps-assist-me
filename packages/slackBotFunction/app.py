@@ -8,7 +8,7 @@ from aws_lambda_powertools.utilities.parameters import get_parameter
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 # Initialize Powertools Logger
-logger = Logger()
+logger = Logger(service="slackBotFunction")
 
 # Get parameter names from environment variables
 bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
@@ -41,7 +41,7 @@ logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
 
 
 @app.middleware
-def log_request(_, body, next):
+def log_request(slack_logger, body, next):
     """
     SlackBolt library logging.
     """

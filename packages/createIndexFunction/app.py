@@ -7,7 +7,7 @@ from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-logger = Logger()
+logger = Logger(service="createIndexFunction")
 
 
 def get_opensearch_client(endpoint):
