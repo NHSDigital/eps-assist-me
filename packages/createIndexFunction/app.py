@@ -1,13 +1,13 @@
 import json
-import logging
 import os
 import time
 
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
+from aws_lambda_powertools import Logger
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = Logger()
 
 
 def get_opensearch_client(endpoint):
@@ -139,12 +139,13 @@ def extract_parameters(event):
         }
 
 
-def handler(event, context):
+@logger.inject_lambda_context
+def handler(event: dict, context: LambdaContext) -> dict:
     """
     Entrypoint: create, update, or delete the OpenSearch index.
     Invoked via CloudFormation custom resource or manually.
     """
-    logger.info("Received event: %s", json.dumps(event, indent=2))
+    logger.info("Received event", extra={"event": event})
 
     try:
         # CloudFormation custom resources may pass the actual event as a JSON string in "Payload"
