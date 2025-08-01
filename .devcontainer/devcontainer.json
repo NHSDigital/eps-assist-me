@@ -56,7 +56,7 @@
         "python.linting.flake8Enabled": true,
         "python.linting.enabled": true, // required to format on save
         "python.formatting.provider": "black",
-        "python.formatting.blackArgs": ["--line-length=120"],
+        "black-formatter.args": ["--line-length=120"],
         "[python]": {
           "editor.defaultFormatter": "ms-python.black-formatter"
         },
