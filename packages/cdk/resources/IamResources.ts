@@ -13,11 +13,11 @@ const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 
 export interface IamResourcesProps {
-  region: string
-  account: string
-  kbDocsBucket: Bucket
-  slackBotTokenParameterName: string
-  slackSigningSecretParameterName: string
+  readonly region: string
+  readonly account: string
+  readonly kbDocsBucket: Bucket
+  readonly slackBotTokenParameterName: string
+  readonly slackSigningSecretParameterName: string
 }
 
 export class IamResources extends Construct {

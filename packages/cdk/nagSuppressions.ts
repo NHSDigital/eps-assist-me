@@ -3,6 +3,7 @@ import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack) => {
+  const stackName = stack.node.tryGetContext("stackName") || "epsam"
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
@@ -36,7 +37,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGatewayPr/ApiGateway/Resource",
     [
       {
         id: "AwsSolutions-APIG2",
@@ -60,7 +61,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress unauthenticated API route warnings
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGatewayPr/ApiGateway/Default/slack/ask-eps/POST/Resource",
     [
       {
         id: "AwsSolutions-APIG4",
@@ -76,7 +77,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress missing WAF on API stage for Apis construct
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGatewayPr/ApiGateway/DeploymentStage.prod/Resource",
     [
       {
         id: "AwsSolutions-APIG3",
@@ -94,8 +95,8 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
-          "Resource::<StorageDocsBucketDocs0C9A9D9E.Arn>/*",
           "Action::bedrock:Delete*",
+          "Resource::<StorageDocsBucketepsampr16Docs240CC945.Arn>/*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
           "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
@@ -147,7 +148,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress S3 server access logs for knowledge base documents bucket
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Storage/DocsBucket/Docs/Resource",
+    `/EpsAssistMeStack/Storage/DocsBucket/${stackName}-Docs/Resource`,
     [
       {
         id: "AwsSolutions-S1",
