@@ -6,6 +6,7 @@ import {
   ManagedPolicy
 } from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
+import {NagSuppressions} from "cdk-nag"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -65,6 +66,15 @@ export class IamResources extends Construct {
       resources: [`${props.kbDocsBucket.bucketArn}/*`],
       conditions: {"StringEquals": {"aws:ResourceAccount": props.account}}
     })
+
+    // Suppress CDK-nag warning for S3 wildcard resource
+    NagSuppressions.addResourceSuppressions(s3AccessGetPolicy, [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Bedrock Knowledge Base requires wildcard access to read all objects in the S3 bucket",
+        appliesTo: [`Resource::${props.kbDocsBucket.bucketArn}/*`]
+      }
+    ])
 
     // KMS permissions for S3 bucket encryption
     const kmsAccessPolicy = new PolicyStatement({
