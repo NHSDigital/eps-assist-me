@@ -54,6 +54,10 @@ test-lambda:
 clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
+	rm -rf packages/slackBotFunction/coverage
+	rm -rf packages/slackBotFunction/.coverage
+	rm -rf packages/createIndexFunction/coverage
+	rm -rf packages/createIndexFunction/.coverage
 	rm -rf cdk.out
 	rm -rf .build
 
