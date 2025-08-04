@@ -147,7 +147,8 @@ def test_handler_delete(mock_get_client, lambda_context):
     assert result["Status"] == "SUCCESS"
 
 
-def test_handler_invalid_request_type(lambda_context):
+@patch("app.get_opensearch_client")
+def test_handler_invalid_request_type(mock_get_client, lambda_context):
     """Test handler with invalid request type"""
     from app import handler
 
@@ -161,7 +162,8 @@ def test_handler_invalid_request_type(lambda_context):
         handler(event, lambda_context)
 
 
-def test_handler_missing_parameters(lambda_context):
+@patch("app.get_opensearch_client")
+def test_handler_missing_parameters(mock_get_client, lambda_context):
     """Test handler with missing parameters"""
     from app import handler
 
