@@ -7,6 +7,10 @@ import os
 import sys
 
 
+TEST_BOT_TOKEN = "test-bot-token"
+TEST_SIGNING_SECRET = "test-signing-secret"
+
+
 @pytest.fixture
 def mock_env():
     """Mock environment variables"""
@@ -31,12 +35,12 @@ def mock_ssm_parameters():
         client = boto3.client("ssm", region_name="eu-west-2")
         client.put_parameter(
             Name="/test/bot-token",
-            Value=json.dumps({"token": "test-bot-token"}),
+            Value=json.dumps({"token": TEST_BOT_TOKEN}),
             Type="SecureString",
         )
         client.put_parameter(
             Name="/test/signing-secret",
-            Value=json.dumps({"secret": "test-signing-secret"}),
+            Value=json.dumps({"secret": TEST_SIGNING_SECRET}),
             Type="SecureString",
         )
         yield
