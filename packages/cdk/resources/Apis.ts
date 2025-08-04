@@ -18,7 +18,7 @@ export class Apis extends Construct {
     super(scope, id)
 
     // Create REST API Gateway for EPS Assist endpoints
-    const apiGateway = new RestApiGateway(this, "EpsAssistApiGatewayPr", {
+    const apiGateway = new RestApiGateway(this, "EpsAssistApiGateway", {
       stackName: props.stackName,
       logRetentionInDays: props.logRetentionInDays,
       trustStoreKey: "unused",

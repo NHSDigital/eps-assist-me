@@ -37,7 +37,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGatewayPr/ApiGateway/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Resource",
     [
       {
         id: "AwsSolutions-APIG2",
@@ -61,7 +61,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress unauthenticated API route warnings
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGatewayPr/ApiGateway/Default/slack/ask-eps/POST/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource",
     [
       {
         id: "AwsSolutions-APIG4",
@@ -77,7 +77,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress missing WAF on API stage for Apis construct
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGatewayPr/ApiGateway/DeploymentStage.prod/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
     [
       {
         id: "AwsSolutions-APIG3",
