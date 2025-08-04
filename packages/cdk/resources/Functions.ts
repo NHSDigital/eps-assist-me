@@ -56,7 +56,6 @@ export class Functions extends Construct {
       entryPoint: "app.py",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
-      timeoutSeconds: 90,
       additionalPolicies: [props.slackBotManagedPolicy],
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
