@@ -1,41 +1,26 @@
 import os
 import json
 import boto3
-import logging
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
+from aws_lambda_powertools import Logger
+from aws_lambda_powertools.utilities.parameters import get_parameter
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
-
-# Get params from SSM
-def get_parameter(parameter_name):
-    ssm = boto3.client("ssm")
-    try:
-        response = ssm.get_parameter(Name=parameter_name, WithDecryption=True)
-        # Parse the JSON string from the parameter
-        parameter_value = response["Parameter"]["Value"]
-
-        # Remove the JSON structure and extract just the value
-        try:
-            json_value = json.loads(parameter_value)
-            # Get the first value from the dictionary
-            value = next(iter(json_value.values()))
-            return value
-        except (json.JSONDecodeError, StopIteration):
-            # If parsing fails or dictionary is empty, return the raw value
-            return parameter_value
-
-    except Exception as e:
-        print(f"Error getting parameter {parameter_name}: {str(e)}")
-        raise e
-
+# Initialize Powertools Logger
+logger = Logger(service="slackBotFunction")
 
 # Get parameter names from environment variables
 bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
 signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
 
-# Retrieve the parameters from SSM Parameter Store
-bot_token = get_parameter(bot_token_parameter)
-signing_secret = get_parameter(signing_secret_parameter)
+# Retrieve and parse parameters from SSM Parameter Store
+bot_token_raw = get_parameter(bot_token_parameter, decrypt=True)
+signing_secret_raw = get_parameter(signing_secret_parameter, decrypt=True)
+
+# Parse JSON values and extract tokens
+bot_token = json.loads(bot_token_raw)["token"]
+signing_secret = json.loads(signing_secret_raw)["secret"]
 
 # Initialize Slack app
 app = App(
@@ -52,16 +37,15 @@ AWS_REGION = os.environ["AWS_REGION"]
 GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
 GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
 
-print(f"GR_ID,{GUARD_RAIL_ID}")
-print(f"GR_V, {GUARD_VERSION}")
+logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
 
 
 @app.middleware
-def log_request(logger, body, next):
+def log_request(slack_logger, body, next):
     """
-    SlackBolt library logging.
+    Middleware to log incoming Slack requests using AWS Lambda Powertools logger.
     """
-    logger.debug(body)
+    logger.debug("Slack request received", extra={"body": body})
     return next()
 
 
@@ -77,14 +61,15 @@ def respond_to_slack_within_3_seconds(body, ack):
     """
     try:
         user_query = body["text"]
-        logging.info(
-            f"${SLACK_SLASH_COMMAND} - Acknowledging command: {SLACK_SLASH_COMMAND} - User Query: {user_query}\n"
+        logger.info(
+            f"Acknowledging command: {SLACK_SLASH_COMMAND}",
+            extra={"user_query": user_query},
         )
-        ack(f"\n${SLACK_SLASH_COMMAND} - Processing Request: {user_query}")
+        ack(f"\n{SLACK_SLASH_COMMAND} - Processing Request: {user_query}")
 
     except Exception as err:
-        print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}")
+        logger.error(f"Error acknowledging command: {err}")
+        ack(f"{SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later.")
 
 
 def process_command_request(respond, body):
@@ -93,19 +78,19 @@ def process_command_request(respond, body):
     and return the response to Slack to be presented in the users chat thread.
     """
     try:
-        # Get the user query
         user_query = body["text"]
-        logging.info(
-            f"${SLACK_SLASH_COMMAND} - Responding to command: {SLACK_SLASH_COMMAND} - User Query: {user_query}"
+        logger.info(
+            f"Processing command: {SLACK_SLASH_COMMAND}",
+            extra={"user_query": user_query},
         )
 
         kb_response = get_bedrock_knowledgebase_response(user_query)
         response_text = kb_response["output"]["text"]
-        respond(f"\n${SLACK_SLASH_COMMAND} - Response: {response_text}\n")
+        respond(f"\n{SLACK_SLASH_COMMAND} - Response: {response_text}\n")
 
     except Exception as err:
-        print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}")
+        logger.error(f"Error processing command: {err}")
+        respond(f"{SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later.")
 
 
 def get_bedrock_knowledgebase_response(user_query):
@@ -141,7 +126,7 @@ def get_bedrock_knowledgebase_response(user_query):
     }
 
     response = client.retrieve_and_generate(input=query_input, retrieveAndGenerateConfiguration=config)
-    logging.info(f"Bedrock Knowledge Base Response: {response}")
+    logger.info("Bedrock Knowledge Base Response received", extra={"response": response})
     return response
 
 
@@ -153,11 +138,11 @@ app.command(SLACK_SLASH_COMMAND)(
 
 # Init the Slack Bolt logger and log handlers.
 SlackRequestHandler.clear_all_log_handlers()
-logging.basicConfig(format="%(asctime)s %(message)s", level=logging.DEBUG)
 
 
 # Lambda handler method.
-def handler(event, context):
-    print(f"${SLACK_SLASH_COMMAND} - Event: {event}\n")
+@logger.inject_lambda_context
+def handler(event: dict, context: LambdaContext) -> dict:
+    logger.info(f"Lambda invoked for {SLACK_SLASH_COMMAND}", extra={"event": event})
     slack_handler = SlackRequestHandler(app=app)
     return slack_handler.handle(event, context)
