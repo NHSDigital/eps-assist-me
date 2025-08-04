@@ -29,7 +29,7 @@ export class Apis extends Construct {
 
     // Create the '/slack/ask-eps' POST endpoint and integrate it with the SlackBot Lambda
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const slackAskEpsEndpoint = new LambdaEndpoint(this, "SlackAskEpsEndpointPr", {
+    const slackAskEpsEndpoint = new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
       parentResource: slackResource,
       resourceName: "ask-eps",
       method: HttpMethod.POST,
