@@ -103,7 +103,7 @@ When the token expires, you may need to reauthorise using `make aws-login`
 For deployment, the following environment variables are required:
 
 - `ACCOUNT_ID`: AWS Account ID
-- `stack_name`: Name of the CloudFormation stack
+- `STACK_NAME`: Name of the CloudFormation stack
 - `VERSION_NUMBER`: Version number for the deployment
 - `COMMIT_ID`: Git commit ID
 - `LOG_RETENTION_IN_DAYS`: CloudWatch log retention period
@@ -137,10 +137,10 @@ There are `make` commands that are run as part of the CI pipeline and help alias
 #### CDK targets
 These are used to do common commands related to cdk
 
-- `cdk-deploy` Builds and deploys the code to AWS. Requires `stack_name` environment variable.
+- `cdk-deploy` Builds and deploys the code to AWS. Requires `STACK_NAME` environment variable.
 - `cdk-synth` Converts the CDK code to cloudformation templates.
 - `cdk-diff` Runs cdk diff, comparing the deployed stack with the local CDK code to identify differences.
-- `cdk-watch` Syncs the code and CDK templates to AWS. This keeps running and automatically uploads changes to AWS. Requires `stack_name` environment variable.
+- `cdk-watch` Syncs the code and CDK templates to AWS. This keeps running and automatically uploads changes to AWS. Requires `STACK_NAME` environment variable.
 
 #### Clean and deep-clean targets
 

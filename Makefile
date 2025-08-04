@@ -78,7 +78,7 @@ aws-login:
 cfn-guard:
 	./scripts/run_cfn_guard.sh
 
-cdk-deploy: guard-stack_name
+cdk-deploy: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -88,7 +88,7 @@ cdk-deploy: guard-stack_name
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
@@ -111,12 +111,12 @@ cdk-diff:
 	npx cdk diff \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-watch: guard-stack_name
+cdk-watch: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -127,7 +127,7 @@ cdk-watch: guard-stack_name
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
