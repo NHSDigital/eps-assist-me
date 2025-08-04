@@ -136,9 +136,6 @@ app.command(SLACK_SLASH_COMMAND)(
     lazy=[process_command_request],
 )
 
-# Init the Slack Bolt logger and log handlers.
-SlackRequestHandler.clear_all_log_handlers()
-
 
 # Lambda handler method.
 @logger.inject_lambda_context
