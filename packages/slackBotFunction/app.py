@@ -41,11 +41,11 @@ logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
 
 
 @app.middleware
-def log_request(logger, body, next):  # Use SlackBolt logger
+def log_request(slack_logger, body, next):
     """
-    SlackBolt library logging.
+    Middleware to log incoming Slack requests using AWS Lambda Powertools logger.
     """
-    logger.debug(body)
+    logger.debug("Slack request received", extra={"body": body})
     return next()
 
 
