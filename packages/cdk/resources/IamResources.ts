@@ -67,15 +67,6 @@ export class IamResources extends Construct {
       conditions: {"StringEquals": {"aws:ResourceAccount": props.account}}
     })
 
-    // Suppress CDK-nag warning for S3 wildcard resource
-    NagSuppressions.addResourceSuppressions(s3AccessGetPolicy, [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Bedrock Knowledge Base requires wildcard access to read all objects in the S3 bucket",
-        appliesTo: [`Resource::${props.kbDocsBucket.bucketArn}/*`]
-      }
-    ])
-
     // KMS permissions for S3 bucket encryption
     const kmsAccessPolicy = new PolicyStatement({
       actions: ["kms:Decrypt", "kms:DescribeKey"],
@@ -95,6 +86,15 @@ export class IamResources extends Construct {
         kmsAccessPolicy
       ]
     })
+
+    // Suppress CDK-nag warning for S3 wildcard resource
+    NagSuppressions.addResourceSuppressions(bedrockExecutionManagedPolicy, [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Bedrock Knowledge Base requires wildcard access to read all objects in the S3 bucket",
+        appliesTo: [`Resource::${props.kbDocsBucket.bucketArn}/*`]
+      }
+    ])
 
     // Create Bedrock execution role with managed policy
     this.bedrockExecutionRole = new Role(this, "EpsAssistMeBedrockExecutionRole", {
