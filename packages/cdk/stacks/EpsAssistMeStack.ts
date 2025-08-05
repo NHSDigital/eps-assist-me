@@ -42,6 +42,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create Secrets construct
     const secrets = new Secrets(this, "Secrets", {
+      stackName: props.stackName,
       slackBotToken,
       slackSigningSecret
     })
