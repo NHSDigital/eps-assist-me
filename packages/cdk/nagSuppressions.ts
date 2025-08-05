@@ -3,6 +3,7 @@ import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack) => {
+  const stackName = stack.node.tryGetContext("stackName") || "epsam"
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
@@ -95,6 +96,7 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
           "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
+          "Resource::<StorageDocsBucketepsampr20Docs075F648F.Arn>/*",
           "Action::bedrock:Delete*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
@@ -147,7 +149,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress S3 server access logs for knowledge base documents bucket
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Storage/DocsBucket/epsam-Docs/Resource",
+    `/EpsAssistMeStack/Storage/DocsBucket/${stackName}-Docs/Resource`,
     [
       {
         id: "AwsSolutions-S1",
