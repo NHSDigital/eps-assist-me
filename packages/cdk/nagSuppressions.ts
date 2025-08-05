@@ -250,6 +250,53 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  // Suppress Lambda function public access for S3 service principal
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/S3ToSyncKnowledgeBaseLambdaPermission",
+    [
+      {
+        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
+        reason: "S3 service principal access is required for bucket notifications to trigger Lambda function."
+      }
+    ]
+  )
+
+  // Suppress Lambda function public access for S3 bucket notifications
+  safeAddNagSuppression(
+    stack,
+    `/EpsAssistMeStack/Storage/DocsBucket/${stackName}-Docs/AllowBucketNotificationsToEpsAssistMeStackFunctionsSyncKnowledgeBaseFunctionepsamSyncKnowledgeBaseFunction94D011F3`,
+    [
+      {
+        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
+        reason: "S3 service principal access is required for bucket notifications to trigger Lambda function."
+      }
+    ]
+  )
+
+  // Suppress Lambda function public access for API Gateway permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps",
+    [
+      {
+        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
+        reason: "API Gateway service principal access is required for API Gateway to invoke Lambda function."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.Test.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps",
+    [
+      {
+        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
+        reason: "API Gateway service principal access is required for API Gateway to invoke Lambda function."
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
