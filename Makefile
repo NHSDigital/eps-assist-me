@@ -87,7 +87,7 @@ cdk-synth:
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context accountId=undefined \
+		--context accountId=$$ACCOUNT_ID \
 		--context stackName=epsam \
 		--context versionNumber=undefined \
 		--context commitId=undefined \
