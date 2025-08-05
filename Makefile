@@ -84,11 +84,10 @@ cdk-deploy: guard-stack_name
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 
 cdk-synth:
-	ACCOUNT_ID="$${ACCOUNT_ID:-123456789012}" && \
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context accountId=$$ACCOUNT_ID \
+		--context accountId=undefined \
 		--context stackName=epsam \
 		--context versionNumber=undefined \
 		--context commitId=undefined \

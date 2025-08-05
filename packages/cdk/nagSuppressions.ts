@@ -115,10 +115,8 @@ export const nagSuppressions = (stack: Stack) => {
           "Action::bedrock:Delete*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*",
           "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*"
           "Resource::*"
         ]
       }
@@ -137,9 +135,7 @@ export const nagSuppressions = (stack: Stack) => {
           "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
           "Resource::arn:aws:aoss:eu-west-2:undefined:index/*",
           "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*",
-          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:123456789012:index/*"
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
         ]
       }
     ]
@@ -156,13 +152,10 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Resource::arn:aws:lambda:eu-west-2:undefined:function:*",
           "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
-          "Resource::arn:aws:lambda:eu-west-2:123456789012:function:*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:guardrail/*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*"
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*"
         ]
       }
     ]
@@ -178,9 +171,7 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "SyncKnowledgeBase Lambda needs access to knowledge bases and data sources for synchronization.",
         appliesTo: [
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*/data-source/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*/data-source/*"
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*/data-source/*"
         ]
       }
     ]
