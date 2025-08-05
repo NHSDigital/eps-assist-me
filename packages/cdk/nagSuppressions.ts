@@ -34,6 +34,21 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/SyncKnowledgeBaseFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions are required for log stream access under known paths.",
+        appliesTo: [
+          "Resource::<FunctionsSyncKnowledgeBaseFunctionLambdaLogGroupB19BE2BE.Arn>:log-stream:*"
+        ]
+      }
+    ]
+  )
+
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
@@ -146,6 +161,22 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress wildcard permissions for SyncKnowledgeBase managed policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/IamResources/SyncKnowledgeBaseManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "SyncKnowledgeBase Lambda needs access to knowledge bases and data sources for synchronization.",
+        appliesTo: [
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*/data-source/*"
+        ]
+      }
+    ]
+  )
+
   // Suppress S3 server access logs for knowledge base documents bucket
   safeAddNagSuppression(
     stack,
@@ -177,6 +208,36 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "AwsSolutions-SMG4",
         reason: "Slack signing secret rotation is handled manually as part of the Slack app configuration process."
+      }
+    ]
+  )
+
+  // Suppress AWS managed policy usage in BucketNotificationsHandler
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
+        appliesTo: [
+          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ]
+      }
+    ]
+  )
+
+  // Suppress wildcard permissions for BucketNotificationsHandler default policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
+        appliesTo: [
+          "Resource::*"
+        ]
       }
     ]
   )
