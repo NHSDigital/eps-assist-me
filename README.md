@@ -9,9 +9,10 @@ The solution consists of:
 
 - **Slack Bot Function**: AWS Lambda function that handles Slack slash commands and integrates with Amazon Bedrock Knowledge Base
 - **Create Index Function**: AWS Lambda function that creates and manages OpenSearch vector indices for the knowledge base
+- **Sync Knowledge Base Function**: AWS Lambda function that automatically triggers knowledge base ingestion when documents are uploaded to S3
 - **OpenSearch Serverless**: Vector database for storing and searching document embeddings
 - **Amazon Bedrock Knowledge Base**: RAG (Retrieval-Augmented Generation) service with guardrails
-- **S3 Storage**: Document storage for the knowledge base
+- **S3 Storage**: Document storage for the knowledge base with automatic sync triggers
 - **AWS CDK**: Infrastructure as Code for deployment
 
 ## Project Structure
@@ -20,13 +21,14 @@ This is a monorepo with the following structure:
 
 ```
 packages/
-├── cdk/                   # AWS CDK infrastructure code
-│   ├── bin/               # CDK app entry point
-│   ├── constructs/        # Reusable CDK constructs
-│   ├── resources/         # AWS resource definitions
-│   └── stacks/            # CDK stack definitions
-├── createIndexFunction/   # Lambda function for OpenSearch index management
-└── slackBotFunction/      # Lambda function for Slack bot integration
+├── cdk/                      # AWS CDK infrastructure code
+│   ├── bin/                  # CDK app entry point
+│   ├── constructs/           # Reusable CDK constructs
+│   ├── resources/            # AWS resource definitions
+│   └── stacks/               # CDK stack definitions
+├── createIndexFunction/      # Lambda function for OpenSearch index management
+├── slackBotFunction/         # Lambda function for Slack bot integration
+└── syncKnowledgeBaseFunction/ # Lambda function for automatic knowledge base sync
 ```
 
 ## Contributing

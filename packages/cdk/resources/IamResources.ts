@@ -24,6 +24,7 @@ export class IamResources extends Construct {
   public readonly bedrockExecutionRole: Role
   public readonly createIndexManagedPolicy: ManagedPolicy
   public readonly slackBotManagedPolicy: ManagedPolicy
+  public readonly syncKnowledgeBaseManagedPolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string, props: IamResourcesProps) {
     super(scope, id)
@@ -157,6 +158,24 @@ export class IamResources extends Construct {
         slackBotLambdaPolicy,
         slackBotGuardrailPolicy
       ]
+    })
+
+    // Create managed policy for SyncKnowledgeBase Lambda function
+    const syncKnowledgeBasePolicy = new PolicyStatement({
+      actions: [
+        "bedrock-agent:StartIngestionJob",
+        "bedrock-agent:GetIngestionJob",
+        "bedrock-agent:ListIngestionJobs"
+      ],
+      resources: [
+        `arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`,
+        `arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*/data-source/*`
+      ]
+    })
+
+    this.syncKnowledgeBaseManagedPolicy = new ManagedPolicy(this, "SyncKnowledgeBaseManagedPolicy", {
+      description: "Policy for SyncKnowledgeBase Lambda to trigger ingestion jobs",
+      statements: [syncKnowledgeBasePolicy]
     })
   }
 }

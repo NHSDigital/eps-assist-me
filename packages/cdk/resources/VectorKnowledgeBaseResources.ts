@@ -17,6 +17,7 @@ export interface VectorKnowledgeBaseProps {
 export class VectorKnowledgeBaseResources extends Construct {
   public readonly knowledgeBase: CfnKnowledgeBase
   public readonly guardrail: CfnGuardrail
+  public readonly dataSource: CfnDataSource
 
   constructor(scope: Construct, id: string, props: VectorKnowledgeBaseProps) {
     super(scope, id)
@@ -81,7 +82,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     })
 
     // Create S3 data source for knowledge base documents
-    new CfnDataSource(this, "S3DataSource", {
+    this.dataSource = new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: this.knowledgeBase.attrKnowledgeBaseId,
       name: `${props.stackName}-s3-datasource`,
       dataSourceConfiguration: {
