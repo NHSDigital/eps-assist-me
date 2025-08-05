@@ -253,6 +253,33 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  // Suppress CFN Guard rule for API Gateway Lambda permissions
+  safeAddNagSuppressionGroup(
+    stack,
+    [
+      "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps",
+      "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.Test.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps"
+    ],
+    [
+      {
+        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
+        reason: "API Gateway service principal is required for Lambda invocation"
+      }
+    ]
+  )
+
+  // Suppress CFN Guard rule for auto-generated S3 bucket notification permission
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Storage/DocsBucket/epsam-Docs/AllowBucketNotificationsToEpsAssistMeStackFunctionsSyncKnowledgeBaseFunctionepsamSyncKnowledgeBaseFunction94D011F3",
+    [
+      {
+        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
+        reason: "S3 service principal is required for bucket notifications to Lambda"
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
