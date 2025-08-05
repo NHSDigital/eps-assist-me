@@ -85,15 +85,13 @@ cdk-deploy: guard-stack_name
 
 cdk-synth:
 	ACCOUNT_ID="$${ACCOUNT_ID:-123456789012}" && \
-	VERSION_NUMBER="$${VERSION_NUMBER:-1.0.0}" && \
-	COMMIT_ID="$${COMMIT_ID:-latest}" && \
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=$$ACCOUNT_ID \
 		--context stackName=epsam \
-		--context versionNumber=$$VERSION_NUMBER \
-		--context commitId=$$COMMIT_ID \
+		--context versionNumber=undefined \
+		--context commitId=undefined \
 		--context logRetentionInDays=30 \
 		--context slackBotToken=dummy \
 		--context slackSigningSecret=dummy
