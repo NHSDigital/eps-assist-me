@@ -115,8 +115,10 @@ export const nagSuppressions = (stack: Stack) => {
           "Action::bedrock:Delete*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*",
           "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
           "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
           "Resource::*"
         ]
       }
@@ -135,7 +137,9 @@ export const nagSuppressions = (stack: Stack) => {
           "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
           "Resource::arn:aws:aoss:eu-west-2:undefined:index/*",
           "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
+          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*",
+          "Resource::arn:aws:aoss:eu-west-2:123456789012:collection/*",
+          "Resource::arn:aws:aoss:eu-west-2:123456789012:index/*"
         ]
       }
     ]
@@ -152,10 +156,13 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Resource::arn:aws:lambda:eu-west-2:undefined:function:*",
           "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
+          "Resource::arn:aws:lambda:eu-west-2:123456789012:function:*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*",
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:guardrail/*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*"
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*"
         ]
       }
     ]
@@ -171,7 +178,9 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "SyncKnowledgeBase Lambda needs access to knowledge bases and data sources for synchronization.",
         appliesTo: [
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*/data-source/*"
+          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*/data-source/*",
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*",
+          "Resource::arn:aws:bedrock:eu-west-2:123456789012:knowledge-base/*/data-source/*"
         ]
       }
     ]
@@ -238,45 +247,6 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Resource::*"
         ]
-      }
-    ]
-  )
-
-  // Suppress CFN Guard rule for S3 to Lambda permission
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/S3ToSyncKnowledgeBaseLambdaPermission",
-    [
-      {
-        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
-        reason: "S3 service principal is required for bucket notifications to Lambda"
-      }
-    ]
-  )
-
-  // Suppress CFN Guard rule for API Gateway Lambda permissions
-  safeAddNagSuppressionGroup(
-    stack,
-    [
-      "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps",
-      "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.Test.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps"
-    ],
-    [
-      {
-        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
-        reason: "API Gateway service principal is required for Lambda invocation"
-      }
-    ]
-  )
-
-  // Suppress CFN Guard rule for auto-generated S3 bucket notification permission
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Storage/DocsBucket/epsam-Docs/AllowBucketNotificationsToEpsAssistMeStackFunctionsSyncKnowledgeBaseFunctionepsamSyncKnowledgeBaseFunction94D011F3",
-    [
-      {
-        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
-        reason: "S3 service principal is required for bucket notifications to Lambda"
       }
     ]
   )
