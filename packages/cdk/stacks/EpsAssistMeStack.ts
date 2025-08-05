@@ -51,7 +51,9 @@ export class EpsAssistMeStack extends Stack {
     // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
     // - IamResources creates the Bedrock role that needs S3 access permissions
     // - KMS permissions are added manually after both constructs exist
-    const storage = new Storage(this, "Storage")
+    const storage = new Storage(this, "Storage", {
+      stackName: props.stackName
+    })
 
     // Create IAM Resources
     const iamResources = new IamResources(this, "IamResources", {
@@ -64,6 +66,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
+      stackName: props.stackName,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       account
     })
@@ -101,6 +104,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create VectorKnowledgeBase construct after vector index
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
       docsBucket: storage.kbDocsBucket.bucket,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
