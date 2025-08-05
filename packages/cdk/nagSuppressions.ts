@@ -241,6 +241,18 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  // Suppress CFN Guard rule for S3 to Lambda permission
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/S3ToSyncKnowledgeBaseLambdaPermission",
+    [
+      {
+        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
+        reason: "S3 service principal is required for bucket notifications to Lambda"
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
