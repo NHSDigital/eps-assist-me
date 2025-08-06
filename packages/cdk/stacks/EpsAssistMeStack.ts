@@ -6,7 +6,6 @@ import {
 } from "aws-cdk-lib"
 import {EventType} from "aws-cdk-lib/aws-s3"
 import {LambdaDestination} from "aws-cdk-lib/aws-s3-notifications"
-import {CfnPermission} from "aws-cdk-lib/aws-lambda"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -139,15 +138,6 @@ export class EpsAssistMeStack extends Stack {
       EventType.OBJECT_CREATED,
       new LambdaDestination(functions.functions.syncKnowledgeBase.function)
     )
-
-    // Create explicit Lambda permission with guaranteed SourceAccount
-    new CfnPermission(this, "S3ToSyncKnowledgeBaseLambdaPermission", {
-      functionName: functions.functions.syncKnowledgeBase.function.functionArn,
-      action: "lambda:InvokeFunction",
-      principal: "s3.amazonaws.com",
-      sourceAccount: account,
-      sourceArn: storage.kbDocsBucket.bucket.bucketArn
-    })
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
