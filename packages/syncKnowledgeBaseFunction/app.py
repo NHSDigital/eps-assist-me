@@ -32,6 +32,7 @@ def handler(event, context):
         logger.error(
             "Missing required environment variables",
             extra={
+                "statusCode": 500,
                 "knowledge_base_id": bool(knowledge_base_id),
                 "data_source_id": bool(data_source_id),
             },
