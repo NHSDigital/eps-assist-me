@@ -215,10 +215,10 @@ export const nagSuppressions = (stack: Stack) => {
   )
 
   // Suppress AWS managed policy usage in BucketNotificationsHandler (wildcard for any hash)
-  const bucketNotificationHandlers = stack.node.findAll().filter(node => 
-    node.node.id.startsWith('BucketNotificationsHandler')
+  const bucketNotificationHandlers = stack.node.findAll().filter(node =>
+    node.node.id.startsWith("BucketNotificationsHandler")
   )
-  
+
   bucketNotificationHandlers.forEach(handler => {
     safeAddNagSuppression(
       stack,
@@ -233,7 +233,7 @@ export const nagSuppressions = (stack: Stack) => {
         }
       ]
     )
-    
+
     safeAddNagSuppression(
       stack,
       `${handler.node.path}/Role/DefaultPolicy/Resource`,
