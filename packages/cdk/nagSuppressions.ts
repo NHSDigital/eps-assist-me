@@ -214,28 +214,29 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress custom resource IAM permissions for S3 Lambda notification
+  // Suppress AWS managed policy usage in BucketNotificationsHandler
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/S3ToSyncKnowledgeBase/BucketNotification/CustomResourcePolicy/Resource",
+    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource",
     [
       {
-        id: "AwsSolutions-IAM5",
-        reason: "Custom resource requires wildcard permissions to manage S3 bucket notifications and Lambda permissions.",
+        id: "AwsSolutions-IAM4",
+        reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
         appliesTo: [
-          "Resource::*"
+          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         ]
       }
     ]
   )
 
+  // Suppress wildcard permissions for BucketNotificationsHandler default policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/S3ToSyncKnowledgeBase/LambdaPermission/CustomResourcePolicy/Resource",
+    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Custom resource requires wildcard permissions to manage Lambda permissions.",
+        reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
         appliesTo: [
           "Resource::*"
         ]
