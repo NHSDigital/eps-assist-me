@@ -214,36 +214,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress AWS managed policy usage in BucketNotificationsHandler
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
-        appliesTo: [
-          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions for BucketNotificationsHandler default policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
-        appliesTo: [
-          "Resource::*"
-        ]
-      }
-    ]
-  )
-
   // Suppress Lambda function public access for API Gateway permissions
   safeAddNagSuppression(
     stack,
