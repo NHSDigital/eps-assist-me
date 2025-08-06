@@ -131,6 +131,7 @@ def handler(event, context):
         logger.info(
             "Knowledge base sync process completed",
             extra={
+                "statusCode": 200,
                 "trigger_files_processed": len(processed_files),
                 "ingestion_jobs_started": len(job_ids),
                 "job_ids": job_ids,
