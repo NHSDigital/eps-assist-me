@@ -31,13 +31,19 @@ def handler(event, context):
     if not knowledge_base_id or not data_source_id:
         logger.error(
             "Missing required environment variables",
-            extra={"knowledge_base_id": bool(knowledge_base_id), "data_source_id": bool(data_source_id)},
+            extra={
+                "knowledge_base_id": bool(knowledge_base_id),
+                "data_source_id": bool(data_source_id),
+            },
         )
         return {"statusCode": 500, "body": "Configuration error"}
 
     logger.info(
         "Starting knowledge base sync process",
-        extra={"knowledge_base_id": knowledge_base_id, "data_source_id": data_source_id},
+        extra={
+            "knowledge_base_id": knowledge_base_id,
+            "data_source_id": data_source_id,
+        },
     )
 
     try:
@@ -100,8 +106,9 @@ def handler(event, context):
                         "job_id": job_id,
                         "job_status": job_status,
                         "knowledge_base_id": knowledge_base_id,
-                        "file_key": key,
+                        "trigger_file": key,
                         "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
+                        "note": "Job will process all files in data source, not just trigger file",
                     },
                 )
 
@@ -111,7 +118,10 @@ def handler(event, context):
             else:
                 logger.warning(
                     "Skipping non-S3 event",
-                    extra={"event_source": record.get("eventSource"), "record_index": record_index + 1},
+                    extra={
+                        "event_source": record.get("eventSource"),
+                        "record_index": record_index + 1,
+                    },
                 )
 
         # Calculate total processing time
@@ -119,19 +129,26 @@ def handler(event, context):
 
         # Log successful completion summary
         logger.info(
-            "Knowledge base sync completed successfully",
+            "Knowledge base sync process completed",
             extra={
-                "total_files_processed": len(processed_files),
+                "trigger_files_processed": len(processed_files),
+                "ingestion_jobs_started": len(job_ids),
                 "job_ids": job_ids,
-                "processed_files": processed_files,
+                "trigger_files": processed_files,
                 "total_duration_ms": round(total_duration * 1000, 2),
                 "knowledge_base_id": knowledge_base_id,
+                "next_steps": "Monitor Bedrock console for ingestion job completion status",
             },
         )
 
+        # Log explicit success message for easy monitoring
+        logger.info("Ingestion jobs triggered successfully - check Bedrock console for final results")
+
         return {
             "statusCode": 200,
-            "body": f"Successfully triggered {len(job_ids)} ingestion job(s) for {len(processed_files)} file(s)",
+            "body": (
+                f"Successfully triggered {len(job_ids)} ingestion job(s) for {len(processed_files)} trigger file(s)",
+            ),
         }
 
     except ClientError as e:
@@ -139,17 +156,41 @@ def handler(event, context):
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         error_message = e.response.get("Error", {}).get("Message", str(e))
 
-        logger.error(
-            "AWS service error occurred",
-            extra={
-                "error_code": error_code,
-                "error_message": error_message,
-                "knowledge_base_id": knowledge_base_id,
-                "data_source_id": data_source_id,
-                "duration_ms": round((time.time() - start_time) * 1000, 2),
-            },
-        )
-        return {"statusCode": 500, "body": f"AWS error: {error_code} - {error_message}"}
+        # Handling for ConflictException
+        if error_code == "ConflictException":
+            logger.warning(
+                "Ingestion job already in progress",
+                extra={
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "knowledge_base_id": knowledge_base_id,
+                    "data_source_id": data_source_id,
+                    "duration_ms": round((time.time() - start_time) * 1000, 2),
+                    "recommendation": (
+                        "This is normal when multiple files are uploaded quickly. "
+                        "The running job will process all files."
+                    ),
+                },
+            )
+            return {
+                "statusCode": 409,
+                "body": "Ingestion job already in progress - files will be processed by existing job",
+            }
+        else:
+            logger.error(
+                "AWS service error occurred",
+                extra={
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "knowledge_base_id": knowledge_base_id,
+                    "data_source_id": data_source_id,
+                    "duration_ms": round((time.time() - start_time) * 1000, 2),
+                },
+            )
+            return {
+                "statusCode": 500,
+                "body": f"AWS error: {error_code} - {error_message}",
+            }
 
     except Exception as e:
         # Handle unexpected errors
