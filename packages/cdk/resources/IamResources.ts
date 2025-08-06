@@ -163,9 +163,9 @@ export class IamResources extends Construct {
     // Create managed policy for SyncKnowledgeBase Lambda function
     const syncKnowledgeBasePolicy = new PolicyStatement({
       actions: [
-        "bedrock-agent:StartIngestionJob",
-        "bedrock-agent:GetIngestionJob",
-        "bedrock-agent:ListIngestionJobs"
+        "bedrock:StartIngestionJob",
+        "bedrock:GetIngestionJob",
+        "bedrock:ListIngestionJobs"
       ],
       resources: [
         `arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`,
