@@ -143,9 +143,6 @@ def handler(event, context):
             },
         )
 
-        # Log explicit success message for easy monitoring
-        logger.info("Ingestion jobs triggered successfully - check Bedrock console for final results")
-
         return {
             "statusCode": 200,
             "body": (
