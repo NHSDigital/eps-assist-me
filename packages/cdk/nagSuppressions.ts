@@ -49,25 +49,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress S3 wildcard permissions for SyncKnowledgeBase Lambda default policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/SyncKnowledgeBaseFunction/LambdaRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "S3 wildcard permissions are required for Lambda to read from knowledge base documents bucket.",
-        appliesTo: [
-          "Action::s3:GetBucket*",
-          "Action::s3:GetObject*",
-          "Action::s3:List*",
-          "Resource::<StorageDocsBucketepsampr20Docs075F648F.Arn>/*",
-          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*"
-        ]
-      }
-    ]
-  )
-
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
