@@ -161,6 +161,7 @@ def handler(event, context):
             logger.warning(
                 "Ingestion job already in progress",
                 extra={
+                    "status_code": 409,
                     "error_code": error_code,
                     "error_message": error_message,
                     "knowledge_base_id": knowledge_base_id,
@@ -180,6 +181,7 @@ def handler(event, context):
             logger.error(
                 "AWS service error occurred",
                 extra={
+                    "status_code": 500,
                     "error_code": error_code,
                     "error_message": error_message,
                     "knowledge_base_id": knowledge_base_id,
@@ -197,6 +199,7 @@ def handler(event, context):
         logger.error(
             "Unexpected error occurred",
             extra={
+                "status_code": 500,
                 "error_type": type(e).__name__,
                 "error_message": str(e),
                 "duration_ms": round((time.time() - start_time) * 1000, 2),
