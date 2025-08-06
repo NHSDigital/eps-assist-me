@@ -133,7 +133,7 @@ export class EpsAssistMeStack extends Stack {
     )
 
     // Add S3 notification to trigger sync Lambda function
-    new S3LambdaNotification(this, "S3ToLambdaNotification", {
+    new S3LambdaNotification(this, "S3LambdaNotification", {
       bucket: storage.kbDocsBucket.bucket,
       lambdaFunction: functions.functions.syncKnowledgeBase.function
     })
