@@ -172,6 +172,7 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*/data-source/*",
+          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
           "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*/data-source/*"
         ]
       }
