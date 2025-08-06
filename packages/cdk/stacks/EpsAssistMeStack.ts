@@ -4,8 +4,6 @@ import {
   StackProps,
   CfnOutput
 } from "aws-cdk-lib"
-import {EventType} from "aws-cdk-lib/aws-s3"
-import {S3EventSource} from "aws-cdk-lib/aws-lambda-event-sources"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -15,6 +13,7 @@ import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
+import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -133,12 +132,11 @@ export class EpsAssistMeStack extends Stack {
       vectorKB.dataSource.attrDataSourceId
     )
 
-    // Add S3 event source mapping to sync Lambda function
-    functions.functions.syncKnowledgeBase.function.addEventSource(
-      new S3EventSource(storage.kbDocsBucket.bucket, {
-        events: [EventType.OBJECT_CREATED]
-      })
-    )
+    // Add S3 notification to trigger sync Lambda function
+    new S3LambdaNotification(this, "S3ToLambdaNotification", {
+      bucket: storage.kbDocsBucket.bucket,
+      lambdaFunction: functions.functions.syncKnowledgeBase.function
+    })
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
