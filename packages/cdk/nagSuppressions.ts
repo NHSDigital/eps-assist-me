@@ -214,28 +214,40 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress Lambda function public access for API Gateway permissions
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps",
-    [
-      {
-        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
-        reason: "API Gateway service principal access is required for API Gateway to invoke Lambda function."
-      }
-    ]
+  // Suppress AWS managed policy usage in BucketNotificationsHandler (wildcard for any hash)
+  const bucketNotificationHandlers = stack.node.findAll().filter(node => 
+    node.node.id.startsWith('BucketNotificationsHandler')
   )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/ApiPermission.Test.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.ask-eps",
-    [
-      {
-        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
-        reason: "API Gateway service principal access is required for API Gateway to invoke Lambda function."
-      }
-    ]
-  )
+  
+  bucketNotificationHandlers.forEach(handler => {
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/Role/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM4",
+          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
+          appliesTo: [
+            "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+          ]
+        }
+      ]
+    )
+    
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/Role/DefaultPolicy/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
+          appliesTo: [
+            "Resource::*"
+          ]
+        }
+      ]
+    )
+  })
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
