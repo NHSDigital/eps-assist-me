@@ -1,52 +1,164 @@
 import os
+import time
 import boto3
 from botocore.exceptions import ClientError
 from aws_lambda_powertools import Logger
 
-# Configure logging
-logger = Logger()
 
-# Initialize Bedrock client
+# Initialize Powertools Logger with service name for better log organization
+logger = Logger(service="syncKnowledgeBaseFunction")
+
+# Initialize Bedrock client for knowledge base operations
 bedrock_agent = boto3.client("bedrock-agent")
 
 
 @logger.inject_lambda_context
 def handler(event, context):
     """
-    Lambda handler for S3 events that triggers knowledge base ingestion.
+    Lambda handler that processes S3 events and triggers Bedrock Knowledge Base ingestion.
+
+    This function is triggered when documents are uploaded to the S3 bucket and automatically
+    starts an ingestion job to update the knowledge base with new content.
     """
+    # Record start time for performance tracking
+    start_time = time.time()
+
+    # Get required environment variables
     knowledge_base_id = os.environ.get("KNOWLEDGEBASE_ID")
     data_source_id = os.environ.get("DATA_SOURCE_ID")
 
+    # Validate configuration
     if not knowledge_base_id or not data_source_id:
-        logger.error("Missing required environment variables: KNOWLEDGEBASE_ID or DATA_SOURCE_ID")
+        logger.error(
+            "Missing required environment variables",
+            extra={"knowledge_base_id": bool(knowledge_base_id), "data_source_id": bool(data_source_id)},
+        )
         return {"statusCode": 500, "body": "Configuration error"}
 
-    try:
-        # Process S3 event records
-        for record in event.get("Records", []):
-            if record.get("eventSource") == "aws:s3":
-                bucket = record["s3"]["bucket"]["name"]
-                key = record["s3"]["object"]["key"]
-                event_name = record["eventName"]
+    logger.info(
+        "Starting knowledge base sync process",
+        extra={"knowledge_base_id": knowledge_base_id, "data_source_id": data_source_id},
+    )
 
-                logger.info(f"Processing S3 event: {event_name} for {bucket}/{key}")
+    try:
+        processed_files = []
+        job_ids = []
+
+        # Process each S3 event record
+        for record_index, record in enumerate(event.get("Records", [])):
+            if record.get("eventSource") == "aws:s3":
+                # Validate S3 event structure
+                s3_info = record.get("s3", {})
+                bucket_name = s3_info.get("bucket", {}).get("name")
+                object_key = s3_info.get("object", {}).get("key")
+
+                if not bucket_name or not object_key:
+                    logger.warning(
+                        "Skipping invalid S3 record",
+                        extra={
+                            "record_index": record_index + 1,
+                            "has_bucket": bool(bucket_name),
+                            "has_object_key": bool(object_key),
+                        },
+                    )
+                    continue
+
+                # Extract S3 event details
+                bucket = bucket_name
+                key = object_key
+                event_name = record["eventName"]
+                object_size = s3_info.get("object", {}).get("size", "unknown")
+
+                logger.info(
+                    "Processing S3 event",
+                    extra={
+                        "event_name": event_name,
+                        "bucket": bucket,
+                        "key": key,
+                        "object_size_bytes": object_size,
+                        "record_index": record_index + 1,
+                        "total_records": len(event.get("Records", [])),
+                    },
+                )
 
                 # Start ingestion job for the knowledge base
+                ingestion_start_time = time.time()
                 response = bedrock_agent.start_ingestion_job(
                     knowledgeBaseId=knowledge_base_id,
                     dataSourceId=data_source_id,
                     description=f"Auto-sync triggered by S3 event: {event_name} on {key}",
                 )
+                ingestion_request_time = time.time() - ingestion_start_time
 
+                # Extract job information
                 job_id = response["ingestionJob"]["ingestionJobId"]
-                logger.info(f"Started ingestion job {job_id} for knowledge base {knowledge_base_id}")
+                job_status = response["ingestionJob"]["status"]
 
-        return {"statusCode": 200, "body": "Ingestion triggered successfully"}
+                logger.info(
+                    "Successfully started ingestion job",
+                    extra={
+                        "job_id": job_id,
+                        "job_status": job_status,
+                        "knowledge_base_id": knowledge_base_id,
+                        "file_key": key,
+                        "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
+                    },
+                )
+
+                # Track processed files and job IDs for summary
+                processed_files.append(key)
+                job_ids.append(job_id)
+            else:
+                logger.warning(
+                    "Skipping non-S3 event",
+                    extra={"event_source": record.get("eventSource"), "record_index": record_index + 1},
+                )
+
+        # Calculate total processing time
+        total_duration = time.time() - start_time
+
+        # Log successful completion summary
+        logger.info(
+            "Knowledge base sync completed successfully",
+            extra={
+                "total_files_processed": len(processed_files),
+                "job_ids": job_ids,
+                "processed_files": processed_files,
+                "total_duration_ms": round(total_duration * 1000, 2),
+                "knowledge_base_id": knowledge_base_id,
+            },
+        )
+
+        return {
+            "statusCode": 200,
+            "body": f"Successfully triggered {len(job_ids)} ingestion job(s) for {len(processed_files)} file(s)",
+        }
 
     except ClientError as e:
-        logger.error(f"AWS service error: {e}")
-        return {"statusCode": 500, "body": f"AWS error: {str(e)}"}
+        # Handle AWS service errors with detailed logging
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        error_message = e.response.get("Error", {}).get("Message", str(e))
+
+        logger.error(
+            "AWS service error occurred",
+            extra={
+                "error_code": error_code,
+                "error_message": error_message,
+                "knowledge_base_id": knowledge_base_id,
+                "data_source_id": data_source_id,
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+            },
+        )
+        return {"statusCode": 500, "body": f"AWS error: {error_code} - {error_message}"}
+
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return {"statusCode": 500, "body": f"Error: {str(e)}"}
+        # Handle unexpected errors
+        logger.error(
+            "Unexpected error occurred",
+            extra={
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+            },
+        )
+        return {"statusCode": 500, "body": f"Unexpected error: {str(e)}"}
