@@ -133,6 +133,9 @@ export class EpsAssistMeStack extends Stack {
       vectorKB.dataSource.attrDataSourceId
     )
 
+    // Grant S3 bucket permission to invoke the sync Lambda function
+    storage.kbDocsBucket.bucket.grantRead(functions.functions.syncKnowledgeBase.function)
+
     // Add S3 event source mapping to sync Lambda function
     functions.functions.syncKnowledgeBase.function.addEventSource(
       new S3EventSource(storage.kbDocsBucket.bucket, {
