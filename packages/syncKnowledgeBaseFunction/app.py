@@ -11,7 +11,7 @@ bedrock_agent = boto3.client("bedrock-agent")
 
 
 @logger.inject_lambda_context
-def lambda_handler(event, context):
+def handler(event, context):
     """
     Lambda handler for S3 events that triggers knowledge base ingestion.
     """
