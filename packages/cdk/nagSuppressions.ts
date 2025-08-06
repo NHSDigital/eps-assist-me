@@ -214,29 +214,14 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress AWS managed policy usage in BucketNotificationsHandler
+  // Suppress custom resource IAM permissions for S3 Lambda notification
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
-        appliesTo: [
-          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions for BucketNotificationsHandler default policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/S3ToSyncKnowledgeBase/BucketNotification/CustomResourcePolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
+        reason: "Custom resource requires wildcard permissions to manage S3 bucket notifications and Lambda permissions.",
         appliesTo: [
           "Resource::*"
         ]
@@ -244,26 +229,16 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress Lambda function public access for S3 service principal
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/S3ToSyncKnowledgeBaseLambdaPermission",
+    "/EpsAssistMeStack/S3ToSyncKnowledgeBase/LambdaPermission/CustomResourcePolicy/Resource",
     [
       {
-        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
-        reason: "S3 service principal access is required for bucket notifications to trigger Lambda function."
-      }
-    ]
-  )
-
-  // Suppress Lambda function public access for S3 bucket notifications
-  safeAddNagSuppression(
-    stack,
-    `/EpsAssistMeStack/Storage/DocsBucket/${stackName}-Docs/AllowBucketNotificationsToEpsAssistMeStackFunctionsSyncKnowledgeBaseFunctionepsamSyncKnowledgeBaseFunction94D011F3`,
-    [
-      {
-        id: "LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED",
-        reason: "S3 service principal access is required for bucket notifications to trigger Lambda function."
+        id: "AwsSolutions-IAM5",
+        reason: "Custom resource requires wildcard permissions to manage Lambda permissions.",
+        appliesTo: [
+          "Resource::*"
+        ]
       }
     ]
   )
