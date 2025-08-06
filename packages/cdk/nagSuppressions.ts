@@ -61,8 +61,8 @@ export const nagSuppressions = (stack: Stack) => {
           "Action::s3:GetBucket*",
           "Action::s3:GetObject*",
           "Action::s3:List*",
-          `Resource::<StorageDocsBucket${stackName}Docs075F648F.Arn>/*`,
-          `Resource::<StorageDocsBucket${stackName}DocsF25F63F1.Arn>/*`
+          "Resource::<StorageDocsBucketepsampr20Docs075F648F.Arn>/*",
+          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*"
         ]
       }
     ]
