@@ -18,12 +18,14 @@ export interface FunctionsProps {
   logLevel: string
   createIndexManagedPolicy: ManagedPolicy
   slackBotManagedPolicy: ManagedPolicy
+  syncKnowledgeBaseManagedPolicy: ManagedPolicy
   slackBotTokenParameter: StringParameter
   slackSigningSecretParameter: StringParameter
   guardrailId: string
   guardrailVersion: string
   collectionId: string
   knowledgeBaseId: string
+  dataSourceId: string
   region: string
   account: string
   slackBotTokenSecret: Secret
@@ -74,9 +76,25 @@ export class Functions extends Construct {
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 
+    // Lambda function to sync knowledge base on S3 events
+    const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {
+      stackName: props.stackName,
+      functionName: `${props.stackName}-SyncKnowledgeBaseFunction`,
+      packageBasePath: "packages/syncKnowledgeBaseFunction",
+      entryPoint: "app.py",
+      logRetentionInDays: props.logRetentionInDays,
+      logLevel: props.logLevel,
+      environmentVariables: {
+        "KNOWLEDGEBASE_ID": props.knowledgeBaseId || "placeholder",
+        "DATA_SOURCE_ID": props.dataSourceId || "placeholder"
+      },
+      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
+    })
+
     this.functions = {
       createIndex: createIndexFunction,
-      slackBot: slackBotLambda
+      slackBot: slackBotLambda,
+      syncKnowledgeBase: syncKnowledgeBaseFunction
     }
   }
 }

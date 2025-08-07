@@ -13,6 +13,7 @@ import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
+import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -42,6 +43,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create Secrets construct
     const secrets = new Secrets(this, "Secrets", {
+      stackName: props.stackName,
       slackBotToken,
       slackSigningSecret
     })
@@ -50,7 +52,9 @@ export class EpsAssistMeStack extends Stack {
     // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
     // - IamResources creates the Bedrock role that needs S3 access permissions
     // - KMS permissions are added manually after both constructs exist
-    const storage = new Storage(this, "Storage")
+    const storage = new Storage(this, "Storage", {
+      stackName: props.stackName
+    })
 
     // Create IAM Resources
     const iamResources = new IamResources(this, "IamResources", {
@@ -63,6 +67,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
+      stackName: props.stackName,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       account
     })
@@ -78,12 +83,14 @@ export class EpsAssistMeStack extends Stack {
       logLevel,
       createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
       slackBotManagedPolicy: iamResources.slackBotManagedPolicy,
+      syncKnowledgeBaseManagedPolicy: iamResources.syncKnowledgeBaseManagedPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: "", // Will be set after vector KB is created
       guardrailVersion: "", // Will be set after vector KB is created
       collectionId: openSearchResources.collection.collection.attrId,
       knowledgeBaseId: "", // Will be set after vector KB is created
+      dataSourceId: "", // Will be set after vector KB is created
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
@@ -100,6 +107,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create VectorKnowledgeBase construct after vector index
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
       docsBucket: storage.kbDocsBucket.bucket,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
@@ -113,6 +121,22 @@ export class EpsAssistMeStack extends Stack {
     functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_ID", vectorKB.guardrail.attrGuardrailId)
     functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_VERSION", vectorKB.guardrail.attrVersion)
     functions.functions.slackBot.function.addEnvironment("KNOWLEDGEBASE_ID", vectorKB.knowledgeBase.attrKnowledgeBaseId)
+
+    // Update SyncKnowledgeBase Lambda environment variables with vector KB info
+    functions.functions.syncKnowledgeBase.function.addEnvironment(
+      "KNOWLEDGEBASE_ID",
+      vectorKB.knowledgeBase.attrKnowledgeBaseId
+    )
+    functions.functions.syncKnowledgeBase.function.addEnvironment(
+      "DATA_SOURCE_ID",
+      vectorKB.dataSource.attrDataSourceId
+    )
+
+    // Add S3 notification to trigger sync Lambda function
+    new S3LambdaNotification(this, "S3LambdaNotification", {
+      bucket: storage.kbDocsBucket.bucket,
+      lambdaFunction: functions.functions.syncKnowledgeBase.function
+    })
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
