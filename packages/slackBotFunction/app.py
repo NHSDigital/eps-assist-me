@@ -7,6 +7,10 @@ from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+# In-memory cache for processed events (Lambda container reuse)
+processed_events = set()
+MAX_PROCESSED_EVENTS = 1000  # Prevent memory growth
+
 # Initialize Powertools Logger
 logger = Logger(service="slackBotFunction")
 
@@ -43,40 +47,23 @@ logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
 def log_request(slack_logger, body, next):
     """
     Middleware to log incoming Slack requests using AWS Lambda Powertools logger.
-    Note: This uses the global AWS Lambda Powertools logger instead of the default Slack Bolt logger
-    to maintain consistent logging across the application.
     """
     logger.debug("Slack request received", extra={"body": body})
     return next()
 
 
-def respond_to_mention_within_3_seconds(event, say):
+def manage_processed_events_cache():
     """
-    Slack Bot @mention requires an Ack response within 3 seconds or it
-    messages an operation timeout error to the user in the chat thread.
-
-    The SlackBolt library provides a Async Ack function then re-invokes this Lambda
-    to LazyLoad the process_mention_request that calls the Bedrock KB RetrieveAndGenerate API.
-
-    This function is called initially to acknowledge the @mention within 3 secs.
+    Manage the size of processed_events cache to prevent memory issues.
     """
-    try:
-        user_query = event["text"]
-        user_id = event["user"]
-        thread_ts = event.get("thread_ts", event["ts"])
-
-        logger.info(
-            f"Acknowledging @mention from user {user_id}",
-            extra={"user_query": user_query, "thread_ts": thread_ts},
-        )
-
-    except Exception as err:
-        logger.error(f"Error acknowledging @mention: {err}")
-        thread_ts = event.get("thread_ts", event["ts"])
-        say(text="Sorry, an error occurred. Please try again later.", thread_ts=thread_ts)
+    global processed_events
+    if len(processed_events) > MAX_PROCESSED_EVENTS:
+        # Keep only the most recent half to prevent memory growth
+        processed_events = set(list(processed_events)[-MAX_PROCESSED_EVENTS // 2 :])
+        logger.info(f"Cleaned processed_events cache, now has {len(processed_events)} items")
 
 
-def process_mention_request(event, say):
+def process_mention_request(event, say, event_id):
     """
     Process the @mention user query and proxy the query to Bedrock Knowledge base RetrieveAndGenerate API
     and return the response to Slack to be presented in the thread.
@@ -95,7 +82,7 @@ def process_mention_request(event, say):
 
         logger.info(
             f"Processing @mention from user {user_id}",
-            extra={"user_query": user_query, "thread_ts": thread_ts},
+            extra={"user_query": user_query, "thread_ts": thread_ts, "event_id": event_id},
         )
 
         if not user_query:
@@ -112,8 +99,8 @@ def process_mention_request(event, say):
         say(text=response_text, thread_ts=thread_ts)
 
     except Exception as err:
-        logger.error(f"Error processing @mention: {err}")
-        thread_ts = event.get("thread_ts", event["ts"])
+        logger.error(f"Error processing @mention: {err}", extra={"event_id": event_id})
+        thread_ts = event.get("thread_ts", event.get("ts"))
         say(text="Sorry, an error occurred while processing your request. Please try again later.", thread_ts=thread_ts)
 
 
@@ -156,21 +143,60 @@ def get_bedrock_knowledgebase_response(user_query):
 
 # Handle @mentions in channels and DMs
 @app.event("app_mention")
-def handle_app_mention(event, say):
+def handle_app_mention(event, say, ack, body):
     """Handle when the bot is @mentioned"""
-    respond_to_mention_within_3_seconds(event, say)
-    # Process the actual request asynchronously
-    process_mention_request(event, say)
+    # Use the official event_id from Slack for deduplication
+    event_id = body.get("event_id")
+
+    # Check if we've already processed this event
+    if event_id in processed_events:
+        logger.info(f"Skipping duplicate event {event_id}")
+        ack()
+        return
+
+    # Mark event as processed and manage cache size
+    processed_events.add(event_id)
+    manage_processed_events_cache()
+
+    # Acknowledge immediately to prevent Slack retries
+    ack()
+
+    # Log the acknowledgment
+    user_id = event.get("user", "unknown")
+    logger.info(f"Acknowledged @mention from user {user_id}", extra={"event_id": event_id})
+
+    # Process the actual request
+    process_mention_request(event, say, event_id)
 
 
 # Handle direct messages
 @app.event("message")
-def handle_direct_message(event, say):
+def handle_direct_message(event, say, ack, body):
     """Handle direct messages to the bot"""
     # Only respond to direct messages (not channel messages)
     if event.get("channel_type") == "im":
-        respond_to_mention_within_3_seconds(event, say)
-        process_mention_request(event, say)
+        # Use the official event_id from Slack for deduplication
+        event_id = body.get("event_id")
+
+        # Check if we've already processed this event
+        if event_id in processed_events:
+            logger.info(f"Skipping duplicate DM event {event_id}")
+            ack()
+            return
+
+        # Mark event as processed and manage cache size
+        processed_events.add(event_id)
+        manage_processed_events_cache()
+
+        # Acknowledge immediately to prevent Slack retries
+        ack()
+
+        # Log the acknowledgment
+        user_id = event.get("user", "unknown")
+        logger.info(f"Acknowledged DM from user {user_id}", extra={"event_id": event_id})
+
+        # Process the actual request
+        process_mention_request(event, say, event_id)
 
 
 # Lambda handler method.
