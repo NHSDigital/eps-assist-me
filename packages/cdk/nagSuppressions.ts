@@ -61,7 +61,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress unauthenticated API route warnings
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/events/POST/Resource",
     [
       {
         id: "AwsSolutions-APIG4",
