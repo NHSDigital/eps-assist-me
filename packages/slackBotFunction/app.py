@@ -43,12 +43,14 @@ logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
 def log_request(slack_logger, body, next):
     """
     Middleware to log incoming Slack requests using AWS Lambda Powertools logger.
+    Note: This uses the global AWS Lambda Powertools logger instead of the default Slack Bolt logger
+    to maintain consistent logging across the application.
     """
     logger.debug("Slack request received", extra={"body": body})
     return next()
 
 
-def respond_to_mention_within_3_seconds(message, say):
+def respond_to_mention_within_3_seconds(event, say):
     """
     Slack Bot @mention requires an Ack response within 3 seconds or it
     messages an operation timeout error to the user in the chat thread.
@@ -59,9 +61,9 @@ def respond_to_mention_within_3_seconds(message, say):
     This function is called initially to acknowledge the @mention within 3 secs.
     """
     try:
-        user_query = message["text"]
-        user_id = message["user"]
-        thread_ts = message.get("thread_ts", message["ts"])  # Use thread_ts if in thread, otherwise use message ts
+        user_query = event["text"]
+        user_id = event["user"]
+        thread_ts = event.get("thread_ts", event["ts"])  # Use thread_ts if in thread, otherwise use message ts
 
         logger.info(
             f"Acknowledging @mention from user {user_id}",
@@ -73,20 +75,20 @@ def respond_to_mention_within_3_seconds(message, say):
 
     except Exception as err:
         logger.error(f"Error acknowledging @mention: {err}")
-        thread_ts = message.get("thread_ts", message["ts"])
+        thread_ts = event.get("thread_ts", event["ts"])
         say(text="Sorry, an error occurred. Please try again later.", thread_ts=thread_ts)
 
 
-def process_mention_request(message, say):
+def process_mention_request(event, say):
     """
     Process the @mention user query and proxy the query to Bedrock Knowledge base RetrieveAndGenerate API
     and return the response to Slack to be presented in the thread.
     """
     try:
         # Extract the user's query, removing the bot mention
-        raw_text = message["text"]
-        user_id = message["user"]
-        thread_ts = message.get("thread_ts", message["ts"])  # Use thread_ts if in thread, otherwise use message ts
+        raw_text = event["text"]
+        user_id = event["user"]
+        thread_ts = event.get("thread_ts", event["ts"])  # Use thread_ts if in thread, otherwise use message ts
 
         # Remove bot mention from the text to get clean query
         # Bot mentions come in format <@U1234567890> or <@U1234567890|botname>
@@ -114,7 +116,7 @@ def process_mention_request(message, say):
 
     except Exception as err:
         logger.error(f"Error processing @mention: {err}")
-        thread_ts = message.get("thread_ts", message["ts"])
+        thread_ts = event.get("thread_ts", event["ts"])
         say(text="Sorry, an error occurred while processing your request. Please try again later.", thread_ts=thread_ts)
 
 
@@ -157,21 +159,21 @@ def get_bedrock_knowledgebase_response(user_query):
 
 # Handle @mentions in channels and DMs
 @app.event("app_mention")
-def handle_app_mention(message, say):
+def handle_app_mention(event, say):
     """Handle when the bot is @mentioned"""
-    respond_to_mention_within_3_seconds(message, say)
+    respond_to_mention_within_3_seconds(event, say)
     # Process the actual request asynchronously
-    process_mention_request(message, say)
+    process_mention_request(event, say)
 
 
 # Handle direct messages
 @app.event("message")
-def handle_direct_message(message, say):
+def handle_direct_message(event, say):
     """Handle direct messages to the bot"""
     # Only respond to direct messages (not channel messages)
-    if message.get("channel_type") == "im":
-        respond_to_mention_within_3_seconds(message, say)
-        process_mention_request(message, say)
+    if event.get("channel_type") == "im":
+        respond_to_mention_within_3_seconds(event, say)
+        process_mention_request(event, say)
 
 
 # Lambda handler method.
