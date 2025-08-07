@@ -53,13 +53,13 @@ def log_request(slack_logger, body, next):
     return next()
 
 
-def trigger_async_processing(event_data, context):
+def trigger_async_processing(event_data):
     """
     Trigger async processing of the Slack event to avoid timeout issues.
     """
     lambda_client = boto3.client("lambda")
     lambda_client.invoke(
-        FunctionName=context.function_name,
+        FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
         InvocationType="Event",
         Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
     )
@@ -142,7 +142,7 @@ def process_async_slack_event(slack_event_data):
 
 # Handle @mentions in channels and DMs
 @app.event("app_mention")
-def handle_app_mention(event, say, ack, body, context):
+def handle_app_mention(event, ack, body):
     """Handle when the bot is @mentioned"""
     event_id = body.get("event_id")
 
@@ -163,12 +163,12 @@ def handle_app_mention(event, say, ack, body, context):
     logger.info(f"Acknowledged @mention from user {user_id}", extra={"event_id": event_id})
 
     # Trigger async processing
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token}, context)
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 # Handle direct messages
 @app.event("message")
-def handle_direct_message(event, say, ack, body, context):
+def handle_direct_message(event, ack, body):
     """Handle direct messages to the bot"""
     # Only respond to direct messages (not channel messages)
     if event.get("channel_type") == "im":
@@ -191,7 +191,7 @@ def handle_direct_message(event, say, ack, body, context):
         logger.info(f"Acknowledged DM from user {user_id}", extra={"event_id": event_id})
 
         # Trigger async processing
-        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token}, context)
+        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 @logger.inject_lambda_context
