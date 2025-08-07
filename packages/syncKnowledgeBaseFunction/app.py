@@ -176,7 +176,7 @@ def handler(event, context):
             )
             return {
                 "statusCode": 409,
-                "body": "Files uploaded successfully - processing by existing ingestion job",
+                "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
             }
         else:
             logger.error(
