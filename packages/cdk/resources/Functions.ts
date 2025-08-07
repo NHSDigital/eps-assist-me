@@ -28,6 +28,7 @@ export interface FunctionsProps {
   readonly account: string
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
+  readonly conversationTableName: string
 }
 
 export class Functions extends Construct {
@@ -66,7 +67,8 @@ export class Functions extends Construct {
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
         "GUARD_RAIL_ID": props.guardrailId || "placeholder",
-        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder"
+        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder",
+        "CONVERSATION_TABLE_NAME": props.conversationTableName
       }
     })
 

@@ -61,7 +61,9 @@ export class EpsAssistMeStack extends Stack {
       account,
       kbDocsBucket: storage.kbDocsBucket.bucket,
       slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
-      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName
+      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
+      conversationTableArn: storage.conversationTable.table.tableArn,
+      conversationKeyArn: storage.conversationKey.keyArn
     })
 
     // Create OpenSearch Resources
@@ -91,7 +93,8 @@ export class EpsAssistMeStack extends Stack {
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
-      slackBotSigningSecret: secrets.slackBotSigningSecret
+      slackBotSigningSecret: secrets.slackBotSigningSecret,
+      conversationTableName: storage.conversationTable.table.tableName
     })
 
     // Create vector index
