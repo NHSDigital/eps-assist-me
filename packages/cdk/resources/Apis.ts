@@ -27,15 +27,17 @@ export class Apis extends Construct {
     // Create /slack resource path
     const slackResource = apiGateway.api.root.addResource("slack")
 
-    // Create the '/slack/ask-eps' POST endpoint and integrate it with the SlackBot Lambda
+    // Create the '/slack/events' POST endpoint for Slack Events API
+    // This endpoint will handle @mentions, direct messages, and other Slack events
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const slackAskEpsEndpoint = new LambdaEndpoint(this, "SlackAskEpsEndpoint", {
+    const slackEventsEndpoint = new LambdaEndpoint(this, "SlackEventsEndpoint", {
       parentResource: slackResource,
-      resourceName: "ask-eps",
+      resourceName: "events",
       method: HttpMethod.POST,
       restApiGatewayRole: apiGateway.role,
       lambdaFunction: props.functions.slackBot
     })
+
     this.apis = {
       api: apiGateway
     }

@@ -6,7 +6,6 @@ import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 
 // Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
-const SLACK_SLASH_COMMAND = "/ask-eps"
 const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
 const LAMBDA_MEMORY_SIZE = "265"
 
@@ -48,7 +47,7 @@ export class Functions extends Construct {
       additionalPolicies: [props.createIndexManagedPolicy]
     })
 
-    // Lambda function to handle Slack bot interactions
+    // Lambda function to handle Slack bot interactions (events and @mentions)
     const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
       functionName: `${props.stackName}-SlackBotFunction`,
@@ -59,7 +58,6 @@ export class Functions extends Construct {
       additionalPolicies: [props.slackBotManagedPolicy],
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
-        "SLACK_SLASH_COMMAND": SLACK_SLASH_COMMAND,
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId || "placeholder",
         "BEDROCK_KB_DATA_SOURCE": BEDROCK_KB_DATA_SOURCE,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,

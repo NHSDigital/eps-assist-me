@@ -130,8 +130,9 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Output: SlackBot Endpoint
-    new CfnOutput(this, "SlackBotEndpoint", {
-      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/ask-eps`
+    new CfnOutput(this, "SlackBotEventsEndpoint", {
+      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
+      description: "Slack Events API endpoint for @mentions and direct messages"
     })
 
     // Final CDK Nag Suppressions
