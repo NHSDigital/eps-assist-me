@@ -18,6 +18,8 @@ export interface IamResourcesProps {
   readonly kbDocsBucket: Bucket
   readonly slackBotTokenParameterName: string
   readonly slackSigningSecretParameterName: string
+  readonly conversationTableArn: string
+  readonly conversationKeyArn: string
 }
 
 export class IamResources extends Construct {
@@ -148,14 +150,42 @@ export class IamResources extends Construct {
       resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
     })
 
+    // DynamoDB permissions for conversation session storage
+    const slackBotDynamoPolicy = new PolicyStatement({
+      actions: [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query"
+      ],
+      resources: [
+        props.conversationTableArn,
+        `${props.conversationTableArn}/index/*`
+      ]
+    })
+
+    // KMS permissions for conversation table encryption
+    const slackBotConversationKmsPolicy = new PolicyStatement({
+      actions: [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey"
+      ],
+      resources: [props.conversationKeyArn]
+    })
+
     this.slackBotManagedPolicy = new ManagedPolicy(this, "SlackBotManagedPolicy", {
-      description: "Policy for SlackBot Lambda to access Bedrock, SSM, and Lambda",
+      description: "Policy for SlackBot Lambda to access Bedrock, SSM, Lambda, and DynamoDB",
       statements: [
         slackBotPolicy,
         slackBotKnowledgeBasePolicy,
         slackBotSSMPolicy,
         slackBotLambdaPolicy,
-        slackBotGuardrailPolicy
+        slackBotGuardrailPolicy,
+        slackBotDynamoPolicy,
+        slackBotConversationKmsPolicy
       ]
     })
   }
