@@ -32,7 +32,7 @@ def handler(event, context):
         logger.error(
             "Missing required environment variables",
             extra={
-                "statusCode": 500,
+                "status_code": 500,
                 "knowledge_base_id": bool(knowledge_base_id),
                 "data_source_id": bool(data_source_id),
             },
@@ -132,7 +132,7 @@ def handler(event, context):
         logger.info(
             "Knowledge base sync process completed",
             extra={
-                "statusCode": 200,
+                "status_code": 200,
                 "trigger_files_processed": len(processed_files),
                 "ingestion_jobs_started": len(job_ids),
                 "job_ids": job_ids,
@@ -158,15 +158,17 @@ def handler(event, context):
         # Handling for ConflictException
         if error_code == "ConflictException":
             logger.warning(
-                "Ingestion job already in progress",
+                "Ingestion job already in progress - no action required",
                 extra={
                     "status_code": 409,
                     "error_code": error_code,
                     "error_message": error_message,
+                    "description": "Files uploaded successfully and will be processed by existing ingestion job",
+                    "action_required": "none",
                     "knowledge_base_id": knowledge_base_id,
                     "data_source_id": data_source_id,
                     "duration_ms": round((time.time() - start_time) * 1000, 2),
-                    "recommendation": (
+                    "explanation": (
                         "This is normal when multiple files are uploaded quickly. "
                         "The running job will process all files."
                     ),
@@ -174,7 +176,7 @@ def handler(event, context):
             )
             return {
                 "statusCode": 409,
-                "body": "Ingestion job already in progress - files will be processed by existing job",
+                "body": "Files uploaded successfully - processing by existing ingestion job",
             }
         else:
             logger.error(
