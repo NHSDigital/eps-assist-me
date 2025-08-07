@@ -11,23 +11,24 @@ const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
 const LAMBDA_MEMORY_SIZE = "265"
 
 export interface FunctionsProps {
-  stackName: string
-  version: string
-  commitId: string
-  logRetentionInDays: number
-  logLevel: string
-  createIndexManagedPolicy: ManagedPolicy
-  slackBotManagedPolicy: ManagedPolicy
-  slackBotTokenParameter: StringParameter
-  slackSigningSecretParameter: StringParameter
-  guardrailId: string
-  guardrailVersion: string
-  collectionId: string
-  knowledgeBaseId: string
-  region: string
-  account: string
-  slackBotTokenSecret: Secret
-  slackBotSigningSecret: Secret
+  readonly stackName: string
+  readonly version: string
+  readonly commitId: string
+  readonly logRetentionInDays: number
+  readonly logLevel: string
+  readonly createIndexManagedPolicy: ManagedPolicy
+  readonly slackBotManagedPolicy: ManagedPolicy
+  readonly slackBotTokenParameter: StringParameter
+  readonly slackSigningSecretParameter: StringParameter
+  readonly guardrailId: string
+  readonly guardrailVersion: string
+  readonly collectionId: string
+  readonly knowledgeBaseId: string
+  readonly region: string
+  readonly account: string
+  readonly slackBotTokenSecret: Secret
+  readonly slackBotSigningSecret: Secret
+  readonly conversationTableName: string
 }
 
 export class Functions extends Construct {
@@ -66,7 +67,8 @@ export class Functions extends Construct {
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
         "GUARD_RAIL_ID": props.guardrailId || "placeholder",
-        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder"
+        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder",
+        "CONVERSATION_TABLE_NAME": props.conversationTableName
       }
     })
 

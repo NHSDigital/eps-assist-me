@@ -9,9 +9,9 @@ import {
 import {Key} from "aws-cdk-lib/aws-kms"
 
 export interface S3BucketProps {
-  bucketName: string
-  kmsKey: Key
-  versioned: boolean
+  readonly bucketName: string
+  readonly kmsKey: Key
+  readonly versioned: boolean
 }
 
 export class S3Bucket extends Construct {

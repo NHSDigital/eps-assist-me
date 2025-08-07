@@ -10,6 +10,8 @@ install: install-python install-hooks install-node
 
 install-python:
 	poetry install
+	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
+	cd packages/createIndexFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 
 install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
@@ -27,7 +29,7 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
-lint: lint-githubactions lint-githubaction-scripts
+lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8
 
 lint-githubactions:
 	actionlint
@@ -36,12 +38,26 @@ lint-githubaction-scripts:
 	shellcheck ./scripts/*.sh
 	shellcheck .github/scripts/*.sh
 
-test: compile-node
+lint-black:
+	poetry run black .
+
+lint-flake8:
+	poetry run flake8 .
+
+test: compile-node test-lambda
 	npm run test --workspace packages/cdk
+
+test-lambda:
+	cd packages/slackBotFunction && PYTHONPATH=. python -m pytest tests/ -v
+	cd packages/createIndexFunction && PYTHONPATH=. python -m pytest tests/ -v
 
 clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
+	rm -rf packages/slackBotFunction/coverage
+	rm -rf packages/slackBotFunction/.coverage
+	rm -rf packages/createIndexFunction/coverage
+	rm -rf packages/createIndexFunction/.coverage
 	rm -rf cdk.out
 	rm -rf .build
 
@@ -66,7 +82,7 @@ aws-login:
 cfn-guard:
 	./scripts/run_cfn_guard.sh
 
-cdk-deploy: guard-stack_name
+cdk-deploy: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -76,7 +92,7 @@ cdk-deploy: guard-stack_name
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
@@ -99,12 +115,12 @@ cdk-diff:
 	npx cdk diff \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-watch: guard-stack_name
+cdk-watch: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -115,7 +131,7 @@ cdk-watch: guard-stack_name
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
