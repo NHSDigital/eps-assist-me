@@ -63,15 +63,12 @@ def respond_to_mention_within_3_seconds(event, say):
     try:
         user_query = event["text"]
         user_id = event["user"]
-        thread_ts = event.get("thread_ts", event["ts"])  # Use thread_ts if in thread, otherwise use message ts
+        thread_ts = event.get("thread_ts", event["ts"])
 
         logger.info(
             f"Acknowledging @mention from user {user_id}",
             extra={"user_query": user_query, "thread_ts": thread_ts},
         )
-
-        # Respond in thread with a processing message
-        say(text="Processing your request...", thread_ts=thread_ts)
 
     except Exception as err:
         logger.error(f"Error acknowledging @mention: {err}")
