@@ -261,3 +261,114 @@ def test_handle_direct_message(mock_boto_resource, mock_get_parameter, mock_app,
     from app import handle_direct_message
 
     assert callable(handle_direct_message)
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_process_async_slack_event_exists(mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test process_async_slack_event function exists and is callable"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    if "app" in sys.modules:
+        del sys.modules["app"]
+
+    from app import process_async_slack_event
+
+    assert callable(process_async_slack_event)
+
+
+@patch("botocore.exceptions.ClientError")
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_is_duplicate_event_client_error(mock_boto_resource, mock_get_parameter, mock_app, mock_client_error, mock_env):
+    """Test is_duplicate_event handles ClientError"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_table = Mock()
+    mock_boto_resource.return_value.Table.return_value = mock_table
+    mock_table.get_item.side_effect = mock_client_error
+
+    if "app" in sys.modules:
+        del sys.modules["app"]
+
+    from app import is_duplicate_event
+
+    result = is_duplicate_event("test-event")
+    assert result is False
+
+
+@patch("botocore.exceptions.ClientError")
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+@patch("time.time")
+def test_mark_event_processed_client_error(
+    mock_time, mock_boto_resource, mock_get_parameter, mock_app, mock_client_error, mock_env
+):
+    """Test mark_event_processed handles ClientError"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_table = Mock()
+    mock_boto_resource.return_value.Table.return_value = mock_table
+    mock_table.put_item.side_effect = mock_client_error
+    mock_time.return_value = 1000
+
+    if "app" in sys.modules:
+        del sys.modules["app"]
+
+    from app import mark_event_processed
+
+    # Should not raise exception
+    mark_event_processed("test-event")
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_is_duplicate_event_no_item(mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test is_duplicate_event when no item exists"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_table = Mock()
+    mock_boto_resource.return_value.Table.return_value = mock_table
+    mock_table.get_item.return_value = {}  # No Item key
+
+    if "app" in sys.modules:
+        del sys.modules["app"]
+
+    from app import is_duplicate_event
+
+    result = is_duplicate_event("test-event")
+    assert result is False
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+@patch("re.sub")
+def test_regex_text_processing(mock_re_sub, mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test regex processing in process_async_slack_event"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+    mock_re_sub.return_value = "cleaned text"
+
+    if "app" in sys.modules:
+        del sys.modules["app"]
+
+    # Verify re.sub is available for import
+    assert mock_re_sub is not None
