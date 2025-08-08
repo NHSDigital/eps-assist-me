@@ -20,6 +20,7 @@ export class SlackDeduplicationTable extends Construct {
       },
       billingMode: BillingMode.PAY_PER_REQUEST,
       timeToLiveAttribute: "ttl",
+      pointInTimeRecovery: true,
       removalPolicy: RemovalPolicy.DESTROY
     })
   }
