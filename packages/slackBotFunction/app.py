@@ -58,21 +58,18 @@ def log_request(slack_logger, body, next):
 
 
 def is_duplicate_event(event_id):
-    """Check if event has already been processed"""
-    try:
-        response = table.get_item(Key={"eventId": event_id})
-        return "Item" in response
-    except ClientError:
-        return False
-
-
-def mark_event_processed(event_id):
-    """Mark event as processed with TTL"""
+    """Check if event has already been processed using conditional put"""
     try:
         ttl = int(time.time()) + 3600  # 1 hour TTL
-        table.put_item(Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())})
+        table.put_item(
+            Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())},
+            ConditionExpression="attribute_not_exists(eventId)",
+        )
+        return False  # Item didn't exist, so not a duplicate
     except ClientError as e:
-        logger.error(f"Failed to mark event as processed: {e}")
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return True  # Item already exists, so it's a duplicate
+        return False
 
 
 def trigger_async_processing(event_data):
@@ -174,8 +171,6 @@ def handle_app_mention(event, ack, body):
     elif is_duplicate_event(event_id):
         logger.info(f"Duplicate event detected, skipping: {event_id}")
         return
-    else:
-        mark_event_processed(event_id)
 
     user_id = event.get("user", "unknown")
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
@@ -196,8 +191,6 @@ def handle_direct_message(event, ack, body):
         elif is_duplicate_event(event_id):
             logger.info(f"Duplicate event detected, skipping: {event_id}")
             return
-        else:
-            mark_event_processed(event_id)
 
         user_id = event.get("user", "unknown")
         logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
