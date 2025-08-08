@@ -192,6 +192,8 @@ def process_async_slack_event(slack_event_data):
 @deduplicate_event
 def handle_app_mention(event, ack, body):
     """Handle when the bot is @mentioned"""
+    ack()
+
     event_id = body.get("event_id")
     user_id = event.get("user", "unknown")
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
@@ -204,6 +206,8 @@ def handle_app_mention(event, ack, body):
 @deduplicate_event
 def handle_direct_message(event, ack, body):
     """Handle direct messages to the bot"""
+    ack()
+
     if event.get("channel_type") == "im":
         event_id = body.get("event_id")
         user_id = event.get("user", "unknown")
