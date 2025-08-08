@@ -7,10 +7,11 @@ import {CfnKnowledgeBase, CfnGuardrail, CfnDataSource} from "aws-cdk-lib/aws-bed
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 
 export interface VectorKnowledgeBaseProps {
-  docsBucket: Bucket
-  bedrockExecutionRole: Role
-  collectionArn: string
-  vectorIndexName: string
+  readonly stackName: string
+  readonly docsBucket: Bucket
+  readonly bedrockExecutionRole: Role
+  readonly collectionArn: string
+  readonly vectorIndexName: string
 }
 
 export class VectorKnowledgeBaseResources extends Construct {
@@ -22,7 +23,7 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     // Create Bedrock guardrail for content filtering
     this.guardrail = new CfnGuardrail(this, "Guardrail", {
-      name: "eps-assist-guardrail",
+      name: `${props.stackName}-guardrail`,
       description: "Guardrail for EPS Assist Me Slackbot",
       blockedInputMessaging: "Your input was blocked.",
       blockedOutputsMessaging: "Your output was blocked.",
@@ -54,7 +55,7 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     // Create vector knowledge base for document retrieval
     this.knowledgeBase = new CfnKnowledgeBase(this, "VectorKB", {
-      name: "eps-assist-kb",
+      name: `${props.stackName}-kb`,
       description: "Knowledge base for EPS Assist Me Slackbot",
       roleArn: props.bedrockExecutionRole.roleArn,
       knowledgeBaseConfiguration: {
@@ -82,7 +83,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     // Create S3 data source for knowledge base documents
     new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: this.knowledgeBase.attrKnowledgeBaseId,
-      name: "eps-assist-s3-datasource",
+      name: `${props.stackName}-s3-datasource`,
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {

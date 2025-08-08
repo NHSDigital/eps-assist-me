@@ -13,6 +13,7 @@ import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
+import {DatabaseTables} from "../resources/DatabaseTables"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -42,15 +43,23 @@ export class EpsAssistMeStack extends Stack {
 
     // Create Secrets construct
     const secrets = new Secrets(this, "Secrets", {
+      stackName: props.stackName,
       slackBotToken,
       slackSigningSecret
+    })
+
+    // Create DatabaseTables
+    const tables = new DatabaseTables(this, "DatabaseTables", {
+      stackName: props.stackName
     })
 
     // Create Storage construct without Bedrock execution role to avoid circular dependency:
     // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
     // - IamResources creates the Bedrock role that needs S3 access permissions
     // - KMS permissions are added manually after both constructs exist
-    const storage = new Storage(this, "Storage")
+    const storage = new Storage(this, "Storage", {
+      stackName: props.stackName
+    })
 
     // Create IAM Resources
     const iamResources = new IamResources(this, "IamResources", {
@@ -63,6 +72,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create OpenSearch Resources
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
+      stackName: props.stackName,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       account
     })
@@ -87,7 +97,8 @@ export class EpsAssistMeStack extends Stack {
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
-      slackBotSigningSecret: secrets.slackBotSigningSecret
+      slackBotSigningSecret: secrets.slackBotSigningSecret,
+      slackDeduplicationTable: tables.slackDeduplicationTable.table
     })
 
     // Create vector index
@@ -100,6 +111,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Create VectorKnowledgeBase construct after vector index
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
       docsBucket: storage.kbDocsBucket.bucket,
       bedrockExecutionRole: iamResources.bedrockExecutionRole,
       collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
@@ -125,8 +137,9 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Output: SlackBot Endpoint
-    new CfnOutput(this, "SlackBotEndpoint", {
-      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/ask-eps`
+    new CfnOutput(this, "SlackBotEventsEndpoint", {
+      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
+      description: "Slack Events API endpoint for @mentions and direct messages"
     })
 
     // Final CDK Nag Suppressions
