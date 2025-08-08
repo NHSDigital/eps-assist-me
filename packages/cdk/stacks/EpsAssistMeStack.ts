@@ -13,6 +13,7 @@ import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
+import {SlackDeduplicationTable} from "../resources/SlackDeduplicationTable"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -45,6 +46,11 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName,
       slackBotToken,
       slackSigningSecret
+    })
+
+    // Create Slack deduplication table
+    const slackDeduplicationTable = new SlackDeduplicationTable(this, "SlackDeduplicationTable", {
+      stackName: props.stackName
     })
 
     // Create Storage construct without Bedrock execution role to avoid circular dependency:
@@ -91,7 +97,8 @@ export class EpsAssistMeStack extends Stack {
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
-      slackBotSigningSecret: secrets.slackBotSigningSecret
+      slackBotSigningSecret: secrets.slackBotSigningSecret,
+      slackDeduplicationTable: slackDeduplicationTable.table
     })
 
     // Create vector index

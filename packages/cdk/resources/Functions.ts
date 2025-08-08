@@ -3,6 +3,7 @@ import {LambdaFunction} from "../constructs/LambdaFunction"
 import {ManagedPolicy} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
+import {Table} from "aws-cdk-lib/aws-dynamodb"
 
 // Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -27,6 +28,7 @@ export interface FunctionsProps {
   readonly account: string
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
+  readonly slackDeduplicationTable: Table
 }
 
 export class Functions extends Construct {
@@ -64,13 +66,17 @@ export class Functions extends Construct {
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
         "GUARD_RAIL_ID": props.guardrailId || "placeholder",
-        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder"
+        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder",
+        "SLACK_DEDUPLICATION_TABLE": props.slackDeduplicationTable.tableName
       }
     })
 
     // Grant secrets access to SlackBot Lambda
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
+
+    // Grant DynamoDB access to SlackBot Lambda
+    props.slackDeduplicationTable.grantReadWriteData(slackBotLambda.function)
 
     this.functions = {
       createIndex: createIndexFunction,

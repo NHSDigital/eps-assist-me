@@ -2,18 +2,22 @@ import os
 import re
 import json
 import boto3
+import time
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from slack_sdk import WebClient
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
 from aws_lambda_powertools.utilities.typing import LambdaContext
+from botocore.exceptions import ClientError
 
-# Simple deduplication cache for edge case retries
-processed_events = set()
 
 # Initialize Powertools Logger
 logger = Logger(service="slackBotFunction")
+
+# Initialize DynamoDB client
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(os.environ["SLACK_DEDUPLICATION_TABLE"])
 
 # Get parameter names from environment variables
 bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
@@ -51,6 +55,24 @@ def log_request(slack_logger, body, next):
     """
     logger.debug("Slack request received", extra={"body": body})
     return next()
+
+
+def is_duplicate_event(event_id):
+    """Check if event has already been processed"""
+    try:
+        response = table.get_item(Key={"eventId": event_id})
+        return "Item" in response
+    except ClientError:
+        return False
+
+
+def mark_event_processed(event_id):
+    """Mark event as processed with TTL"""
+    try:
+        ttl = int(time.time()) + 3600  # 1 hour TTL
+        table.put_item(Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())})
+    except ClientError as e:
+        logger.error(f"Failed to mark event as processed: {e}")
 
 
 def trigger_async_processing(event_data):
@@ -146,21 +168,17 @@ def handle_app_mention(event, ack, body):
     """Handle when the bot is @mentioned"""
     event_id = body.get("event_id")
 
-    # Check if we've already processed this event
-    if event_id in processed_events:
+    # Check for duplicate
+    if is_duplicate_event(event_id):
         logger.info(f"Skipping duplicate event {event_id}")
-        ack()
         return
 
-    # Mark event as processed
-    processed_events.add(event_id)
+    # Mark as processed
+    mark_event_processed(event_id)
 
-    # Acknowledge immediately to prevent Slack retries
-    ack()
-
-    # Log the acknowledgment
+    # Log the event
     user_id = event.get("user", "unknown")
-    logger.info(f"Acknowledged @mention from user {user_id}", extra={"event_id": event_id})
+    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
 
     # Trigger async processing
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
@@ -174,21 +192,17 @@ def handle_direct_message(event, ack, body):
     if event.get("channel_type") == "im":
         event_id = body.get("event_id")
 
-        # Check if we've already processed this event
-        if event_id in processed_events:
+        # Check for duplicate
+        if is_duplicate_event(event_id):
             logger.info(f"Skipping duplicate DM event {event_id}")
-            ack()
             return
 
-        # Mark event as processed
-        processed_events.add(event_id)
+        # Mark as processed
+        mark_event_processed(event_id)
 
-        # Acknowledge immediately to prevent Slack retries
-        ack()
-
-        # Log the acknowledgment
+        # Log the event
         user_id = event.get("user", "unknown")
-        logger.info(f"Acknowledged DM from user {user_id}", extra={"event_id": event_id})
+        logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
 
         # Trigger async processing
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
@@ -202,5 +216,13 @@ def handler(event: dict, context: LambdaContext) -> dict:
         process_async_slack_event(event["slack_event"])
         return {"statusCode": 200}
 
-    slack_handler = SlackRequestHandler(app=app)
-    return slack_handler.handle(event, context)
+    # Handle Slack events with no-retry header
+    try:
+        slack_handler = SlackRequestHandler(app=app)
+        slack_handler.handle(event, context)
+
+        # Return 202 with x-slack-no-retry header to prevent retries
+        return {"statusCode": 202, "headers": {"x-slack-no-retry": "1"}}
+    except Exception as e:
+        logger.error(f"Error handling Slack event: {e}")
+        return {"statusCode": 202, "headers": {"x-slack-no-retry": "1"}}
