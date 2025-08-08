@@ -44,10 +44,7 @@ lint-black:
 lint-flake8:
 	poetry run flake8 .
 
-test: compile-node test-lambda
-	npm run test --workspace packages/cdk
-
-test-lambda:
+test:
 	cd packages/slackBotFunction && PYTHONPATH=. python -m pytest tests/ -v
 	cd packages/createIndexFunction && PYTHONPATH=. python -m pytest tests/ -v
 

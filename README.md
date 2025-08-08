@@ -154,7 +154,7 @@ These are used to do common commands related to cdk
 - `lint-flake8` Runs flake8 linter on Python code.
 - `lint-githubactions` Lints the repository's GitHub Actions workflows.
 - `lint-githubaction-scripts` Lints all shell scripts in `.github/scripts` using ShellCheck.
-- `test` Runs unit tests for CDK code.
+- `test` Runs unit tests for Lambda functions.
 - `cfn-guard` Runs cfn-guard against CDK resources.
 - `pre-commit` Runs pre-commit hooks on all files.
 
