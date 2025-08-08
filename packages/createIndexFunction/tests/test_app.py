@@ -174,3 +174,133 @@ def test_handler_missing_parameters(mock_get_client, lambda_context):
 
     with pytest.raises(ValueError, match="Missing required parameters"):
         handler(event, lambda_context)
+
+
+@patch("boto3.Session")
+def test_get_opensearch_client_aoss(mock_session):
+    """Test OpenSearch client creation for AOSS"""
+    mock_session.return_value.get_credentials.return_value = Mock()
+
+    from app import get_opensearch_client
+
+    client = get_opensearch_client("test.aoss.amazonaws.com")
+
+    assert client is not None
+
+
+@patch("boto3.Session")
+def test_get_opensearch_client_es(mock_session):
+    """Test OpenSearch client creation for ES"""
+    mock_session.return_value.get_credentials.return_value = Mock()
+
+    from app import get_opensearch_client
+
+    client = get_opensearch_client("test.es.amazonaws.com")
+
+    assert client is not None
+
+
+@patch("time.sleep")
+@patch("time.time")
+def test_wait_for_index_aoss_timeout(mock_time, mock_sleep):
+    """Test index wait timeout"""
+    mock_client = Mock()
+    mock_client.indices.exists.return_value = False
+    mock_time.side_effect = [0, 400]  # Start time, then timeout
+
+    from app import wait_for_index_aoss
+
+    result = wait_for_index_aoss(mock_client, "test-index", timeout=300, poll_interval=5)
+
+    assert result is False
+
+
+@patch("time.sleep")
+@patch("time.time")
+def test_wait_for_index_aoss_exception(mock_time, mock_sleep):
+    """Test index wait with exception"""
+    mock_client = Mock()
+    mock_client.indices.exists.side_effect = Exception("Connection error")
+    mock_time.side_effect = [0, 400]  # Start time, then timeout
+
+    from app import wait_for_index_aoss
+
+    result = wait_for_index_aoss(mock_client, "test-index", timeout=300, poll_interval=5)
+
+    assert result is False
+
+
+@patch("app.wait_for_index_aoss")
+@patch("app.get_opensearch_client")
+def test_create_and_wait_for_index_wait_fails(mock_get_client, mock_wait, mock_opensearch_client):
+    """Test create index when wait fails"""
+    mock_get_client.return_value = mock_opensearch_client
+    mock_wait.return_value = False  # Wait fails
+
+    from app import create_and_wait_for_index
+
+    with pytest.raises(RuntimeError, match="failed to appear in time"):
+        create_and_wait_for_index(mock_opensearch_client, "test-index")
+
+
+@patch("app.get_opensearch_client")
+def test_handler_delete_index_not_exists(mock_get_client, lambda_context):
+    """Test handler for Delete request when index doesn't exist"""
+    mock_client = Mock()
+    mock_client.indices.exists.return_value = False
+    mock_get_client.return_value = mock_client
+
+    from app import handler
+
+    event = {
+        "RequestType": "Delete",
+        "Endpoint": "test-endpoint",
+        "IndexName": "test-index",
+    }
+
+    result = handler(event, lambda_context)
+
+    mock_client.indices.delete.assert_not_called()
+    assert result["Status"] == "SUCCESS"
+
+
+@patch("app.get_opensearch_client")
+def test_handler_delete_error(mock_get_client, lambda_context):
+    """Test handler for Delete request with error"""
+    mock_client = Mock()
+    mock_client.indices.exists.return_value = True
+    mock_client.indices.delete.side_effect = Exception("Delete error")
+    mock_get_client.return_value = mock_client
+
+    from app import handler
+
+    event = {
+        "RequestType": "Delete",
+        "Endpoint": "test-endpoint",
+        "IndexName": "test-index",
+    }
+
+    result = handler(event, lambda_context)
+
+    assert result["Status"] == "SUCCESS"  # Should still succeed
+
+
+@patch("json.loads")
+@patch("app.get_opensearch_client")
+@patch("app.create_and_wait_for_index")
+def test_handler_with_payload(mock_create_wait, mock_get_client, mock_json_loads, lambda_context):
+    """Test handler with Payload in event"""
+    mock_json_loads.return_value = {
+        "RequestType": "Create",
+        "Endpoint": "test-endpoint",
+        "IndexName": "test-index",
+    }
+
+    from app import handler
+
+    event = {"Payload": '{"RequestType": "Create", "Endpoint": "test-endpoint", "IndexName": "test-index"}'}
+
+    result = handler(event, lambda_context)
+
+    mock_json_loads.assert_called_once()
+    assert result["Status"] == "SUCCESS"

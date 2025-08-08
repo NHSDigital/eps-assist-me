@@ -45,8 +45,8 @@ lint-flake8:
 	poetry run flake8 .
 
 test:
-	cd packages/slackBotFunction && PYTHONPATH=. python -m pytest tests/ -v
-	cd packages/createIndexFunction && PYTHONPATH=. python -m pytest tests/ -v
+	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
+	cd packages/createIndexFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
