@@ -3,8 +3,6 @@ import re
 import json
 import boto3
 import time
-from functools import wraps
-from typing import Callable
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from slack_sdk import WebClient
@@ -75,29 +73,6 @@ def mark_event_processed(event_id):
         table.put_item(Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())})
     except ClientError as e:
         logger.error(f"Failed to mark event as processed: {e}")
-
-
-def deduplicate_event(func: Callable) -> Callable:
-    """
-    Decorator to deduplicate Slack events based on event_id from the request body.
-    Prevents re-processing of already handled events.
-    """
-
-    @wraps(func)
-    def wrapper(event, ack, body, *args, **kwargs):
-        event_id = body.get("event_id")
-        if not event_id:
-            logger.warning("Missing event_id in Slack event body.")
-            return func(event, ack, body, *args, **kwargs)
-
-        if is_duplicate_event(event_id):
-            logger.info(f"Duplicate event detected, skipping: {event_id}")
-            return
-
-        mark_event_processed(event_id)
-        return func(event, ack, body, *args, **kwargs)
-
-    return wrapper
 
 
 def trigger_async_processing(event_data):
@@ -189,12 +164,19 @@ def process_async_slack_event(slack_event_data):
 
 # Handle @mentions in channels and DMs
 @app.event("app_mention")
-@deduplicate_event
 def handle_app_mention(event, ack, body):
     """Handle when the bot is @mentioned"""
     ack()
 
     event_id = body.get("event_id")
+    if not event_id:
+        logger.warning("Missing event_id in Slack event body.")
+    elif is_duplicate_event(event_id):
+        logger.info(f"Duplicate event detected, skipping: {event_id}")
+        return
+    else:
+        mark_event_processed(event_id)
+
     user_id = event.get("user", "unknown")
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
 
@@ -203,13 +185,20 @@ def handle_app_mention(event, ack, body):
 
 # Handle direct messages
 @app.event("message")
-@deduplicate_event
 def handle_direct_message(event, ack, body):
     """Handle direct messages to the bot"""
     ack()
 
     if event.get("channel_type") == "im":
         event_id = body.get("event_id")
+        if not event_id:
+            logger.warning("Missing event_id in Slack event body.")
+        elif is_duplicate_event(event_id):
+            logger.info(f"Duplicate event detected, skipping: {event_id}")
+            return
+        else:
+            mark_event_processed(event_id)
+
         user_id = event.get("user", "unknown")
         logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
 
