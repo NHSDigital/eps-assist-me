@@ -3,6 +3,8 @@ import re
 import json
 import boto3
 import time
+from functools import wraps
+from typing import Callable
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from slack_sdk import WebClient
@@ -73,6 +75,29 @@ def mark_event_processed(event_id):
         table.put_item(Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())})
     except ClientError as e:
         logger.error(f"Failed to mark event as processed: {e}")
+
+
+def deduplicate_event(func: Callable) -> Callable:
+    """
+    Decorator to deduplicate Slack events based on event_id from the request body.
+    Prevents re-processing of already handled events.
+    """
+
+    @wraps(func)
+    def wrapper(event, ack, body, *args, **kwargs):
+        event_id = body.get("event_id")
+        if not event_id:
+            logger.warning("Missing event_id in Slack event body.")
+            return func(event, ack, body, *args, **kwargs)
+
+        if is_duplicate_event(event_id):
+            logger.info(f"Duplicate event detected, skipping: {event_id}")
+            return
+
+        mark_event_processed(event_id)
+        return func(event, ack, body, *args, **kwargs)
+
+    return wrapper
 
 
 def trigger_async_processing(event_data):
@@ -164,47 +189,26 @@ def process_async_slack_event(slack_event_data):
 
 # Handle @mentions in channels and DMs
 @app.event("app_mention")
+@deduplicate_event
 def handle_app_mention(event, ack, body):
     """Handle when the bot is @mentioned"""
     event_id = body.get("event_id")
-
-    # Check for duplicate
-    if is_duplicate_event(event_id):
-        logger.info(f"Skipping duplicate event {event_id}")
-        return
-
-    # Mark as processed
-    mark_event_processed(event_id)
-
-    # Log the event
     user_id = event.get("user", "unknown")
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
 
-    # Trigger async processing
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 # Handle direct messages
 @app.event("message")
+@deduplicate_event
 def handle_direct_message(event, ack, body):
     """Handle direct messages to the bot"""
-    # Only respond to direct messages (not channel messages)
     if event.get("channel_type") == "im":
         event_id = body.get("event_id")
-
-        # Check for duplicate
-        if is_duplicate_event(event_id):
-            logger.info(f"Skipping duplicate DM event {event_id}")
-            return
-
-        # Mark as processed
-        mark_event_processed(event_id)
-
-        # Log the event
         user_id = event.get("user", "unknown")
         logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
 
-        # Trigger async processing
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
@@ -216,13 +220,5 @@ def handler(event: dict, context: LambdaContext) -> dict:
         process_async_slack_event(event["slack_event"])
         return {"statusCode": 200}
 
-    # Handle Slack events with no-retry header
-    try:
-        slack_handler = SlackRequestHandler(app=app)
-        slack_handler.handle(event, context)
-
-        # Return 202 with x-slack-no-retry header to prevent retries
-        return {"statusCode": 202, "headers": {"x-slack-no-retry": "1"}}
-    except Exception as e:
-        logger.error(f"Error handling Slack event: {e}")
-        return {"statusCode": 202, "headers": {"x-slack-no-retry": "1"}}
+    slack_handler = SlackRequestHandler(app=app)
+    return slack_handler.handle(event, context)
