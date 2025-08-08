@@ -13,7 +13,7 @@ import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
-import {SlackDeduplicationTable} from "../resources/SlackDeduplicationTable"
+import {DatabaseTables} from "../resources/DatabaseTables"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -48,8 +48,8 @@ export class EpsAssistMeStack extends Stack {
       slackSigningSecret
     })
 
-    // Create Slack deduplication table
-    const slackDeduplicationTable = new SlackDeduplicationTable(this, "SlackDeduplicationTable", {
+    // Create DatabaseTables
+    const tables = new DatabaseTables(this, "DatabaseTables", {
       stackName: props.stackName
     })
 
@@ -98,7 +98,7 @@ export class EpsAssistMeStack extends Stack {
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
-      slackDeduplicationTable: slackDeduplicationTable.table
+      slackDeduplicationTable: tables.slackDeduplicationTable.table
     })
 
     // Create vector index
