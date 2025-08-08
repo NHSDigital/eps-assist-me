@@ -26,3 +26,5 @@ token=bot_token
 token: slackBotToken
 token: props\.slackBotToken
 secretValue: JSON\.stringify\(\{token: props\.slackBotToken\}\)
+token = slack_event_data\["bot_token"\]
+client = WebClient\(token=token\)
