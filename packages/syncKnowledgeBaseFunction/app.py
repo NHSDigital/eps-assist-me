@@ -17,8 +17,8 @@ def handler(event, context):
     """
     Lambda handler that processes S3 events and triggers Bedrock Knowledge Base ingestion.
 
-    This function is triggered when documents are uploaded to the S3 bucket and automatically
-    starts an ingestion job to update the knowledge base with new content.
+    This function is triggered when documents are created, updated, deleted, or restored in the S3 bucket
+    and automatically starts an ingestion job to sync the knowledge base with current content.
     """
     # Record start time for performance tracking
     start_time = time.time()
@@ -88,12 +88,12 @@ def handler(event, context):
                     },
                 )
 
-                # Start ingestion job for the knowledge base
+                # Start ingestion job for the knowledge base (handles all event types)
                 ingestion_start_time = time.time()
                 response = bedrock_agent.start_ingestion_job(
                     knowledgeBaseId=knowledge_base_id,
                     dataSourceId=data_source_id,
-                    description=f"Auto-sync triggered by S3 event: {event_name} on {key}",
+                    description=f"Auto-sync triggered by S3 {event_name} on {key}",
                 )
                 ingestion_request_time = time.time() - ingestion_start_time
 

@@ -12,10 +12,11 @@ export class S3LambdaNotification extends Construct {
   constructor(scope: Construct, id: string, props: S3LambdaNotificationProps) {
     super(scope, id)
 
-    // Use CDK's built-in S3 notification
-    props.bucket.addEventNotification(
-      EventType.OBJECT_CREATED,
-      new LambdaDestination(props.lambdaFunction)
-    )
+    const lambdaDestination = new LambdaDestination(props.lambdaFunction)
+
+    // Listen for all object events to keep knowledge base in sync
+    props.bucket.addEventNotification(EventType.OBJECT_CREATED, lambdaDestination)
+    props.bucket.addEventNotification(EventType.OBJECT_REMOVED, lambdaDestination)
+    props.bucket.addEventNotification(EventType.OBJECT_RESTORE_COMPLETED, lambdaDestination)
   }
 }
