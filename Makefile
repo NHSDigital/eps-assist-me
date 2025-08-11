@@ -94,6 +94,7 @@ cdk-synth:
 		--context logRetentionInDays=30 \
 		--context slackBotToken=dummy \
 		--context slackSigningSecret=dummy
+	./scripts/fix_cfn_guard.sh
 
 cdk-diff:
 	npx cdk diff \
