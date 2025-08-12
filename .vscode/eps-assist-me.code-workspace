@@ -110,7 +110,7 @@
 			"AmazonWebServices.aws-toolkit-vscode",
 			"redhat.vscode-yaml",
 			"ms-python.python",
-			"ms-python.flake8",
+			"charliermarsh.ruff",
 			"eamodio.gitlens",
 			"github.vscode-pull-request-github",
 			"orta.vscode-jest",

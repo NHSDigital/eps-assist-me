@@ -20,7 +20,7 @@ boto3 = "^1.34.0"
 pre-commit = "^4.1.0"
 cfn-lint = "^1.27.0"
 black = "^25.1.0"
-flake8 = "^7.1.2"
+ruff = "^0.12.8"
 jinja2 = "^3.1.5"
 pip-licenses = "^5.0.0"
 click = "^8.1.8"
@@ -37,6 +37,53 @@ priority = "supplemental"
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "supplemental"
+
+# Ruff configuration
+[tool.ruff]
+# Same line length as your current flake8 config
+line-length = 120
+target-version = "py312"
+
+# Exclude the same directories as your current flake8 config
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+]
+
+[tool.ruff.lint]
+# Enable the same rules that flake8 enables by default, plus some additional useful ones
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings  
+    "F",   # Pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+]
+
+# Ignore F821 (undefined name) as per your current flake8 config
+ignore = ["F821"]
+
+# Set max complexity to match your current flake8 config
+mccabe = { max-complexity = 10 }
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+
+[tool.ruff.format]
+# Use double quotes for strings (matches Black)
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 [build-system]
 requires = ["poetry>=0.12"]
