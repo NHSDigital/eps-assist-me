@@ -304,3 +304,38 @@ def test_handler_with_payload(mock_create_wait, mock_get_client, mock_json_loads
 
     mock_json_loads.assert_called_once()
     assert result["Status"] == "SUCCESS"
+
+
+@patch("app.wait_for_index_aoss")
+def test_index_parameters_for_rag_performance(mock_wait, mock_opensearch_client):
+    """Test that index is created with correct RAG-optimized parameters"""
+    mock_wait.return_value = True
+
+    from app import create_and_wait_for_index
+
+    create_and_wait_for_index(mock_opensearch_client, "test-index")
+
+    # Verify create was called and capture parameters
+    mock_opensearch_client.indices.create.assert_called_once()
+    call_args = mock_opensearch_client.indices.create.call_args
+    index_body = call_args[1]["body"]
+
+    # Validate critical RAG settings
+    settings = index_body["settings"]["index"]
+    assert settings["knn"] is True
+    assert settings["knn.algo_param.ef_search"] == 512
+
+    # Validate vector field configuration
+    vector_field = index_body["mappings"]["properties"]["bedrock-knowledge-base-default-vector"]
+    assert vector_field["type"] == "knn_vector"
+    assert vector_field["dimension"] == 1024
+    assert vector_field["method"]["name"] == "hnsw"
+    assert vector_field["method"]["engine"] == "faiss"
+    assert vector_field["method"]["space_type"] == "l2"
+
+    # Validate required Bedrock fields
+    properties = index_body["mappings"]["properties"]
+    assert "AMAZON_BEDROCK_METADATA" in properties
+    assert "AMAZON_BEDROCK_TEXT_CHUNK" in properties
+    assert properties["AMAZON_BEDROCK_METADATA"]["type"] == "text"
+    assert properties["AMAZON_BEDROCK_TEXT_CHUNK"]["type"] == "text"
