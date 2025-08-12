@@ -4,7 +4,7 @@ import os
 import time
 
 import boto3
-from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
+from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -128,14 +128,14 @@ def extract_parameters(event):
         return {
             "endpoint": properties.get("Endpoint"),
             "index_name": properties.get("IndexName"),
-            "request_type": event.get("RequestType")
+            "request_type": event.get("RequestType"),
         }
     else:
         # From direct Lambda invocation (e.g., manual test)
         return {
             "endpoint": event.get("Endpoint"),
             "index_name": event.get("IndexName"),
-            "request_type": event.get("RequestType")
+            "request_type": event.get("RequestType"),
         }
 
 
@@ -166,10 +166,7 @@ def handler(event, context):
         if request_type in ["Create", "Update"]:
             # Idempotent: will not fail if index already exists
             create_and_wait_for_index(client, index_name)
-            return {
-                "PhysicalResourceId": f"index-{index_name}",
-                "Status": "SUCCESS"
-            }
+            return {"PhysicalResourceId": f"index-{index_name}", "Status": "SUCCESS"}
         elif request_type == "Delete":
             # Clean up the index if it exists
             try:
@@ -178,10 +175,7 @@ def handler(event, context):
                     logger.info(f"Deleted index {index_name}")
             except Exception as e:
                 logger.error(f"Error deleting index: {e}")
-            return {
-                "PhysicalResourceId": event.get("PhysicalResourceId", f"index-{index_name}"),
-                "Status": "SUCCESS"
-            }
+            return {"PhysicalResourceId": event.get("PhysicalResourceId", f"index-{index_name}"), "Status": "SUCCESS"}
         else:
             raise ValueError(f"Invalid request type: {request_type}")
 

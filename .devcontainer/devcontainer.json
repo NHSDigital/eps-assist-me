@@ -1,5 +1,5 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+// README at: https://containers.dev/templates/tree/main/src/ubuntu
 {
   "name": "Ubuntu",
   // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
@@ -28,7 +28,7 @@
         "AmazonWebServices.aws-toolkit-vscode",
         "redhat.vscode-yaml",
         "ms-python.python",
-        "ms-python.flake8",
+        "charliermarsh.ruff",
         "eamodio.gitlens",
         "github.vscode-pull-request-github",
         "orta.vscode-jest",
@@ -52,8 +52,14 @@
         "python.testing.unittestEnabled": false,
         "python.testing.pytestEnabled": true,
         "python.linting.pylintEnabled": false,
-        "python.linting.flake8Enabled": true,
-        "python.linting.enabled": true, // required to format on save
+        "python.linting.enabled": false, // Disable old linting since we're using ruff
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "explicit",
+            "source.fixAll.ruff": "explicit"
+          }
+        },
         "editor.defaultFormatter": "dbaeumer.vscode-eslint",
         "editor.formatOnPaste": false, // required
         "editor.formatOnType": false, // required
