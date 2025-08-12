@@ -18,10 +18,11 @@ __status__ = "Development"
 __copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
 __author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
 
-import os
 import json
-import boto3
 import logging
+import os
+
+import boto3
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 
@@ -104,9 +105,7 @@ def respond_to_slack_within_3_seconds(body, ack):
 
     except Exception as err:
         print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(
-            f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}"
-        )
+        respond(f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}")
 
 
 def process_command_request(respond, body):
@@ -127,9 +126,7 @@ def process_command_request(respond, body):
 
     except Exception as err:
         print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(
-            f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}"
-        )
+        respond(f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}")
 
 
 def get_bedrock_knowledgebase_response(user_query):
@@ -164,9 +161,7 @@ def get_bedrock_knowledgebase_response(user_query):
         },
     }
 
-    response = client.retrieve_and_generate(
-        input=query_input, retrieveAndGenerateConfiguration=config
-    )
+    response = client.retrieve_and_generate(input=query_input, retrieveAndGenerateConfiguration=config)
     logging.info(f"Bedrock Knowledge Base Response: {response}")
     return response
 

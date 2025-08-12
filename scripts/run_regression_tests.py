@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 
 """
-  Script to generate user defined unique ID which can be used to
-  check the status of the regression test run to be reported to the CI.
+Script to generate user defined unique ID which can be used to
+check the status of the regression test run to be reported to the CI.
 """
+
 import argparse
-from datetime import datetime, timedelta, timezone
 import random
 import string
-import requests
 import time
+from datetime import UTC, datetime, timedelta
+
+import requests
 from requests.auth import HTTPBasicAuth
 
 # This should be set to a known good version of regression test repo
@@ -49,7 +51,7 @@ def generate_unique_run_id(length=15):
 
 def generate_timestamp():
     delta_time = timedelta(minutes=2)
-    date_time = (datetime.now(timezone.utc) - delta_time).strftime("%Y-%m-%dT%H:%M")
+    date_time = (datetime.now(UTC) - delta_time).strftime("%Y-%m-%dT%H:%M")
     print(f"Generated Date as: {date_time}")
     return date_time
 
@@ -63,7 +65,7 @@ def trigger_test_run(env, pr_label, product, auth_header, regression_test_branch
             "environment": ENVIRONMENT_NAMES[arguments.env],
             "pull_request_id": pr_label,
             "product": product,
-            "github_tag": REGRESSION_TESTS_REPO_TAG
+            "github_tag": REGRESSION_TESTS_REPO_TAG,
         },
     }
 
@@ -75,9 +77,9 @@ def trigger_test_run(env, pr_label, product, auth_header, regression_test_branch
     )
 
     print(f"Dispatch workflow. Unique workflow identifier: {run_id}")
-    assert (
-        response.status_code == 204
-    ), f"Failed to trigger test run. Expected 204, got {response.status_code}. Response: {response.text}"
+    assert response.status_code == 204, (
+        f"Failed to trigger test run. Expected 204, got {response.status_code}. Response: {response.text}"
+    )
 
 
 def get_workflow_runs(auth_header):
@@ -87,18 +89,14 @@ def get_workflow_runs(auth_header):
         headers=get_headers(),
         auth=auth_header,
     )
-    assert (
-        response.status_code == 200
-    ), f"Unable to get workflow runs. Expected 200, got {response.status_code}"
+    assert response.status_code == 200, f"Unable to get workflow runs. Expected 200, got {response.status_code}"
     return response.json()["workflow_runs"]
 
 
 def get_jobs_for_workflow(jobs_url, auth_header):
     print("Getting jobs for workflow...")
     response = requests.get(jobs_url, auth=auth_header)
-    assert (
-        response.status_code == 200
-    ), f"Unable to get workflow jobs. Expected 200, got {response.status_code}"
+    assert response.status_code == 200, f"Unable to get workflow jobs. Expected 200, got {response.status_code}"
     return response.json()["jobs"]
 
 
@@ -132,13 +130,11 @@ def find_workflow(auth_header):
                     print("Not enough steps have been executed for this run yet...")
             else:
                 print("Jobs for this workflow run haven't populated yet...")
-        print(
-            "Processed all available workflows but no jobs were matching the Unique ID were found!"
-        )
+        print("Processed all available workflows but no jobs were matching the Unique ID were found!")
 
 
 def get_auth_header(is_called_from_github, token, user):
-    if (is_called_from_github):
+    if is_called_from_github:
         return BearerAuth(token)
     else:
         user_credentials = user.split(":")
@@ -184,26 +180,20 @@ if __name__ == "__main__":
         required=True,
         help="Please provide the environment you wish to run in.",
     )
+    parser.add_argument("--user", required=False, help="Please provide the user credentials.")
     parser.add_argument(
-        "--user", required=False, help="Please provide the user credentials."
-    )
-    parser.add_argument(
-        '--is_called_from_github',
+        "--is_called_from_github",
         default=False,
-        type=lambda x: (str(x).lower() == 'true'),
-        help="If this is being called from github actions rather than azure"
+        type=lambda x: (str(x).lower() == "true"),
+        help="If this is being called from github actions rather than azure",
     )
-    parser.add_argument(
-        "--product", required=True, help="Please provide the product to run the tests for."
-    )
-    parser.add_argument(
-        "--token", required=False, help="Please provide the authentication token."
-    )
+    parser.add_argument("--product", required=True, help="Please provide the product to run the tests for.")
+    parser.add_argument("--token", required=False, help="Please provide the authentication token.")
     parser.add_argument(
         "--regression_branch",
         required=False,
         help="The branch to use from the regression tests repository",
-        default=None
+        default=None,
     )
 
     arguments = parser.parse_args()
@@ -223,13 +213,7 @@ if __name__ == "__main__":
     if regression_branch is None:
         regression_branch = REGRESSION_TESTS_REPO_TAG
 
-    trigger_test_run(
-        arguments.env,
-        pr_label,
-        arguments.product,
-        auth_header,
-        regression_branch
-    )
+    trigger_test_run(arguments.env, pr_label, arguments.product, auth_header, regression_branch)
 
     workflow_id = find_workflow(auth_header)
     job_status = check_job(auth_header)
