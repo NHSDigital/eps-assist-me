@@ -7,13 +7,13 @@ export interface TablesProps {
 }
 
 export class DatabaseTables extends Construct {
-  public readonly slackDeduplicationTable: DynamoDbTable
+  public readonly slackBotStateTable: DynamoDbTable
 
   constructor(scope: Construct, id: string, props: TablesProps) {
     super(scope, id)
 
-    this.slackDeduplicationTable = new DynamoDbTable(this, "SlackDeduplicationTable", {
-      tableName: `${props.stackName}-SlackDeduplication`,
+    this.slackBotStateTable = new DynamoDbTable(this, "SlackBotStateTable", {
+      tableName: `${props.stackName}-SlackBotState`,
       partitionKey: {
         name: "eventId",
         type: AttributeType.STRING

@@ -98,7 +98,7 @@ export class EpsAssistMeStack extends Stack {
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
-      slackDeduplicationTable: tables.slackDeduplicationTable.table
+      slackBotStateTable: tables.slackBotStateTable.table
     })
 
     // Create vector index

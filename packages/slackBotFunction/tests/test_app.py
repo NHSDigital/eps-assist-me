@@ -17,7 +17,7 @@ def mock_env():
     env_vars = {
         "SLACK_BOT_TOKEN_PARAMETER": "/test/bot-token",
         "SLACK_SIGNING_SECRET_PARAMETER": "/test/signing-secret",
-        "SLACK_DEDUPLICATION_TABLE": "test-dedup-table",
+        "SLACK_BOT_STATE_TABLE": "test-bot-state-table",
         "KNOWLEDGEBASE_ID": "test-kb-id",
         "RAG_MODEL_ID": "test-model-id",
         "AWS_REGION": "eu-west-2",
@@ -35,7 +35,7 @@ def mock_dynamodb_table():
     with mock_aws():
         dynamodb = boto3.resource("dynamodb", region_name="eu-west-2")
         table = dynamodb.create_table(
-            TableName="test-dedup-table",
+            TableName="test-bot-state-table",
             KeySchema=[{"AttributeName": "eventId", "KeyType": "HASH"}],
             AttributeDefinitions=[{"AttributeName": "eventId", "AttributeType": "S"}],
             BillingMode="PAY_PER_REQUEST",

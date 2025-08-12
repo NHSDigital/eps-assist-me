@@ -28,7 +28,7 @@ export interface FunctionsProps {
   readonly account: string
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
-  readonly slackDeduplicationTable: Table
+  readonly slackBotStateTable: Table
 }
 
 export class Functions extends Construct {
@@ -67,7 +67,7 @@ export class Functions extends Construct {
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
         "GUARD_RAIL_ID": props.guardrailId || "placeholder",
         "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder",
-        "SLACK_DEDUPLICATION_TABLE": props.slackDeduplicationTable.tableName
+        "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName
       }
     })
 
@@ -76,7 +76,7 @@ export class Functions extends Construct {
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 
     // Grant DynamoDB access to SlackBot Lambda
-    props.slackDeduplicationTable.grantReadWriteData(slackBotLambda.function)
+    props.slackBotStateTable.grantReadWriteData(slackBotLambda.function)
 
     this.functions = {
       createIndex: createIndexFunction,

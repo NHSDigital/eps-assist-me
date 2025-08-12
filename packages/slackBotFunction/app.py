@@ -17,7 +17,7 @@ logger = Logger(service="slackBotFunction")
 
 # Initialize DynamoDB client
 dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table(os.environ["SLACK_DEDUPLICATION_TABLE"])
+table = dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])
 
 # Get parameter names from environment variables
 bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
