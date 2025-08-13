@@ -1,6 +1,12 @@
 import {Construct} from "constructs"
 import {RemovalPolicy} from "aws-cdk-lib"
-import {TableV2, AttributeType, Billing} from "aws-cdk-lib/aws-dynamodb"
+import {
+  TableV2,
+  AttributeType,
+  Billing,
+  TableEncryptionV2
+} from "aws-cdk-lib/aws-dynamodb"
+import {Key} from "aws-cdk-lib/aws-kms"
 
 export interface DynamoDbTableProps {
   readonly tableName: string
@@ -13,9 +19,15 @@ export interface DynamoDbTableProps {
 
 export class DynamoDbTable extends Construct {
   public readonly table: TableV2
+  public readonly kmsKey: Key
 
   constructor(scope: Construct, id: string, props: DynamoDbTableProps) {
     super(scope, id)
+
+    this.kmsKey = new Key(this, "TableKey", {
+      enableKeyRotation: true,
+      description: `KMS key for ${props.tableName} DynamoDB table encryption`
+    })
 
     this.table = new TableV2(this, props.tableName, {
       tableName: props.tableName,
@@ -23,7 +35,8 @@ export class DynamoDbTable extends Construct {
       billing: Billing.onDemand(),
       timeToLiveAttribute: props.timeToLiveAttribute,
       pointInTimeRecovery: true,
-      removalPolicy: RemovalPolicy.DESTROY
+      removalPolicy: RemovalPolicy.DESTROY,
+      encryption: TableEncryptionV2.customerManagedKey(this.kmsKey)
     })
   }
 }
