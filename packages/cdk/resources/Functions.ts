@@ -3,7 +3,7 @@ import {LambdaFunction} from "../constructs/LambdaFunction"
 import {ManagedPolicy} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
-import {Table} from "aws-cdk-lib/aws-dynamodb"
+import {TableV2} from "aws-cdk-lib/aws-dynamodb"
 
 // Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -28,7 +28,7 @@ export interface FunctionsProps {
   readonly account: string
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
-  readonly slackBotStateTable: Table
+  readonly slackBotStateTable: TableV2
 }
 
 export class Functions extends Construct {
