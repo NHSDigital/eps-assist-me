@@ -180,6 +180,22 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  // Suppress KMS wildcard permissions for SlackBot Lambda accessing encrypted DynamoDB table
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "KMS wildcard permissions are required for Lambda to access encrypted DynamoDB table.",
+        appliesTo: [
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*"
+        ]
+      }
+    ]
+  )
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
