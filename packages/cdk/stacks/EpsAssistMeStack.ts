@@ -67,7 +67,9 @@ export class EpsAssistMeStack extends Stack {
       account,
       kbDocsBucket: storage.kbDocsBucket.bucket,
       slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
-      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName
+      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
+      slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
+      slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn
     })
 
     // Create OpenSearch Resources

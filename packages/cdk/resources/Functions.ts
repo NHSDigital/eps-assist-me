@@ -75,9 +75,6 @@ export class Functions extends Construct {
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 
-    // Grant DynamoDB access to SlackBot Lambda
-    props.slackBotStateTable.grantReadWriteData(slackBotLambda.function)
-
     this.functions = {
       createIndex: createIndexFunction,
       slackBot: slackBotLambda
