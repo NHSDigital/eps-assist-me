@@ -6,7 +6,7 @@ import {
   Billing,
   TableEncryptionV2
 } from "aws-cdk-lib/aws-dynamodb"
-import {Key, Alias} from "aws-cdk-lib/aws-kms"
+import {Key} from "aws-cdk-lib/aws-kms"
 
 export interface DynamoDbTableProps {
   readonly tableName: string
@@ -20,7 +20,6 @@ export interface DynamoDbTableProps {
 export class DynamoDbTable extends Construct {
   public readonly table: TableV2
   public readonly kmsKey: Key
-  public readonly kmsAlias: Alias
 
   constructor(scope: Construct, id: string, props: DynamoDbTableProps) {
     super(scope, id)
@@ -30,12 +29,7 @@ export class DynamoDbTable extends Construct {
       description: `KMS key for ${props.tableName} DynamoDB table encryption`,
       removalPolicy: RemovalPolicy.DESTROY
     })
-
-    this.kmsAlias = new Alias(this, "TableKeyAlias", {
-      aliasName: `alias/${props.tableName}-dynamodb-key`,
-      targetKey: this.kmsKey,
-      removalPolicy: RemovalPolicy.DESTROY
-    })
+    this.kmsKey.addAlias(`alias/${props.tableName}-dynamodb-key`)
 
     this.table = new TableV2(this, props.tableName, {
       tableName: props.tableName,
