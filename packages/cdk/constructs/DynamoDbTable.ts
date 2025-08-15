@@ -12,6 +12,10 @@ import {Key} from "aws-cdk-lib/aws-kms"
 export interface DynamoDbTableProps {
   readonly tableName: string
   readonly kmsKey: Key
+  readonly partitionKey: {
+    name: string
+    type: AttributeType
+  }
 }
 
 export class DynamoDbTable extends Construct {
@@ -20,34 +24,21 @@ export class DynamoDbTable extends Construct {
   constructor(scope: Construct, id: string, props: DynamoDbTableProps) {
     super(scope, id)
 
+    this.kmsKey = new Key(this, "TableKey", {
+      enableKeyRotation: true,
+      description: `KMS key for ${props.tableName} DynamoDB table encryption`,
+      removalPolicy: RemovalPolicy.DESTROY
+    })
+    this.kmsKey.addAlias(`alias/${props.tableName}-dynamodb-key`)
+
     this.table = new TableV2(this, props.tableName, {
       tableName: props.tableName,
-      partitionKey: {
-        name: "pk",
-        type: AttributeType.STRING
-      },
-      sortKey: {
-        name: "sk",
-        type: AttributeType.STRING
-      },
+      partitionKey: props.partitionKey,
       billing: Billing.onDemand(),
-      encryption: TableEncryptionV2.customerManagedKey(props.kmsKey),
+      timeToLiveAttribute: props.timeToLiveAttribute,
+      pointInTimeRecovery: true,
       removalPolicy: RemovalPolicy.DESTROY,
-      pointInTimeRecoverySpecification: {
-        pointInTimeRecoveryEnabled: true
-      },
-      // TODO: discuss TTL settings
-      timeToLiveAttribute: "ttl"
-    })
-
-    // GSI for reverse lookups if needed (session_id -> thread info)
-    this.table.addGlobalSecondaryIndex({
-      indexName: "session-index",
-      partitionKey: {
-        name: "session_id",
-        type: AttributeType.STRING
-      },
-      projectionType: ProjectionType.ALL
+      encryption: TableEncryptionV2.customerManagedKey(this.kmsKey)
     })
   }
 }

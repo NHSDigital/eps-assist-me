@@ -13,6 +13,7 @@ import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
+import {DatabaseTables} from "../resources/DatabaseTables"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -47,6 +48,11 @@ export class EpsAssistMeStack extends Stack {
       slackSigningSecret
     })
 
+    // Create DatabaseTables
+    const tables = new DatabaseTables(this, "DatabaseTables", {
+      stackName: props.stackName
+    })
+
     // Create Storage construct without Bedrock execution role to avoid circular dependency:
     // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
     // - IamResources creates the Bedrock role that needs S3 access permissions
@@ -62,8 +68,8 @@ export class EpsAssistMeStack extends Stack {
       kbDocsBucket: storage.kbDocsBucket.bucket,
       slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
       slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
-      conversationTableArn: storage.conversationTable.table.tableArn,
-      conversationKeyArn: storage.conversationKey.keyArn
+      slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
+      slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn
     })
 
     // Create OpenSearch Resources
@@ -94,7 +100,7 @@ export class EpsAssistMeStack extends Stack {
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
-      conversationTableName: storage.conversationTable.table.tableName
+      slackBotStateTable: tables.slackBotStateTable.table
     })
 
     // Create vector index
@@ -133,8 +139,9 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Output: SlackBot Endpoint
-    new CfnOutput(this, "SlackBotEndpoint", {
-      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/ask-eps`
+    new CfnOutput(this, "SlackBotEventsEndpoint", {
+      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
+      description: "Slack Events API endpoint for @mentions and direct messages"
     })
 
     // Final CDK Nag Suppressions

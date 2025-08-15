@@ -18,8 +18,8 @@ export interface IamResourcesProps {
   readonly kbDocsBucket: Bucket
   readonly slackBotTokenParameterName: string
   readonly slackSigningSecretParameterName: string
-  readonly conversationTableArn: string
-  readonly conversationKeyArn: string
+  readonly slackBotStateTableArn: string
+  readonly slackBotStateTableKmsKeyArn: string
 }
 
 export class IamResources extends Construct {
@@ -150,42 +150,41 @@ export class IamResources extends Construct {
       resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
     })
 
-    // DynamoDB permissions for conversation session storage
-    const slackBotDynamoPolicy = new PolicyStatement({
+    const slackBotDynamoDbPolicy = new PolicyStatement({
       actions: [
         "dynamodb:GetItem",
         "dynamodb:PutItem",
-        "dynamodb:UpdateItem",
         "dynamodb:DeleteItem",
-        "dynamodb:Query"
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:UpdateItem"
       ],
-      resources: [
-        props.conversationTableArn,
-        `${props.conversationTableArn}/index/*`
-      ]
+      resources: [props.slackBotStateTableArn]
     })
 
-    // KMS permissions for conversation table encryption
-    const slackBotConversationKmsPolicy = new PolicyStatement({
+    const slackBotKmsPolicy = new PolicyStatement({
       actions: [
-        "kms:Decrypt",
-        "kms:DescribeKey",
         "kms:Encrypt",
-        "kms:GenerateDataKey"
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey"
       ],
-      resources: [props.conversationKeyArn]
+      resources: [props.slackBotStateTableKmsKeyArn]
     })
 
     this.slackBotManagedPolicy = new ManagedPolicy(this, "SlackBotManagedPolicy", {
-      description: "Policy for SlackBot Lambda to access Bedrock, SSM, Lambda, and DynamoDB",
+      description: "Policy for SlackBot Lambda to access Bedrock, SSM, Lambda, DynamoDB, and KMS",
       statements: [
         slackBotPolicy,
         slackBotKnowledgeBasePolicy,
         slackBotSSMPolicy,
         slackBotLambdaPolicy,
         slackBotGuardrailPolicy,
-        slackBotDynamoPolicy,
-        slackBotConversationKmsPolicy
+        slackBotDynamoDbPolicy,
+        slackBotKmsPolicy
       ]
     })
   }
