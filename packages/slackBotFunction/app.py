@@ -1,61 +1,35 @@
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: MIT-0.
-
-"""
-AWS Lambda hosted Slack ChatBot integration to Amazon Bedrock Knowledge Base.
-Expects Slack Bot Slash Command given by the SLACK_SLASH_COMMAND param and presents
-a user query to the Bedrock Knowledge Base described by the KNOWLEDGEBASE_ID parameter.
-
-The user query is used in a Bedrock KB ReteriveandGenerate API call and the KB
-response is presented to the user in Slack.
-
-Slack integration based on SlackBolt library and examples given at:
-https://github.com/slackapi/bolt-python/blob/main/examples/aws_lambda/lazy_aws_lambda.py
-"""
-
-__version__ = "0.0.1"
-__status__ = "Development"
-__copyright__ = "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
-__author__ = "Dean Colcott <https://www.linkedin.com/in/deancolcott/>"
-
 import os
+import re
 import json
 import boto3
-import logging
+import time
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
+from slack_sdk import WebClient
+from aws_lambda_powertools import Logger
+from aws_lambda_powertools.utilities.parameters import get_parameter
+from aws_lambda_powertools.utilities.typing import LambdaContext
+from botocore.exceptions import ClientError
 
 
-# Get params from SSM
-def get_parameter(parameter_name):
-    ssm = boto3.client("ssm")
-    try:
-        response = ssm.get_parameter(Name=parameter_name, WithDecryption=True)
-        # Parse the JSON string from the parameter
-        parameter_value = response["Parameter"]["Value"]
+# Initialize Powertools Logger
+logger = Logger(service="slackBotFunction")
 
-        # Remove the JSON structure and extract just the value
-        try:
-            json_value = json.loads(parameter_value)
-            # Get the first value from the dictionary
-            value = next(iter(json_value.values()))
-            return value
-        except (json.JSONDecodeError, StopIteration):
-            # If parsing fails or dictionary is empty, return the raw value
-            return parameter_value
-
-    except Exception as e:
-        print(f"Error getting parameter {parameter_name}: {str(e)}")
-        raise e
-
+# Initialize DynamoDB client
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])
 
 # Get parameter names from environment variables
 bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
 signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
 
-# Retrieve the parameters from SSM Parameter Store
-bot_token = get_parameter(bot_token_parameter)
-signing_secret = get_parameter(signing_secret_parameter)
+# Retrieve and parse parameters from SSM Parameter Store
+bot_token_raw = get_parameter(bot_token_parameter, decrypt=True)
+signing_secret_raw = get_parameter(signing_secret_parameter, decrypt=True)
+
+# Parse JSON values and extract tokens
+bot_token = json.loads(bot_token_raw)["token"]
+signing_secret = json.loads(signing_secret_raw)["secret"]
 
 # Initialize Slack app
 app = App(
@@ -64,88 +38,61 @@ app = App(
     signing_secret=signing_secret,
 )
 
-# Get the expected slack and AWS account params to local vars.
-SLACK_SLASH_COMMAND = os.environ["SLACK_SLASH_COMMAND"]
+# Get the expected AWS account params to local vars.
 KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
 RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
 AWS_REGION = os.environ["AWS_REGION"]
 GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
 GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
 
-print(f"GR_ID,{GUARD_RAIL_ID}")
-print(f"GR_V, {GUARD_VERSION}")
+logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
 
 
 @app.middleware
-def log_request(logger, body, next):
+def log_request(slack_logger, body, next):
     """
-    SlackBolt library logging.
+    Middleware to log incoming Slack requests using AWS Lambda Powertools logger.
     """
-    logger.debug(body)
+    logger.debug("Slack request received", extra={"body": body})
     return next()
 
 
-def respond_to_slack_within_3_seconds(body, ack):
-    """
-    Slack Bot Slash Command requires an Ack response within 3 seconds or it
-    messages an operation timeout error to the user in the chat thread.
-
-    The SlackBolt library provides a Async Ack function then re-invokes this Lambda
-    to LazyLoad the process_command_request command that calls the Bedrock KB ReteriveandGenerate API.
-
-    This function is called initially to acknowledge the Slack Slash command within 3 secs.
-    """
+def is_duplicate_event(event_id):
+    """Check if event has already been processed using conditional put"""
     try:
-        user_query = body["text"]
-        logging.info(
-            f"${SLACK_SLASH_COMMAND} - Acknowledging command: {SLACK_SLASH_COMMAND} - User Query: {user_query}\n"
+        ttl = int(time.time()) + 3600  # 1 hour TTL
+        table.put_item(
+            Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())},
+            ConditionExpression="attribute_not_exists(eventId)",
         )
-        ack(f"\n${SLACK_SLASH_COMMAND} - Processing Request: {user_query}")
-
-    except Exception as err:
-        print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(
-            f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}"
-        )
+        return False  # Item didn't exist, so not a duplicate
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return True  # Item already exists, so it's a duplicate
+        return False
 
 
-def process_command_request(respond, body):
+def trigger_async_processing(event_data):
     """
-    Receive the Slack Slash Command user query and proxy the query to Bedrock Knowledge base ReteriveandGenerate API
-    and return the response to Slack to be presented in the users chat thread.
+    Trigger async processing of the Slack event to avoid timeout issues.
     """
-    try:
-        # Get the user query
-        user_query = body["text"]
-        logging.info(
-            f"${SLACK_SLASH_COMMAND} - Responding to command: {SLACK_SLASH_COMMAND} - User Query: {user_query}"
-        )
-
-        kb_response = get_bedrock_knowledgebase_response(user_query)
-        response_text = kb_response["output"]["text"]
-        respond(f"\n${SLACK_SLASH_COMMAND} - Response: {response_text}\n")
-
-    except Exception as err:
-        print(f"${SLACK_SLASH_COMMAND} - Error: {err}")
-        respond(
-            f"${SLACK_SLASH_COMMAND} - Sorry an error occurred. Please try again later. Error: {err}"
-        )
+    lambda_client = boto3.client("lambda")
+    lambda_client.invoke(
+        FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
+        InvocationType="Event",
+        Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
+    )
 
 
 def get_bedrock_knowledgebase_response(user_query):
     """
-    Get and return the Bedrock Knowledge Base ReteriveAndGenerate response.
-    Do all init tasks here instead of globally as initial invocation of this lambda
-    provides Slack required ack in 3 sec. It doesn't trigger any bedrock functions and is
-    time sensitive.
+    Get and return the Bedrock Knowledge Base RetrieveAndGenerate response.
     """
-    # Initialise the bedrock-runtime client (in default / running region).
     client = boto3.client(
         service_name="bedrock-agent-runtime",
         region_name=AWS_REGION,
     )
 
-    # Create the RetrieveAndGenerateCommand input with the user query.
     query_input = {
         "text": user_query,
     }
@@ -164,26 +111,100 @@ def get_bedrock_knowledgebase_response(user_query):
         },
     }
 
-    response = client.retrieve_and_generate(
-        input=query_input, retrieveAndGenerateConfiguration=config
-    )
-    logging.info(f"Bedrock Knowledge Base Response: {response}")
+    response = client.retrieve_and_generate(input=query_input, retrieveAndGenerateConfiguration=config)
+    logger.info("Bedrock Knowledge Base Response received", extra={"response": response})
     return response
 
 
-# Init the Slack Slash '/' command handler.
-app.command(SLACK_SLASH_COMMAND)(
-    ack=respond_to_slack_within_3_seconds,
-    lazy=[process_command_request],
-)
+def process_async_slack_event(slack_event_data):
+    """Process Slack event asynchronously"""
+    event = slack_event_data["event"]
+    event_id = slack_event_data["event_id"]
+    token = slack_event_data["bot_token"]
 
-# Init the Slack Bolt logger and log handlers.
-SlackRequestHandler.clear_all_log_handlers()
-logging.basicConfig(format="%(asctime)s %(message)s", level=logging.DEBUG)
+    client = WebClient(token=token)
+
+    try:
+        raw_text = event["text"]
+        user_id = event["user"]
+        channel = event["channel"]
+        thread_ts = event.get("thread_ts", event["ts"])
+
+        user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
+
+        logger.info(
+            f"Processing async @mention from user {user_id}",
+            extra={"user_query": user_query, "thread_ts": thread_ts, "event_id": event_id},
+        )
+
+        if not user_query:
+            client.chat_postMessage(
+                channel=channel,
+                text="Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+                thread_ts=thread_ts,
+            )
+            return
+
+        kb_response = get_bedrock_knowledgebase_response(user_query)
+        response_text = kb_response["output"]["text"]
+
+        client.chat_postMessage(channel=channel, text=response_text, thread_ts=thread_ts)
+
+    except Exception as err:
+        logger.error(f"Error processing async @mention: {err}", extra={"event_id": event_id})
+        client.chat_postMessage(
+            channel=channel,
+            text="Sorry, an error occurred while processing your request. Please try again later.",
+            thread_ts=thread_ts,
+        )
 
 
-# Lambda handler method.
-def handler(event, context):
-    print(f"${SLACK_SLASH_COMMAND} - Event: {event}\n")
+# Handle @mentions in channels and DMs
+@app.event("app_mention")
+def handle_app_mention(event, ack, body):
+    """Handle when the bot is @mentioned"""
+    ack()
+
+    event_id = body.get("event_id")
+    if not event_id:
+        logger.warning("Missing event_id in Slack event body.")
+    elif is_duplicate_event(event_id):
+        logger.info(f"Duplicate event detected, skipping: {event_id}")
+        return
+
+    user_id = event.get("user", "unknown")
+    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
+
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+
+
+# Handle direct messages
+@app.event("message")
+def handle_direct_message(event, ack, body):
+    """Handle direct messages to the bot"""
+    ack()
+
+    if event.get("channel_type") == "im":
+        event_id = body.get("event_id")
+        if not event_id:
+            logger.warning("Missing event_id in Slack event body.")
+        elif is_duplicate_event(event_id):
+            logger.info(f"Duplicate event detected, skipping: {event_id}")
+            return
+
+        user_id = event.get("user", "unknown")
+        logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
+
+        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+
+
+@logger.inject_lambda_context
+def handler(event: dict, context: LambdaContext) -> dict:
+    logger.info("Lambda invoked for Slack bot", extra={"event": event})
+
+    if event.get("async_processing"):
+        process_async_slack_event(event["slack_event"])
+        return {"statusCode": 200}
+
     slack_handler = SlackRequestHandler(app=app)
     return slack_handler.handle(event, context)
