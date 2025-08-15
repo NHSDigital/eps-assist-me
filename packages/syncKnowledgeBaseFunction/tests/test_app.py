@@ -3,6 +3,10 @@ import os
 from unittest.mock import Mock, patch
 from botocore.exceptions import ClientError
 
+# Mock boto3.client before importing app to prevent NoRegionError
+with patch("boto3.client"):
+    import app
+
 
 @pytest.fixture
 def mock_env():
@@ -44,9 +48,7 @@ def test_handler_success(mock_time, mock_bedrock, mock_env, lambda_context, s3_e
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
 
-    from app import handler
-
-    result = handler(s3_event, lambda_context)
+    result = app.handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
@@ -61,9 +63,7 @@ def test_handler_success(mock_time, mock_bedrock, mock_env, lambda_context, s3_e
 def test_handler_missing_env_vars(mock_bedrock, lambda_context, s3_event):
     """Test handler with missing environment variables"""
     with patch.dict(os.environ, {}, clear=True):
-        from app import handler
-
-        result = handler(s3_event, lambda_context)
+        result = app.handler(s3_event, lambda_context)
 
         assert result["statusCode"] == 500
         assert result["body"] == "Configuration error"
@@ -79,9 +79,7 @@ def test_handler_conflict_exception(mock_bedrock, mock_env, lambda_context, s3_e
     )
     mock_bedrock.start_ingestion_job.side_effect = error
 
-    from app import handler
-
-    result = handler(s3_event, lambda_context)
+    result = app.handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 409
     assert "processing by existing ingestion job" in result["body"]
@@ -96,9 +94,7 @@ def test_handler_other_client_error(mock_bedrock, mock_env, lambda_context, s3_e
     )
     mock_bedrock.start_ingestion_job.side_effect = error
 
-    from app import handler
-
-    result = handler(s3_event, lambda_context)
+    result = app.handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 500
     assert "AWS error: ValidationException" in result["body"]
@@ -109,9 +105,7 @@ def test_handler_unexpected_error(mock_bedrock, mock_env, lambda_context, s3_eve
     """Test handler with unexpected error"""
     mock_bedrock.start_ingestion_job.side_effect = Exception("Unexpected error")
 
-    from app import handler
-
-    result = handler(s3_event, lambda_context)
+    result = app.handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 500
     assert "Unexpected error: Unexpected error" in result["body"]
@@ -130,9 +124,7 @@ def test_handler_invalid_s3_record(mock_bedrock, mock_env, lambda_context):
         ]
     }
 
-    from app import handler
-
-    result = handler(invalid_event, lambda_context)
+    result = app.handler(invalid_event, lambda_context)
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
@@ -144,9 +136,7 @@ def test_handler_non_s3_event(mock_bedrock, mock_env, lambda_context):
     """Test handler with non-S3 event"""
     non_s3_event = {"Records": [{"eventSource": "aws:sns", "eventName": "Notification"}]}
 
-    from app import handler
-
-    result = handler(non_s3_event, lambda_context)
+    result = app.handler(non_s3_event, lambda_context)
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
@@ -177,9 +167,7 @@ def test_handler_multiple_records(mock_time, mock_bedrock, mock_env, lambda_cont
         ]
     }
 
-    from app import handler
-
-    result = handler(multi_event, lambda_context)
+    result = app.handler(multi_event, lambda_context)
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 2 ingestion job(s) for 2 trigger file(s)" in result["body"]
@@ -191,9 +179,7 @@ def test_handler_empty_records(mock_bedrock, mock_env, lambda_context):
     """Test handler with empty records"""
     empty_event = {"Records": []}
 
-    from app import handler
-
-    result = handler(empty_event, lambda_context)
+    result = app.handler(empty_event, lambda_context)
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
@@ -205,9 +191,7 @@ def test_handler_missing_records(mock_bedrock, mock_env, lambda_context):
     """Test handler with missing Records key"""
     no_records_event = {}
 
-    from app import handler
-
-    result = handler(no_records_event, lambda_context)
+    result = app.handler(no_records_event, lambda_context)
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
@@ -231,9 +215,7 @@ def test_handler_missing_object_size(mock_bedrock, mock_env, lambda_context):
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
 
-    from app import handler
-
-    result = handler(event_no_size, lambda_context)
+    result = app.handler(event_no_size, lambda_context)
 
     assert result["statusCode"] == 200
     mock_bedrock.start_ingestion_job.assert_called_once()
@@ -243,9 +225,7 @@ def test_handler_missing_object_size(mock_bedrock, mock_env, lambda_context):
 def test_handler_partial_env_vars(mock_bedrock, lambda_context, s3_event):
     """Test handler with only one environment variable"""
     with patch.dict(os.environ, {"KNOWLEDGEBASE_ID": "test-kb-id"}, clear=True):
-        from app import handler
-
-        result = handler(s3_event, lambda_context)
+        result = app.handler(s3_event, lambda_context)
 
         assert result["statusCode"] == 500
         assert result["body"] == "Configuration error"
@@ -257,9 +237,7 @@ def test_handler_client_error_no_message(mock_bedrock, mock_env, lambda_context,
     error = ClientError(error_response={"Error": {"Code": "TestError"}}, operation_name="StartIngestionJob")
     mock_bedrock.start_ingestion_job.side_effect = error
 
-    from app import handler
-
-    result = handler(s3_event, lambda_context)
+    result = app.handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 500
     assert "AWS error: TestError" in result["body"]
@@ -267,8 +245,6 @@ def test_handler_client_error_no_message(mock_bedrock, mock_env, lambda_context,
 
 def test_module_imports():
     """Test that all required modules can be imported"""
-    import app
-
     assert hasattr(app, "handler")
     assert hasattr(app, "logger")
     assert hasattr(app, "bedrock_agent")
