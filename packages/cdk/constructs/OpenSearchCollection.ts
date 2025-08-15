@@ -2,8 +2,8 @@ import {Construct} from "constructs"
 import {CfnCollection, CfnSecurityPolicy, CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
 
 export interface OpenSearchCollectionProps {
-  collectionName: string
-  principals: Array<string>
+  readonly collectionName: string
+  readonly principals: Array<string>
 }
 
 export class OpenSearchCollection extends Construct {
