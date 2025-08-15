@@ -134,7 +134,9 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
           `Resource::arn:aws:bedrock:eu-west-2:${account}:guardrail/*`,
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*"
         ]
       }
     ]
