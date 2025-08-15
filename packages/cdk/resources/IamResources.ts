@@ -154,18 +154,23 @@ export class IamResources extends Construct {
       actions: [
         "dynamodb:GetItem",
         "dynamodb:PutItem",
-        "dynamodb:UpdateItem",
         "dynamodb:DeleteItem",
         "dynamodb:Query",
-        "dynamodb:Scan"
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:UpdateItem"
       ],
       resources: [props.slackBotStateTableArn]
     })
 
     const slackBotKmsPolicy = new PolicyStatement({
       actions: [
+        "kms:Encrypt",
         "kms:Decrypt",
-        "kms:GenerateDataKey"
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey"
       ],
       resources: [props.slackBotStateTableKmsKeyArn]
     })
