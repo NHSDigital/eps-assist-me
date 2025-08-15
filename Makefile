@@ -90,7 +90,6 @@ cfn-guard:
 	./scripts/run_cfn_guard.sh
 
 cdk-deploy: guard-STACK_NAME
-cdk-deploy: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -100,7 +99,6 @@ cdk-deploy: guard-STACK_NAME
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$STACK_NAME \
 		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
@@ -125,12 +123,10 @@ cdk-diff:
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=$$ACCOUNT_ID \
 		--context stackName=$$STACK_NAME \
-		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-watch: guard-STACK_NAME
 cdk-watch: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
@@ -142,7 +138,6 @@ cdk-watch: guard-STACK_NAME
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$STACK_NAME \
 		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
