@@ -1,25 +1,25 @@
 import {Construct} from "constructs"
 import {RemovalPolicy} from "aws-cdk-lib"
 import {
-  TableV2,
   AttributeType,
   Billing,
-  TableEncryptionV2
+  ProjectionType,
+  TableEncryptionV2,
+  TableV2
 } from "aws-cdk-lib/aws-dynamodb"
 import {Key} from "aws-cdk-lib/aws-kms"
 
 export interface DynamoDbTableProps {
   readonly tableName: string
+  readonly kmsKey: Key
   readonly partitionKey: {
     name: string
     type: AttributeType
   }
-  readonly timeToLiveAttribute?: string
 }
 
 export class DynamoDbTable extends Construct {
   public readonly table: TableV2
-  public readonly kmsKey: Key
 
   constructor(scope: Construct, id: string, props: DynamoDbTableProps) {
     super(scope, id)
