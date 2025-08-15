@@ -4,6 +4,7 @@
 **/newman/
 **/public/
 **/coverage/
+.coverage
 **/node_modules/
 .#*
 __pycache__/

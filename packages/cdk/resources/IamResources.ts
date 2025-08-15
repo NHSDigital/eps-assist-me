@@ -13,11 +13,13 @@ const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 
 export interface IamResourcesProps {
-  region: string
-  account: string
-  kbDocsBucket: Bucket
-  slackBotTokenParameterName: string
-  slackSigningSecretParameterName: string
+  readonly region: string
+  readonly account: string
+  readonly kbDocsBucket: Bucket
+  readonly slackBotTokenParameterName: string
+  readonly slackSigningSecretParameterName: string
+  readonly slackBotStateTableArn: string
+  readonly slackBotStateTableKmsKeyArn: string
 }
 
 export class IamResources extends Construct {
@@ -149,14 +151,41 @@ export class IamResources extends Construct {
       resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
     })
 
+    const slackBotDynamoDbPolicy = new PolicyStatement({
+      actions: [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:UpdateItem"
+      ],
+      resources: [props.slackBotStateTableArn]
+    })
+
+    const slackBotKmsPolicy = new PolicyStatement({
+      actions: [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey"
+      ],
+      resources: [props.slackBotStateTableKmsKeyArn]
+    })
+
     this.slackBotManagedPolicy = new ManagedPolicy(this, "SlackBotManagedPolicy", {
-      description: "Policy for SlackBot Lambda to access Bedrock, SSM, and Lambda",
+      description: "Policy for SlackBot Lambda to access Bedrock, SSM, Lambda, DynamoDB, and KMS",
       statements: [
         slackBotPolicy,
         slackBotKnowledgeBasePolicy,
         slackBotSSMPolicy,
         slackBotLambdaPolicy,
-        slackBotGuardrailPolicy
+        slackBotGuardrailPolicy,
+        slackBotDynamoDbPolicy,
+        slackBotKmsPolicy
       ]
     })
 
