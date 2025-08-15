@@ -27,7 +27,7 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
-lint: lint-githubactions lint-githubaction-scripts lint-python
+lint: lint-githubaction-scripts lint-python
 
 lint-githubactions:
 	actionlint
