@@ -32,7 +32,6 @@ git-secrets-docker-setup:
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
 lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8
-lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8
 
 lint-githubactions:
 	actionlint
