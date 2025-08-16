@@ -98,7 +98,7 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Action::bedrock:Delete*",
           "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
-          "Resource::<StorageDocsBucketepsampr16Docs240CC945.Arn>/*",
+          "Resource::<StorageDocsBucketepsampr15DocsB7DF2FEC.Arn>/*",
           `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
           `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
           "Resource::*"
