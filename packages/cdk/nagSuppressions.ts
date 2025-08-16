@@ -35,6 +35,21 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/SyncKnowledgeBaseFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions are required for log stream access under known paths.",
+        appliesTo: [
+          "Resource::<FunctionsSyncKnowledgeBaseFunctionLambdaLogGroupB19BE2BE.Arn>:log-stream:*"
+        ]
+      }
+    ]
+  )
+
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
@@ -96,9 +111,9 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
-          "Action::bedrock:Delete*",
           "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
-          "Resource::<StorageDocsBucketepsampr16Docs240CC945.Arn>/*",
+          "Resource::<StorageDocsBucketepsampr20Docs075F648F.Arn>/*",
+          "Action::bedrock:Delete*",
           `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
           `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
           "Resource::*"
@@ -142,6 +157,22 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress wildcard permissions for SyncKnowledgeBase managed policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/IamResources/SyncKnowledgeBaseManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "SyncKnowledgeBase Lambda needs access to knowledge bases and data sources for synchronization.",
+        appliesTo: [
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*/data-source/*`
+        ]
+      }
+    ]
+  )
+
   // Suppress S3 server access logs for knowledge base documents bucket
   safeAddNagSuppression(
     stack,
@@ -177,6 +208,40 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress AWS managed policy usage in BucketNotificationsHandler (wildcard for any hash)
+  const bucketNotificationHandlers = stack.node.findAll().filter(node =>
+    node.node.id.startsWith("BucketNotificationsHandler")
+  )
+
+  bucketNotificationHandlers.forEach(handler => {
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/Role/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM4",
+          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
+          appliesTo: [
+            "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+          ]
+        }
+      ]
+    )
+
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/Role/DefaultPolicy/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
+          appliesTo: [
+            "Resource::*"
+          ]
+        }
+      ]
+    )
+  })
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {

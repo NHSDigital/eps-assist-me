@@ -14,6 +14,7 @@ import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseReso
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
+import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -90,12 +91,14 @@ export class EpsAssistMeStack extends Stack {
       logLevel,
       createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
       slackBotManagedPolicy: iamResources.slackBotManagedPolicy,
+      syncKnowledgeBaseManagedPolicy: iamResources.syncKnowledgeBaseManagedPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: "", // Will be set after vector KB is created
       guardrailVersion: "", // Will be set after vector KB is created
       collectionId: openSearchResources.collection.collection.attrId,
       knowledgeBaseId: "", // Will be set after vector KB is created
+      dataSourceId: "", // Will be set after vector KB is created
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
@@ -127,6 +130,22 @@ export class EpsAssistMeStack extends Stack {
     functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_ID", vectorKB.guardrail.attrGuardrailId)
     functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_VERSION", vectorKB.guardrail.attrVersion)
     functions.functions.slackBot.function.addEnvironment("KNOWLEDGEBASE_ID", vectorKB.knowledgeBase.attrKnowledgeBaseId)
+
+    // Update SyncKnowledgeBase Lambda environment variables with vector KB info
+    functions.functions.syncKnowledgeBase.function.addEnvironment(
+      "KNOWLEDGEBASE_ID",
+      vectorKB.knowledgeBase.attrKnowledgeBaseId
+    )
+    functions.functions.syncKnowledgeBase.function.addEnvironment(
+      "DATA_SOURCE_ID",
+      vectorKB.dataSource.attrDataSourceId
+    )
+
+    // Add S3 notification to trigger sync Lambda function
+    new S3LambdaNotification(this, "S3LambdaNotification", {
+      bucket: storage.kbDocsBucket.bucket,
+      lambdaFunction: functions.functions.syncKnowledgeBase.function
+    })
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
