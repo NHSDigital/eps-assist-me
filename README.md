@@ -21,14 +21,19 @@ This is a monorepo with the following structure:
 
 ```
 packages/
-├── cdk/                      # AWS CDK infrastructure code
-│   ├── bin/                  # CDK app entry point
-│   ├── constructs/           # Reusable CDK constructs
-│   ├── resources/            # AWS resource definitions
-│   └── stacks/               # CDK stack definitions
-├── createIndexFunction/      # Lambda function for OpenSearch index management
-├── slackBotFunction/         # Lambda function for Slack bot integration
-└── syncKnowledgeBaseFunction/ # Lambda function for automatic knowledge base sync
+├── cdk/                        # AWS CDK infrastructure code
+│   ├── bin/                    # CDK app entry point
+│   │   └── utils/              # CDK utility functions
+│   ├── constructs/             # Reusable CDK constructs
+│   │   └── RestApiGateway/     # API Gateway specific constructs
+│   ├── resources/              # AWS resource definitions
+│   └── stacks/                 # CDK stack definitions
+├── createIndexFunction/        # Lambda function for OpenSearch index management
+│   └── tests/                  # Unit tests for createIndex function
+├── slackBotFunction/           # Lambda function for Slack bot integration
+│   └── tests/                  # Unit tests for slackBot function
+└── syncKnowledgeBaseFunction/  # Lambda function for automatic knowledge base sync
+    └── tests/                  # Unit tests for syncKnowledgeBase function
 ```
 
 ## Contributing
