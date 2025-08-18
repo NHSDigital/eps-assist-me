@@ -134,7 +134,11 @@ def process_async_slack_event(slack_event_data):
 
         logger.info(
             f"Processing async @mention from user {user_id}",
-            extra={"user_query": user_query, "thread_ts": thread_ts, "event_id": event_id},
+            extra={
+                "user_query": user_query,
+                "thread_ts": thread_ts,
+                "event_id": event_id,
+            },
         )
 
         if not user_query:

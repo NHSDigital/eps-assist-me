@@ -33,7 +33,10 @@ def s3_event():
             {
                 "eventSource": "aws:s3",
                 "eventName": "ObjectCreated:Put",
-                "s3": {"bucket": {"name": "test-bucket"}, "object": {"key": "test-file.pdf", "size": 1024}},
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "test-file.pdf", "size": 1024},
+                },
             }
         ]
     }
@@ -157,12 +160,18 @@ def test_handler_multiple_records(mock_time, mock_bedrock, mock_env, lambda_cont
             {
                 "eventSource": "aws:s3",
                 "eventName": "ObjectCreated:Put",
-                "s3": {"bucket": {"name": "test-bucket"}, "object": {"key": "file1.pdf", "size": 1024}},
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "file1.pdf", "size": 1024},
+                },
             },
             {
                 "eventSource": "aws:s3",
                 "eventName": "ObjectRemoved:Delete",
-                "s3": {"bucket": {"name": "test-bucket"}, "object": {"key": "file2.pdf", "size": 2048}},
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "file2.pdf", "size": 2048},
+                },
             },
         ]
     }
@@ -206,7 +215,10 @@ def test_handler_missing_object_size(mock_bedrock, mock_env, lambda_context):
             {
                 "eventSource": "aws:s3",
                 "eventName": "ObjectCreated:Put",
-                "s3": {"bucket": {"name": "test-bucket"}, "object": {"key": "test-file.pdf"}},
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "test-file.pdf"},
+                },
             }
         ]
     }
@@ -234,7 +246,10 @@ def test_handler_partial_env_vars(mock_bedrock, lambda_context, s3_event):
 @patch("app.bedrock_agent")
 def test_handler_client_error_no_message(mock_bedrock, mock_env, lambda_context, s3_event):
     """Test handler with ClientError missing message"""
-    error = ClientError(error_response={"Error": {"Code": "TestError"}}, operation_name="StartIngestionJob")
+    error = ClientError(
+        error_response={"Error": {"Code": "TestError"}},
+        operation_name="StartIngestionJob",
+    )
     mock_bedrock.start_ingestion_job.side_effect = error
 
     result = app.handler(s3_event, lambda_context)

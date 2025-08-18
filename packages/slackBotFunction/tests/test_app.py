@@ -89,7 +89,10 @@ def test_is_duplicate_event(mock_time, mock_boto_resource, mock_get_parameter, m
     # Mock ConditionalCheckFailedException
     from botocore.exceptions import ClientError
 
-    error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
+    error = ClientError(
+        error_response={"Error": {"Code": "ConditionalCheckFailedException"}},
+        operation_name="PutItem",
+    )
     mock_table.put_item.side_effect = error
 
     if "app" in sys.modules:
@@ -362,7 +365,12 @@ def test_process_async_slack_event_success(mock_webclient, mock_boto_resource, m
         from app import process_async_slack_event
 
         slack_event_data = {
-            "event": {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
+            "event": {
+                "text": "<@U123> test question",
+                "user": "U456",
+                "channel": "C789",
+                "ts": "1234567890.123",
+            },
             "event_id": "evt123",
             "bot_token": "bot-token",
         }
@@ -438,7 +446,12 @@ def test_process_async_slack_event_error(mock_webclient, mock_boto_resource, moc
         from app import process_async_slack_event
 
         slack_event_data = {
-            "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
+            "event": {
+                "text": "test question",
+                "user": "U456",
+                "channel": "C789",
+                "ts": "1234567890.123",
+            },
             "event_id": "evt123",
             "bot_token": "bot-token",
         }
@@ -585,7 +598,12 @@ def test_log_request_middleware_execution_fixed(mock_boto_resource, mock_get_par
 @patch("boto3.client")
 @patch("time.time")
 def test_app_mention_handler_execution_simple(
-    mock_time, mock_boto_client, mock_boto_resource, mock_get_parameter, mock_app_class, mock_env
+    mock_time,
+    mock_boto_client,
+    mock_boto_resource,
+    mock_get_parameter,
+    mock_app_class,
+    mock_env,
 ):
     """Test app mention handler execution by simulating the handler registration process"""
     mock_get_parameter.side_effect = [
@@ -643,7 +661,10 @@ def test_app_mention_handler_execution_simple(
     # Test 2: Duplicate event
     from botocore.exceptions import ClientError
 
-    error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
+    error = ClientError(
+        error_response={"Error": {"Code": "ConditionalCheckFailedException"}},
+        operation_name="PutItem",
+    )
     mock_table.put_item.side_effect = error
 
     handler_func(event, mock_ack, body)
@@ -668,7 +689,12 @@ def test_app_mention_handler_execution_simple(
 @patch("boto3.client")
 @patch("time.time")
 def test_direct_message_handler_execution_simple(
-    mock_time, mock_boto_client, mock_boto_resource, mock_get_parameter, mock_app_class, mock_env
+    mock_time,
+    mock_boto_client,
+    mock_boto_resource,
+    mock_get_parameter,
+    mock_app_class,
+    mock_env,
 ):
     """Test direct message handler execution by simulating the handler registration process"""
     mock_get_parameter.side_effect = [
@@ -737,7 +763,10 @@ def test_direct_message_handler_execution_simple(
     # Test 3: IM channel with duplicate event
     from botocore.exceptions import ClientError
 
-    error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
+    error = ClientError(
+        error_response={"Error": {"Code": "ConditionalCheckFailedException"}},
+        operation_name="PutItem",
+    )
     mock_table.put_item.side_effect = error
 
     handler_func(event, mock_ack, body)
@@ -762,7 +791,12 @@ def test_direct_message_handler_execution_simple(
 @patch("boto3.client")
 @patch("time.time")
 def test_handlers_direct_call_coverage(
-    mock_time, mock_boto_client, mock_boto_resource, mock_get_parameter, mock_app_class, mock_env
+    mock_time,
+    mock_boto_client,
+    mock_boto_resource,
+    mock_get_parameter,
+    mock_app_class,
+    mock_env,
 ):
     """Test handlers by calling them directly to ensure coverage"""
     mock_get_parameter.side_effect = [
