@@ -150,6 +150,11 @@ export class IamResources extends Construct {
       resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
     })
 
+    const slackBotPromptPolicy = new PolicyStatement({
+      actions: ["bedrock:InvokeModel"],
+      resources: [`arn:aws:bedrock:${props.region}:${props.account}:prompt/*`]
+    })
+
     const slackBotDynamoDbPolicy = new PolicyStatement({
       actions: [
         "dynamodb:GetItem",
@@ -183,6 +188,7 @@ export class IamResources extends Construct {
         slackBotSSMPolicy,
         slackBotLambdaPolicy,
         slackBotGuardrailPolicy,
+        slackBotPromptPolicy,
         slackBotDynamoDbPolicy,
         slackBotKmsPolicy
       ]

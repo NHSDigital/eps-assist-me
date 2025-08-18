@@ -10,6 +10,7 @@ from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from botocore.exceptions import ClientError
+from query_reformulator import reformulate_query
 
 
 # Initialize Powertools Logger
@@ -145,7 +146,9 @@ def process_async_slack_event(slack_event_data):
             )
             return
 
-        kb_response = get_bedrock_knowledgebase_response(user_query)
+        # Reformulate query for better RAG retrieval
+        reformulated_query = reformulate_query(user_query)
+        kb_response = get_bedrock_knowledgebase_response(reformulated_query)
         response_text = kb_response["output"]["text"]
 
         client.chat_postMessage(channel=channel, text=response_text, thread_ts=thread_ts)

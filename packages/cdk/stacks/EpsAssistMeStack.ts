@@ -11,6 +11,7 @@ import {Storage} from "../resources/Storage"
 import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
+import {PromptManagement} from "../resources/PromptManagement"
 import {IamResources} from "../resources/IamResources"
 import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
@@ -111,6 +112,11 @@ export class EpsAssistMeStack extends Stack {
       endpoint
     })
 
+    // Create Prompt Management resources
+    const promptManagement = new PromptManagement(this, "PromptManagement", {
+      stackName: props.stackName
+    })
+
     // Create VectorKnowledgeBase construct after vector index
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
@@ -127,6 +133,10 @@ export class EpsAssistMeStack extends Stack {
     functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_ID", vectorKB.guardrail.attrGuardrailId)
     functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_VERSION", vectorKB.guardrail.attrVersion)
     functions.functions.slackBot.function.addEnvironment("KNOWLEDGEBASE_ID", vectorKB.knowledgeBase.attrKnowledgeBaseId)
+    functions.functions.slackBot.function.addEnvironment(
+      "QUERY_REFORMULATION_PROMPT_ARN",
+      promptManagement.queryReformulationPrompt.attrArn
+    )
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
