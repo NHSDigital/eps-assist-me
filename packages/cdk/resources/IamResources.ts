@@ -11,6 +11,8 @@ import {Bucket} from "aws-cdk-lib/aws-s3"
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
 // Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+// Claude model for query reformulation
+const QUERY_REFORMULATION_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 
 export interface IamResourcesProps {
   readonly region: string
@@ -151,8 +153,14 @@ export class IamResources extends Construct {
     })
 
     const slackBotPromptPolicy = new PolicyStatement({
-      actions: ["bedrock:InvokeModel"],
-      resources: [`arn:aws:bedrock:${props.region}:${props.account}:prompt/*`]
+      actions: [
+        "bedrock:InvokeModel",
+        "bedrock:GetPrompt"
+      ],
+      resources: [
+        `arn:aws:bedrock:${props.region}::foundation-model/${QUERY_REFORMULATION_MODEL_ID}`,
+        `arn:aws:bedrock:${props.region}:${props.account}:prompt/*`
+      ]
     })
 
     const slackBotDynamoDbPolicy = new PolicyStatement({
