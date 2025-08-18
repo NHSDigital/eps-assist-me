@@ -18,6 +18,9 @@ on:
       CDK_APP_NAME:
         required: true
         type: string
+      DEPLOY_CODE:
+        type: boolean
+        default: false
       LOG_RETENTION_IN_DAYS:
         required: true
         type: string
@@ -74,7 +77,7 @@ jobs:
         with:
           name: build_artifact
   
-      - name: extract build_artifact
+      - name: Extract build_artifact
         run: |
           mkdir -p .build
           tar -xf artifact.tar -C .build
@@ -106,6 +109,7 @@ jobs:
         run: |
           ./.github/scripts/fix_cdk_json.sh
         env:
+          ACCOUNT_ID: "${{ env.ACCOUNT_ID }}"
           STACK_NAME: "${{ inputs.STACK_NAME }}"
           VERSION_NUMBER: "${{ inputs.VERSION_NUMBER }}"
           COMMIT_ID: "${{ inputs.COMMIT_ID }}"
@@ -117,35 +121,29 @@ jobs:
       - name: Show diff
         run: |
           docker run \
-          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e stack_name="${{ inputs.STACK_NAME }}" \
-          -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER}}" \
-          -e COMMIT_ID="${{ inputs.COMMIT_ID}}" \
-          -e SHOW_DIFF="true" \
-          -e DEPLOY_CODE="false" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
-        shell: bash
+            -v "$(pwd)/.build":/home/cdkuser/workspace/ \
+            -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
+            -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
+            -e AWS_REGION="eu-west-2" \
+            -e SHOW_DIFF="true" \
+            -e DEPLOY_CODE="false" \
+            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+            cdk-utils-build-repo:latest
 
       - name: Deploy code
+        if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
           docker run \
-          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e stack_name="${{ inputs.STACK_NAME }}" \
-          -e VERSION_NUMBER="${{ inputs.VERSION_NUMBER}}" \
-          -e COMMIT_ID="${{ inputs.COMMIT_ID}}" \
-          -e SHOW_DIFF="false" \
-          -e DEPLOY_CODE="true" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
+            -v "$(pwd)/.build":/home/cdkuser/workspace/ \
+            -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
+            -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
+            -e AWS_REGION="eu-west-2" \
+            -e SHOW_DIFF="false" \
+            -e DEPLOY_CODE="true" \
+            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+            cdk-utils-build-repo:latest
         shell: bash
 
       - name: mark_released_in_jira
@@ -157,13 +155,6 @@ jobs:
 
       - name: Checkout gh-pages
         if: ${{ !startsWith(inputs.STACK_NAME, 'epsam-pr-') }}
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-
-      - name: Checkout gh-pages
-        if: ${{ !startsWith(inputs.STACK_NAME, 'lambda-resources-pr-') }}
         uses: actions/checkout@v4
         with:
           ref: gh-pages

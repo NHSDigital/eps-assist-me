@@ -10,12 +10,17 @@ install: install-python install-hooks install-node
 
 install-python:
 	poetry install
+	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
+	cd packages/createIndexFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 
 install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
 
 install-node:
 	npm ci
+
+compile-node:
+	npx tsc --build tsconfig.build.json
 
 pre-commit: git-secrets-docker-setup
 	poetry run pre-commit run --all-files
@@ -24,13 +29,38 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
+lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8
+
 lint-githubactions:
 	actionlint
 
 lint-githubaction-scripts:
+	shellcheck ./scripts/*.sh
 	shellcheck .github/scripts/*.sh
 
-lint: lint-githubactions lint-githubaction-scripts
+lint-black:
+	poetry run black .
+
+lint-flake8:
+	poetry run flake8 .
+
+test:
+	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
+	cd packages/createIndexFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
+
+clean:
+	rm -rf packages/cdk/coverage
+	rm -rf packages/cdk/lib
+	rm -rf packages/slackBotFunction/coverage
+	rm -rf packages/slackBotFunction/.coverage
+	rm -rf packages/createIndexFunction/coverage
+	rm -rf packages/createIndexFunction/.coverage
+	rm -rf cdk.out
+	rm -rf .build
+
+deep-clean: clean
+	rm -rf .venv
+	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
 
 check-licenses: check-licenses-node check-licenses-python
 
@@ -43,7 +73,13 @@ check-licenses-python:
 aws-configure:
 	aws configure sso --region eu-west-2
 
-cdk-deploy: guard-stack_name
+aws-login:
+	aws sso login --sso-session sso-session
+
+cfn-guard:
+	./scripts/run_cfn_guard.sh
+
+cdk-deploy: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -52,25 +88,36 @@ cdk-deploy: guard-stack_name
 		--all \
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
-		--context stackName=$$stack_name \
-		--context VERSION_NUMBER=$$VERSION_NUMBER \
-		--context COMMIT_ID=$$COMMIT_ID 
+		--context accountId=$$ACCOUNT_ID \
+		--context stackName=$$STACK_NAME \
+		--context versionNumber=$$VERSION_NUMBER \
+		--context commitId=$$COMMIT_ID \
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
+		--context slackBotToken=$$SLACK_BOT_TOKEN \
+		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 
 cdk-synth:
 	npx cdk synth \
+		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--context accountId=undefined \
 		--context stackName=epsam \
-		--context VERSION_NUMBER=undefined \
-		--context COMMIT_ID=undefined 
+		--context versionNumber=undefined \
+		--context commitId=undefined \
+		--context logRetentionInDays=30 \
+		--context slackBotToken=dummy \
+		--context slackSigningSecret=dummy
 
 cdk-diff:
 	npx cdk diff \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context stackName=$$stack_name \
-		--context VERSION_NUMBER=$$VERSION_NUMBER \
-		--context COMMIT_ID=$$COMMIT_ID 
+		--context accountId=$$ACCOUNT_ID \
+		--context stackName=$$STACK_NAME \
+		--context versionNumber=$$VERSION_NUMBER \
+		--context commitId=$$COMMIT_ID \
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-watch: guard-stack_name
+cdk-watch: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -80,6 +127,10 @@ cdk-watch: guard-stack_name
 		--all \
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
-		--context stackName=$$stack_name \
-		--context VERSION_NUMBER=$$VERSION_NUMBER \
-		--context COMMIT_ID=$$COMMIT_ID
+		--context accountId=$$ACCOUNT_ID \
+		--context stackName=$$STACK_NAME \
+		--context versionNumber=$$VERSION_NUMBER \
+		--context commitId=$$COMMIT_ID \
+		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
+		--context slackBotToken=$$SLACK_BOT_TOKEN \
+		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
