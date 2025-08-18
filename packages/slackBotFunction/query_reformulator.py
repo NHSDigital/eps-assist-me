@@ -40,5 +40,8 @@ def reformulate_query(user_query: str) -> str:
         return reformulated_query
 
     except Exception as e:
-        logger.error(f"Error reformulating query: {e}")
+        logger.error(
+            f"Error reformulating query: {e}",
+            extra={"original_query": user_query, "prompt_arn": os.environ.get("QUERY_REFORMULATION_PROMPT_ARN")},
+        )
         return user_query  # Fallback to original query
