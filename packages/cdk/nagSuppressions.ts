@@ -3,6 +3,8 @@ import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack) => {
+  const stackName = stack.node.tryGetContext("stackName") || "epsam"
+  const account = Stack.of(stack).account
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
@@ -60,7 +62,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress unauthenticated API route warnings
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/ask-eps/POST/Resource",
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/events/POST/Resource",
     [
       {
         id: "AwsSolutions-APIG4",
@@ -94,12 +96,11 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
-          "Resource::<StorageDocsBucketDocs0C9A9D9E.Arn>/*",
           "Action::bedrock:Delete*",
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*",
-          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
+          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
+          "Resource::<StorageDocsBucketepsampr16Docs240CC945.Arn>/*",
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
+          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
           "Resource::*"
         ]
       }
@@ -115,10 +116,8 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
         appliesTo: [
-          "Resource::arn:aws:aoss:eu-west-2:undefined:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:undefined:index/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:collection/*",
-          "Resource::arn:aws:aoss:eu-west-2:591291862413:index/*"
+          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
+          `Resource::arn:aws:aoss:eu-west-2:${account}:index/*`
         ]
       }
     ]
@@ -133,12 +132,11 @@ export const nagSuppressions = (stack: Stack) => {
         id: "AwsSolutions-IAM5",
         reason: "SlackBot Lambda needs access to all guardrails, knowledge bases, and functions for content filtering and self-invocation.",
         appliesTo: [
-          "Resource::arn:aws:lambda:eu-west-2:undefined:function:*",
-          "Resource::arn:aws:lambda:eu-west-2:591291862413:function:*",
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:guardrail/*",
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:guardrail/*",
-          "Resource::arn:aws:bedrock:eu-west-2:undefined:knowledge-base/*",
-          "Resource::arn:aws:bedrock:eu-west-2:591291862413:knowledge-base/*"
+          `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:guardrail/*`,
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*"
         ]
       }
     ]
@@ -147,7 +145,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress S3 server access logs for knowledge base documents bucket
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Storage/DocsBucket/Docs/Resource",
+    `/EpsAssistMeStack/Storage/DocsBucket/${stackName}-Docs/Resource`,
     [
       {
         id: "AwsSolutions-S1",
@@ -178,6 +176,7 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {

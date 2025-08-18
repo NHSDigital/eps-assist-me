@@ -6,10 +6,10 @@ import {AwsCustomResource, PhysicalResourceId, AwsCustomResourcePolicy} from "aw
 import {LambdaFunction} from "../constructs/LambdaFunction"
 
 export interface VectorIndexProps {
-  indexName: string
-  collection: CfnCollection
-  createIndexFunction: LambdaFunction
-  endpoint: string
+  readonly indexName: string
+  readonly collection: CfnCollection
+  readonly createIndexFunction: LambdaFunction
+  readonly endpoint: string
 }
 
 export class VectorIndex extends Construct {

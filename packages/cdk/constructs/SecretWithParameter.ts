@@ -4,10 +4,10 @@ import {StringParameter, ParameterTier} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 
 export interface SecretWithParameterProps {
-  secretName: string
-  parameterName: string
-  description: string
-  secretValue: string
+  readonly secretName: string
+  readonly parameterName: string
+  readonly description: string
+  readonly secretValue: string
 }
 
 export class SecretWithParameter extends Construct {
