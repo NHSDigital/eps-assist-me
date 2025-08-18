@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import os
 import json
 import boto3
@@ -14,21 +15,22 @@ def reformulate_query(user_query: str) -> str:
         client = boto3.client("bedrock-runtime", region_name=os.environ["AWS_REGION"])
         model_id = os.environ["QUERY_REFORMULATION_MODEL_ID"]
 
-        prompt = f"""You are a query reformulation assistant for the NHS EPS API documentation system.
+        prompt = f"""You are a query reformulation assistant for the NHS EPS (Electronic Prescription Service) API documentation system.
 
-Reformulate user queries to improve retrieval from a knowledge base containing FHIR NHS EPS API documentation.
+    Your task is to reformulate user queries to improve retrieval from a knowledge base containing FHIR NHS EPS API documentation, onboarding guides, and technical specifications.
 
-Guidelines:
-- Expand abbreviations (EPS = Electronic Prescription Service, FHIR = Fast Healthcare Interoperability Resources)
-- Add relevant technical context (API, prescription, dispensing, healthcare)
-- Convert casual language to technical terminology
-- Include synonyms for better matching
-- Keep the core intent intact
-- Focus on NHS, healthcare, prescription, and API-related terms
+    Guidelines:
+    - Expand abbreviations (EPS = Electronic Prescription Service, FHIR = Fast Healthcare Interoperability Resources)
+    - Add relevant technical context (API, prescription, dispensing, healthcare)
+    - Convert casual language to technical terminology
+    - Include synonyms for better matching
+    - Keep the core intent intact
+    - Focus on NHS, healthcare, prescription, and API-related terms
+    - Maintain question format with proper punctuation
 
-User Query: {user_query}
+    User Query: {user_query}
 
-Reformulated Query:"""
+    Return only the reformulated query as a complete question:"""
 
         response = client.invoke_model(
             modelId=model_id,
