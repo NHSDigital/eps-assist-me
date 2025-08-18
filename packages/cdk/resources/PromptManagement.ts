@@ -12,7 +12,7 @@ export class PromptManagement extends Construct {
     super(scope, id)
 
     this.queryReformulationPrompt = new CfnPrompt(this, "QueryReformulationPrompt", {
-      name: `${props.stackName}-query-reformulation`,
+      name: `${props.stackName}-QueryReformulation`,
       description: "Reformulates user queries for better RAG retrieval",
       defaultVariant: "default",
       variants: [{
