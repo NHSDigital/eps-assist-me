@@ -8,7 +8,7 @@ from query_reformulator import reformulate_query
     "os.environ",
     {
         "AWS_REGION": "eu-west-2",
-        "QUERY_REFORMULATION_PROMPT_ARN": "arn:aws:bedrock:eu-west-2:123456789012:prompt/test-prompt",
+        "QUERY_REFORMULATION_MODEL_ID": "anthropic.claude-3-haiku-20240307-v1:0",
     },
 )
 def test_reformulate_query_success(mock_boto_client):
@@ -34,7 +34,7 @@ def test_reformulate_query_success(mock_boto_client):
     "os.environ",
     {
         "AWS_REGION": "eu-west-2",
-        "QUERY_REFORMULATION_PROMPT_ARN": "arn:aws:bedrock:eu-west-2:123456789012:prompt/test-prompt",
+        "QUERY_REFORMULATION_MODEL_ID": "anthropic.claude-3-haiku-20240307-v1:0",
     },
 )
 def test_reformulate_query_fallback_on_error(mock_boto_client):
