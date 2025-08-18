@@ -8,20 +8,35 @@ logger = Logger(service="queryReformulator")
 
 def reformulate_query(user_query: str) -> str:
     """
-    Reformulate user query using Bedrock Prompt Management for better RAG retrieval.
+    Reformulate user query using Claude Haiku for better RAG retrieval.
     """
     try:
         client = boto3.client("bedrock-runtime", region_name=os.environ["AWS_REGION"])
-        prompt_arn = os.environ["QUERY_REFORMULATION_PROMPT_ARN"]
+        model_id = os.environ["QUERY_REFORMULATION_MODEL_ID"]
+
+        prompt = f"""You are a query reformulation assistant for the NHS EPS API documentation system.
+
+Reformulate user queries to improve retrieval from a knowledge base containing FHIR NHS EPS API documentation.
+
+Guidelines:
+- Expand abbreviations (EPS = Electronic Prescription Service, FHIR = Fast Healthcare Interoperability Resources)
+- Add relevant technical context (API, prescription, dispensing, healthcare)
+- Convert casual language to technical terminology
+- Include synonyms for better matching
+- Keep the core intent intact
+- Focus on NHS, healthcare, prescription, and API-related terms
+
+User Query: {user_query}
+
+Reformulated Query:"""
 
         response = client.invoke_model(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
+            modelId=model_id,
             body=json.dumps(
                 {
                     "anthropic_version": "bedrock-2023-05-31",
                     "max_tokens": 200,
-                    "prompt": prompt_arn,
-                    "variables": {"query": user_query},
+                    "messages": [{"role": "user", "content": prompt}],
                 }
             ),
         )
@@ -30,18 +45,11 @@ def reformulate_query(user_query: str) -> str:
         reformulated_query = result["content"][0]["text"].strip()
 
         logger.info(
-            "Query reformulated",
-            extra={
-                "original_query": user_query,
-                "reformulated_query": reformulated_query,
-            },
+            "Query reformulated", extra={"original_query": user_query, "reformulated_query": reformulated_query}
         )
 
         return reformulated_query
 
     except Exception as e:
-        logger.error(
-            f"Error reformulating query: {e}",
-            extra={"original_query": user_query, "prompt_arn": os.environ.get("QUERY_REFORMULATION_PROMPT_ARN")},
-        )
+        logger.error(f"Error reformulating query: {e}", extra={"original_query": user_query})
         return user_query  # Fallback to original query
