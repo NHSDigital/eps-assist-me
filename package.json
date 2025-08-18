@@ -14,9 +14,7 @@
   "author": "NHS Digital",
   "license": "MIT",
   "workspaces": [
-    "packages/cdk",
-    "packages/querytool",
-    "packages/slackbot"
+    "packages/cdk"
   ],
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
