@@ -30,7 +30,11 @@ def reformulate_query(user_query: str) -> str:
         reformulated_query = result["content"][0]["text"].strip()
 
         logger.info(
-            "Query reformulated", extra={"original_query": user_query, "reformulated_query": reformulated_query}
+            "Query reformulated",
+            extra={
+                "original_query": user_query,
+                "reformulated_query": reformulated_query,
+            },
         )
 
         return reformulated_query
