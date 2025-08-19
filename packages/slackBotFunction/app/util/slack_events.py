@@ -1,0 +1,163 @@
+"""
+Slack event processing
+Handles conversation memory, Bedrock queries, and responding back to Slack
+"""
+
+import re
+import time
+import boto3
+from slack_sdk import WebClient
+from app.core.config import table, logger, KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
+
+
+def process_async_slack_event(slack_event_data):
+    """
+    Process the actual Slack event
+    Gets called asynchronously to avoid Lambda timeouts
+    """
+    event = slack_event_data["event"]
+    event_id = slack_event_data["event_id"]
+    token = slack_event_data["bot_token"]
+
+    client = WebClient(token=token)
+
+    try:
+        raw_text = event["text"]
+        user_id = event["user"]
+        channel = event["channel"]
+        thread_ts = event.get("thread_ts", event["ts"])
+
+        # figure out if this is a DM or channel thread
+        if event.get("channel_type") == "im":
+            conversation_key = f"dm#{channel}"
+            context_type = "DM"
+        else:
+            conversation_key = f"thread#{channel}#{thread_ts}"
+            context_type = "thread"
+
+        # clean up the user's message
+        user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
+
+        logger.info(
+            f"Processing {context_type} message from user {user_id}",
+            extra={"user_query": user_query, "conversation_key": conversation_key, "event_id": event_id},
+        )
+
+        # handles empty messages
+        if not user_query:
+            client.chat_postMessage(
+                channel=channel,
+                text="Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+                thread_ts=thread_ts,
+            )
+            return
+
+        # check if we have an existing conversation
+        session_id = get_conversation_session(conversation_key)
+
+        kb_response = query_bedrock(user_query, session_id)
+        response_text = kb_response["output"]["text"]
+
+        # store a new session if we just started a conversation
+        if not session_id and "sessionId" in kb_response:
+            store_conversation_session(
+                conversation_key,
+                kb_response["sessionId"],
+                user_id,
+                channel,
+                thread_ts if context_type == "thread" else None,
+            )
+            context_note = f" (new {context_type})"
+        elif session_id:
+            context_note = f" (continuing {context_type})"
+        else:
+            context_note = ""
+
+        client.chat_postMessage(channel=channel, text=f"{response_text}{context_note}", thread_ts=thread_ts)
+
+    except Exception as err:
+        logger.error(f"Error processing message: {err}", extra={"event_id": event_id})
+        client.chat_postMessage(
+            channel=channel,
+            text="Sorry, something went wrong. Please try again.",
+            thread_ts=thread_ts,
+        )
+
+
+def get_conversation_session(conversation_key):
+    """
+    Get existing Bedrock session for this conversation
+    """
+    try:
+        response = table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        if "Item" in response:
+            logger.info(f"Found existing session for {conversation_key}")
+            return response["Item"]["session_id"]
+        return None
+    except Exception as e:
+        logger.error(f"Error getting session: {e}")
+        return None
+
+
+def store_conversation_session(conversation_key, session_id, user_id, channel_id, thread_ts=None):
+    """
+    Store new Bedrock session for conversation memory
+    """
+    try:
+        ttl = int(time.time()) + 2592000  # 30 days
+        table.put_item(
+            Item={
+                "pk": conversation_key,
+                "sk": "session",
+                "session_id": session_id,
+                "user_id": user_id,
+                "channel_id": channel_id,
+                "thread_ts": thread_ts,
+                "created_at": int(time.time()),
+                "ttl": ttl,
+            }
+        )
+        logger.info(f"Stored session {session_id} for {conversation_key}")
+    except Exception as e:
+        logger.error(f"Error storing session: {e}")
+
+
+def query_bedrock(user_query, session_id=None):
+    """
+    Query Bedrock knowledge base with optional conversation context
+    """
+    client = boto3.client(
+        service_name="bedrock-agent-runtime",
+        region_name=AWS_REGION,
+    )
+
+    request_params = {
+        "input": {"text": user_query},
+        "retrieveAndGenerateConfiguration": {
+            "type": "KNOWLEDGE_BASE",
+            "knowledgeBaseConfiguration": {
+                "knowledgeBaseId": KNOWLEDGEBASE_ID,
+                "modelArn": RAG_MODEL_ID,
+                "generationConfiguration": {
+                    "guardrailConfiguration": {
+                        "guardrailId": GUARD_RAIL_ID,
+                        "guardrailVersion": GUARD_VERSION,
+                    }
+                },
+            },
+        },
+    }
+
+    # add session if we have one for conversation continuity
+    if session_id:
+        request_params["sessionId"] = session_id
+        logger.info(f"Using existing session ID: {session_id}")
+    else:
+        logger.info("Starting new conversation")
+
+    response = client.retrieve_and_generate(**request_params)
+    logger.info(
+        "Got Bedrock response",
+        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
+    )
+    return response
