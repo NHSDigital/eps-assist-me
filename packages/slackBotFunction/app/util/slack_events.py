@@ -79,7 +79,7 @@ def process_async_slack_event(slack_event_data):
         logger.error(f"Error processing message: {err}", extra={"event_id": event_id})
         client.chat_postMessage(
             channel=channel,
-            text="Sorry, something went wrong. Please try again.",
+            text="Sorry, an error occurred while processing your request. Please try again later.",
             thread_ts=thread_ts,
         )
 
