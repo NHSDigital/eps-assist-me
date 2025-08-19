@@ -24,6 +24,7 @@ export interface LambdaFunctionProps {
   readonly functionName: string
   readonly packageBasePath: string
   readonly entryPoint: string
+  readonly handler: string
   readonly environmentVariables: {[key: string]: string}
   readonly additionalPolicies?: Array<IManagedPolicy>
   readonly role?: Role
@@ -132,7 +133,7 @@ export class LambdaFunction extends Construct {
       memorySize: 256,
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
-      handler: "app.handler",
+      handler: props.handler,
       code: Code.fromAsset(props.packageBasePath),
       role,
       environment: {
