@@ -5,7 +5,11 @@ from aws_lambda_powertools import Logger
 from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID
 
 logger = Logger(service="syncKnowledgeBaseFunction")
-bedrock_agent = boto3.client("bedrock-agent")
+
+
+def get_bedrock_agent():
+    """Get or create bedrock agent client"""
+    return boto3.client("bedrock-agent")
 
 
 @logger.inject_lambda_context
@@ -71,6 +75,7 @@ def handler(event, context):
                 )
 
                 ingestion_start_time = time.time()
+                bedrock_agent = get_bedrock_agent()
                 response = bedrock_agent.start_ingestion_job(
                     knowledgeBaseId=KNOWLEDGEBASE_ID,
                     dataSourceId=DATA_SOURCE_ID,
