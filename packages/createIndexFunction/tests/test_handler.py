@@ -33,7 +33,7 @@ def mock_opensearch_client():
 
 
 @patch("app.handler.boto3.Session")
-def test_get_opensearch_client(mock_session):
+def test_get_opensearch_client(mock_session, mock_env):
     """Test OpenSearch client creation"""
     mock_credentials = Mock()
     mock_session.return_value.get_credentials.return_value = mock_credentials
@@ -125,7 +125,7 @@ def test_extract_parameters_direct():
 
 @patch("app.handler.get_opensearch_client")
 @patch("app.handler.create_and_wait_for_index")
-def test_handler_create(mock_create_wait, mock_get_client, lambda_context):
+def test_handler_create(mock_create_wait, mock_get_client, mock_env, lambda_context):
     """Test handler for Create request"""
     mock_get_client.return_value = Mock()
 
@@ -145,7 +145,7 @@ def test_handler_create(mock_create_wait, mock_get_client, lambda_context):
 
 
 @patch("app.handler.get_opensearch_client")
-def test_handler_delete(mock_get_client, mock_opensearch_client, lambda_context):
+def test_handler_delete(mock_get_client, mock_opensearch_client, mock_env, lambda_context):
     """Test handler for Delete request"""
     mock_get_client.return_value = mock_opensearch_client
     mock_opensearch_client.indices.exists.return_value = True
@@ -167,7 +167,7 @@ def test_handler_delete(mock_get_client, mock_opensearch_client, lambda_context)
 
 
 @patch("app.handler.get_opensearch_client")
-def test_handler_missing_parameters(mock_get_client, lambda_context):
+def test_handler_missing_parameters(mock_get_client, mock_env, lambda_context):
     """Test handler with missing parameters"""
     from app.handler import handler
 
@@ -178,7 +178,7 @@ def test_handler_missing_parameters(mock_get_client, lambda_context):
 
 
 @patch("app.handler.get_opensearch_client")
-def test_handler_with_payload(mock_get_client, mock_opensearch_client, lambda_context):
+def test_handler_with_payload(mock_get_client, mock_opensearch_client, mock_env, lambda_context):
     """Test handler with JSON payload"""
     mock_get_client.return_value = mock_opensearch_client
     mock_opensearch_client.indices.exists.return_value = True
