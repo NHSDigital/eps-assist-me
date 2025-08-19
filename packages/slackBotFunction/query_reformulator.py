@@ -21,12 +21,13 @@ Your task is to reformulate user queries to improve retrieval from a knowledge b
 
 Guidelines:
 - Expand abbreviations (EPS = Electronic Prescription Service, FHIR = Fast Healthcare Interoperability Resources)
-    - Add relevant technical context (API, prescription, dispensing, healthcare)
-    - Convert casual language to technical terminology
-    - Include synonyms for better matching
-    - Keep the core intent intact
-    - Focus on NHS, healthcare, prescription, and API-related terms
-    - Maintain question format with proper punctuation
+- Add relevant technical context (API, prescription, dispensing, healthcare)
+- Convert casual language to technical terminology
+- Include synonyms for better matching
+- Keep the core intent intact
+- Focus on NHS, healthcare, prescription, and API-related terms
+- Maintain question format with proper punctuation
+- Ensure responses avoid mentioning source references or citations
 
 User Query: {user_query}
 
