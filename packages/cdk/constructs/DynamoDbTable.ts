@@ -43,7 +43,9 @@ export class DynamoDbTable extends Construct {
       sortKey: props.sortKey,
       billing: Billing.onDemand(),
       timeToLiveAttribute: props.timeToLiveAttribute,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true
+      },
       removalPolicy: RemovalPolicy.DESTROY,
       encryption: TableEncryptionV2.customerManagedKey(this.kmsKey)
     })

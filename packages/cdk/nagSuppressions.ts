@@ -97,8 +97,7 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
           "Action::bedrock:Delete*",
-          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
-          "Resource::<StorageDocsBucketepsampr16Docs240CC945.Arn>/*",
+          "Resource::<StorageDocsBucket*Docs*.Arn>/*",
           `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
           `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
           "Resource::*"
