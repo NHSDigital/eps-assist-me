@@ -1,27 +1,23 @@
 import json
-import os
 import time
-
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
+from app.config.config import AWS_REGION
 
 logger = Logger(service="createIndexFunction")
 
 
 def get_opensearch_client(endpoint):
-    """
-    Create an OpenSearch (AOSS) client using AWS credentials.
-    Works for both AOSS and legacy OpenSearch domains by checking the endpoint.
-    """
+    """Create an OpenSearch (AOSS) client using AWS credentials."""
     service = "aoss" if "aoss" in endpoint else "es"
     logger.debug(f"Connecting to OpenSearch service: {service} at {endpoint}")
     return OpenSearch(
         hosts=[{"host": endpoint, "port": 443}],
         http_auth=AWSV4SignerAuth(
             boto3.Session().get_credentials(),
-            os.getenv("AWS_REGION", "eu-west-2"),
+            AWS_REGION,
             service,
         ),
         use_ssl=True,
@@ -32,17 +28,12 @@ def get_opensearch_client(endpoint):
 
 
 def wait_for_index_aoss(opensearch_client, index_name, timeout=300, poll_interval=5):
-    """
-    Wait until the index exists in OpenSearch Serverless (AOSS).
-    AOSS does not support cluster health checks, so existence == ready.
-    """
+    """Wait until the index exists in OpenSearch Serverless (AOSS)."""
     logger.info(f"Waiting for index '{index_name}' to be available in AOSS...")
     start = time.time()
     while True:
         try:
-            # Use .exists and then attempt to get mapping
             if opensearch_client.indices.exists(index=index_name):
-                # Now check if mappings are available (index is queryable)
                 mapping = opensearch_client.indices.get_mapping(index=index_name)
                 if mapping and index_name in mapping:
                     logger.info(f"Index '{index_name}' exists and mappings are ready.")
@@ -51,7 +42,6 @@ def wait_for_index_aoss(opensearch_client, index_name, timeout=300, poll_interva
                 logger.info(f"Index '{index_name}' does not exist yet...")
         except Exception as exc:
             logger.info(f"Still waiting for index '{index_name}': {exc}")
-        # Exit on timeout to avoid infinite loop during stack failures.
         if time.time() - start > timeout:
             logger.error(f"Timed out waiting for index '{index_name}' to be available.")
             return False
@@ -59,10 +49,7 @@ def wait_for_index_aoss(opensearch_client, index_name, timeout=300, poll_interva
 
 
 def create_and_wait_for_index(client, index_name):
-    """
-    Creates the index (if not present) and waits until it's ready for use.
-    Idempotent: Does nothing if the index is already present.
-    """
+    """Creates the index (if not present) and waits until it's ready for use."""
     params = {
         "index": index_name,
         "body": {
@@ -98,7 +85,6 @@ def create_and_wait_for_index(client, index_name):
     }
 
     try:
-        # Only create if not present (safe for repeat runs/rollbacks)
         if not client.indices.exists(index=params["index"]):
             logger.info(f"Creating index {params['index']}")
             client.indices.create(index=params["index"], body=params["body"])
@@ -106,24 +92,18 @@ def create_and_wait_for_index(client, index_name):
         else:
             logger.info(f"Index {params['index']} already exists")
 
-        # Wait until available for downstream resources
         if not wait_for_index_aoss(client, params["index"]):
             raise RuntimeError(f"Index {params['index']} failed to appear in time")
 
         logger.info(f"Index {params['index']} is ready and active.")
     except Exception as e:
         logger.error(f"Error creating or waiting for index: {e}")
-        raise e  # Fail stack if this fails
+        raise e
 
 
 def extract_parameters(event):
-    """
-    Extract parameters from Lambda event, handling both:
-      - CloudFormation custom resource invocations
-      - Direct Lambda/test calls
-    """
+    """Extract parameters from Lambda event."""
     if "ResourceProperties" in event:
-        # From CloudFormation custom resource
         properties = event["ResourceProperties"]
         return {
             "endpoint": properties.get("Endpoint"),
@@ -131,7 +111,6 @@ def extract_parameters(event):
             "request_type": event.get("RequestType"),
         }
     else:
-        # From direct Lambda invocation (e.g., manual test)
         return {
             "endpoint": event.get("Endpoint"),
             "index_name": event.get("IndexName"),
@@ -141,35 +120,27 @@ def extract_parameters(event):
 
 @logger.inject_lambda_context
 def handler(event: dict, context: LambdaContext) -> dict:
-    """
-    Entrypoint: create, update, or delete the OpenSearch index.
-    Invoked via CloudFormation custom resource or manually.
-    """
+    """Entrypoint: create, update, or delete the OpenSearch index."""
     logger.info("Received event", extra={"event": event})
 
     try:
-        # CloudFormation custom resources may pass the actual event as a JSON string in "Payload"
         if "Payload" in event:
             event = json.loads(event["Payload"])
 
-        # Get parameters (handles both invocation types)
         params = extract_parameters(event)
         endpoint = params["endpoint"]
         index_name = params["index_name"]
         request_type = params["request_type"]
 
-        # Sanity check required parameters
         if not endpoint or not index_name or not request_type:
             raise ValueError("Missing required parameters: Endpoint, IndexName, or RequestType")
 
         client = get_opensearch_client(endpoint)
 
         if request_type in ["Create", "Update"]:
-            # Idempotent: will not fail if index already exists
             create_and_wait_for_index(client, index_name)
             return {"PhysicalResourceId": f"index-{index_name}", "Status": "SUCCESS"}
         elif request_type == "Delete":
-            # Clean up the index if it exists
             try:
                 if client.indices.exists(index=index_name):
                     client.indices.delete(index=index_name)

@@ -29,11 +29,21 @@ packages/
 │   ├── resources/              # AWS resource definitions
 │   └── stacks/                 # CDK stack definitions
 ├── createIndexFunction/        # Lambda function for OpenSearch index management
-│   └── tests/                  # Unit tests for createIndex function
+│   ├── app/                    # Application code
+│   │   ├── config/             # Configuration and environment variables
+│   │   └── handler.py          # Lambda handler
+│   └── tests/                  # Unit tests
 ├── slackBotFunction/           # Lambda function for Slack bot integration
-│   └── tests/                  # Unit tests for slackBot function
+│   ├── app/                    # Application code
+│   │   ├── config/             # Configuration and environment variables
+│   │   ├── slack/              # Slack-specific logic
+│   │   └── handler.py          # Lambda handler
+│   └── tests/                  # Unit tests
 └── syncKnowledgeBaseFunction/  # Lambda function for automatic knowledge base sync
-    └── tests/                  # Unit tests for syncKnowledgeBase function
+    ├── app/                    # Application code
+    │   ├── config/             # Configuration and environment variables
+    │   └── handler.py          # Lambda handler
+    └── tests/                  # Unit tests
 ```
 
 ## Contributing
@@ -156,14 +166,15 @@ These are used to do common commands related to cdk
 
 #### Linting and testing
 
-- `lint` Runs lint for GitHub Actions and scripts.
+- `lint` Runs all linting checks
 - `lint-black` Runs black formatter on Python code.
 - `lint-flake8` Runs flake8 linter on Python code.
 - `lint-githubactions` Lints the repository's GitHub Actions workflows.
 - `lint-githubaction-scripts` Lints all shell scripts in `.github/scripts` using ShellCheck.
-- `test` Runs unit tests for Lambda functions.
 - `cfn-guard` Runs cfn-guard against CDK resources.
+- `git-secrets-docker-setup` Sets up git-secrets Docker container.
 - `pre-commit` Runs pre-commit hooks on all files.
+- `test` Runs unit tests for Lambda functions.
 
 #### Compiling
 
