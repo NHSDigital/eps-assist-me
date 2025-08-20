@@ -12,8 +12,6 @@ install-python:
 	poetry install
 	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 	cd packages/createIndexFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
-	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
-	cd packages/createIndexFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 
 install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
@@ -57,12 +55,6 @@ clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
 	rm -rf packages/slackBotFunction/coverage
-	rm -rf packages/slackBotFunction/.coverage
-	rm -rf packages/createIndexFunction/coverage
-	rm -rf packages/createIndexFunction/.coverage
-	rm -rf packages/slackBotFunction/coverage
-	rm -rf packages/slackBotFunction/.coverage
-	rm -rf packages/createIndexFunction/coverage
 	rm -rf packages/createIndexFunction/.coverage
 	rm -rf cdk.out
 	rm -rf .build
