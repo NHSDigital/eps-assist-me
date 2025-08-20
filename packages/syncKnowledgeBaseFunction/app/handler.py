@@ -1,5 +1,15 @@
 """
-Lambda handler for syncing Bedrock Knowledge Base when S3 documents are uploaded/modified/deleted
+Lambda handler for automatic Bedrock Knowledge Base synchronization
+
+Triggered by S3 events (PUT/POST/DELETE) to automatically ingest new or updated
+documents into the Bedrock Knowledge Base. This ensures the AI assistant always
+has access to the latest documentation for answering user queries.
+
+Flow:
+1. S3 event triggers Lambda
+2. Validate file type is supported
+3. Start Bedrock ingestion job
+4. Job processes all files in data source (not just the trigger file)
 """
 
 import time
@@ -15,18 +25,33 @@ SUPPORTED_FILE_TYPES = {".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", 
 
 
 def is_supported_file_type(file_key):
-    """Check if file type is supported for knowledge base ingestion"""
+    """
+    Check if file type is supported for Bedrock Knowledge Base ingestion
+    """
     return any(file_key.lower().endswith(ext) for ext in SUPPORTED_FILE_TYPES)
 
 
 def get_bedrock_agent():
-    """Create Bedrock Agent client for knowledge base operations"""
+    """
+    Create Bedrock Agent client for knowledge base operations
+    """
     return boto3.client("bedrock-agent")
 
 
 @logger.inject_lambda_context
 def handler(event, context):
-    """Lambda handler that processes S3 events and triggers Bedrock Knowledge Base ingestion."""
+    """
+    Main Lambda handler for S3-triggered knowledge base synchronization
+
+    Processes S3 events and starts Bedrock ingestion jobs to keep the knowledge
+    base up-to-date with document changes. Handles multiple files per event and
+    provides comprehensive error handling for various scenarios.
+
+    Note:
+        - Ingestion jobs process ALL files in the data source, not just trigger files
+        - ConflictException (409) is normal when jobs are already running
+        - Only supported file types trigger ingestion
+    """
     start_time = time.time()
 
     # Validate required environment variables are configured
@@ -53,7 +78,7 @@ def handler(event, context):
         processed_files = []  # Track files that triggered ingestion
         job_ids = []  # Track started ingestion job IDs
 
-        # Process each S3 event record
+        # Process each S3 event record (batch processing supported)
         for record_index, record in enumerate(event.get("Records", [])):
             if record.get("eventSource") == "aws:s3":
                 # Extract S3 bucket and object information
@@ -103,6 +128,7 @@ def handler(event, context):
                 )
 
                 # Start Bedrock knowledge base ingestion job
+                # Note: This processes ALL files in data source, not just the trigger file
                 ingestion_start_time = time.time()
                 bedrock_agent = get_bedrock_agent()
                 response = bedrock_agent.start_ingestion_job(
@@ -166,7 +192,7 @@ def handler(event, context):
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         error_message = e.response.get("Error", {}).get("Message", str(e))
 
-        # ConflictException means ingestion job already running - this is normal
+        # ConflictException means ingestion job already running - this is expected behavior
         if error_code == "ConflictException":
             logger.warning(
                 "Ingestion job already in progress - no action required",
