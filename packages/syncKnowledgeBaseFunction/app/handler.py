@@ -4,12 +4,6 @@ Lambda handler for automatic Bedrock Knowledge Base synchronization
 Triggered by S3 events (PUT/POST/DELETE) to automatically ingest new or updated
 documents into the Bedrock Knowledge Base. This ensures the AI assistant always
 has access to the latest documentation for answering user queries.
-
-Flow:
-1. S3 event triggers Lambda
-2. Validate file type is supported
-3. Start Bedrock ingestion job
-4. Job processes all files in data source (not just the trigger file)
 """
 
 import time
