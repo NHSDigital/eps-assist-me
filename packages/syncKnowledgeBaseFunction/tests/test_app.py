@@ -220,3 +220,56 @@ def test_handler_empty_records(mock_env, lambda_context):
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
+
+
+@pytest.mark.parametrize(
+    "filename,expected",
+    [
+        # Supported types
+        ("document.pdf", True),
+        ("readme.txt", True),
+        ("notes.md", True),
+        ("data.csv", True),
+        ("report.docx", True),
+        ("spreadsheet.xlsx", True),
+        ("page.html", True),
+        ("config.json", True),
+        # Case insensitive
+        ("DOCUMENT.PDF", True),
+        ("File.TXT", True),
+        # Unsupported types
+        ("image.jpg", False),
+        ("video.mp4", False),
+        ("archive.zip", False),
+        ("executable.exe", False),
+        ("no_extension", False),
+    ],
+)
+def test_is_supported_file_type(filename, expected):
+    """Test file type allowlist validation"""
+    from app.handler import is_supported_file_type
+
+    assert is_supported_file_type(filename) is expected
+
+
+def test_handler_unsupported_file_type(mock_env, lambda_context):
+    """Test handler skips unsupported file types"""
+    unsupported_event = {
+        "Records": [
+            {
+                "eventSource": "aws:s3",
+                "eventName": "ObjectCreated:Put",
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "image.jpg", "size": 1024},
+                },
+            }
+        ]
+    }
+
+    from app.handler import handler
+
+    result = handler(unsupported_event, lambda_context)
+
+    assert result["statusCode"] == 200
+    assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]

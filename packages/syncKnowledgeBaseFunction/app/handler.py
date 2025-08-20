@@ -10,6 +10,14 @@ from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID
 
 logger = Logger(service="syncKnowledgeBaseFunction")
 
+# Supported file types for Bedrock Knowledge Base ingestion
+SUPPORTED_FILE_TYPES = {".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"}
+
+
+def is_supported_file_type(file_key):
+    """Check if file type is supported for knowledge base ingestion"""
+    return any(file_key.lower().endswith(ext) for ext in SUPPORTED_FILE_TYPES)
+
 
 def get_bedrock_agent():
     """Create Bedrock Agent client for knowledge base operations"""
@@ -69,6 +77,18 @@ def handler(event, context):
                 key = object_key
                 event_name = record["eventName"]
                 object_size = s3_info.get("object", {}).get("size", "unknown")
+
+                # Skip unsupported file types
+                if not is_supported_file_type(key):
+                    logger.info(
+                        "Skipping unsupported file type",
+                        extra={
+                            "file_key": key,
+                            "supported_types": list(SUPPORTED_FILE_TYPES),
+                            "record_index": record_index + 1,
+                        },
+                    )
+                    continue
 
                 logger.info(
                     "Processing S3 event",
