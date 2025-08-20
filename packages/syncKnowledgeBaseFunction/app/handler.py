@@ -32,23 +32,141 @@ def get_bedrock_agent():
     return boto3.client("bedrock-agent")
 
 
+def process_s3_record(record, record_index):
+    """
+    Process a single S3 record and start ingestion job if valid
+
+    Validates S3 record structure, checks file type support, and triggers
+    Bedrock Knowledge Base ingestion for supported documents.
+    """
+    # Extract S3 event details
+    s3_info = record.get("s3", {})
+    bucket_name = s3_info.get("bucket", {}).get("name")
+    object_key = s3_info.get("object", {}).get("key")
+
+    # Skip malformed S3 records
+    if not bucket_name or not object_key:
+        logger.warning(
+            "Skipping invalid S3 record",
+            extra={
+                "record_index": record_index + 1,
+                "has_bucket": bool(bucket_name),
+                "has_object_key": bool(object_key),
+            },
+        )
+        return False, None, None
+
+    # Skip unsupported file types to avoid unnecessary processing
+    if not is_supported_file_type(object_key):
+        logger.info(
+            "Skipping unsupported file type",
+            extra={
+                "file_key": object_key,
+                "supported_types": list(SUPPORTED_FILE_TYPES),
+                "record_index": record_index + 1,
+            },
+        )
+        return False, None, None
+
+    # Extract additional event metadata for logging
+    event_name = record["eventName"]
+    object_size = s3_info.get("object", {}).get("size", "unknown")
+
+    logger.info(
+        "Processing S3 event",
+        extra={
+            "event_name": event_name,
+            "bucket": bucket_name,
+            "key": object_key,
+            "object_size_bytes": object_size,
+            "record_index": record_index + 1,
+        },
+    )
+
+    # Start Bedrock ingestion job (processes ALL files in data source)
+    ingestion_start_time = time.time()
+    bedrock_agent = get_bedrock_agent()
+    response = bedrock_agent.start_ingestion_job(
+        knowledgeBaseId=KNOWLEDGEBASE_ID,
+        dataSourceId=DATA_SOURCE_ID,
+        description=f"Auto-sync triggered by S3 {event_name} on {object_key}",
+    )
+    ingestion_request_time = time.time() - ingestion_start_time
+
+    # Extract job details for tracking and logging
+    job_id = response["ingestionJob"]["ingestionJobId"]
+    job_status = response["ingestionJob"]["status"]
+
+    logger.info(
+        "Successfully started ingestion job",
+        extra={
+            "job_id": job_id,
+            "job_status": job_status,
+            "knowledge_base_id": KNOWLEDGEBASE_ID,
+            "trigger_file": object_key,
+            "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
+            "note": "Job processes all files in data source, not just trigger file",
+        },
+    )
+
+    return True, object_key, job_id
+
+
+def handle_client_error(e, start_time):
+    """
+    Handle AWS ClientError exceptions with appropriate responses
+
+    Distinguishes between expected ConflictExceptions (job already running)
+    and other AWS service errors, providing appropriate HTTP responses.
+    """
+    error_code = e.response.get("Error", {}).get("Code", "Unknown")
+    error_message = e.response.get("Error", {}).get("Message", str(e))
+
+    # ConflictException is expected when ingestion job already running
+    if error_code == "ConflictException":
+        logger.warning(
+            "Ingestion job already in progress - no action required",
+            extra={
+                "status_code": 409,
+                "error_code": error_code,
+                "error_message": error_message,
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "explanation": "Normal when multiple files uploaded quickly",
+            },
+        )
+        return {
+            "statusCode": 409,
+            "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
+        }
+    else:
+        # Handle other AWS service errors (permissions, throttling, etc.)
+        logger.error(
+            "AWS service error occurred",
+            extra={
+                "status_code": 500,
+                "error_code": error_code,
+                "error_message": error_message,
+                "duration_ms": round((time.time() - start_time) * 1000, 2),
+            },
+        )
+        return {
+            "statusCode": 500,
+            "body": f"AWS error: {error_code} - {error_message}",
+        }
+
+
 @logger.inject_lambda_context
 def handler(event, context):
     """
     Main Lambda handler for S3-triggered knowledge base synchronization
 
-    Processes S3 events and starts Bedrock ingestion jobs to keep the knowledge
-    base up-to-date with document changes. Handles multiple files per event and
-    provides comprehensive error handling for various scenarios.
-
-    Note:
-        - Ingestion jobs process ALL files in the data source, not just trigger files
-        - ConflictException (409) is normal when jobs are already running
-        - Only supported file types trigger ingestion
+    Automatically processes S3 events to keep Bedrock Knowledge Base synchronized
+    with document changes. Supports batch processing of multiple S3 events and
+    provides comprehensive error handling for various failure scenarios.
     """
     start_time = time.time()
 
-    # Validate required environment variables are configured
+    # Early validation of required configuration
     if not KNOWLEDGEBASE_ID or not DATA_SOURCE_ID:
         logger.error(
             "Missing required environment variables",
@@ -69,87 +187,19 @@ def handler(event, context):
     )
 
     try:
-        processed_files = []  # Track files that triggered ingestion
+        processed_files = []  # Track successfully processed file keys
         job_ids = []  # Track started ingestion job IDs
 
-        # Process each S3 event record (batch processing supported)
+        # Process each record in the Lambda event
         for record_index, record in enumerate(event.get("Records", [])):
             if record.get("eventSource") == "aws:s3":
-                # Extract S3 bucket and object information
-                s3_info = record.get("s3", {})
-                bucket_name = s3_info.get("bucket", {}).get("name")
-                object_key = s3_info.get("object", {}).get("key")
-
-                # Skip records with missing S3 information
-                if not bucket_name or not object_key:
-                    logger.warning(
-                        "Skipping invalid S3 record",
-                        extra={
-                            "record_index": record_index + 1,
-                            "has_bucket": bool(bucket_name),
-                            "has_object_key": bool(object_key),
-                        },
-                    )
-                    continue
-
-                bucket = bucket_name
-                key = object_key
-                event_name = record["eventName"]
-                object_size = s3_info.get("object", {}).get("size", "unknown")
-
-                # Skip unsupported file types
-                if not is_supported_file_type(key):
-                    logger.info(
-                        "Skipping unsupported file type",
-                        extra={
-                            "file_key": key,
-                            "supported_types": list(SUPPORTED_FILE_TYPES),
-                            "record_index": record_index + 1,
-                        },
-                    )
-                    continue
-
-                logger.info(
-                    "Processing S3 event",
-                    extra={
-                        "event_name": event_name,
-                        "bucket": bucket,
-                        "key": key,
-                        "object_size_bytes": object_size,
-                        "record_index": record_index + 1,
-                        "total_records": len(event.get("Records", [])),
-                    },
-                )
-
-                # Start Bedrock knowledge base ingestion job
-                # Note: This processes ALL files in data source, not just the trigger file
-                ingestion_start_time = time.time()
-                bedrock_agent = get_bedrock_agent()
-                response = bedrock_agent.start_ingestion_job(
-                    knowledgeBaseId=KNOWLEDGEBASE_ID,
-                    dataSourceId=DATA_SOURCE_ID,
-                    description=f"Auto-sync triggered by S3 {event_name} on {key}",
-                )
-                ingestion_request_time = time.time() - ingestion_start_time
-
-                job_id = response["ingestionJob"]["ingestionJobId"]
-                job_status = response["ingestionJob"]["status"]
-
-                logger.info(
-                    "Successfully started ingestion job",
-                    extra={
-                        "job_id": job_id,
-                        "job_status": job_status,
-                        "knowledge_base_id": KNOWLEDGEBASE_ID,
-                        "trigger_file": key,
-                        "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
-                        "note": "Job will process all files in data source, not just trigger file",
-                    },
-                )
-
-                processed_files.append(key)
-                job_ids.append(job_id)
+                # Process S3 event and start ingestion if valid
+                success, file_key, job_id = process_s3_record(record, record_index)
+                if success:
+                    processed_files.append(file_key)
+                    job_ids.append(job_id)
             else:
+                # Skip non-S3 events
                 logger.warning(
                     "Skipping non-S3 event",
                     extra={
@@ -183,49 +233,7 @@ def handler(event, context):
 
     except ClientError as e:
         # Handle AWS service errors
-        error_code = e.response.get("Error", {}).get("Code", "Unknown")
-        error_message = e.response.get("Error", {}).get("Message", str(e))
-
-        # ConflictException means ingestion job already running - this is expected behavior
-        if error_code == "ConflictException":
-            logger.warning(
-                "Ingestion job already in progress - no action required",
-                extra={
-                    "status_code": 409,
-                    "error_code": error_code,
-                    "error_message": error_message,
-                    "description": "Files uploaded successfully and will be processed by existing ingestion job",
-                    "action_required": "none",
-                    "knowledge_base_id": KNOWLEDGEBASE_ID,
-                    "data_source_id": DATA_SOURCE_ID,
-                    "duration_ms": round((time.time() - start_time) * 1000, 2),
-                    "explanation": (
-                        "This is normal when multiple files are uploaded quickly. "
-                        "The running job will process all files."
-                    ),
-                },
-            )
-            return {
-                "statusCode": 409,
-                "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
-            }
-        else:
-            # Handle other AWS service errors
-            logger.error(
-                "AWS service error occurred",
-                extra={
-                    "status_code": 500,
-                    "error_code": error_code,
-                    "error_message": error_message,
-                    "knowledge_base_id": KNOWLEDGEBASE_ID,
-                    "data_source_id": DATA_SOURCE_ID,
-                    "duration_ms": round((time.time() - start_time) * 1000, 2),
-                },
-            )
-            return {
-                "statusCode": 500,
-                "body": f"AWS error: {error_code} - {error_message}",
-            }
+        return handle_client_error(e, start_time)
 
     except Exception as e:
         # Handle unexpected errors
