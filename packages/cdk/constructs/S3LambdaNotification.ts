@@ -14,9 +14,15 @@ export class S3LambdaNotification extends Construct {
 
     const lambdaDestination = new LambdaDestination(props.lambdaFunction)
 
-    // Listen for all object events to keep knowledge base in sync
-    props.bucket.addEventNotification(EventType.OBJECT_CREATED, lambdaDestination)
-    props.bucket.addEventNotification(EventType.OBJECT_REMOVED, lambdaDestination)
-    props.bucket.addEventNotification(EventType.OBJECT_RESTORE_COMPLETED, lambdaDestination)
+    // Trigger knowledge base sync only for supported document types
+    const supportedExtensions = [".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"]
+
+    supportedExtensions.forEach(ext => {
+      props.bucket.addEventNotification(
+        EventType.OBJECT_CREATED,
+        lambdaDestination,
+        {suffix: ext}
+      )
+    })
   }
 }
