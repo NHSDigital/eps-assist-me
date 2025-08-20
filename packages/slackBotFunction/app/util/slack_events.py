@@ -67,13 +67,7 @@ def process_async_slack_event(slack_event_data):
                 channel,
                 thread_ts if context_type == "thread" else None,
             )
-            context_note = f" (new {context_type})"
-        elif session_id:
-            context_note = f" (continuing {context_type})"
-        else:
-            context_note = ""
-
-        client.chat_postMessage(channel=channel, text=f"{response_text}{context_note}", thread_ts=thread_ts)
+        client.chat_postMessage(channel=channel, text=response_text, thread_ts=thread_ts)
 
     except Exception as err:
         logger.error(f"Error processing message: {err}", extra={"event_id": event_id})
