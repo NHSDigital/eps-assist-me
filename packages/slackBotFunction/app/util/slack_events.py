@@ -71,11 +71,16 @@ def process_async_slack_event(slack_event_data):
 
     except Exception as err:
         logger.error(f"Error processing message: {err}", extra={"event_id": event_id})
-        client.chat_postMessage(
-            channel=channel,
-            text="Sorry, an error occurred while processing your request. Please try again later.",
-            thread_ts=thread_ts,
-        )
+
+        # incase Slack API call fails, we still want to log the error
+        try:
+            client.chat_postMessage(
+                channel=channel,
+                text="Sorry, an error occurred while processing your request. Please try again later.",
+                thread_ts=thread_ts,
+            )
+        except Exception as post_err:
+            logger.error(f"Failed to post error message: {post_err}")
 
 
 def get_conversation_session(conversation_key):

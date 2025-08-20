@@ -22,12 +22,27 @@ table = dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])
 bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
 signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
 
-bot_token_raw = get_parameter(bot_token_parameter, decrypt=True)
-signing_secret_raw = get_parameter(signing_secret_parameter, decrypt=True)
+try:
+    bot_token_raw = get_parameter(bot_token_parameter, decrypt=True)
+    signing_secret_raw = get_parameter(signing_secret_parameter, decrypt=True)
 
-# parse the JSON stored in parameter store
-bot_token = json.loads(bot_token_raw)["token"]
-signing_secret = json.loads(signing_secret_raw)["secret"]
+    if not bot_token_raw or not signing_secret_raw:
+        raise ValueError("Missing required parameters from Parameter Store")
+
+    bot_token_data = json.loads(bot_token_raw)
+    signing_secret_data = json.loads(signing_secret_raw)
+
+    bot_token = bot_token_data.get("token")
+    signing_secret = signing_secret_data.get("secret")
+
+    if not bot_token or not signing_secret:
+        raise ValueError("Missing required parameters: token or secret in Parameter Store values")
+
+except json.JSONDecodeError as e:
+    raise ValueError(f"Invalid JSON in Parameter Store: {e}")
+except Exception as e:
+    logger.error(f"Configuration error: {e}")
+    raise
 
 # initialise the Slack app
 app = App(

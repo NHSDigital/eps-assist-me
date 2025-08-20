@@ -7,6 +7,7 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 from app.core.config import table, bot_token, logger
+import os
 
 
 def setup_handlers(app):
@@ -78,11 +79,14 @@ def is_duplicate_event(event_id):
 
 def trigger_async_processing(event_data):
     """Fire off async processing to avoid timeout."""
-    lambda_client = boto3.client("lambda")
-    import os
-
-    lambda_client.invoke(
-        FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
-        InvocationType="Event",
-        Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
-    )
+    # incase we fail to re-invoke the lambda we should log an error
+    try:
+        lambda_client = boto3.client("lambda")
+        lambda_client.invoke(
+            FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
+            InvocationType="Event",
+            Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
+        )
+        logger.info("Async processing triggered successfully")
+    except Exception as e:
+        logger.error(f"Failed to trigger async processing: {e}")
