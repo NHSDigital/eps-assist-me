@@ -86,8 +86,8 @@ export class Functions extends Construct {
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       environmentVariables: {
-        "KNOWLEDGEBASE_ID": props.knowledgeBaseId || "placeholder",
-        "DATA_SOURCE_ID": props.dataSourceId || "placeholder"
+        "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
+        "DATA_SOURCE_ID": props.dataSourceId
       },
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
     })
