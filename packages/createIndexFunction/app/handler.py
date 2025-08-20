@@ -1,3 +1,7 @@
+"""
+Lambda handler for creating and managing OpenSearch vector indices for Bedrock Knowledge Base
+"""
+
 import json
 import time
 import boto3

@@ -1,3 +1,7 @@
+"""
+Lambda handler for syncing Bedrock Knowledge Base when S3 documents are uploaded/modified/deleted
+"""
+
 import time
 import boto3
 from botocore.exceptions import ClientError
@@ -8,7 +12,7 @@ logger = Logger(service="syncKnowledgeBaseFunction")
 
 
 def get_bedrock_agent():
-    """Get or create bedrock agent client"""
+    """Create Bedrock Agent client for knowledge base operations"""
     return boto3.client("bedrock-agent")
 
 
@@ -17,6 +21,7 @@ def handler(event, context):
     """Lambda handler that processes S3 events and triggers Bedrock Knowledge Base ingestion."""
     start_time = time.time()
 
+    # Validate required environment variables are configured
     if not KNOWLEDGEBASE_ID or not DATA_SOURCE_ID:
         logger.error(
             "Missing required environment variables",
@@ -37,15 +42,18 @@ def handler(event, context):
     )
 
     try:
-        processed_files = []
-        job_ids = []
+        processed_files = []  # Track files that triggered ingestion
+        job_ids = []  # Track started ingestion job IDs
 
+        # Process each S3 event record
         for record_index, record in enumerate(event.get("Records", [])):
             if record.get("eventSource") == "aws:s3":
+                # Extract S3 bucket and object information
                 s3_info = record.get("s3", {})
                 bucket_name = s3_info.get("bucket", {}).get("name")
                 object_key = s3_info.get("object", {}).get("key")
 
+                # Skip records with missing S3 information
                 if not bucket_name or not object_key:
                     logger.warning(
                         "Skipping invalid S3 record",
@@ -74,6 +82,7 @@ def handler(event, context):
                     },
                 )
 
+                # Start Bedrock knowledge base ingestion job
                 ingestion_start_time = time.time()
                 bedrock_agent = get_bedrock_agent()
                 response = bedrock_agent.start_ingestion_job(
@@ -133,9 +142,11 @@ def handler(event, context):
         }
 
     except ClientError as e:
+        # Handle AWS service errors
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         error_message = e.response.get("Error", {}).get("Message", str(e))
 
+        # ConflictException means ingestion job already running - this is normal
         if error_code == "ConflictException":
             logger.warning(
                 "Ingestion job already in progress - no action required",
@@ -159,6 +170,7 @@ def handler(event, context):
                 "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
             }
         else:
+            # Handle other AWS service errors
             logger.error(
                 "AWS service error occurred",
                 extra={
@@ -176,6 +188,7 @@ def handler(event, context):
             }
 
     except Exception as e:
+        # Handle unexpected errors
         logger.error(
             "Unexpected error occurred",
             extra={
