@@ -139,7 +139,7 @@ def handle_client_error(e, start_time):
             "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
         }
     else:
-        # Handle other AWS service errors (permissions, throttling, etc.)
+        # Handle other AWS service errors
         logger.error(
             "AWS service error occurred",
             extra={
