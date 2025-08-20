@@ -82,8 +82,8 @@ def is_duplicate_event(event_id):
         ttl = int(time.time()) + 3600  # 1 hour TTL for automatic cleanup
         # Attempt to insert event record - fails if already exists
         table.put_item(
-            Item={"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
-            ConditionExpression="attribute_not_exists(pk)",  # Only insert if doesn't exist
+            Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())},
+            ConditionExpression="attribute_not_exists(eventId)",  # Only insert if doesn't exist
         )
         return False  # Successfully inserted = not a duplicate
     except ClientError as e:
