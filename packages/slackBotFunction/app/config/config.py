@@ -1,6 +1,11 @@
+"""
+Configuration module - initializes AWS clients, Slack app, and environment variables
+"""
+
 import os
 import json
 import boto3
+from slack_bolt import App
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
 
@@ -29,5 +34,12 @@ signing_secret_raw = get_parameter(signing_secret_parameter, decrypt=True)
 
 bot_token = json.loads(bot_token_raw)["token"]
 signing_secret = json.loads(signing_secret_raw)["secret"]
+
+# Initialize Slack app
+app = App(
+    process_before_response=True,
+    token=bot_token,
+    signing_secret=signing_secret,
+)
 
 logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")

@@ -1,5 +1,8 @@
+"""
+Slack event processing - handles async message processing and Bedrock integration
+"""
+
 import re
-import json
 import boto3
 from slack_sdk import WebClient
 from aws_lambda_powertools import Logger
@@ -9,20 +12,9 @@ from app.config.config import (
     AWS_REGION,
     GUARD_RAIL_ID,
     GUARD_VERSION,
-    AWS_LAMBDA_FUNCTION_NAME,
 )
 
 logger = Logger(service="slackBotFunction")
-
-
-def trigger_async_processing(event_data):
-    """Trigger async processing of the Slack event to avoid timeout issues."""
-    lambda_client = boto3.client("lambda")
-    lambda_client.invoke(
-        FunctionName=AWS_LAMBDA_FUNCTION_NAME,
-        InvocationType="Event",
-        Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
-    )
 
 
 def get_bedrock_knowledgebase_response(user_query):

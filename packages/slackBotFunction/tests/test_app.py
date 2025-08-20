@@ -79,7 +79,8 @@ def test_handler_normal_event(
 
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
-def test_handler_async_processing(mock_boto_resource, mock_get_parameter, mock_env, lambda_context):
+@patch("slack_bolt.App")
+def test_handler_async_processing(mock_app_class, mock_boto_resource, mock_get_parameter, mock_env, lambda_context):
     """Test Lambda handler function for async processing"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -89,6 +90,10 @@ def test_handler_async_processing(mock_boto_resource, mock_get_parameter, mock_e
 
     # Mock DynamoDB
     mock_boto_resource.return_value.Table.return_value = Mock()
+
+    # Mock Slack App
+    mock_app = Mock()
+    mock_app_class.return_value = mock_app
 
     clear_modules()
 
@@ -105,7 +110,10 @@ def test_handler_async_processing(mock_boto_resource, mock_get_parameter, mock_e
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
 @patch("boto3.client")
-def test_get_bedrock_knowledgebase_response(mock_boto_client, mock_boto_resource, mock_get_parameter, mock_env):
+@patch("slack_bolt.App")
+def test_get_bedrock_knowledgebase_response(
+    mock_app_class, mock_boto_client, mock_boto_resource, mock_get_parameter, mock_env
+):
     """Test Bedrock knowledge base integration"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -115,6 +123,9 @@ def test_get_bedrock_knowledgebase_response(mock_boto_client, mock_boto_resource
 
     # Mock DynamoDB
     mock_boto_resource.return_value.Table.return_value = Mock()
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
 
     # Mock Bedrock client
     mock_client = Mock()
@@ -135,7 +146,8 @@ def test_get_bedrock_knowledgebase_response(mock_boto_client, mock_boto_resource
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
 @patch("boto3.client")
-def test_trigger_async_processing(mock_boto_client, mock_boto_resource, mock_get_parameter, mock_env):
+@patch("slack_bolt.App")
+def test_trigger_async_processing(mock_app_class, mock_boto_client, mock_boto_resource, mock_get_parameter, mock_env):
     """Test triggering async processing"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -146,13 +158,16 @@ def test_trigger_async_processing(mock_boto_client, mock_boto_resource, mock_get
     # Mock DynamoDB
     mock_boto_resource.return_value.Table.return_value = Mock()
 
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
+
     # Mock Lambda client
     mock_lambda_client = Mock()
     mock_boto_client.return_value = mock_lambda_client
 
     clear_modules()
 
-    from app.slack.slack_events import trigger_async_processing
+    from app.slack.slack_handlers import trigger_async_processing
 
     event_data = {"test": "data"}
     trigger_async_processing(event_data)
@@ -164,7 +179,8 @@ def test_trigger_async_processing(mock_boto_client, mock_boto_resource, mock_get
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
 @patch("time.time")
-def test_is_duplicate_event(mock_time, mock_boto_resource, mock_get_parameter, mock_env):
+@patch("slack_bolt.App")
+def test_is_duplicate_event(mock_app_class, mock_time, mock_boto_resource, mock_get_parameter, mock_env):
     """Test duplicate event detection with conditional put"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -175,6 +191,9 @@ def test_is_duplicate_event(mock_time, mock_boto_resource, mock_get_parameter, m
     mock_table = Mock()
     mock_boto_resource.return_value.Table.return_value = mock_table
     mock_time.return_value = 1000
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
 
     # Mock ConditionalCheckFailedException
     from botocore.exceptions import ClientError
@@ -193,7 +212,8 @@ def test_is_duplicate_event(mock_time, mock_boto_resource, mock_get_parameter, m
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
 @patch("time.time")
-def test_is_duplicate_event_no_duplicate(mock_time, mock_boto_resource, mock_get_parameter, mock_env):
+@patch("slack_bolt.App")
+def test_is_duplicate_event_no_duplicate(mock_app_class, mock_time, mock_boto_resource, mock_get_parameter, mock_env):
     """Test is_duplicate_event when no item exists (successful put)"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -204,7 +224,9 @@ def test_is_duplicate_event_no_duplicate(mock_time, mock_boto_resource, mock_get
     mock_table = Mock()
     mock_boto_resource.return_value.Table.return_value = mock_table
     mock_time.return_value = 1000
-    # put_item succeeds (no exception)
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
 
     clear_modules()
 
@@ -217,7 +239,10 @@ def test_is_duplicate_event_no_duplicate(mock_time, mock_boto_resource, mock_get
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
 @patch("slack_sdk.WebClient")
-def test_process_async_slack_event_success(mock_webclient, mock_boto_resource, mock_get_parameter, mock_env):
+@patch("slack_bolt.App")
+def test_process_async_slack_event_success(
+    mock_app_class, mock_webclient, mock_boto_resource, mock_get_parameter, mock_env
+):
     """Test successful async event processing"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -227,6 +252,9 @@ def test_process_async_slack_event_success(mock_webclient, mock_boto_resource, m
 
     # Mock DynamoDB
     mock_boto_resource.return_value.Table.return_value = Mock()
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
 
     mock_client = Mock()
     mock_webclient.return_value = mock_client
@@ -254,7 +282,10 @@ def test_process_async_slack_event_success(mock_webclient, mock_boto_resource, m
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
 @patch("slack_sdk.WebClient")
-def test_process_async_slack_event_empty_query(mock_webclient, mock_boto_resource, mock_get_parameter, mock_env):
+@patch("slack_bolt.App")
+def test_process_async_slack_event_empty_query(
+    mock_app_class, mock_webclient, mock_boto_resource, mock_get_parameter, mock_env
+):
     """Test async event processing with empty query"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -264,6 +295,9 @@ def test_process_async_slack_event_empty_query(mock_webclient, mock_boto_resourc
 
     # Mock DynamoDB
     mock_boto_resource.return_value.Table.return_value = Mock()
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
 
     mock_client = Mock()
     mock_webclient.return_value = mock_client
@@ -295,7 +329,10 @@ def test_process_async_slack_event_empty_query(mock_webclient, mock_boto_resourc
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
 @patch("slack_sdk.WebClient")
-def test_process_async_slack_event_error(mock_webclient, mock_boto_resource, mock_get_parameter, mock_env):
+@patch("slack_bolt.App")
+def test_process_async_slack_event_error(
+    mock_app_class, mock_webclient, mock_boto_resource, mock_get_parameter, mock_env
+):
     """Test async event processing with error"""
     # Mock parameter retrieval
     mock_get_parameter.side_effect = [
@@ -305,6 +342,9 @@ def test_process_async_slack_event_error(mock_webclient, mock_boto_resource, moc
 
     # Mock DynamoDB
     mock_boto_resource.return_value.Table.return_value = Mock()
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
 
     mock_client = Mock()
     mock_webclient.return_value = mock_client

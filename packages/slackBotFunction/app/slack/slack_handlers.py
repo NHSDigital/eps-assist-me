@@ -1,50 +1,38 @@
+"""
+Slack event handlers - handles @mentions and direct messages to the bot
+"""
+
 import time
-from slack_bolt import App
-from aws_lambda_powertools import Logger
+import json
+import os
+import boto3
 from botocore.exceptions import ClientError
-from app.slack.slack_events import trigger_async_processing
+from aws_lambda_powertools import Logger
 
 logger = Logger(service="slackBotFunction")
 
-# Lazy initialization of Slack app
-_app = None
 
-
-def get_app():
-    """Get or create the Slack app instance"""
-    global _app
-    if _app is None:
-        from app.config.config import bot_token, signing_secret
-
-        _app = App(
-            process_before_response=True,
-            token=bot_token,
-            signing_secret=signing_secret,
-        )
-        _setup_handlers(_app)
-    return _app
-
-
-def _setup_handlers(app_instance):
-    """Setup event handlers for the app"""
+def setup_handlers(app):
+    """
+    Register all event handlers with the Slack app
+    """
     from app.config.config import bot_token
 
-    @app_instance.middleware
+    @app.middleware
     def log_request(slack_logger, body, next):
-        """Middleware to log incoming Slack requests using AWS Lambda Powertools logger."""
         logger.debug("Slack request received", extra={"body": body})
         return next()
 
-    @app_instance.event("app_mention")
+    @app.event("app_mention")
     def handle_app_mention(event, ack, body):
-        """Handle when the bot is @mentioned"""
+        """
+        Handle @mentions in channels
+        """
         ack()
 
         event_id = body.get("event_id")
-        if not event_id:
-            logger.warning("Missing event_id in Slack event body.")
-        elif is_duplicate_event(event_id):
-            logger.info(f"Duplicate event detected, skipping: {event_id}")
+        if not event_id or is_duplicate_event(event_id):
+            logger.info(f"Skipping duplicate or missing event: {event_id}")
             return
 
         user_id = event.get("user", "unknown")
@@ -52,46 +40,54 @@ def _setup_handlers(app_instance):
 
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
-    @app_instance.event("message")
+    @app.event("message")
     def handle_direct_message(event, ack, body):
-        """Handle direct messages to the bot"""
+        """
+        Handle direct messages to the bot
+        """
         ack()
 
-        if event.get("channel_type") == "im":
-            event_id = body.get("event_id")
-            if not event_id:
-                logger.warning("Missing event_id in Slack event body.")
-            elif is_duplicate_event(event_id):
-                logger.info(f"Duplicate event detected, skipping: {event_id}")
-                return
+        # Only handle DMs, ignore channel messages
+        if event.get("channel_type") != "im":
+            return
 
-            user_id = event.get("user", "unknown")
-            logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
+        event_id = body.get("event_id")
+        if not event_id or is_duplicate_event(event_id):
+            logger.info(f"Skipping duplicate or missing event: {event_id}")
+            return
 
-            trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+        user_id = event.get("user", "unknown")
+        logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
+
+        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 def is_duplicate_event(event_id):
-    """Check if event has already been processed using conditional put"""
+    """
+    Check if we've already processed this event
+    """
     from app.config.config import table
 
     try:
         ttl = int(time.time()) + 3600  # 1 hour TTL
         table.put_item(
-            Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())},
-            ConditionExpression="attribute_not_exists(eventId)",
+            Item={"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
+            ConditionExpression="attribute_not_exists(pk)",
         )
-        return False  # Item didn't exist, so not a duplicate
+        return False  # Not a duplicate
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            return True  # Item already exists, so it's a duplicate
+            return True  # Duplicate
+        logger.error(f"Error checking event duplication: {e}")
         return False
 
 
-# Create a module-level app instance that uses lazy loading
-class AppProxy:
-    def __getattr__(self, name):
-        return getattr(get_app(), name)
+def trigger_async_processing(event_data):
+    """Fire off async processing to avoid timeout."""
+    lambda_client = boto3.client("lambda")
 
-
-app = AppProxy()
+    lambda_client.invoke(
+        FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
+        InvocationType="Event",
+        Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
+    )
