@@ -12,6 +12,7 @@ from app.config.config import (
     AWS_REGION,
     GUARD_RAIL_ID,
     GUARD_VERSION,
+    BOT_MESSAGES,
 )
 
 logger = Logger(service="slackBotFunction")
@@ -75,7 +76,7 @@ def process_async_slack_event(slack_event_data):
         if not user_query:
             client.chat_postMessage(
                 channel=channel,
-                text="Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+                text=BOT_MESSAGES["empty_query"],
                 thread_ts=thread_ts,
             )
             return
@@ -89,6 +90,6 @@ def process_async_slack_event(slack_event_data):
         logger.error(f"Error processing async @mention: {err}", extra={"event_id": event_id})
         client.chat_postMessage(
             channel=channel,
-            text="Sorry, an error occurred while processing your request. Please try again later.",
+            text=BOT_MESSAGES["error_response"],
             thread_ts=thread_ts,
         )

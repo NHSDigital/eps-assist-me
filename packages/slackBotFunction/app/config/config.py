@@ -43,3 +43,9 @@ app = App(
 )
 
 logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
+
+# Bot response messages
+BOT_MESSAGES = {
+    "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+    "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
+}
