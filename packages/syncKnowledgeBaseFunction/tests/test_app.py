@@ -161,11 +161,16 @@ def test_handler_unexpected_error(mock_time, mock_get_bedrock, mock_env, lambda_
     assert "Unexpected error: Unexpected error" in result["body"]
 
 
+@patch("app.handler.KNOWLEDGEBASE_ID", "")
+@patch("app.handler.DATA_SOURCE_ID", "")
 def test_handler_missing_env_vars(lambda_context, s3_event):
     """Test handler with missing environment variables"""
-    # Test that missing env vars are handled - this is tested at module level
-    # The actual check happens early in the handler function
-    assert True  # Placeholder test
+    from app.handler import handler
+
+    result = handler(s3_event, lambda_context)
+
+    assert result["statusCode"] == 500
+    assert "Configuration error" in result["body"]
 
 
 def test_handler_invalid_s3_record(mock_env, lambda_context):
