@@ -65,30 +65,54 @@ def process_s3_record(record, record_index):
     event_name = record["eventName"]
     object_size = s3_info.get("object", {}).get("size", "unknown")
 
+    # Determine event type for proper handling
+    is_delete_event = event_name.startswith("ObjectRemoved")
+    is_create_event = event_name.startswith("ObjectCreated")
+
+    event_type = "DELETE" if is_delete_event else ("CREATE" if is_create_event else "OTHER")
+
     logger.info(
         "Processing S3 event",
         extra={
             "event_name": event_name,
+            "event_type": event_type,
             "bucket": bucket_name,
             "key": object_key,
             "object_size_bytes": object_size,
+            "is_delete_event": is_delete_event,
             "record_index": record_index + 1,
         },
     )
 
     # Start Bedrock ingestion job (processes ALL files in data source)
+    # For delete events, this re-ingests remaining files and removes deleted ones from vector index
     ingestion_start_time = time.time()
     bedrock_agent = boto3.client("bedrock-agent")
+
+    # Create descriptive message based on event type
+    if is_delete_event:
+        description = f"Auto-sync: File deleted ({object_key}) - Re-ingesting to remove from vector index"
+    elif is_create_event:
+        description = f"Auto-sync: File added/updated ({object_key}) - Adding to vector index"
+    else:
+        description = f"Auto-sync triggered by S3 {event_name} on {object_key}"
+
     response = bedrock_agent.start_ingestion_job(
         knowledgeBaseId=KNOWLEDGEBASE_ID,
         dataSourceId=DATA_SOURCE_ID,
-        description=f"Auto-sync triggered by S3 {event_name} on {object_key}",
+        description=description,
     )
     ingestion_request_time = time.time() - ingestion_start_time
 
     # Extract job details for tracking and logging
     job_id = response["ingestionJob"]["ingestionJobId"]
     job_status = response["ingestionJob"]["status"]
+
+    note = "Job processes all files in data source, not just trigger file"
+    if is_delete_event:
+        note += " - Deleted files will be removed from vector index"
+    elif is_create_event:
+        note += " - New/updated files will be added to vector index"
 
     logger.info(
         "Successfully started ingestion job",
@@ -97,8 +121,10 @@ def process_s3_record(record, record_index):
             "job_status": job_status,
             "knowledge_base_id": KNOWLEDGEBASE_ID,
             "trigger_file": object_key,
+            "event_type": event_type,
+            "is_delete_event": is_delete_event,
             "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
-            "note": "Job processes all files in data source, not just trigger file",
+            "note": note,
         },
     )
 

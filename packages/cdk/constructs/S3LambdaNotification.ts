@@ -18,8 +18,16 @@ export class S3LambdaNotification extends Construct {
     const supportedExtensions = [".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"]
 
     supportedExtensions.forEach(ext => {
+      // Handle all file creation/modification events (PUT, POST, Copy, etc.)
       props.bucket.addEventNotification(
         EventType.OBJECT_CREATED,
+        lambdaDestination,
+        {suffix: ext}
+      )
+
+      // Handle all file deletion events
+      props.bucket.addEventNotification(
+        EventType.OBJECT_REMOVED,
         lambdaDestination,
         {suffix: ext}
       )

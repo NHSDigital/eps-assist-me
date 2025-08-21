@@ -83,7 +83,7 @@ def test_handler_success(mock_time, mock_boto_client, mock_env, lambda_context, 
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="Auto-sync triggered by S3 ObjectCreated:Put on test-file.pdf",
+        description="Auto-sync: File added/updated (test-file.pdf) - Adding to vector index",
     )
 
 
