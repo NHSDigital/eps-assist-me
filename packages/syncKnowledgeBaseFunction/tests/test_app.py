@@ -63,12 +63,12 @@ def multiple_s3_event():
     }
 
 
-@patch("app.handler.get_bedrock_agent")
+@patch("boto3.client")
 @patch("time.time")
-def test_handler_success(mock_time, mock_get_bedrock, mock_env, lambda_context, s3_event):
+def test_handler_success(mock_time, mock_boto_client, mock_env, lambda_context, s3_event):
     """Test successful handler execution"""
     mock_time.side_effect = [1000, 1001, 1002, 1003]
-    mock_bedrock = mock_get_bedrock.return_value
+    mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
@@ -79,6 +79,7 @@ def test_handler_success(mock_time, mock_get_bedrock, mock_env, lambda_context, 
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
+    mock_boto_client.assert_called_with("bedrock-agent")
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
@@ -86,12 +87,12 @@ def test_handler_success(mock_time, mock_get_bedrock, mock_env, lambda_context, 
     )
 
 
-@patch("app.handler.get_bedrock_agent")
+@patch("boto3.client")
 @patch("time.time")
-def test_handler_multiple_files(mock_time, mock_get_bedrock, mock_env, lambda_context, multiple_s3_event):
+def test_handler_multiple_files(mock_time, mock_boto_client, mock_env, lambda_context, multiple_s3_event):
     """Test handler with multiple S3 records"""
     mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
-    mock_bedrock = mock_get_bedrock.return_value
+    mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
@@ -105,16 +106,16 @@ def test_handler_multiple_files(mock_time, mock_get_bedrock, mock_env, lambda_co
     assert mock_bedrock.start_ingestion_job.call_count == 2
 
 
-@patch("app.handler.get_bedrock_agent")
+@patch("boto3.client")
 @patch("time.time")
-def test_handler_conflict_exception(mock_time, mock_get_bedrock, mock_env, lambda_context, s3_event):
+def test_handler_conflict_exception(mock_time, mock_boto_client, mock_env, lambda_context, s3_event):
     """Test handler with ConflictException (job already running)"""
     mock_time.side_effect = [1000, 1001, 1002]
     error = ClientError(
         error_response={"Error": {"Code": "ConflictException", "Message": "Job already running"}},
         operation_name="StartIngestionJob",
     )
-    mock_bedrock = mock_get_bedrock.return_value
+    mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.side_effect = error
 
     from app.handler import handler
@@ -125,16 +126,16 @@ def test_handler_conflict_exception(mock_time, mock_get_bedrock, mock_env, lambd
     assert "Files uploaded successfully - processing by existing ingestion job" in result["body"]
 
 
-@patch("app.handler.get_bedrock_agent")
+@patch("boto3.client")
 @patch("time.time")
-def test_handler_aws_error(mock_time, mock_get_bedrock, mock_env, lambda_context, s3_event):
+def test_handler_aws_error(mock_time, mock_boto_client, mock_env, lambda_context, s3_event):
     """Test handler with other AWS error"""
     mock_time.side_effect = [1000, 1001, 1002]
     error = ClientError(
         error_response={"Error": {"Code": "AccessDenied", "Message": "Access denied"}},
         operation_name="StartIngestionJob",
     )
-    mock_bedrock = mock_get_bedrock.return_value
+    mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.side_effect = error
 
     from app.handler import handler
@@ -145,12 +146,12 @@ def test_handler_aws_error(mock_time, mock_get_bedrock, mock_env, lambda_context
     assert "AWS error: AccessDenied - Access denied" in result["body"]
 
 
-@patch("app.handler.get_bedrock_agent")
+@patch("boto3.client")
 @patch("time.time")
-def test_handler_unexpected_error(mock_time, mock_get_bedrock, mock_env, lambda_context, s3_event):
+def test_handler_unexpected_error(mock_time, mock_boto_client, mock_env, lambda_context, s3_event):
     """Test handler with unexpected error"""
     mock_time.side_effect = [1000, 1001, 1002]
-    mock_bedrock = mock_get_bedrock.return_value
+    mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.side_effect = Exception("Unexpected error")
 
     from app.handler import handler

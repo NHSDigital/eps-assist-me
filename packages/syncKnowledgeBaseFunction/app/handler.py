@@ -25,13 +25,6 @@ def is_supported_file_type(file_key):
     return any(file_key.lower().endswith(ext) for ext in SUPPORTED_FILE_TYPES)
 
 
-def get_bedrock_agent():
-    """
-    Create Bedrock Agent client for knowledge base operations
-    """
-    return boto3.client("bedrock-agent")
-
-
 def process_s3_record(record, record_index):
     """
     Process a single S3 record and start ingestion job if valid
@@ -85,7 +78,7 @@ def process_s3_record(record, record_index):
 
     # Start Bedrock ingestion job (processes ALL files in data source)
     ingestion_start_time = time.time()
-    bedrock_agent = get_bedrock_agent()
+    bedrock_agent = boto3.client("bedrock-agent")
     response = bedrock_agent.start_ingestion_job(
         knowledgeBaseId=KNOWLEDGEBASE_ID,
         dataSourceId=DATA_SOURCE_ID,
