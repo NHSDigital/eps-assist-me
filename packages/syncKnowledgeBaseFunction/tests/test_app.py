@@ -279,3 +279,39 @@ def test_handler_unsupported_file_type(mock_env, lambda_context):
 
     assert result["statusCode"] == 200
     assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
+
+
+@patch("boto3.client")
+@patch("time.time")
+def test_handler_unknown_event_type(mock_time, mock_boto_client, mock_env, lambda_context):
+    """Test handler with unknown S3 event type"""
+    mock_time.side_effect = [1000, 1001, 1002, 1003]
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    unknown_event = {
+        "Records": [
+            {
+                "eventSource": "aws:s3",
+                "eventName": "ObjectRestore:Completed",  # Unknown event type
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "test-file.pdf", "size": 1024},
+                },
+            }
+        ]
+    }
+
+    from app.handler import handler
+
+    result = handler(unknown_event, lambda_context)
+
+    assert result["statusCode"] == 200
+    assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
+    mock_bedrock.start_ingestion_job.assert_called_once_with(
+        knowledgeBaseId="test-kb-id",
+        dataSourceId="test-ds-id",
+        description="Auto-sync triggered by S3 ObjectRestore:Completed on test-file.pdf",
+    )
