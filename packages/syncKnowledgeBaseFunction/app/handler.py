@@ -152,10 +152,6 @@ def handle_client_error(e, start_time):
 def handler(event, context):
     """
     Main Lambda handler for S3-triggered knowledge base synchronization
-
-    Automatically processes S3 events to keep Bedrock Knowledge Base synchronized
-    with document changes. Supports batch processing of multiple S3 events and
-    provides comprehensive error handling for various failure scenarios.
     """
     start_time = time.time()
 
