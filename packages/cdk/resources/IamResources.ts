@@ -20,6 +20,9 @@ export interface IamResourcesProps {
   readonly slackSigningSecretParameterName: string
   readonly slackBotStateTableArn: string
   readonly slackBotStateTableKmsKeyArn: string
+  readonly knowledgeBaseArn: string
+  readonly guardrailArn: string
+  readonly dataSourceArn: string
 }
 
 export class IamResources extends Construct {
@@ -130,7 +133,7 @@ export class IamResources extends Construct {
 
     const slackBotKnowledgeBasePolicy = new PolicyStatement({
       actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
-      resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`]
+      resources: [props.knowledgeBaseArn]
     })
 
     const slackBotSSMPolicy = new PolicyStatement({
@@ -148,7 +151,7 @@ export class IamResources extends Construct {
 
     const slackBotGuardrailPolicy = new PolicyStatement({
       actions: ["bedrock:ApplyGuardrail"],
-      resources: [`arn:aws:bedrock:${props.region}:${props.account}:guardrail/*`]
+      resources: [props.guardrailArn]
     })
 
     const slackBotDynamoDbPolicy = new PolicyStatement({
@@ -197,8 +200,8 @@ export class IamResources extends Construct {
         "bedrock:ListIngestionJobs"
       ],
       resources: [
-        `arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`,
-        `arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*/data-source/*`
+        props.knowledgeBaseArn,
+        props.dataSourceArn
       ]
     })
 

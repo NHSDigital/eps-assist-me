@@ -62,13 +62,13 @@ export class Functions extends Construct {
       additionalPolicies: [props.slackBotManagedPolicy],
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
-        "KNOWLEDGEBASE_ID": props.knowledgeBaseId || "placeholder",
+        "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "BEDROCK_KB_DATA_SOURCE": BEDROCK_KB_DATA_SOURCE,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
-        "GUARD_RAIL_ID": props.guardrailId || "placeholder",
-        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder",
+        "GUARD_RAIL_ID": props.guardrailId,
+        "GUARD_RAIL_VERSION": props.guardrailVersion,
         "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName
       }
     })

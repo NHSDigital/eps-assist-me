@@ -145,29 +145,11 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs access to all guardrails, knowledge bases, and functions for content filtering and self-invocation.",
+        reason: "SlackBot Lambda needs wildcard access for Lambda functions (self-invocation) and KMS operations.",
         appliesTo: [
           `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:guardrail/*`,
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
           "Action::kms:GenerateDataKey*",
           "Action::kms:ReEncrypt*"
-        ]
-      }
-    ]
-  )
-
-  // Suppress wildcard permissions for SyncKnowledgeBase managed policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/IamResources/SyncKnowledgeBaseManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "SyncKnowledgeBase Lambda needs access to knowledge bases and data sources for synchronization.",
-        appliesTo: [
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*/data-source/*`
         ]
       }
     ]

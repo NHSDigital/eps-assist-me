@@ -4,14 +4,25 @@ import {CfnCollection, CfnSecurityPolicy, CfnAccessPolicy} from "aws-cdk-lib/aws
 export interface OpenSearchCollectionProps {
   readonly collectionName: string
   readonly principals: Array<string>
+  readonly region: string
+  readonly account: string
 }
 
 export class OpenSearchCollection extends Construct {
   public readonly collection: CfnCollection
   public readonly endpoint: string
+  private readonly region: string
+  private readonly account: string
+
+  public get collectionArn(): string {
+    return `arn:aws:aoss:${this.region}:${this.account}:collection/${this.collection.attrId}`
+  }
 
   constructor(scope: Construct, id: string, props: OpenSearchCollectionProps) {
     super(scope, id)
+
+    this.region = props.region
+    this.account = props.account
 
     // Encryption policy using AWS-managed keys
     const encryptionPolicy = new CfnSecurityPolicy(this, "EncryptionPolicy", {

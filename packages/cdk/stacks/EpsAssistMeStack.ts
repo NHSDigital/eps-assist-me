@@ -4,6 +4,7 @@ import {
   StackProps,
   CfnOutput
 } from "aws-cdk-lib"
+import {Role, ServicePrincipal} from "aws-cdk-lib/aws-iam"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -54,15 +55,40 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName
     })
 
-    // Create Storage construct without Bedrock execution role to avoid circular dependency:
-    // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
-    // - IamResources creates the Bedrock role that needs S3 access permissions
-    // - KMS permissions are added manually after both constructs exist
+    // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
       stackName: props.stackName
     })
 
-    // Create IAM Resources
+    // Create temporary Bedrock execution role for OpenSearch and VectorKB creation
+    // This will be replaced by the proper IAM role after VectorKB is created
+    const tempBedrockRole = new Role(this, "TempBedrockRole", {
+      assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
+      description: "Temporary role for initial resource creation"
+    })
+
+    // Create OpenSearch Resources with temporary role
+    const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
+      stackName: props.stackName,
+      bedrockExecutionRole: tempBedrockRole,
+      account,
+      region
+    })
+
+    const endpoint = openSearchResources.collection.endpoint
+
+    // Create VectorKnowledgeBase construct early to get ARNs for IAM policies
+    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
+      docsBucket: storage.kbDocsBucket.bucket,
+      bedrockExecutionRole: tempBedrockRole,
+      collectionArn: openSearchResources.collection.collectionArn,
+      vectorIndexName: VECTOR_INDEX_NAME,
+      region,
+      account
+    })
+
+    // Create IAM Resources with specific ARNs from VectorKB
     const iamResources = new IamResources(this, "IamResources", {
       region,
       account,
@@ -70,19 +96,16 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
       slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
       slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
-      slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn
+      slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn,
+      knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
+      guardrailArn: vectorKB.guardrail.attrGuardrailArn,
+      dataSourceArn: vectorKB.dataSourceArn
     })
 
-    // Create OpenSearch Resources
-    const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
-      stackName: props.stackName,
-      bedrockExecutionRole: iamResources.bedrockExecutionRole,
-      account
-    })
+    // Update VectorKB to use the proper Bedrock execution role
+    vectorKB.knowledgeBase.addPropertyOverride("RoleArn", iamResources.bedrockExecutionRole.roleArn)
 
-    const endpoint = openSearchResources.collection.endpoint
-
-    // Create Functions construct without vector KB dependencies
+    // Create Functions construct with actual values from VectorKB
     const functions = new Functions(this, "Functions", {
       stackName: props.stackName,
       version: props.version,
@@ -94,11 +117,11 @@ export class EpsAssistMeStack extends Stack {
       syncKnowledgeBaseManagedPolicy: iamResources.syncKnowledgeBaseManagedPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
-      guardrailId: "", // Will be set after vector KB is created
-      guardrailVersion: "", // Will be set after vector KB is created
+      guardrailId: vectorKB.guardrail.attrGuardrailId,
+      guardrailVersion: vectorKB.guardrail.attrVersion,
       collectionId: openSearchResources.collection.collection.attrId,
-      knowledgeBaseId: "", // Will be set after vector KB is created
-      dataSourceId: "", // Will be set after vector KB is created
+      knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
+      dataSourceId: vectorKB.dataSource.attrDataSourceId,
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
@@ -106,7 +129,7 @@ export class EpsAssistMeStack extends Stack {
       slackBotStateTable: tables.slackBotStateTable.table
     })
 
-    // Create vector index
+    // Create vector index after Functions are created
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
       indexName: VECTOR_INDEX_NAME,
       collection: openSearchResources.collection.collection,
@@ -114,32 +137,8 @@ export class EpsAssistMeStack extends Stack {
       endpoint
     })
 
-    // Create VectorKnowledgeBase construct after vector index
-    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-      stackName: props.stackName,
-      docsBucket: storage.kbDocsBucket.bucket,
-      bedrockExecutionRole: iamResources.bedrockExecutionRole,
-      collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
-      vectorIndexName: VECTOR_INDEX_NAME
-    })
-
     // Ensure knowledge base waits for vector index
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
-
-    // Update SlackBot Lambda environment variables with vector KB info
-    functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_ID", vectorKB.guardrail.attrGuardrailId)
-    functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_VERSION", vectorKB.guardrail.attrVersion)
-    functions.functions.slackBot.function.addEnvironment("KNOWLEDGEBASE_ID", vectorKB.knowledgeBase.attrKnowledgeBaseId)
-
-    // Update SyncKnowledgeBase Lambda environment variables with vector KB info
-    functions.functions.syncKnowledgeBase.function.addEnvironment(
-      "KNOWLEDGEBASE_ID",
-      vectorKB.knowledgeBase.attrKnowledgeBaseId
-    )
-    functions.functions.syncKnowledgeBase.function.addEnvironment(
-      "DATA_SOURCE_ID",
-      vectorKB.dataSource.attrDataSourceId
-    )
 
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
