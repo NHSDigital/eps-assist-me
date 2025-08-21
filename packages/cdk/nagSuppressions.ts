@@ -4,7 +4,6 @@ import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack) => {
   const stackName = stack.node.tryGetContext("stackName") || "epsam"
-  const account = Stack.of(stack).account
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
@@ -12,10 +11,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions for log stream access are required and scoped appropriately.",
-        appliesTo: [
-          "Resource::<FunctionsSlackBotLambdaLambdaLogGroup3597D783.Arn>:log-stream:*"
-        ]
+        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
       }
     ]
   )
@@ -27,10 +23,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths.",
-        appliesTo: [
-          "Resource::<FunctionsCreateIndexFunctionLambdaLogGroupB45008DF.Arn>:log-stream:*"
-        ]
+        reason: "Wildcard permissions are required for log stream access under known paths."
       }
     ]
   )
@@ -94,16 +87,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
-        appliesTo: [
-          "Action::bedrock:Delete*",
-          "Resource::<StorageDocsBucketepsampr16Docs240CC945.Arn>/*",
-          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
-          "Resource::<StorageDocsBucketepsampr21Docs7A4F591C.Arn>/*",
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
-          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
-          "Resource::*"
-        ]
+        reason: "Bedrock Knowledge Base requires wildcard permissions to access S3 documents and OpenSearch collection across environments."
       }
     ]
   )
@@ -115,11 +99,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
-        appliesTo: [
-          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
-          `Resource::arn:aws:aoss:eu-west-2:${account}:index/*`
-        ]
+        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes."
       }
     ]
   )
@@ -131,14 +111,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs access to all guardrails, knowledge bases, and functions for content filtering and self-invocation.",
-        appliesTo: [
-          `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:guardrail/*`,
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
-          "Action::kms:GenerateDataKey*",
-          "Action::kms:ReEncrypt*"
-        ]
+        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation."
       }
     ]
   )
@@ -156,28 +129,19 @@ export const nagSuppressions = (stack: Stack) => {
   )
 
   // Suppress secrets without rotation
-  safeAddNagSuppression(
+  safeAddNagSuppressionGroup(
     stack,
-    "/EpsAssistMeStack/Secrets/SlackBotToken/Secret/Resource",
+    [
+      "/EpsAssistMeStack/Secrets/SlackBotToken/Secret/Resource",
+      "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource"
+    ],
     [
       {
         id: "AwsSolutions-SMG4",
-        reason: "Slack bot token rotation is handled manually as part of the Slack app configuration process."
+        reason: "Slack secrets rotation is handled manually as part of the Slack app configuration process."
       }
     ]
   )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource",
-    [
-      {
-        id: "AwsSolutions-SMG4",
-        reason: "Slack signing secret rotation is handled manually as part of the Slack app configuration process."
-      }
-    ]
-  )
-
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {

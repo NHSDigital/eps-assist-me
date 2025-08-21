@@ -28,7 +28,6 @@ export class DynamoDbTable extends Construct {
   constructor(scope: Construct, id: string, props: DynamoDbTableProps) {
     super(scope, id)
 
-    // Use provided KMS key or create a new one
     this.kmsKey = new Key(this, "TableKey", {
       enableKeyRotation: true,
       description: `KMS key for ${props.tableName} DynamoDB table encryption`,
