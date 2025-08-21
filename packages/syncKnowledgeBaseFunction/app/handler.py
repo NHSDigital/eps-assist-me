@@ -69,7 +69,13 @@ def process_s3_record(record, record_index):
     is_delete_event = event_name.startswith("ObjectRemoved")
     is_create_event = event_name.startswith("ObjectCreated")
 
-    event_type = "DELETE" if is_delete_event else ("CREATE" if is_create_event else "OTHER")
+    # Determine event type based on S3 event name
+    if is_delete_event:
+        event_type = "DELETE"
+    elif is_create_event:
+        event_type = "CREATE"
+    else:
+        event_type = "OTHER"
 
     logger.info(
         "Processing S3 event",
