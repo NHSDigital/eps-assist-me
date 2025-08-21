@@ -4,7 +4,6 @@ import {
   StackProps,
   CfnOutput
 } from "aws-cdk-lib"
-import {Role, ServicePrincipal} from "aws-cdk-lib/aws-iam"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Functions} from "../resources/Functions"
@@ -12,7 +11,8 @@ import {Storage} from "../resources/Storage"
 import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
-import {IamResources} from "../resources/IamResources"
+import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
+import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
@@ -60,39 +60,38 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName
     })
 
-    // Create temporary Bedrock execution role for OpenSearch and VectorKB creation
-    // This will be replaced by the proper IAM role after VectorKB is created
-    const tempBedrockRole = new Role(this, "TempBedrockRole", {
-      assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
-      description: "Temporary role for initial resource creation"
+    // Create Bedrock execution role without dependencies
+    const bedrockExecutionRole = new BedrockExecutionRole(this, "BedrockExecutionRole", {
+      region,
+      account,
+      kbDocsBucket: storage.kbDocsBucket.bucket
     })
 
-    // Create OpenSearch Resources with temporary role
+    // Create OpenSearch Resources with Bedrock execution role
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
       stackName: props.stackName,
-      bedrockExecutionRole: tempBedrockRole,
+      bedrockExecutionRole: bedrockExecutionRole.role,
       account,
       region
     })
 
     const endpoint = openSearchResources.collection.endpoint
 
-    // Create VectorKnowledgeBase construct early to get ARNs for IAM policies
+    // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
       docsBucket: storage.kbDocsBucket.bucket,
-      bedrockExecutionRole: tempBedrockRole,
+      bedrockExecutionRole: bedrockExecutionRole.role,
       collectionArn: openSearchResources.collection.collectionArn,
       vectorIndexName: VECTOR_INDEX_NAME,
       region,
       account
     })
 
-    // Create IAM Resources with specific ARNs from VectorKB
-    const iamResources = new IamResources(this, "IamResources", {
+    // Create runtime policies that depend on VectorKB ARNs
+    const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
       region,
       account,
-      kbDocsBucket: storage.kbDocsBucket.bucket,
       slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
       slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
       slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
@@ -102,9 +101,6 @@ export class EpsAssistMeStack extends Stack {
       dataSourceArn: vectorKB.dataSourceArn
     })
 
-    // Update VectorKB to use the proper Bedrock execution role
-    vectorKB.knowledgeBase.addPropertyOverride("RoleArn", iamResources.bedrockExecutionRole.roleArn)
-
     // Create Functions construct with actual values from VectorKB
     const functions = new Functions(this, "Functions", {
       stackName: props.stackName,
@@ -112,9 +108,9 @@ export class EpsAssistMeStack extends Stack {
       commitId: props.commitId,
       logRetentionInDays,
       logLevel,
-      createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
-      slackBotManagedPolicy: iamResources.slackBotManagedPolicy,
-      syncKnowledgeBaseManagedPolicy: iamResources.syncKnowledgeBaseManagedPolicy,
+      createIndexManagedPolicy: runtimePolicies.createIndexPolicy,
+      slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
+      syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: vectorKB.guardrail.attrGuardrailId,

@@ -102,10 +102,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress IAM wildcard permissions for Bedrock execution managed policy
+  // Suppress IAM wildcard permissions for Bedrock execution role policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/BedrockExecutionManagedPolicy/Resource",
+    "/EpsAssistMeStack/BedrockExecutionRole/Policy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -122,10 +122,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard permissions for CreateIndex managed policy
+  // Suppress wildcard permissions for CreateIndex policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/CreateIndexManagedPolicy/Resource",
+    "/EpsAssistMeStack/RuntimePolicies/CreateIndexPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -138,10 +138,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard permissions for SlackBot managed policy
+  // Suppress wildcard permissions for SlackBot policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/SlackBotManagedPolicy/Resource",
+    "/EpsAssistMeStack/RuntimePolicies/SlackBotPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
