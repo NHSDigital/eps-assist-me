@@ -44,7 +44,7 @@ export class Functions extends Construct {
       stackName: props.stackName,
       functionName: `${props.stackName}-CreateIndexFunction`,
       packageBasePath: "packages/createIndexFunction",
-      handler: "app.handler",
+      handler: "app.handler.py",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       environmentVariables: {"INDEX_NAME": props.collectionId},
@@ -82,7 +82,7 @@ export class Functions extends Construct {
       stackName: props.stackName,
       functionName: `${props.stackName}-SyncKnowledgeBaseFunction`,
       packageBasePath: "packages/syncKnowledgeBaseFunction",
-      handler: "app.handler",
+      handler: "app.handler.py",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       environmentVariables: {
