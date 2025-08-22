@@ -65,7 +65,7 @@ export class RuntimePolicies extends Construct {
     const slackBotPromptPolicy = new PolicyStatement({
       actions: [
         "bedrock:CreatePrompt",
-        "bedrock:UpdatePrompt", 
+        "bedrock:UpdatePrompt",
         "bedrock:GetPrompt",
         "bedrock:ListPrompts",
         "bedrock:DeletePrompt",
