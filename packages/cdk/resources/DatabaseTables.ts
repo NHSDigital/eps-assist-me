@@ -15,7 +15,11 @@ export class DatabaseTables extends Construct {
     this.slackBotStateTable = new DynamoDbTable(this, "SlackBotStateTable", {
       tableName: `${props.stackName}-SlackBotState`,
       partitionKey: {
-        name: "eventId",
+        name: "pk",
+        type: AttributeType.STRING
+      },
+      sortKey: {
+        name: "sk",
         type: AttributeType.STRING
       },
       timeToLiveAttribute: "ttl"
