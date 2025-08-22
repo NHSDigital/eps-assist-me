@@ -126,7 +126,8 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Create vector index after Functions are created
-    const vectorIndex = new VectorIndex(this, "VectorIndex", {
+    // const vectorIndex = new VectorIndex(this, "VectorIndex", {
+    new VectorIndex(this, "VectorIndex", {
       indexName: VECTOR_INDEX_NAME,
       collection: openSearchResources.collection.collection,
       createIndexFunction: functions.functions.createIndex,
@@ -134,7 +135,7 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Ensure knowledge base waits for vector index
-    vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
+    // vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
 
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
