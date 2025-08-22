@@ -1,6 +1,6 @@
 from unittest.mock import patch, MagicMock
 import json
-from query_reformulator import reformulate_query
+from app.services.query_reformulator import reformulate_query
 
 
 @patch("query_reformulator.boto3.client")
