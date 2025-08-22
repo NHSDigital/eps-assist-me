@@ -16,6 +16,7 @@ export interface RuntimePoliciesProps {
   readonly knowledgeBaseArn: string
   readonly guardrailArn: string
   readonly dataSourceArn: string
+  readonly promptName: string
 }
 
 export class RuntimePolicies extends Construct {
@@ -63,7 +64,10 @@ export class RuntimePolicies extends Construct {
 
     const slackBotPromptPolicy = new PolicyStatement({
       actions: ["bedrock:GetPrompt"],
-      resources: [`arn:aws:bedrock:${props.region}:${props.account}:prompt/*`]
+      resources: [
+        `arn:aws:bedrock:${props.region}:${props.account}:prompt/${props.promptName}`,
+        `arn:aws:bedrock:${props.region}:${props.account}:prompt/${props.promptName}:*`
+      ]
     })
 
     const slackBotKnowledgeBasePolicy = new PolicyStatement({

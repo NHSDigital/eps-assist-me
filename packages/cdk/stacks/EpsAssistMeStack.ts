@@ -94,7 +94,7 @@ export class EpsAssistMeStack extends Stack {
       account
     })
 
-    // Create runtime policies that depend on VectorKB ARNs
+    // Create runtime policies with resource dependencies
     const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
       region,
       account,
@@ -104,7 +104,8 @@ export class EpsAssistMeStack extends Stack {
       slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn,
       knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
       guardrailArn: vectorKB.guardrail.attrGuardrailArn,
-      dataSourceArn: vectorKB.dataSourceArn
+      dataSourceArn: vectorKB.dataSourceArn,
+      promptName: bedrockPrompts.queryReformulationPrompt.promptName
     })
 
     // Create Functions construct with actual values from VectorKB
