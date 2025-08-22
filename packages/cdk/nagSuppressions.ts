@@ -149,6 +149,7 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
           `Resource::arn:aws:bedrock:eu-west-2:${account}:prompt/*`,
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:prompt/${stackName}-queryReformulation:*`,
           "Action::kms:GenerateDataKey*",
           "Action::kms:ReEncrypt*"
         ]
