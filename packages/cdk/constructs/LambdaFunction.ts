@@ -23,7 +23,6 @@ export interface LambdaFunctionProps {
   readonly stackName: string
   readonly functionName: string
   readonly packageBasePath: string
-  readonly entryPoint: string
   readonly handler: string
   readonly environmentVariables: {[key: string]: string}
   readonly additionalPolicies?: Array<IManagedPolicy>
