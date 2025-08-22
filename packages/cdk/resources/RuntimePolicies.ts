@@ -62,6 +62,7 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
+    // Compehensive Bedrock prompt policy - includes all prompt management permissions
     const slackBotPromptPolicy = new PolicyStatement({
       actions: [
         "bedrock:CreatePrompt",
@@ -80,11 +81,7 @@ export class RuntimePolicies extends Construct {
         "bedrock:UntagResource",
         "bedrock:ListTagsForResource"
       ],
-      resources: [
-        `arn:aws:bedrock:${props.region}:${props.account}:prompt/*`,
-        `arn:aws:bedrock:${props.region}::foundation-model/*`,
-        `arn:aws:bedrock:${props.region}:${props.account}:inference-profile/*`
-      ]
+      resources: ["*"] // Use wildcard as recommended by AWS docs
     })
 
     const slackBotKnowledgeBasePolicy = new PolicyStatement({
