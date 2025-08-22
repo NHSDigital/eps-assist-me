@@ -64,6 +64,7 @@ export class RuntimePolicies extends Construct {
 
     // Compehensive Bedrock prompt policy - includes all prompt management permissions
     const slackBotPromptPolicy = new PolicyStatement({
+      sid: "PromptManagementPermissions",
       actions: [
         "bedrock:CreatePrompt",
         "bedrock:UpdatePrompt",
@@ -76,6 +77,8 @@ export class RuntimePolicies extends Construct {
         "bedrock:ListFoundationModels",
         "bedrock:GetInferenceProfile",
         "bedrock:ListInferenceProfiles",
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
         "bedrock:RenderPrompt",
         "bedrock:TagResource",
         "bedrock:UntagResource",
