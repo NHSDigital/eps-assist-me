@@ -145,11 +145,12 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs wildcard access for Lambda functions (self-invocation), KMS operations, and Bedrock prompts.",
+        reason: "SlackBot Lambda requires wildcard access for Lambda, KMS, and Bedrock resources.",
         appliesTo: [
           `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
           `Resource::arn:aws:bedrock:eu-west-2:${account}:prompt/*`,
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:prompt/${stackName}-queryReformulation:*`,
+          `Resource::arn:aws:bedrock:eu-west-2::foundation-model/*`,
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:inference-profile/*`,
           "Action::kms:GenerateDataKey*",
           "Action::kms:ReEncrypt*"
         ]

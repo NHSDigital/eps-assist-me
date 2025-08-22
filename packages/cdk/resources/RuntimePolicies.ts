@@ -63,10 +63,27 @@ export class RuntimePolicies extends Construct {
     })
 
     const slackBotPromptPolicy = new PolicyStatement({
-      actions: ["bedrock:GetPrompt"],
+      actions: [
+        "bedrock:CreatePrompt",
+        "bedrock:UpdatePrompt", 
+        "bedrock:GetPrompt",
+        "bedrock:ListPrompts",
+        "bedrock:DeletePrompt",
+        "bedrock:CreatePromptVersion",
+        "bedrock:OptimizePrompt",
+        "bedrock:GetFoundationModel",
+        "bedrock:ListFoundationModels",
+        "bedrock:GetInferenceProfile",
+        "bedrock:ListInferenceProfiles",
+        "bedrock:RenderPrompt",
+        "bedrock:TagResource",
+        "bedrock:UntagResource",
+        "bedrock:ListTagsForResource"
+      ],
       resources: [
-        `arn:aws:bedrock:${props.region}:${props.account}:prompt/${props.promptName}`,
-        `arn:aws:bedrock:${props.region}:${props.account}:prompt/${props.promptName}:*`
+        `arn:aws:bedrock:${props.region}:${props.account}:prompt/*`,
+        `arn:aws:bedrock:${props.region}::foundation-model/*`,
+        `arn:aws:bedrock:${props.region}:${props.account}:inference-profile/*`
       ]
     })
 
