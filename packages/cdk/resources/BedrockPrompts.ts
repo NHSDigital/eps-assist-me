@@ -1,16 +1,20 @@
 import {Construct} from "constructs"
 import {BedrockPrompt} from "../constructs/BedrockPrompt"
 
+export interface BedrockPromptsProps {
+  readonly stackName: string
+}
+
 export class BedrockPrompts extends Construct {
   public readonly queryReformulationPrompt: BedrockPrompt
 
-  constructor(scope: Construct, id: string) {
+  constructor(scope: Construct, id: string, props: BedrockPromptsProps) {
     super(scope, id)
 
     this.queryReformulationPrompt = new BedrockPrompt(this, "QueryReformulationPrompt", {
-      promptName: "query-reformulation",
-      promptText: "PLACEHOLDER - Update this prompt text via AWS Console",
-      description: "Prompt for reformulating user queries to improve RAG retrieval - UPDATE VIA CONSOLE"
+      promptName: `${props.stackName}-queryReformulation`,
+      promptText: "PLACEHOLDER",
+      description: "Prompt for reformulating user queries to improve RAG retrieval"
     })
   }
 }

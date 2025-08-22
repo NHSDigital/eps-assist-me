@@ -57,7 +57,9 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Create Bedrock Prompts
-    const bedrockPrompts = new BedrockPrompts(this, "BedrockPrompts")
+    const bedrockPrompts = new BedrockPrompts(this, "BedrockPrompts", {
+      stackName: props.stackName
+    })
 
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
@@ -126,7 +128,8 @@ export class EpsAssistMeStack extends Stack {
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
-      slackBotStateTable: tables.slackBotStateTable.table
+      slackBotStateTable: tables.slackBotStateTable.table,
+      promptName: bedrockPrompts.queryReformulationPrompt.promptName
     })
 
     // Create vector index after Functions are created

@@ -33,6 +33,7 @@ export interface FunctionsProps {
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
   readonly slackBotStateTable: TableV2
+  readonly promptName: string
 }
 
 export class Functions extends Construct {
@@ -73,7 +74,7 @@ export class Functions extends Construct {
         "GUARD_RAIL_ID": props.guardrailId,
         "GUARD_RAIL_VERSION": props.guardrailVersion,
         "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName,
-        "QUERY_REFORMULATION_PROMPT_NAME": "query-reformulation"
+        "QUERY_REFORMULATION_PROMPT_NAME": props.promptName
       }
     })
 
