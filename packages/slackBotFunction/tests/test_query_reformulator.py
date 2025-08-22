@@ -3,7 +3,7 @@ import json
 from app.services.query_reformulator import reformulate_query
 
 
-@patch("query_reformulator.boto3.client")
+@patch("app.services.query_reformulator.boto3.client")
 @patch.dict(
     "os.environ",
     {
@@ -29,7 +29,7 @@ def test_reformulate_query_success(mock_boto_client):
     mock_client.invoke_model.assert_called_once()
 
 
-@patch("query_reformulator.boto3.client")
+@patch("app.services.query_reformulator.boto3.client")
 @patch.dict(
     "os.environ",
     {
