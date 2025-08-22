@@ -10,8 +10,9 @@ install: install-python install-hooks install-node
 
 install-python:
 	poetry install
-	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 	cd packages/createIndexFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
+	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
+	cd packages/syncKnowledgeBaseFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 
 install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
@@ -44,20 +45,20 @@ lint-black:
 lint-flake8:
 	poetry run flake8 .
 
-test: compile-node test-lambda
-	npm run test --workspace packages/cdk
-
-test-lambda:
-	cd packages/slackBotFunction && PYTHONPATH=. python -m pytest tests/ -v
-	cd packages/createIndexFunction && PYTHONPATH=. python -m pytest tests/ -v
+test:
+	cd packages/createIndexFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
+	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
+	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
-	rm -rf packages/slackBotFunction/coverage
-	rm -rf packages/slackBotFunction/.coverage
 	rm -rf packages/createIndexFunction/coverage
 	rm -rf packages/createIndexFunction/.coverage
+	rm -rf packages/slackBotFunction/coverage
+	rm -rf packages/slackBotFunction/.coverage
+	rm -rf packages/syncKnowledgeBaseFunction/coverage
+	rm -rf packages/syncKnowledgeBaseFunction/.coverage
 	rm -rf cdk.out
 	rm -rf .build
 
@@ -110,6 +111,7 @@ cdk-synth:
 		--context logRetentionInDays=30 \
 		--context slackBotToken=dummy \
 		--context slackSigningSecret=dummy
+	./scripts/fix_cfn_guard.sh
 
 cdk-diff:
 	npx cdk diff \

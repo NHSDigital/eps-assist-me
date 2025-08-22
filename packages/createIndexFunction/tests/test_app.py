@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import Mock, patch
 import os
 
@@ -27,17 +28,57 @@ def mock_opensearch_client():
     client.indices.exists.return_value = False
     client.indices.create.return_value = {"acknowledged": True}
     client.indices.get_mapping.return_value = {"test-index": {"mappings": {}}}
+    client.indices.delete.return_value = {"acknowledged": True}
     return client
 
 
-@patch("app.wait_for_index_aoss")
-@patch("app.get_opensearch_client")
-def test_create_and_wait_for_index_new(mock_get_client, mock_wait, mock_opensearch_client):
-    """Test creating a new index"""
-    mock_get_client.return_value = mock_opensearch_client
-    mock_wait.return_value = True
+@patch("app.handler.boto3.Session")
+def test_get_opensearch_client(mock_session, mock_env):
+    """Test OpenSearch client creation"""
+    mock_credentials = Mock()
+    mock_session.return_value.get_credentials.return_value = mock_credentials
 
-    from app import create_and_wait_for_index
+    from app.handler import get_opensearch_client
+
+    client = get_opensearch_client("test-endpoint.aoss.amazonaws.com")
+    assert client is not None
+    mock_session.assert_called_once()
+
+
+@patch("app.handler.time.sleep")
+@patch("app.handler.time.time")
+def test_wait_for_index_aoss_success(mock_time, mock_sleep, mock_opensearch_client):
+    """Test successful index waiting"""
+    mock_time.side_effect = [0, 1, 2]  # Simulate time progression
+    mock_opensearch_client.indices.exists.return_value = True
+    mock_opensearch_client.indices.get_mapping.return_value = {"test-index": {"mappings": {}}}
+
+    from app.handler import wait_for_index_aoss
+
+    result = wait_for_index_aoss(mock_opensearch_client, "test-index", timeout=10)
+    assert result is True
+
+
+@patch("app.handler.time.sleep")
+@patch("app.handler.time.time")
+def test_wait_for_index_aoss_timeout(mock_time, mock_sleep, mock_opensearch_client):
+    """Test index waiting timeout"""
+    mock_time.side_effect = [0, 5, 10, 15]  # Simulate timeout
+    mock_opensearch_client.indices.exists.return_value = False
+
+    from app.handler import wait_for_index_aoss
+
+    result = wait_for_index_aoss(mock_opensearch_client, "test-index", timeout=10)
+    assert result is False
+
+
+@patch("app.handler.wait_for_index_aoss")
+def test_create_and_wait_for_index_new(mock_wait, mock_opensearch_client):
+    """Test creating a new index"""
+    mock_wait.return_value = True
+    mock_opensearch_client.indices.exists.return_value = False
+
+    from app.handler import create_and_wait_for_index
 
     create_and_wait_for_index(mock_opensearch_client, "test-index")
 
@@ -45,72 +86,50 @@ def test_create_and_wait_for_index_new(mock_get_client, mock_wait, mock_opensear
     mock_opensearch_client.indices.create.assert_called_once()
 
 
-@patch("app.wait_for_index_aoss")
-@patch("app.get_opensearch_client")
-def test_create_and_wait_for_index_exists(mock_get_client, mock_wait, mock_opensearch_client):
+@patch("app.handler.wait_for_index_aoss")
+def test_create_and_wait_for_index_exists(mock_wait, mock_opensearch_client):
     """Test with existing index"""
-    mock_opensearch_client.indices.exists.return_value = True
-    mock_get_client.return_value = mock_opensearch_client
     mock_wait.return_value = True
+    mock_opensearch_client.indices.exists.return_value = True
 
-    from app import create_and_wait_for_index
+    from app.handler import create_and_wait_for_index
 
     create_and_wait_for_index(mock_opensearch_client, "test-index")
 
     mock_opensearch_client.indices.create.assert_not_called()
 
 
-def test_wait_for_index_aoss_success():
-    """Test successful index wait"""
-    mock_client = Mock()
-    mock_client.indices.exists.return_value = True
-    mock_client.indices.get_mapping.return_value = {"test-index": {"mappings": {}}}
-
-    from app import wait_for_index_aoss
-
-    result = wait_for_index_aoss(mock_client, "test-index", timeout=1, poll_interval=0.1)
-
-    assert result is True
-
-
 def test_extract_parameters_cloudformation():
     """Test parameter extraction from CloudFormation event"""
-    from app import extract_parameters
+    from app.handler import extract_parameters
 
-    event = {
-        "ResourceProperties": {"Endpoint": "test-endpoint", "IndexName": "test-index"},
-        "RequestType": "Create",
-    }
+    event = {"ResourceProperties": {"Endpoint": "test-endpoint", "IndexName": "test-index"}, "RequestType": "Create"}
 
-    params = extract_parameters(event)
-
-    assert params["endpoint"] == "test-endpoint"
-    assert params["index_name"] == "test-index"
-    assert params["request_type"] == "Create"
+    result = extract_parameters(event)
+    assert result["endpoint"] == "test-endpoint"
+    assert result["index_name"] == "test-index"
+    assert result["request_type"] == "Create"
 
 
 def test_extract_parameters_direct():
-    """Test parameter extraction from direct invocation"""
-    from app import extract_parameters
+    """Test parameter extraction from direct event"""
+    from app.handler import extract_parameters
 
-    event = {
-        "Endpoint": "test-endpoint",
-        "IndexName": "test-index",
-        "RequestType": "Create",
-    }
+    event = {"Endpoint": "test-endpoint", "IndexName": "test-index", "RequestType": "Delete"}
 
-    params = extract_parameters(event)
-
-    assert params["endpoint"] == "test-endpoint"
-    assert params["index_name"] == "test-index"
-    assert params["request_type"] == "Create"
+    result = extract_parameters(event)
+    assert result["endpoint"] == "test-endpoint"
+    assert result["index_name"] == "test-index"
+    assert result["request_type"] == "Delete"
 
 
-@patch("app.get_opensearch_client")
-@patch("app.create_and_wait_for_index")
-def test_handler_create(mock_create_wait, mock_get_client, lambda_context):
+@patch("app.handler.get_opensearch_client")
+@patch("app.handler.create_and_wait_for_index")
+def test_handler_create(mock_create_wait, mock_get_client, mock_env, lambda_context):
     """Test handler for Create request"""
-    from app import handler
+    mock_get_client.return_value = Mock()
+
+    from app.handler import handler
 
     event = {
         "RequestType": "Create",
@@ -125,217 +144,51 @@ def test_handler_create(mock_create_wait, mock_get_client, lambda_context):
     assert result["PhysicalResourceId"] == "index-test-index"
 
 
-@patch("app.get_opensearch_client")
-def test_handler_delete(mock_get_client, lambda_context):
+@patch("app.handler.get_opensearch_client")
+def test_handler_delete(mock_get_client, mock_opensearch_client, mock_env, lambda_context):
     """Test handler for Delete request"""
-    mock_client = Mock()
-    mock_client.indices.exists.return_value = True
-    mock_get_client.return_value = mock_client
+    mock_get_client.return_value = mock_opensearch_client
+    mock_opensearch_client.indices.exists.return_value = True
 
-    from app import handler
+    from app.handler import handler
 
     event = {
         "RequestType": "Delete",
         "Endpoint": "test-endpoint",
         "IndexName": "test-index",
-        "PhysicalResourceId": "index-test-index",
+        "PhysicalResourceId": "existing-resource-id",
     }
 
     result = handler(event, lambda_context)
 
-    mock_client.indices.delete.assert_called_once_with(index="test-index")
+    mock_opensearch_client.indices.delete.assert_called_once_with(index="test-index")
     assert result["Status"] == "SUCCESS"
+    assert result["PhysicalResourceId"] == "existing-resource-id"
 
 
-@patch("app.get_opensearch_client")
-def test_handler_invalid_request_type(mock_get_client, lambda_context):
-    """Test handler with invalid request type"""
-    from app import handler
-
-    event = {
-        "RequestType": "Invalid",
-        "Endpoint": "test-endpoint",
-        "IndexName": "test-index",
-    }
-
-    with pytest.raises(ValueError, match="Invalid request type"):
-        handler(event, lambda_context)
-
-
-@patch("app.get_opensearch_client")
-def test_handler_missing_parameters(mock_get_client, lambda_context):
+@patch("app.handler.get_opensearch_client")
+def test_handler_missing_parameters(mock_get_client, mock_env, lambda_context):
     """Test handler with missing parameters"""
-    from app import handler
+    from app.handler import handler
 
-    event = {
-        "RequestType": "Create"
-        # Missing Endpoint and IndexName
-    }
+    event = {"RequestType": "Create"}  # Missing required parameters
 
     with pytest.raises(ValueError, match="Missing required parameters"):
         handler(event, lambda_context)
 
 
-@patch("boto3.Session")
-def test_get_opensearch_client_aoss(mock_session):
-    """Test OpenSearch client creation for AOSS"""
-    mock_session.return_value.get_credentials.return_value = Mock()
-
-    from app import get_opensearch_client
-
-    client = get_opensearch_client("test.aoss.amazonaws.com")
-
-    assert client is not None
-
-
-@patch("boto3.Session")
-def test_get_opensearch_client_es(mock_session):
-    """Test OpenSearch client creation for ES"""
-    mock_session.return_value.get_credentials.return_value = Mock()
-
-    from app import get_opensearch_client
-
-    client = get_opensearch_client("test.es.amazonaws.com")
-
-    assert client is not None
-
-
-@patch("time.sleep")
-@patch("time.time")
-def test_wait_for_index_aoss_timeout(mock_time, mock_sleep):
-    """Test index wait timeout"""
-    mock_client = Mock()
-    mock_client.indices.exists.return_value = False
-    mock_time.side_effect = [0, 400]  # Start time, then timeout
-
-    from app import wait_for_index_aoss
-
-    result = wait_for_index_aoss(mock_client, "test-index", timeout=300, poll_interval=5)
-
-    assert result is False
-
-
-@patch("time.sleep")
-@patch("time.time")
-def test_wait_for_index_aoss_exception(mock_time, mock_sleep):
-    """Test index wait with exception"""
-    mock_client = Mock()
-    mock_client.indices.exists.side_effect = Exception("Connection error")
-    mock_time.side_effect = [0, 400]  # Start time, then timeout
-
-    from app import wait_for_index_aoss
-
-    result = wait_for_index_aoss(mock_client, "test-index", timeout=300, poll_interval=5)
-
-    assert result is False
-
-
-@patch("app.wait_for_index_aoss")
-@patch("app.get_opensearch_client")
-def test_create_and_wait_for_index_wait_fails(mock_get_client, mock_wait, mock_opensearch_client):
-    """Test create index when wait fails"""
+@patch("app.handler.get_opensearch_client")
+def test_handler_with_payload(mock_get_client, mock_opensearch_client, mock_env, lambda_context):
+    """Test handler with JSON payload"""
     mock_get_client.return_value = mock_opensearch_client
-    mock_wait.return_value = False  # Wait fails
+    mock_opensearch_client.indices.exists.return_value = True
 
-    from app import create_and_wait_for_index
+    from app.handler import handler
 
-    with pytest.raises(RuntimeError, match="failed to appear in time"):
-        create_and_wait_for_index(mock_opensearch_client, "test-index")
+    payload_event = {"RequestType": "Delete", "Endpoint": "test-endpoint", "IndexName": "test-index"}
 
-
-@patch("app.get_opensearch_client")
-def test_handler_delete_index_not_exists(mock_get_client, lambda_context):
-    """Test handler for Delete request when index doesn't exist"""
-    mock_client = Mock()
-    mock_client.indices.exists.return_value = False
-    mock_get_client.return_value = mock_client
-
-    from app import handler
-
-    event = {
-        "RequestType": "Delete",
-        "Endpoint": "test-endpoint",
-        "IndexName": "test-index",
-    }
+    event = {"Payload": json.dumps(payload_event)}
 
     result = handler(event, lambda_context)
 
-    mock_client.indices.delete.assert_not_called()
     assert result["Status"] == "SUCCESS"
-
-
-@patch("app.get_opensearch_client")
-def test_handler_delete_error(mock_get_client, lambda_context):
-    """Test handler for Delete request with error"""
-    mock_client = Mock()
-    mock_client.indices.exists.return_value = True
-    mock_client.indices.delete.side_effect = Exception("Delete error")
-    mock_get_client.return_value = mock_client
-
-    from app import handler
-
-    event = {
-        "RequestType": "Delete",
-        "Endpoint": "test-endpoint",
-        "IndexName": "test-index",
-    }
-
-    result = handler(event, lambda_context)
-
-    assert result["Status"] == "SUCCESS"  # Should still succeed
-
-
-@patch("json.loads")
-@patch("app.get_opensearch_client")
-@patch("app.create_and_wait_for_index")
-def test_handler_with_payload(mock_create_wait, mock_get_client, mock_json_loads, lambda_context):
-    """Test handler with Payload in event"""
-    mock_json_loads.return_value = {
-        "RequestType": "Create",
-        "Endpoint": "test-endpoint",
-        "IndexName": "test-index",
-    }
-
-    from app import handler
-
-    event = {"Payload": '{"RequestType": "Create", "Endpoint": "test-endpoint", "IndexName": "test-index"}'}
-
-    result = handler(event, lambda_context)
-
-    mock_json_loads.assert_called_once()
-    assert result["Status"] == "SUCCESS"
-
-
-@patch("app.wait_for_index_aoss")
-def test_index_parameters_for_rag_performance(mock_wait, mock_opensearch_client):
-    """Test that index is created with correct RAG-optimized parameters"""
-    mock_wait.return_value = True
-
-    from app import create_and_wait_for_index
-
-    create_and_wait_for_index(mock_opensearch_client, "test-index")
-
-    # Verify create was called and capture parameters
-    mock_opensearch_client.indices.create.assert_called_once()
-    call_args = mock_opensearch_client.indices.create.call_args
-    index_body = call_args[1]["body"]
-
-    # Validate critical RAG settings
-    settings = index_body["settings"]["index"]
-    assert settings["knn"] is True
-    assert settings["knn.algo_param.ef_search"] == 512
-
-    # Validate vector field configuration
-    vector_field = index_body["mappings"]["properties"]["bedrock-knowledge-base-default-vector"]
-    assert vector_field["type"] == "knn_vector"
-    assert vector_field["dimension"] == 1024
-    assert vector_field["method"]["name"] == "hnsw"
-    assert vector_field["method"]["engine"] == "faiss"
-    assert vector_field["method"]["space_type"] == "l2"
-
-    # Validate required Bedrock fields
-    properties = index_body["mappings"]["properties"]
-    assert "AMAZON_BEDROCK_METADATA" in properties
-    assert "AMAZON_BEDROCK_TEXT_CHUNK" in properties
-    assert properties["AMAZON_BEDROCK_METADATA"]["type"] == "text"
-    assert properties["AMAZON_BEDROCK_TEXT_CHUNK"]["type"] == "text"

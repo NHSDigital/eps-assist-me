@@ -28,6 +28,21 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/SyncKnowledgeBaseFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions are required for log stream access under known paths.",
+        appliesTo: [
+          "Resource::<FunctionsSyncKnowledgeBaseFunctionLambdaLogGroupB19BE2BE.Arn>:log-stream:*"
+        ]
+      }
+    ]
+  )
+
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
@@ -80,10 +95,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress IAM wildcard permissions for Bedrock execution managed policy
+  // Suppress IAM wildcard permissions for Bedrock execution role policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/BedrockExecutionManagedPolicy/Resource",
+    "/EpsAssistMeStack/BedrockExecutionRole/Policy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -92,10 +107,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard permissions for CreateIndex managed policy
+  // Suppress wildcard permissions for CreateIndex policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/CreateIndexManagedPolicy/Resource",
+    "/EpsAssistMeStack/RuntimePolicies/CreateIndexPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -104,10 +119,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard permissions for SlackBot managed policy
+  // Suppress wildcard permissions for SlackBot policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/IamResources/SlackBotManagedPolicy/Resource",
+    "/EpsAssistMeStack/RuntimePolicies/SlackBotPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -142,6 +157,52 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource",
+    [
+      {
+        id: "AwsSolutions-SMG4",
+        reason: "Slack signing secret rotation is handled manually as part of the Slack app configuration process."
+      }
+    ]
+  )
+
+  // Suppress AWS managed policy usage in BucketNotificationsHandler (wildcard for any hash)
+  const bucketNotificationHandlers = stack.node.findAll().filter(node =>
+    node.node.id.startsWith("BucketNotificationsHandler")
+  )
+
+  bucketNotificationHandlers.forEach(handler => {
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/Role/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM4",
+          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
+          appliesTo: [
+            "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+          ]
+        }
+      ]
+    )
+
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/Role/DefaultPolicy/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
+          appliesTo: [
+            "Resource::*"
+          ]
+        }
+      ]
+    )
+  })
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {

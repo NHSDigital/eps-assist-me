@@ -19,11 +19,13 @@ export interface FunctionsProps {
   readonly createIndexManagedPolicy: ManagedPolicy
   readonly slackBotManagedPolicy: ManagedPolicy
   readonly slackBotTokenParameter: StringParameter
+  readonly syncKnowledgeBaseManagedPolicy: ManagedPolicy
   readonly slackSigningSecretParameter: StringParameter
   readonly guardrailId: string
   readonly guardrailVersion: string
   readonly collectionId: string
   readonly knowledgeBaseId: string
+  readonly dataSourceId: string
   readonly region: string
   readonly account: string
   readonly slackBotTokenSecret: Secret
@@ -62,13 +64,13 @@ export class Functions extends Construct {
       additionalPolicies: [props.slackBotManagedPolicy],
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
-        "KNOWLEDGEBASE_ID": props.knowledgeBaseId || "placeholder",
+        "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "BEDROCK_KB_DATA_SOURCE": BEDROCK_KB_DATA_SOURCE,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
-        "GUARD_RAIL_ID": props.guardrailId || "placeholder",
-        "GUARD_RAIL_VERSION": props.guardrailVersion || "placeholder",
+        "GUARD_RAIL_ID": props.guardrailId,
+        "GUARD_RAIL_VERSION": props.guardrailVersion,
         "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName
       }
     })
@@ -77,9 +79,26 @@ export class Functions extends Construct {
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 
+    // Lambda function to sync knowledge base on S3 events
+    const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {
+      stackName: props.stackName,
+      functionName: `${props.stackName}-SyncKnowledgeBaseFunction`,
+      packageBasePath: "packages/syncKnowledgeBaseFunction",
+      entryPoint: "app.handler.py",
+      handler: "app.handler",
+      logRetentionInDays: props.logRetentionInDays,
+      logLevel: props.logLevel,
+      environmentVariables: {
+        "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
+        "DATA_SOURCE_ID": props.dataSourceId
+      },
+      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
+    })
+
     this.functions = {
       createIndex: createIndexFunction,
-      slackBot: slackBotLambda
+      slackBot: slackBotLambda,
+      syncKnowledgeBase: syncKnowledgeBaseFunction
     }
   }
 }
