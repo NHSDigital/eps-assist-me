@@ -216,3 +216,50 @@ def test_regex_text_processing(mock_webclient, mock_boto_resource, mock_get_para
         mock_bedrock.assert_called_once()
         # The actual regex processing happens inside the function
         assert mock_client.chat_postMessage.called
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+@patch("slack_sdk.WebClient")
+def test_process_async_slack_event_with_session_storage(
+    mock_webclient, mock_boto_resource, mock_get_parameter, mock_app, mock_env
+):
+    """Test async event processing that stores a new session"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_table = Mock()
+    mock_boto_resource.return_value.Table.return_value = mock_table
+    mock_client = Mock()
+    mock_webclient.return_value = mock_client
+
+    # Clean up modules before import
+    modules_to_clean = ["app.util.slack_events", "app.core.config"]
+    for module in modules_to_clean:
+        if module in sys.modules:
+            del sys.modules[module]
+
+    with patch("boto3.client") as mock_bedrock_client:
+        # Mock the bedrock client to return a session ID
+        mock_bedrock_client.return_value.retrieve_and_generate.return_value = {
+            "output": {"text": "AI response"},
+            "sessionId": "new-session-123",
+        }
+
+        from app.util.slack_events import process_async_slack_event
+
+        slack_event_data = {
+            "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
+            "event_id": "evt123",
+            "bot_token": "bot-token",
+        }
+
+        process_async_slack_event(slack_event_data)
+
+        # Verify session was stored
+        mock_table.put_item.assert_called()
+        call_args = mock_table.put_item.call_args[1]["Item"]
+        assert call_args["session_id"] == "new-session-123"
+        assert call_args["user_id"] == "U456"

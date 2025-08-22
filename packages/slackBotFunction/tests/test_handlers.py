@@ -34,7 +34,10 @@ def test_handler_normal_event(mock_boto_resource, mock_get_parameter, mock_app, 
 @patch("slack_bolt.App")
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
-def test_handler_async_processing(mock_boto_resource, mock_get_parameter, mock_app, mock_env, lambda_context):
+@patch("app.util.slack_events.process_async_slack_event")
+def test_handler_async_processing(
+    mock_process, mock_boto_resource, mock_get_parameter, mock_app, mock_env, lambda_context
+):
     """Test Lambda handler function for async processing"""
     mock_get_parameter.side_effect = [
         json.dumps({"token": "test-token"}),
@@ -45,15 +48,18 @@ def test_handler_async_processing(mock_boto_resource, mock_get_parameter, mock_a
     if "app.main" in sys.modules:
         del sys.modules["app.main"]
 
-    with patch("app.main.process_async_slack_event") as mock_process:
-        from app.main import handler
+    from app.main import handler
 
-        slack_event_data = {"event": {"text": "test"}, "event_id": "123", "bot_token": "test-token"}
-        event = {"async_processing": True, "slack_event": slack_event_data}
-        result = handler(event, lambda_context)
+    slack_event_data = {
+        "event": {"text": "test", "user": "U123", "channel": "C456", "ts": "1234567890.123"},
+        "event_id": "123",
+        "bot_token": "test-token",
+    }
+    event = {"async_processing": True, "slack_event": slack_event_data}
+    result = handler(event, lambda_context)
 
-        mock_process.assert_called_once_with(slack_event_data)
-        assert result["statusCode"] == 200
+    mock_process.assert_called_once_with(slack_event_data)
+    assert result["statusCode"] == 200
 
 
 @patch("slack_bolt.App")
@@ -158,3 +164,28 @@ def test_handle_direct_message_channel_type(mock_boto_resource, mock_get_paramet
 
     # Test that the setup function exists
     assert callable(setup_handlers)
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_handler_async_processing_missing_slack_event(
+    mock_boto_resource, mock_get_parameter, mock_app, mock_env, lambda_context
+):
+    """Test Lambda handler function for async processing without slack_event data"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    if "app.main" in sys.modules:
+        del sys.modules["app.main"]
+
+    from app.main import handler
+
+    # Test async processing without slack_event - should return 400
+    event = {"async_processing": True}  # Missing slack_event
+    result = handler(event, lambda_context)
+
+    assert result["statusCode"] == 400
