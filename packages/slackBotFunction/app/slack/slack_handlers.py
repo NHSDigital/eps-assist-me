@@ -20,15 +20,8 @@ def setup_handlers(app):
     This is the main entry point for setting up the bot's event handling capabilities.
     Called during app initialization to wire up all handlers.
     """
-    app.middleware(log_request)
     app.event("app_mention")(handle_app_mention)
     app.event("message")(handle_direct_message)
-
-
-def log_request(slack_logger, body, next):
-    """Middleware to log all incoming Slack requests for debugging"""
-    logger.debug("Slack request received", extra={"body": body})
-    return next()
 
 
 def handle_app_mention(event, ack, body):

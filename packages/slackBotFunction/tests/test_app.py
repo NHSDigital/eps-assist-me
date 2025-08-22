@@ -457,38 +457,6 @@ def test_handle_direct_message_channel_type(mock_app_class, mock_boto_resource, 
 
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
-@patch("slack_bolt.App")
-def test_log_request_middleware_execution(mock_app_class, mock_boto_resource, mock_get_parameter, mock_env):
-    """Test log_request middleware execution"""
-    # Mock parameter retrieval
-    mock_get_parameter.side_effect = [
-        json.dumps({"token": "test-token"}),
-        json.dumps({"secret": "test-secret"}),
-    ]
-
-    # Mock DynamoDB
-    mock_boto_resource.return_value.Table.return_value = Mock()
-
-    # Mock Slack App
-    mock_app_class.return_value = Mock()
-
-    clear_modules()
-
-    from app.slack.slack_handlers import log_request
-
-    # Test the middleware function directly
-    mock_next = Mock(return_value="middleware_result")
-    mock_logger = Mock()
-    test_body = {"test": "body"}
-
-    result = log_request(mock_logger, test_body, mock_next)
-
-    assert result == "middleware_result"
-    mock_next.assert_called_once()
-
-
-@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
-@patch("boto3.resource")
 @patch("boto3.client")
 @patch("time.time")
 @patch("slack_bolt.App")
