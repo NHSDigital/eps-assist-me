@@ -78,11 +78,6 @@ export class Functions extends Construct {
       }
     })
 
-    // Add AmazonBedrockFullAccess managed policy
-    slackBotLambda.function.role?.addManagedPolicy(
-      ManagedPolicy.fromAwsManagedPolicyName("AmazonBedrockFullAccess")
-    )
-
     // Grant secrets access to SlackBot Lambda
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
