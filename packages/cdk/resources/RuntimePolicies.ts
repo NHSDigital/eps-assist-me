@@ -3,6 +3,8 @@ import {PolicyStatement, ManagedPolicy} from "aws-cdk-lib/aws-iam"
 
 // Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+// Claude model for query reformulation
+const QUERY_REFORMULATION_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 
 export interface RuntimePoliciesProps {
   readonly region: string
@@ -53,7 +55,10 @@ export class RuntimePolicies extends Construct {
     // Create managed policy for SlackBot Lambda function
     const slackBotPolicy = new PolicyStatement({
       actions: ["bedrock:InvokeModel"],
-      resources: [`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`]
+      resources: [
+        `arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`,
+        `arn:aws:bedrock:${props.region}::foundation-model/${QUERY_REFORMULATION_MODEL_ID}`
+      ]
     })
 
     const slackBotPromptPolicy = new PolicyStatement({
