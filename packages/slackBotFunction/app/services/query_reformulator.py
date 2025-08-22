@@ -1,8 +1,8 @@
-# flake8: noqa: E501
 import os
 import json
 import boto3
 from aws_lambda_powertools import Logger
+from .prompt_loader import load_prompt
 
 logger = Logger(service="queryReformulator")
 
@@ -15,23 +15,9 @@ def reformulate_query(user_query: str) -> str:
         client = boto3.client("bedrock-runtime", region_name=os.environ["AWS_REGION"])
         model_id = os.environ["QUERY_REFORMULATION_MODEL_ID"]
 
-        prompt = f"""You are a query reformulation assistant for the NHS EPS (Electronic Prescription Service) FHIR API documentation system.
-
-Your task is to reformulate user queries to improve retrieval from a knowledge base containing FHIR NHS EPS API documentation, onboarding guides, and technical specifications.
-
-Guidelines:
-- Expand abbreviations (EPS = Electronic Prescription Service, FHIR = Fast Healthcare Interoperability Resources)
-- Add relevant technical context (API, prescription, dispensing, healthcare)
-- Convert casual language to technical terminology
-- Include synonyms for better matching
-- Keep the core intent intact
-- Focus on NHS, healthcare, prescription, and API-related terms
-- Maintain question format with proper punctuation
-- Ensure responses avoid mentioning source references or citations
-
-User Query: {user_query}
-
-Return only the reformulated query as a complete question:"""
+        prompt_name = os.environ.get("QUERY_REFORMULATION_PROMPT_NAME", "query-reformulation")
+        prompt_template = load_prompt(prompt_name)
+        prompt = prompt_template.format(user_query=user_query)
 
         response = client.invoke_model(
             modelId=model_id,

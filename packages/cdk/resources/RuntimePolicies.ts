@@ -56,6 +56,11 @@ export class RuntimePolicies extends Construct {
       resources: [`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`]
     })
 
+    const slackBotPromptPolicy = new PolicyStatement({
+      actions: ["bedrock:GetPrompt"],
+      resources: [`arn:aws:bedrock:${props.region}:${props.account}:prompt/*`]
+    })
+
     const slackBotKnowledgeBasePolicy = new PolicyStatement({
       actions: ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"],
       resources: [props.knowledgeBaseArn]
@@ -108,6 +113,7 @@ export class RuntimePolicies extends Construct {
       description: "Policy for SlackBot Lambda to access Bedrock, SSM, Lambda, DynamoDB, and KMS",
       statements: [
         slackBotPolicy,
+        slackBotPromptPolicy,
         slackBotKnowledgeBasePolicy,
         slackBotSSMPolicy,
         slackBotLambdaPolicy,

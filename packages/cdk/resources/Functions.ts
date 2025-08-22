@@ -72,7 +72,8 @@ export class Functions extends Construct {
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
         "GUARD_RAIL_ID": props.guardrailId,
         "GUARD_RAIL_VERSION": props.guardrailVersion,
-        "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName
+        "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName,
+        "QUERY_REFORMULATION_PROMPT_NAME": "query-reformulation"
       }
     })
 

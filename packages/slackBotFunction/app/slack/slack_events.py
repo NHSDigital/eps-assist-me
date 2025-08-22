@@ -14,6 +14,7 @@ from app.config.config import (
     GUARD_VERSION,
     BOT_MESSAGES,
 )
+from app.services.query_reformulator import reformulate_query
 
 logger = Logger(service="slackBotFunction")
 
@@ -98,8 +99,12 @@ def process_async_slack_event(slack_event_data):
             )
             return
 
-        # Query the knowledge base and get AI-generated response
-        kb_response = get_bedrock_knowledgebase_response(user_query)
+        # Reformulate query for better RAG retrieval
+        reformulated_query = reformulate_query(user_query)
+        logger.info("Query reformulated", extra={"original": user_query, "reformulated": reformulated_query})
+
+        # Query the knowledge base with reformulated query
+        kb_response = get_bedrock_knowledgebase_response(reformulated_query)
         response_text = kb_response["output"]["text"]
 
         # Post the AI response back to Slack in the same thread

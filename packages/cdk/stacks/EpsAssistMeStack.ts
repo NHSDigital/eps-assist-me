@@ -15,6 +15,7 @@ import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
 import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
+import {BedrockPrompts} from "../resources/BedrockPrompts"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
@@ -54,6 +55,9 @@ export class EpsAssistMeStack extends Stack {
     const tables = new DatabaseTables(this, "DatabaseTables", {
       stackName: props.stackName
     })
+
+    // Create Bedrock Prompts
+    const bedrockPrompts = new BedrockPrompts(this, "BedrockPrompts")
 
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
@@ -156,6 +160,12 @@ export class EpsAssistMeStack extends Stack {
     new CfnOutput(this, "SlackBotEventsEndpoint", {
       value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
       description: "Slack Events API endpoint for @mentions and direct messages"
+    })
+
+    // Output: Bedrock Prompt ARN
+    new CfnOutput(this, "QueryReformulationPromptArn", {
+      value: bedrockPrompts.queryReformulationPrompt.promptArn,
+      description: "ARN of the query reformulation prompt in Bedrock"
     })
 
     // Final CDK Nag Suppressions
