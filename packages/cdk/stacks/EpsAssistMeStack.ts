@@ -130,8 +130,7 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
-      promptName: bedrockPrompts.queryReformulationPrompt.promptName,
-      promptVersion: bedrockPrompts.queryReformulationPrompt.promptVersion
+      promptName: bedrockPrompts.queryReformulationPrompt.promptName
     })
 
     // Create vector index after Functions are created
