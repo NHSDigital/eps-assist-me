@@ -41,7 +41,10 @@ def reformulate_query(user_query: str) -> str:
             body=json.dumps(
                 {
                     "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 200,
+                    "temperature": 0.1,
+                    "top_p": 0.9,
+                    "top_k": 50,
+                    "max_tokens": 150,
                     "messages": [{"role": "user", "content": prompt}],
                 }
             ),
