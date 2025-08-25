@@ -33,8 +33,8 @@ def reformulate_query(user_query: str) -> str:
             extra={"prompt_name": prompt_name, "version_used": prompt_version},
         )
 
-        # Format the prompt with the user query
-        prompt = prompt_template.format(user_query=user_query)
+        # Format the prompt with the user query (using double braces from Bedrock template)
+        prompt = prompt_template.replace("{{user_query}}", user_query)
 
         response = client.invoke_model(
             modelId=model_id,

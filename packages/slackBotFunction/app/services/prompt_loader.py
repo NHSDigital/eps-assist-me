@@ -27,18 +27,18 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
             raise Exception(f"Could not find prompt ID for name '{prompt_name}'")
 
         # Load the prompt with the specified version
-        if prompt_version == "DRAFT":
-            logger.info(
-                f"Loading DRAFT version of prompt '{prompt_name}' (ID: {prompt_id})",
-                extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": "DRAFT"},
-            )
-            response = client.get_prompt(promptIdentifier=prompt_id)
-        else:
+        if prompt_version and prompt_version != "DRAFT":
             logger.info(
                 f"Loading version {prompt_version} of prompt '{prompt_name}' (ID: {prompt_id})",
                 extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": prompt_version},
             )
             response = client.get_prompt(promptIdentifier=prompt_id, promptVersion=str(prompt_version))
+        else:
+            logger.info(
+                f"Loading DRAFT version of prompt '{prompt_name}' (ID: {prompt_id})",
+                extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": "DRAFT"},
+            )
+            response = client.get_prompt(promptIdentifier=prompt_id)
 
         prompt_text = response["variants"][0]["templateConfiguration"]["text"]["text"]
         actual_version = response.get("version", "DRAFT")
@@ -48,9 +48,7 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
             extra={
                 "prompt_name": prompt_name,
                 "prompt_id": prompt_id,
-                "version_requested": prompt_version,
-                "version_actual": actual_version,
-                "selection_method": "default" if prompt_version is None else "explicit",
+                "version_used": actual_version,
             },
         )
         return prompt_text
