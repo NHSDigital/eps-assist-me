@@ -101,7 +101,6 @@ def process_async_slack_event(slack_event_data):
 
         # Reformulate query for better RAG retrieval
         reformulated_query = reformulate_query(user_query)
-        logger.info("Query reformulated", extra={"original": user_query, "reformulated": reformulated_query})
 
         # Query the knowledge base with reformulated query
         kb_response = get_bedrock_knowledgebase_response(reformulated_query)
