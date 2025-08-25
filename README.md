@@ -36,6 +36,7 @@ packages/
 ├── slackBotFunction/           # Lambda function for Slack bot integration
 │   ├── app/                    # Application code
 │   │   ├── config/             # Configuration and environment variables
+│   │   ├── services/           # Business logic services
 │   │   ├── slack/              # Slack-specific logic
 │   │   └── handler.py          # Lambda handler
 │   └── tests/                  # Unit tests

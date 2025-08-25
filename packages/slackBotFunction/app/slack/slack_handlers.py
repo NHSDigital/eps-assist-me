@@ -8,65 +8,20 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 from aws_lambda_powertools import Logger
+from app.config.config import bot_token
 
 logger = Logger(service="slackBotFunction")
 
 
 def setup_handlers(app):
     """
-    Register all event handlers with the Slack app
+    Configure and register all Slack event handlers and middleware with the app.
+
+    This is the main entry point for setting up the bot's event handling capabilities.
+    Called during app initialization to wire up all handlers.
     """
-    from app.config.config import bot_token
-
-    @app.middleware
-    def log_request(slack_logger, body, next):
-        """Middleware to log all incoming Slack requests for debugging"""
-        logger.debug("Slack request received", extra={"body": body})
-        return next()
-
-    @app.event("app_mention")
-    def handle_app_mention(event, ack, body):
-        """
-        Handle @mentions in channels - when users mention the bot in a channel
-        Acknowledges the event immediately and triggers async processing to avoid timeouts
-        """
-        ack()  # Acknowledge receipt to Slack within 3 seconds
-
-        event_id = body.get("event_id")
-        # Skip processing if event is duplicate or missing ID to prevent double responses
-        if not event_id or is_duplicate_event(event_id):
-            logger.info(f"Skipping duplicate or missing event: {event_id}")
-            return
-
-        user_id = event.get("user", "unknown")
-        logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
-
-        # Trigger async Lambda invocation to handle Bedrock query without timeout
-        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
-
-    @app.event("message")
-    def handle_direct_message(event, ack, body):
-        """
-        Handle direct messages to the bot - private 1:1 conversations
-        Filters out channel messages and processes only direct messages
-        """
-        ack()  # Acknowledge receipt to Slack within 3 seconds
-
-        # Only handle direct messages ("im" = instant message), ignore channel messages
-        if event.get("channel_type") != "im":
-            return
-
-        event_id = body.get("event_id")
-        # Skip processing if event is duplicate or missing ID to prevent double responses
-        if not event_id or is_duplicate_event(event_id):
-            logger.info(f"Skipping duplicate or missing event: {event_id}")
-            return
-
-        user_id = event.get("user", "unknown")
-        logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
-
-        # Trigger async Lambda invocation to handle Bedrock query without timeout
-        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    app.event("app_mention")(handle_app_mention)
+    app.event("message")(handle_direct_message)
 
 
 def is_duplicate_event(event_id):
@@ -109,3 +64,49 @@ def trigger_async_processing(event_data):
         InvocationType="Event",  # Asynchronous invocation
         Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
     )
+
+
+def handle_app_mention(event, ack, body):
+    """
+    Handle @mentions in channels - when users mention the bot in a channel
+    Acknowledges the event immediately and triggers async processing to avoid timeouts
+    """
+
+    ack()  # Acknowledge receipt to Slack within 3 seconds
+
+    event_id = body.get("event_id")
+    # Skip processing if event is duplicate or missing ID to prevent double responses
+    if not event_id or is_duplicate_event(event_id):
+        logger.info(f"Skipping duplicate or missing event: {event_id}")
+        return
+
+    user_id = event.get("user", "unknown")
+    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
+
+    # Trigger async Lambda invocation to handle Bedrock query without timeout
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+
+
+def handle_direct_message(event, ack, body):
+    """
+    Handle direct messages to the bot - private 1:1 conversations
+    Filters out channel messages and processes only direct messages
+    """
+
+    ack()  # Acknowledge receipt to Slack within 3 seconds
+
+    # Only handle direct messages ("im" = instant message), ignore channel messages
+    if event.get("channel_type") != "im":
+        return
+
+    event_id = body.get("event_id")
+    # Skip processing if event is duplicate or missing ID to prevent double responses
+    if not event_id or is_duplicate_event(event_id):
+        logger.info(f"Skipping duplicate or missing event: {event_id}")
+        return
+
+    user_id = event.get("user", "unknown")
+    logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
+
+    # Trigger async Lambda invocation to handle Bedrock query without timeout
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})

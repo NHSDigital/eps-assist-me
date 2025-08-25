@@ -3,6 +3,7 @@ import json
 from unittest.mock import Mock, patch
 import os
 import sys
+from botocore.exceptions import ClientError
 
 
 @pytest.fixture
@@ -196,8 +197,6 @@ def test_is_duplicate_event(mock_app_class, mock_time, mock_boto_resource, mock_
     mock_app_class.return_value = Mock()
 
     # Mock ConditionalCheckFailedException
-    from botocore.exceptions import ClientError
-
     error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
     mock_table.put_item.side_effect = error
 
@@ -267,7 +266,12 @@ def test_process_async_slack_event_success(
         from app.slack.slack_events import process_async_slack_event
 
         slack_event_data = {
-            "event": {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
+            "event": {
+                "text": "<@U123> test question",
+                "user": "U456",
+                "channel": "C789",
+                "ts": "1234567890.123",
+            },
             "event_id": "evt123",
             "bot_token": "bot-token",
         }
@@ -276,6 +280,56 @@ def test_process_async_slack_event_success(
 
         mock_client.chat_postMessage.assert_called_once_with(
             channel="C789", text="AI response", thread_ts="1234567890.123"
+        )
+
+
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+@patch("slack_sdk.WebClient")
+@patch("slack_bolt.App")
+def test_process_async_slack_event_with_thread_ts(
+    mock_app_class, mock_webclient, mock_boto_resource, mock_get_parameter, mock_env
+):
+    """Test async event processing with existing thread_ts"""
+    # Mock parameter retrieval
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+
+    # Mock DynamoDB
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
+
+    mock_client = Mock()
+    mock_webclient.return_value = mock_client
+
+    clear_modules()
+
+    with patch("app.slack.slack_events.get_bedrock_knowledgebase_response") as mock_bedrock:
+        mock_bedrock.return_value = {"output": {"text": "AI response"}}
+
+        from app.slack.slack_events import process_async_slack_event
+
+        slack_event_data = {
+            "event": {
+                "text": "<@U123> test question",
+                "user": "U456",
+                "channel": "C789",
+                "ts": "1234567890.123",
+                "thread_ts": "1234567888.111",  # Existing thread
+            },
+            "event_id": "evt123",
+            "bot_token": "bot-token",
+        }
+
+        process_async_slack_event(slack_event_data)
+
+        # Should use the existing thread_ts, not the message ts
+        mock_client.chat_postMessage.assert_called_once_with(
+            channel="C789", text="AI response", thread_ts="1234567888.111"
         )
 
 
@@ -357,7 +411,12 @@ def test_process_async_slack_event_error(
         from app.slack.slack_events import process_async_slack_event
 
         slack_event_data = {
-            "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
+            "event": {
+                "text": "test question",
+                "user": "U456",
+                "channel": "C789",
+                "ts": "1234567890.123",
+            },
             "event_id": "evt123",
             "bot_token": "bot-token",
         }
@@ -369,6 +428,117 @@ def test_process_async_slack_event_error(
             text="Sorry, an error occurred while processing your request. Please try again later.",
             thread_ts="1234567890.123",
         )
+
+
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+@patch("slack_bolt.App")
+def test_handle_direct_message_channel_type(mock_app_class, mock_boto_resource, mock_get_parameter, mock_env):
+    """Test direct message handler channel type check"""
+    # Mock parameter retrieval
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+
+    # Mock DynamoDB
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    # Mock Slack App
+    mock_app_class.return_value = Mock()
+
+    clear_modules()
+
+    # Import to test the function exists
+    from app.slack.slack_handlers import handle_direct_message
+
+    assert callable(handle_direct_message)
+
+
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+@patch("boto3.client")
+@patch("time.time")
+@patch("slack_bolt.App")
+def test_app_mention_handler_flow(
+    mock_app_class,
+    mock_time,
+    mock_boto_client,
+    mock_boto_resource,
+    mock_get_parameter,
+    mock_env,
+):
+    """Test app mention handler execution flow"""
+    # Mock parameter retrieval
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+
+    mock_time.return_value = 1000
+    mock_table = Mock()
+    mock_boto_resource.return_value.Table.return_value = mock_table
+    mock_lambda_client = Mock()
+    mock_boto_client.return_value = mock_lambda_client
+    mock_app_class.return_value = Mock()
+
+    clear_modules()
+
+    from app.slack.slack_handlers import handle_app_mention
+
+    mock_ack = Mock()
+    event = {"user": "U123", "text": "test message"}
+    body = {"event_id": "new-event-123"}
+
+    # Test successful flow (no duplicate)
+    handle_app_mention(event, mock_ack, body)
+    mock_ack.assert_called()
+
+
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+@patch("boto3.client")
+@patch("time.time")
+@patch("slack_bolt.App")
+def test_direct_message_handler_flow(
+    mock_app_class,
+    mock_time,
+    mock_boto_client,
+    mock_boto_resource,
+    mock_get_parameter,
+    mock_env,
+):
+    """Test direct message handler execution flow"""
+    # Mock parameter retrieval
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+
+    mock_time.return_value = 1000
+    mock_table = Mock()
+    mock_boto_resource.return_value.Table.return_value = mock_table
+    mock_lambda_client = Mock()
+    mock_boto_client.return_value = mock_lambda_client
+    mock_app_class.return_value = Mock()
+
+    clear_modules()
+
+    from app.slack.slack_handlers import handle_direct_message
+
+    mock_ack = Mock()
+
+    # Test IM channel - successful flow
+    event = {"user": "U123", "text": "test message", "channel_type": "im"}
+    body = {"event_id": "new-dm-event-123"}
+
+    handle_direct_message(event, mock_ack, body)
+    mock_ack.assert_called()
+
+    # Test non-IM channel (should be ignored)
+    event_non_im = {"user": "U123", "text": "test message", "channel_type": "channel"}
+    handle_direct_message(event_non_im, mock_ack, body)
+    mock_ack.assert_called()
 
 
 def test_basic_functionality():

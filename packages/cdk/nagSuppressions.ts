@@ -112,7 +112,7 @@ export const nagSuppressions = (stack: Stack) => {
         reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
         appliesTo: [
           "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
-          "Resource::<StorageDocsBucketepsampr20Docs075F648F.Arn>/*",
+          "Resource::<StorageDocsBucketepsampr27Docs28B71689.Arn>/*",
           "Action::bedrock:Delete*",
           `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
           `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
@@ -145,9 +145,10 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs wildcard access for Lambda functions (self-invocation) and KMS operations.",
+        reason: "SlackBot Lambda uses wildcard permissions as recommended by AWS docs for Bedrock prompt management.",
         appliesTo: [
           `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
+          "Resource::*",
           "Action::kms:GenerateDataKey*",
           "Action::kms:ReEncrypt*"
         ]
@@ -231,12 +232,5 @@ const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<N
     NagSuppressions.addResourceSuppressionsByPath(stack, path, suppressions)
   } catch (err) {
     console.log(`Could not find path ${path}: ${err}`)
-  }
-}
-
-// Apply the same nag suppression to multiple resources
-const safeAddNagSuppressionGroup = (stack: Stack, paths: Array<string>, suppressions: Array<NagPackSuppression>) => {
-  for (const p of paths) {
-    safeAddNagSuppression(stack, p, suppressions)
   }
 }
