@@ -13,7 +13,11 @@ export class BedrockPrompts extends Construct {
 
     this.queryReformulationPrompt = new BedrockPrompt(this, "QueryReformulationPrompt", {
       promptName: `${props.stackName}-queryReformulation`,
-      promptText: "PLACEHOLDER",
+      promptText: `Return the user query exactly as provided without any modifications, changes, or reformulations.
+Do not alter, rephrase, or modify the input in any way.
+Simply return: {{user_query}}
+
+User Query: {{user_query}}`,
       description: "Prompt for reformulating user queries to improve RAG retrieval"
     })
   }
