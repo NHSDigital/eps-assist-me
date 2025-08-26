@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout local github actions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.BRANCH_NAME }}
           fetch-depth: 0
@@ -155,7 +155,7 @@ jobs:
 
       - name: Checkout gh-pages
         if: ${{ !startsWith(inputs.STACK_NAME, 'epsam-pr-') }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
           path: gh-pages
