@@ -59,5 +59,3 @@ GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
 GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
 
 logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
-
-# event handlers will be registered in main.py to avoid circular imports

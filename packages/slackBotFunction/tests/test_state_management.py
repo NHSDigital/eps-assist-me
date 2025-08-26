@@ -23,12 +23,12 @@ def test_is_duplicate_event(mock_time, mock_boto_resource, mock_get_parameter, m
     error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
     mock_table.put_item.side_effect = error
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
 
-    from app.util.slack_handlers import is_duplicate_event
+    from app.slack.slack_handlers import is_duplicate_event
 
     result = is_duplicate_event("test-event")
     assert result is True
@@ -54,12 +54,12 @@ def test_is_duplicate_event_client_error(mock_time, mock_boto_resource, mock_get
     error = ClientError(error_response={"Error": {"Code": "SomeOtherError"}}, operation_name="PutItem")
     mock_table.put_item.side_effect = error
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
 
-    from app.util.slack_handlers import is_duplicate_event
+    from app.slack.slack_handlers import is_duplicate_event
 
     result = is_duplicate_event("test-event")
     assert result is False
@@ -80,12 +80,12 @@ def test_is_duplicate_event_no_item(mock_time, mock_boto_resource, mock_get_para
     mock_time.return_value = 1000
     # put_item succeeds (no exception)
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
 
-    from app.util.slack_handlers import is_duplicate_event
+    from app.slack.slack_handlers import is_duplicate_event
 
     result = is_duplicate_event("test-event")
     assert result is False
@@ -102,10 +102,10 @@ def test_process_async_slack_event_exists(mock_boto_resource, mock_get_parameter
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    from app.util.slack_events import process_async_slack_event
+    from app.slack.slack_events import process_async_slack_event
 
     assert callable(process_async_slack_event)
 
@@ -125,10 +125,10 @@ def test_trigger_async_processing_error(mock_boto_client, mock_boto_resource, mo
     mock_lambda_client.invoke.side_effect = Exception("Lambda invoke error")
     mock_boto_client.return_value = mock_lambda_client
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
-    from app.util.slack_handlers import trigger_async_processing
+    from app.slack.slack_handlers import trigger_async_processing
 
     event_data = {"test": "data"}
     # Should not raise exception even if Lambda invoke fails

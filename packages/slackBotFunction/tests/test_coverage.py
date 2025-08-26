@@ -27,16 +27,16 @@ def test_handlers_direct_call_coverage(
     mock_app_instance = Mock()
     mock_app_class.return_value = mock_app_instance
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
     # Import the module
-    import app.util.slack_handlers
+    import app.slack.slack_handlers
 
     # Test handle_app_mention directly
     # Call the function directly from the module - this should execute without error
     try:
-        assert hasattr(app.util.slack_handlers, "setup_handlers")
+        assert hasattr(app.slack.slack_handlers, "setup_handlers")
     except Exception:
         # function exists and was called, that's what matters for coverage
         pass
@@ -44,7 +44,7 @@ def test_handlers_direct_call_coverage(
     # Test direct message functions
 
     try:
-        assert hasattr(app.util.slack_handlers, "setup_handlers")
+        assert hasattr(app.slack.slack_handlers, "setup_handlers")
     except Exception:
         # function exists and was called, that's what matters for coverage
         pass
@@ -64,15 +64,15 @@ def test_handler_registration_coverage(mock_boto_resource, mock_get_parameter, m
     mock_app_instance = Mock()
     mock_app_class.return_value = mock_app_instance
 
-    if "app.main" in sys.modules:
-        del sys.modules["app.main"]
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
     # Import the module - this should trigger all the decorators and register handlers
-    import app.main  # noqa: F401
+    import app.handler  # noqa: F401
 
     # Verify that the Slack app was initialized with correct parameters
     mock_app_class.assert_called_once_with(
@@ -115,15 +115,15 @@ def test_module_initialization_coverage(
     mock_app_instance = Mock()
     mock_app_class.return_value = mock_app_instance
 
-    if "app.main" in sys.modules:
-        del sys.modules["app.main"]
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
     # Import the module - this executes all top-level code
-    import app.main  # noqa: F401
+    import app.handler  # noqa: F401
 
     # Verify logger initialization
     mock_logger_class.assert_called_with(service="slackBotFunction")

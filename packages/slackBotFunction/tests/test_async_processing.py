@@ -17,16 +17,16 @@ def test_process_async_slack_event_success(mock_webclient, mock_boto_resource, m
     mock_client = Mock()
     mock_webclient.return_value = mock_client
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    with patch("app.util.slack_events.query_bedrock") as mock_bedrock, patch(
-        "app.util.slack_events.get_conversation_session"
+    with patch("app.slack.slack_events.query_bedrock") as mock_bedrock, patch(
+        "app.slack.slack_events.get_conversation_session"
     ) as mock_get_session, patch("boto3.client"):
         mock_bedrock.return_value = {"output": {"text": "AI response"}}
         mock_get_session.return_value = None  # No existing session
 
-        from app.util.slack_events import process_async_slack_event
+        from app.slack.slack_events import process_async_slack_event
 
         slack_event_data = {
             "event": {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
@@ -57,10 +57,10 @@ def test_process_async_slack_event_empty_query(
     mock_client = Mock()
     mock_webclient.return_value = mock_client
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    from app.util.slack_events import process_async_slack_event
+    from app.slack.slack_events import process_async_slack_event
 
     slack_event_data = {
         "event": {
@@ -96,19 +96,19 @@ def test_process_async_slack_event_error(mock_webclient, mock_boto_resource, moc
     mock_client = Mock()
     mock_webclient.return_value = mock_client
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    with patch("app.util.slack_events.query_bedrock") as mock_bedrock, patch(
-        "app.util.slack_events.get_conversation_session"
+    with patch("app.slack.slack_events.query_bedrock") as mock_bedrock, patch(
+        "app.slack.slack_events.get_conversation_session"
     ) as mock_get_session, patch("boto3.client"):
         mock_bedrock.side_effect = Exception("Bedrock error")
         mock_get_session.return_value = None  # No existing session
 
-        from app.util.slack_events import process_async_slack_event
+        from app.slack.slack_events import process_async_slack_event
 
         slack_event_data = {
             "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
@@ -141,19 +141,19 @@ def test_process_async_slack_event_with_thread_ts(
     mock_client = Mock()
     mock_webclient.return_value = mock_client
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    with patch("app.util.slack_events.query_bedrock") as mock_bedrock, patch(
-        "app.util.slack_events.get_conversation_session"
+    with patch("app.slack.slack_events.query_bedrock") as mock_bedrock, patch(
+        "app.slack.slack_events.get_conversation_session"
     ) as mock_get_session, patch("boto3.client"):
         mock_bedrock.return_value = {"output": {"text": "AI response"}}
         mock_get_session.return_value = None  # No existing session
 
-        from app.util.slack_events import process_async_slack_event
+        from app.slack.slack_events import process_async_slack_event
 
         slack_event_data = {
             "event": {
@@ -189,19 +189,19 @@ def test_regex_text_processing(mock_webclient, mock_boto_resource, mock_get_para
     mock_client = Mock()
     mock_webclient.return_value = mock_client
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    with patch("app.util.slack_events.query_bedrock") as mock_bedrock, patch(
-        "app.util.slack_events.get_conversation_session"
+    with patch("app.slack.slack_events.query_bedrock") as mock_bedrock, patch(
+        "app.slack.slack_events.get_conversation_session"
     ) as mock_get_session, patch("boto3.client"):
         mock_bedrock.return_value = {"output": {"text": "AI response"}}
         mock_get_session.return_value = None  # No existing session
 
-        from app.util.slack_events import process_async_slack_event
+        from app.slack.slack_events import process_async_slack_event
 
         # Test that mentions are properly stripped from messages
         slack_event_data = {
@@ -236,7 +236,7 @@ def test_process_async_slack_event_with_session_storage(
     mock_webclient.return_value = mock_client
 
     # Clean up modules before import
-    modules_to_clean = ["app.util.slack_events", "app.core.config"]
+    modules_to_clean = ["app.slack.slack_events", "app.core.config"]
     for module in modules_to_clean:
         if module in sys.modules:
             del sys.modules[module]
@@ -248,7 +248,7 @@ def test_process_async_slack_event_with_session_storage(
             "sessionId": "new-session-123",
         }
 
-        from app.util.slack_events import process_async_slack_event
+        from app.slack.slack_events import process_async_slack_event
 
         slack_event_data = {
             "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},

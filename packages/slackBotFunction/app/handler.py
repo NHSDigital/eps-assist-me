@@ -9,8 +9,8 @@ from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from app.core.config import app, logger
-from app.util.slack_events import process_async_slack_event
-from app.util.slack_handlers import setup_handlers
+from app.slack.slack_events import process_async_slack_event
+from app.slack.slack_handlers import setup_handlers
 
 # register event handlers with the app
 setup_handlers(app)

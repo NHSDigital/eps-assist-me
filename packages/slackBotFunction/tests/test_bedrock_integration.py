@@ -21,10 +21,10 @@ def test_get_bedrock_knowledgebase_response(
     mock_boto_client.return_value = mock_client
     mock_client.retrieve_and_generate.return_value = {"output": {"text": "bedrock response"}}
 
-    if "app.util.slack_events" in sys.modules:
-        del sys.modules["app.util.slack_events"]
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    from app.util.slack_events import query_bedrock
+    from app.slack.slack_events import query_bedrock
 
     result = query_bedrock("test query")
 

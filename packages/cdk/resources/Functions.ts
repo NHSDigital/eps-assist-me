@@ -56,7 +56,7 @@ export class Functions extends Construct {
       stackName: props.stackName,
       functionName: `${props.stackName}-SlackBotFunction`,
       packageBasePath: "packages/slackBotFunction",
-      handler: "app.main.handler",
+      handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       additionalPolicies: [props.slackBotManagedPolicy],

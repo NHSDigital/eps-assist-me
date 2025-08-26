@@ -14,15 +14,15 @@ def test_handler_normal_event(mock_boto_resource, mock_get_parameter, mock_app, 
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.main" in sys.modules:
-        del sys.modules["app.main"]
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
 
-    with patch("app.main.SlackRequestHandler") as mock_handler_class:
+    with patch("app.handler.SlackRequestHandler") as mock_handler_class:
         mock_handler = Mock()
         mock_handler_class.return_value = mock_handler
         mock_handler.handle.return_value = {"statusCode": 200}
 
-        from app.main import handler
+        from app.handler import handler
 
         event = {"body": "test event"}
         result = handler(event, lambda_context)
@@ -34,7 +34,7 @@ def test_handler_normal_event(mock_boto_resource, mock_get_parameter, mock_app, 
 @patch("slack_bolt.App")
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
 @patch("boto3.resource")
-@patch("app.util.slack_events.process_async_slack_event")
+@patch("app.slack.slack_events.process_async_slack_event")
 def test_handler_async_processing(
     mock_process, mock_boto_resource, mock_get_parameter, mock_app, mock_env, lambda_context
 ):
@@ -45,10 +45,10 @@ def test_handler_async_processing(
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.main" in sys.modules:
-        del sys.modules["app.main"]
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
 
-    from app.main import handler
+    from app.handler import handler
 
     slack_event_data = {
         "event": {"text": "test", "user": "U123", "channel": "C456", "ts": "1234567890.123"},
@@ -76,10 +76,10 @@ def test_trigger_async_processing(mock_boto_client, mock_boto_resource, mock_get
     mock_lambda_client = Mock()
     mock_boto_client.return_value = mock_lambda_client
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
-    from app.util.slack_handlers import trigger_async_processing
+    from app.slack.slack_handlers import trigger_async_processing
 
     event_data = {"test": "data"}
     trigger_async_processing(event_data)
@@ -99,10 +99,10 @@ def test_handle_app_mention(mock_boto_resource, mock_get_parameter, mock_app, mo
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
-    from app.util.slack_handlers import setup_handlers
+    from app.slack.slack_handlers import setup_handlers
 
     assert callable(setup_handlers)
 
@@ -118,10 +118,10 @@ def test_handle_direct_message(mock_boto_resource, mock_get_parameter, mock_app,
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
-    from app.util.slack_handlers import setup_handlers
+    from app.slack.slack_handlers import setup_handlers
 
     assert callable(setup_handlers)
 
@@ -137,10 +137,10 @@ def test_handle_app_mention_missing_event_id(mock_boto_resource, mock_get_parame
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
-    from app.util.slack_handlers import setup_handlers
+    from app.slack.slack_handlers import setup_handlers
 
     # Test that the setup function exists
     assert callable(setup_handlers)
@@ -157,10 +157,10 @@ def test_handle_direct_message_channel_type(mock_boto_resource, mock_get_paramet
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.util.slack_handlers" in sys.modules:
-        del sys.modules["app.util.slack_handlers"]
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
 
-    from app.util.slack_handlers import setup_handlers
+    from app.slack.slack_handlers import setup_handlers
 
     # Test that the setup function exists
     assert callable(setup_handlers)
@@ -179,10 +179,10 @@ def test_handler_async_processing_missing_slack_event(
     ]
     mock_boto_resource.return_value.Table.return_value = Mock()
 
-    if "app.main" in sys.modules:
-        del sys.modules["app.main"]
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
 
-    from app.main import handler
+    from app.handler import handler
 
     # Test async processing without slack_event - should return 400
     event = {"async_processing": True}  # Missing slack_event
