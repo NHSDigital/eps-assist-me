@@ -13,11 +13,6 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
 
     Resolves prompt name to ID, then loads the specified version.
     Supports both DRAFT and numbered versions.
-
-    Args:
-        prompt_name: The human-readable name of the prompt
-        prompt_version: Version to load - "DRAFT" for latest draft, number for published version,
-                       None for default behavior (loads DRAFT)
     """
     try:
         client = boto3.client("bedrock-agent", region_name=os.environ["AWS_REGION"])
@@ -71,7 +66,7 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
         raise PromptLoadError(f"Unexpected error loading prompt '{prompt_name}': {e}")
 
 
-def get_prompt_id_from_name(client, prompt_name: str) -> str:
+def get_prompt_id_from_name(client, prompt_name: str) -> str | None:
     """
     Get the 10-character prompt ID from the prompt name using ListPrompts.
     """
