@@ -11,9 +11,11 @@ import {Storage} from "../resources/Storage"
 import {Secrets} from "../resources/Secrets"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
-import {IamResources} from "../resources/IamResources"
+import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
+import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
+import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
@@ -53,49 +55,69 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName
     })
 
-    // Create Storage construct without Bedrock execution role to avoid circular dependency:
-    // - Storage needs to exist first so IamResources can reference the S3 bucket for policies
-    // - IamResources creates the Bedrock role that needs S3 access permissions
-    // - KMS permissions are added manually after both constructs exist
+    // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
       stackName: props.stackName
     })
 
-    // Create IAM Resources
-    const iamResources = new IamResources(this, "IamResources", {
+    // Create Bedrock execution role without dependencies
+    const bedrockExecutionRole = new BedrockExecutionRole(this, "BedrockExecutionRole", {
       region,
       account,
-      kbDocsBucket: storage.kbDocsBucket.bucket,
-      slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
-      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
-      slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
-      slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn
+      kbDocsBucket: storage.kbDocsBucket.bucket
     })
 
-    // Create OpenSearch Resources
+    // Create OpenSearch Resources with Bedrock execution role
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
       stackName: props.stackName,
-      bedrockExecutionRole: iamResources.bedrockExecutionRole,
-      account
+      bedrockExecutionRole: bedrockExecutionRole.role,
+      account,
+      region
     })
 
     const endpoint = openSearchResources.collection.endpoint
 
-    // Create Functions construct without vector KB dependencies
+    // Create VectorKnowledgeBase construct with Bedrock execution role
+    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
+      docsBucket: storage.kbDocsBucket.bucket,
+      bedrockExecutionRole: bedrockExecutionRole.role,
+      collectionArn: openSearchResources.collection.collectionArn,
+      vectorIndexName: VECTOR_INDEX_NAME,
+      region,
+      account
+    })
+
+    // Create runtime policies that depend on VectorKB ARNs
+    const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
+      region,
+      account,
+      slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
+      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
+      slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
+      slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn,
+      knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
+      guardrailArn: vectorKB.guardrail.attrGuardrailArn,
+      dataSourceArn: vectorKB.dataSourceArn
+    })
+
+    // Create Functions construct with actual values from VectorKB
     const functions = new Functions(this, "Functions", {
       stackName: props.stackName,
       version: props.version,
       commitId: props.commitId,
       logRetentionInDays,
       logLevel,
-      createIndexManagedPolicy: iamResources.createIndexManagedPolicy,
-      slackBotManagedPolicy: iamResources.slackBotManagedPolicy,
+      createIndexManagedPolicy: runtimePolicies.createIndexPolicy,
+      slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
+      syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
-      guardrailId: "", // Will be set after vector KB is created
-      guardrailVersion: "", // Will be set after vector KB is created
+      guardrailId: vectorKB.guardrail.attrGuardrailId,
+      guardrailVersion: vectorKB.guardrail.attrVersion,
       collectionId: openSearchResources.collection.collection.attrId,
-      knowledgeBaseId: "", // Will be set after vector KB is created
+      knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
+      dataSourceId: vectorKB.dataSource.attrDataSourceId,
       region,
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
@@ -103,7 +125,7 @@ export class EpsAssistMeStack extends Stack {
       slackBotStateTable: tables.slackBotStateTable.table
     })
 
-    // Create vector index
+    // Create vector index after Functions are created
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
       indexName: VECTOR_INDEX_NAME,
       collection: openSearchResources.collection.collection,
@@ -111,22 +133,14 @@ export class EpsAssistMeStack extends Stack {
       endpoint
     })
 
-    // Create VectorKnowledgeBase construct after vector index
-    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-      stackName: props.stackName,
-      docsBucket: storage.kbDocsBucket.bucket,
-      bedrockExecutionRole: iamResources.bedrockExecutionRole,
-      collectionArn: `arn:aws:aoss:${region}:${account}:collection/${openSearchResources.collection.collection.attrId}`,
-      vectorIndexName: VECTOR_INDEX_NAME
-    })
-
     // Ensure knowledge base waits for vector index
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
 
-    // Update SlackBot Lambda environment variables with vector KB info
-    functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_ID", vectorKB.guardrail.attrGuardrailId)
-    functions.functions.slackBot.function.addEnvironment("GUARD_RAIL_VERSION", vectorKB.guardrail.attrVersion)
-    functions.functions.slackBot.function.addEnvironment("KNOWLEDGEBASE_ID", vectorKB.knowledgeBase.attrKnowledgeBaseId)
+    // Add S3 notification to trigger sync Lambda function
+    new S3LambdaNotification(this, "S3LambdaNotification", {
+      bucket: storage.kbDocsBucket.bucket,
+      lambdaFunction: functions.functions.syncKnowledgeBase.function
+    })
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
