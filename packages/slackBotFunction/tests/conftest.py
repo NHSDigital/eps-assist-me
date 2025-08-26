@@ -32,8 +32,7 @@ def mock_env():
 def mock_dynamodb_table():
     """Mock DynamoDB table"""
     with mock_aws():
-        # noqa: S2622
-        dynamodb = boto3.resource("dynamodb", region_name="eu-west-2")
+        dynamodb = boto3.resource("dynamodb", region_name="eu-west-2")  # noqa: S2622 test setup, ignore sonarqube check
         table = dynamodb.create_table(
             TableName="test-bot-state-table",
             KeySchema=[{"AttributeName": "eventId", "KeyType": "HASH"}],
