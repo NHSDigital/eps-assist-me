@@ -12,14 +12,28 @@ export interface VectorKnowledgeBaseProps {
   readonly bedrockExecutionRole: Role
   readonly collectionArn: string
   readonly vectorIndexName: string
+  readonly region: string
+  readonly account: string
 }
 
 export class VectorKnowledgeBaseResources extends Construct {
   public readonly knowledgeBase: CfnKnowledgeBase
   public readonly guardrail: CfnGuardrail
+  public readonly dataSource: CfnDataSource
+  private readonly region: string
+  private readonly account: string
+
+  public get dataSourceArn(): string {
+    return `arn:aws:bedrock:${this.region}:${this.account}:knowledge-base/` +
+      `${this.knowledgeBase.attrKnowledgeBaseId}/data-source/` +
+      `${this.dataSource.attrDataSourceId}`
+  }
 
   constructor(scope: Construct, id: string, props: VectorKnowledgeBaseProps) {
     super(scope, id)
+
+    this.region = props.region
+    this.account = props.account
 
     // Create Bedrock guardrail for content filtering
     this.guardrail = new CfnGuardrail(this, "Guardrail", {
@@ -81,7 +95,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     })
 
     // Create S3 data source for knowledge base documents
-    new CfnDataSource(this, "S3DataSource", {
+    this.dataSource = new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: this.knowledgeBase.attrKnowledgeBaseId,
       name: `${props.stackName}-s3-datasource`,
       dataSourceConfiguration: {
