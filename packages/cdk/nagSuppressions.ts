@@ -1,4 +1,4 @@
-/* eslint-disable max-len, @typescript-eslint/no-unused-vars */
+
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
@@ -102,7 +102,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Bedrock Knowledge Base requires wildcard permissions to access S3 documents and OpenSearch collection across environments."
+        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection."
       }
     ]
   )
