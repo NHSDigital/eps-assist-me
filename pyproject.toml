@@ -16,7 +16,7 @@ package-mode = false
 python = "^3.13"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^4.1.0"
+pre-commit = "^4.3.0"
 cfn-lint = "^1.38.3"
 black = "^25.1.0"
 flake8 = "^7.1.2"
