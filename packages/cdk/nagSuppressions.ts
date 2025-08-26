@@ -4,7 +4,6 @@ import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack) => {
   const stackName = stack.node.tryGetContext("stackName") || "epsam"
-  const account = Stack.of(stack).account
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
@@ -12,10 +11,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions for log stream access are required and scoped appropriately.",
-        appliesTo: [
-          "Resource::<FunctionsSlackBotLambdaLambdaLogGroup3597D783.Arn>:log-stream:*"
-        ]
+        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
       }
     ]
   )
@@ -27,10 +23,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths.",
-        appliesTo: [
-          "Resource::<FunctionsCreateIndexFunctionLambdaLogGroupB45008DF.Arn>:log-stream:*"
-        ]
+        reason: "Wildcard permissions are required for log stream access under known paths."
       }
     ]
   )
@@ -42,10 +35,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths.",
-        appliesTo: [
-          "Resource::<FunctionsSyncKnowledgeBaseFunctionLambdaLogGroupB19BE2BE.Arn>:log-stream:*"
-        ]
+        reason: "Wildcard permissions are required for log stream access under known paths."
       }
     ]
   )
@@ -109,15 +99,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
-        appliesTo: [
-          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*",
-          "Resource::<StorageDocsBucketepsampr27Docs28B71689.Arn>/*",
-          "Action::bedrock:Delete*",
-          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
-          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
-          "Resource::*"
-        ]
+        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection."
       }
     ]
   )
@@ -129,11 +111,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes.",
-        appliesTo: [
-          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
-          `Resource::arn:aws:aoss:eu-west-2:${account}:index/*`
-        ]
+        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes."
       }
     ]
   )
@@ -145,13 +123,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda uses wildcard permissions as recommended by AWS docs for Bedrock prompt management.",
-        appliesTo: [
-          `Resource::arn:aws:lambda:eu-west-2:${account}:function:*`,
-          "Resource::*",
-          "Action::kms:GenerateDataKey*",
-          "Action::kms:ReEncrypt*"
-        ]
+        reason: "SlackBot Lambda uses wildcard permissions as recommended by AWS docs for Bedrock prompt management."
       }
     ]
   )
@@ -175,7 +147,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-SMG4",
-        reason: "Slack bot token rotation is handled manually as part of the Slack app configuration process."
+        reason: "Slack secrets rotation is handled manually as part of the Slack app configuration process."
       }
     ]
   )
@@ -203,10 +175,7 @@ export const nagSuppressions = (stack: Stack) => {
       [
         {
           id: "AwsSolutions-IAM4",
-          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
-          appliesTo: [
-            "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-          ]
+          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution."
         }
       ]
     )
@@ -217,10 +186,7 @@ export const nagSuppressions = (stack: Stack) => {
       [
         {
           id: "AwsSolutions-IAM5",
-          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
-          appliesTo: [
-            "Resource::*"
-          ]
+          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications."
         }
       ]
     )
