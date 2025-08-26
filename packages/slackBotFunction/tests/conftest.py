@@ -24,7 +24,8 @@ def mock_env():
         "GUARD_RAIL_VERSION": "1",
         "AWS_LAMBDA_FUNCTION_NAME": "test-function",
     }
-    with patch.dict(os.environ, env_vars):
+    env_vars["AWS_DEFAULT_REGION"] = env_vars["AWS_REGION"]
+    with patch.dict(os.environ, env_vars, clear=False):
         yield env_vars
 
 
@@ -32,7 +33,7 @@ def mock_env():
 def mock_dynamodb_table():
     """Mock DynamoDB table"""
     with mock_aws():
-        dynamodb = boto3.resource("dynamodb", region_name="eu-west-2")  # noqa: S2622 test setup, ignore sonarqube check
+        dynamodb = boto3.resource("dynamodb")
         table = dynamodb.create_table(
             TableName="test-bot-state-table",
             KeySchema=[{"AttributeName": "eventId", "KeyType": "HASH"}],
