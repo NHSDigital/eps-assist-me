@@ -2,6 +2,7 @@ import os
 import boto3
 from aws_lambda_powertools import Logger
 from botocore.exceptions import ClientError
+from app.services.exceptions import PromptNotFoundError, PromptLoadError
 
 logger = Logger(service="promptLoader")
 
@@ -24,7 +25,7 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
         # Get the prompt ID from the name
         prompt_id = get_prompt_id_from_name(client, prompt_name)
         if not prompt_id:
-            raise Exception(f"Could not find prompt ID for name '{prompt_name}'")
+            raise PromptNotFoundError(f"Could not find prompt ID for name '{prompt_name}'")
 
         # Load the prompt with the specified version
         if prompt_version and prompt_version != "DRAFT":
@@ -61,13 +62,13 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
             f"Failed to load prompt '{prompt_name}' version '{prompt_version}': {error_code} - {error_message}",
             extra={"prompt_name": prompt_name, "error_code": error_code, "requested_version": prompt_version},
         )
-        raise Exception(
+        raise PromptLoadError(
             f"Failed to load prompt '{prompt_name}' version '{prompt_version}': {error_code} - {error_message}"
         )
 
     except Exception as e:
         logger.error(f"Unexpected error loading prompt '{prompt_name}': {e}")
-        raise Exception(f"Unexpected error loading prompt '{prompt_name}': {e}")
+        raise PromptLoadError(f"Unexpected error loading prompt '{prompt_name}': {e}")
 
 
 def get_prompt_id_from_name(client, prompt_name: str) -> str:
