@@ -6,6 +6,7 @@ export interface OpenSearchResourcesProps {
   readonly stackName: string
   readonly bedrockExecutionRole: Role
   readonly account: string
+  readonly region: string
 }
 
 export class OpenSearchResources extends Construct {
@@ -20,7 +21,9 @@ export class OpenSearchResources extends Construct {
       principals: [
         props.bedrockExecutionRole.roleArn, // Bedrock Knowledge Base access
         `arn:aws:iam::${props.account}:root` // Account root access
-      ]
+      ],
+      region: props.region,
+      account: props.account
     })
   }
 }

@@ -9,9 +9,10 @@ The solution consists of:
 
 - **Slack Bot Function**: AWS Lambda function that handles Slack slash commands and integrates with Amazon Bedrock Knowledge Base
 - **Create Index Function**: AWS Lambda function that creates and manages OpenSearch vector indices for the knowledge base
+- **Sync Knowledge Base Function**: AWS Lambda function that automatically triggers knowledge base ingestion when documents are uploaded to S3
 - **OpenSearch Serverless**: Vector database for storing and searching document embeddings
 - **Amazon Bedrock Knowledge Base**: RAG (Retrieval-Augmented Generation) service with guardrails
-- **S3 Storage**: Document storage for the knowledge base
+- **S3 Storage**: Document storage for the knowledge base with automatic sync triggers
 - **AWS CDK**: Infrastructure as Code for deployment
 
 ## Project Structure
@@ -20,13 +21,29 @@ This is a monorepo with the following structure:
 
 ```
 packages/
-├── cdk/                   # AWS CDK infrastructure code
-│   ├── bin/               # CDK app entry point
-│   ├── constructs/        # Reusable CDK constructs
-│   ├── resources/         # AWS resource definitions
-│   └── stacks/            # CDK stack definitions
-├── createIndexFunction/   # Lambda function for OpenSearch index management
-└── slackBotFunction/      # Lambda function for Slack bot integration
+├── cdk/                        # AWS CDK infrastructure code
+│   ├── bin/                    # CDK app entry point
+│   │   └── utils/              # CDK utility functions
+│   ├── constructs/             # Reusable CDK constructs
+│   │   └── RestApiGateway/     # API Gateway specific constructs
+│   ├── resources/              # AWS resource definitions
+│   └── stacks/                 # CDK stack definitions
+├── createIndexFunction/        # Lambda function for OpenSearch index management
+│   ├── app/                    # Application code
+│   │   ├── config/             # Configuration and environment variables
+│   │   └── handler.py          # Lambda handler
+│   └── tests/                  # Unit tests
+├── slackBotFunction/           # Lambda function for Slack bot integration
+│   ├── app/                    # Application code
+│   │   ├── config/             # Configuration and environment variables
+│   │   ├── slack/              # Slack-specific logic
+│   │   └── handler.py          # Lambda handler
+│   └── tests/                  # Unit tests
+└── syncKnowledgeBaseFunction/  # Lambda function for automatic knowledge base sync
+    ├── app/                    # Application code
+    │   ├── config/             # Configuration and environment variables
+    │   └── handler.py          # Lambda handler
+    └── tests/                  # Unit tests
 ```
 
 ## Contributing
@@ -149,14 +166,15 @@ These are used to do common commands related to cdk
 
 #### Linting and testing
 
-- `lint` Runs lint for GitHub Actions and scripts.
+- `lint` Runs all linting checks
 - `lint-black` Runs black formatter on Python code.
 - `lint-flake8` Runs flake8 linter on Python code.
 - `lint-githubactions` Lints the repository's GitHub Actions workflows.
 - `lint-githubaction-scripts` Lints all shell scripts in `.github/scripts` using ShellCheck.
-- `test` Runs unit tests for Lambda functions.
 - `cfn-guard` Runs cfn-guard against CDK resources.
+- `git-secrets-docker-setup` Sets up git-secrets Docker container.
 - `pre-commit` Runs pre-commit hooks on all files.
+- `test` Runs unit tests for Lambda functions.
 
 #### Compiling
 

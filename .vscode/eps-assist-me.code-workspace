@@ -15,6 +15,10 @@
 		{
 			"name": "packages/slackBotFunction",
 			"path": "../packages/slackBotFunction"
+		},
+		{
+			"name": "packages/syncKnowledgeBaseFunction",
+			"path": "../packages/syncKnowledgeBaseFunction"
 		}
 	],
 	"settings": {
