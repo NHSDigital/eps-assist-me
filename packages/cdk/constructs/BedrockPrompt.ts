@@ -4,7 +4,7 @@ import {CfnPrompt} from "aws-cdk-lib/aws-bedrock"
 export interface BedrockPromptProps {
   promptName: string
   promptText: string
-  description?: string
+  description: string
 }
 
 export class BedrockPrompt extends Construct {
@@ -16,7 +16,7 @@ export class BedrockPrompt extends Construct {
 
     const prompt = new CfnPrompt(this, "Prompt", {
       name: props.promptName,
-      description: props.description || `Prompt for ${props.promptName}`,
+      description: props.description,
       variants: [
         {
           name: "default",

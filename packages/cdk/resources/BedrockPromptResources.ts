@@ -1,14 +1,14 @@
 import {Construct} from "constructs"
 import {BedrockPrompt} from "../constructs/BedrockPrompt"
 
-export interface BedrockPromptsProps {
+export interface BedrockPromptResourcesProps {
   readonly stackName: string
 }
 
-export class BedrockPrompts extends Construct {
+export class BedrockPromptResources extends Construct {
   public readonly queryReformulationPrompt: BedrockPrompt
 
-  constructor(scope: Construct, id: string, props: BedrockPromptsProps) {
+  constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
 
     this.queryReformulationPrompt = new BedrockPrompt(this, "QueryReformulationPrompt", {

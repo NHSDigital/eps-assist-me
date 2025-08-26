@@ -15,7 +15,7 @@ import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
 import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
-import {BedrockPrompts} from "../resources/BedrockPrompts"
+import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
@@ -56,8 +56,8 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName
     })
 
-    // Create Bedrock Prompts
-    const bedrockPrompts = new BedrockPrompts(this, "BedrockPrompts", {
+    // Create Bedrock Prompt Resources
+    const bedrockPromptResources = new BedrockPromptResources(this, "BedrockPromptResources", {
       stackName: props.stackName
     })
 
@@ -105,7 +105,7 @@ export class EpsAssistMeStack extends Stack {
       knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
       guardrailArn: vectorKB.guardrail.attrGuardrailArn,
       dataSourceArn: vectorKB.dataSourceArn,
-      promptName: bedrockPrompts.queryReformulationPrompt.promptName
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
     })
 
     // Create Functions construct with actual values from VectorKB
@@ -130,7 +130,7 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
-      promptName: bedrockPrompts.queryReformulationPrompt.promptName
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
     })
 
     // Create vector index after Functions are created
@@ -168,7 +168,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Output: Bedrock Prompt ARN
     new CfnOutput(this, "QueryReformulationPromptArn", {
-      value: bedrockPrompts.queryReformulationPrompt.promptArn,
+      value: bedrockPromptResources.queryReformulationPrompt.promptArn,
       description: "ARN of the query reformulation prompt in Bedrock"
     })
 
