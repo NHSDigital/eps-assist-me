@@ -55,7 +55,7 @@ def test_handle_feedback_message(mock_webclient, mock_store_feedback, mock_env):
         "general#C123", "Additional feedback", "additional", "U456", "This could be improved"
     )
     mock_client.chat_postMessage.assert_called_once_with(
-        channel="C123", text="Thank you for your detailed feedback! We appreciate your input.", thread_ts=None
+        channel="C123", text="Thank you for your feedback.", thread_ts=None
     )
 
 

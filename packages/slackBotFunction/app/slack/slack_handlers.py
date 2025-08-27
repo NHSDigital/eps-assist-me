@@ -132,7 +132,7 @@ def handle_feedback_message(event, bot_token):
         thread_ts = event.get("thread_ts")  # Reply in thread if it's a threaded message
         client.chat_postMessage(
             channel=event["channel"],
-            text="Thank you for your detailed feedback! We appreciate your input.",
+            text="Thank you for your feedback.",
             thread_ts=thread_ts,
         )
 
