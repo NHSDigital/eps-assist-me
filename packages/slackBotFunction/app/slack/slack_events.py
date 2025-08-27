@@ -21,8 +21,10 @@ from app.core.config import (
 
 def process_async_slack_event(slack_event_data):
     """
-    Process the actual Slack event
-    Gets called asynchronously to avoid Lambda timeouts
+    Process Slack events asynchronously after initial acknowledgment
+
+    This function handles the actual AI processing that takes longer than Slack's
+    3-second timeout. It extracts the user query, calls Bedrock, and posts the response.
     """
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
@@ -132,13 +134,16 @@ def store_conversation_session(conversation_key, session_id, user_id, channel_id
 
 def query_bedrock(user_query, session_id=None):
     """
-    Query Bedrock knowledge base with optional conversation context
+    Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
+
+    This function retrieves relevant documents from the knowledge base and generates
+    a response using the configured LLM model with guardrails for safety.
     """
+
     client = boto3.client(
         service_name="bedrock-agent-runtime",
         region_name=AWS_REGION,
     )
-
     request_params = {
         "input": {"text": user_query},
         "retrieveAndGenerateConfiguration": {

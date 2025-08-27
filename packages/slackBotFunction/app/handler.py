@@ -1,8 +1,9 @@
 """
-Main entry point for the Slack Bot Lambda Function
+Main Lambda handler - dual-purpose function for Slack bot operations
 
-This is the Lambda handler that coordinates all the components, it handles both regular Slack webhooks
-and async processing requests
+This Lambda function serves two purposes:
+1. Handles incoming Slack events (webhooks) via API Gateway
+2. Processes async operations when invoked by itself to avoid timeouts
 """
 
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
@@ -18,11 +19,12 @@ setup_handlers(app)
 
 def handler(event: dict, context: LambdaContext) -> dict:
     """
-    Main Lambda handler - handles Slack webhooks and async processing
+    Main Lambda entry point - routes between Slack webhook and async processing
 
-    Two modes:
-    1. Slack webhook -> acknowledge quickly, trigger async processing
-    2. Async processing -> handle the conversation (query Bedrock, respond)
+    Flow:
+    1. Slack sends webhook -> API Gateway -> Lambda (sync, 3s timeout)
+    2. Lambda acknowledges immediately and triggers async self-invocation
+    3. Async invocation processes Bedrock query and responds to Slack
     """
     logger.info("Lambda invoked", extra={"is_async": event.get("async_processing", False)})
 

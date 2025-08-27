@@ -1,5 +1,5 @@
 """
-Slack event handlers - handles @mentions and DMs
+Slack event handlers - handles @mentions and direct messages to the bot
 """
 
 import time
@@ -23,7 +23,8 @@ def setup_handlers(app):
     @app.event("app_mention")
     def handle_app_mention(event, ack, body):
         """
-        Handle @mentions in channels
+        Handle @mentions in channels - when users mention the bot in a channel
+        Acknowledges the event immediately and triggers async processing to avoid timeouts
         """
         ack()
 
@@ -40,7 +41,8 @@ def setup_handlers(app):
     @app.event("message")
     def handle_direct_message(event, ack, body):
         """
-        Handle direct messages to the bot
+        Handle direct messages to the bot - private 1:1 conversations
+        Filters out channel messages and processes only direct messages
         """
         ack()
 
@@ -61,7 +63,10 @@ def setup_handlers(app):
 
 def is_duplicate_event(event_id):
     """
-    Check if we've already processed this event
+    Check if we've already processed this event using DynamoDB conditional writes
+
+    Slack may send duplicate events due to retries, so we use DynamoDB's
+    conditional write to atomically check and record event processing.
     """
     try:
         ttl = int(time.time()) + 3600  # 1 hour TTL
@@ -78,7 +83,13 @@ def is_duplicate_event(event_id):
 
 
 def trigger_async_processing(event_data):
-    """Fire off async processing to avoid timeout."""
+    """
+    Trigger asynchronous Lambda invocation to process Slack events
+
+    Slack requires responses within 3 seconds, but Bedrock queries can take longer.
+    This function invokes the same Lambda function asynchronously to handle the
+    actual AI processing without blocking the initial Slack response.
+    """
     # incase we fail to re-invoke the lambda we should log an error
     try:
         lambda_client = boto3.client("lambda")
