@@ -77,26 +77,34 @@ def setup_handlers(app):
 
     @app.action("feedback_yes")
     def handle_feedback_yes(ack, body, client):
-        ack()
+        """Handle Yes button clicks - store positive feedback and acknowledge"""
+        ack()  # Acknowledge button click to Slack
 
+        # Extract user ID and parse button value (conversation_key|original_question)
         user_id = body["user"]["id"]
         conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
 
+        # Store positive feedback linked to original question
         store_feedback(conversation_key, user_query, "positive", user_id)
 
+        # Reply with thank you message in same thread
         client.chat_postMessage(
             channel=body["channel"]["id"], text="Thank you for your feedback!", thread_ts=body["message"]["ts"]
         )
 
     @app.action("feedback_no")
     def handle_feedback_no(ack, body, client):
-        ack()
+        """Handle No button clicks - store negative feedback and prompt for details"""
+        ack()  # Acknowledge button click to Slack
 
+        # Extract user ID and parse button value (conversation_key|original_question)
         user_id = body["user"]["id"]
         conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
 
+        # Store negative feedback linked to original question
         store_feedback(conversation_key, user_query, "negative", user_id)
 
+        # Reply with thank you and prompt for detailed feedback
         client.chat_postMessage(
             channel=body["channel"]["id"],
             text="Thank you for your feedback! Please type 'feedback' followed by your suggestions to help us improve.",
@@ -105,11 +113,16 @@ def setup_handlers(app):
 
 
 def handle_feedback_message(event, bot_token):
-    """Handle feedback messages from users"""
+    """Handle 'feedback [text]' messages - store detailed user suggestions"""
+    # Extract feedback text by removing "feedback " prefix (9 characters)
+    feedback_text = event["text"][9:].strip()
 
-    feedback_text = event["text"][9:].strip()  # Remove "feedback " prefix
     if feedback_text:
+        # Store additional feedback with general conversation key
+        # Uses "general#{channel}" since this isn't linked to specific AI response
         store_feedback(f"general#{event['channel']}", "Additional feedback", "additional", event["user"], feedback_text)
+
+        # Send acknowledgment message
         client = WebClient(token=bot_token)
         client.chat_postMessage(
             channel=event["channel"], text="Thank you for your detailed feedback! We appreciate your input."
