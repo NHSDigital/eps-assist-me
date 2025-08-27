@@ -117,25 +117,25 @@ def process_async_slack_event(slack_event_data):
             thread_ts=thread_ts,
             blocks=[
                 {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
+                {"type": "section", "text": {"type": "plain_text", "text": "Was this helpful?"}},
                 {
                     "type": "actions",
                     "elements": [
                         {
                             "type": "button",
-                            "text": {"type": "plain_text", "text": "👍 Yes"},
+                            "text": {"type": "plain_text", "text": "Yes"},
                             "action_id": "feedback_yes",
                             "value": f"{conversation_key}|{user_query}",
                         },
                         {
                             "type": "button",
-                            "text": {"type": "plain_text", "text": "👎 No"},
+                            "text": {"type": "plain_text", "text": "No"},
                             "action_id": "feedback_no",
                             "value": f"{conversation_key}|{user_query}",
                         },
                     ],
                     "block_id": "feedback_block",
                 },
-                {"type": "context", "elements": [{"type": "mrkdwn", "text": "Was this helpful?"}]},
             ],
         )
 
