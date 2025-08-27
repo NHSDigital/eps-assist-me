@@ -274,9 +274,14 @@ def test_process_async_slack_event_success(
 
         process_async_slack_event(slack_event_data)
 
-        mock_client.chat_postMessage.assert_called_once_with(
-            channel="C789", text="AI response", thread_ts="1234567890.123"
-        )
+        # Verify the call was made with feedback blocks
+        mock_client.chat_postMessage.assert_called_once()
+        call_args = mock_client.chat_postMessage.call_args
+        assert call_args[1]["channel"] == "C789"
+        assert call_args[1]["text"] == "AI response"
+        assert call_args[1]["thread_ts"] == "1234567890.123"
+        assert "blocks" in call_args[1]
+        assert len(call_args[1]["blocks"]) == 3  # section, actions, context
 
 
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")

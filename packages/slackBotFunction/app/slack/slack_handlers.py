@@ -52,6 +52,11 @@ def setup_handlers(app):
         """
         ack()  # Acknowledge receipt to Slack within 3 seconds
 
+        # Handle feedback messages
+        if event.get("text", "").lower().startswith("feedback "):
+            handle_feedback_message(event, bot_token)
+            return
+
         # Only handle direct messages ("im" = instant message), ignore channel messages
         if event.get("channel_type") != "im":
             return
@@ -67,6 +72,50 @@ def setup_handlers(app):
 
         # Trigger async Lambda invocation to handle Bedrock query without timeout
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+
+    @app.action("feedback_yes")
+    def handle_feedback_yes(ack, body, client):
+        ack()
+        from app.slack.slack_events import store_feedback
+
+        user_id = body["user"]["id"]
+        conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
+
+        store_feedback(conversation_key, user_query, "positive", user_id)
+
+        client.chat_postMessage(
+            channel=body["channel"]["id"], text="Thank you for your feedback!", thread_ts=body["message"]["ts"]
+        )
+
+    @app.action("feedback_no")
+    def handle_feedback_no(ack, body, client):
+        ack()
+        from app.slack.slack_events import store_feedback
+
+        user_id = body["user"]["id"]
+        conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
+
+        store_feedback(conversation_key, user_query, "negative", user_id)
+
+        client.chat_postMessage(
+            channel=body["channel"]["id"],
+            text="Thank you for your feedback! Please type 'feedback' followed by your suggestions to help us improve.",
+            thread_ts=body["message"]["ts"],
+        )
+
+
+def handle_feedback_message(event, bot_token):
+    """Handle feedback messages from users"""
+    from slack_sdk import WebClient
+    from app.slack.slack_events import store_feedback
+
+    feedback_text = event["text"][9:].strip()  # Remove "feedback " prefix
+    if feedback_text:
+        store_feedback(f"general#{event['channel']}", "Additional feedback", "additional", event["user"], feedback_text)
+        client = WebClient(token=bot_token)
+        client.chat_postMessage(
+            channel=event["channel"], text="Thank you for your detailed feedback! We appreciate your input."
+        )
 
 
 def is_duplicate_event(event_id):

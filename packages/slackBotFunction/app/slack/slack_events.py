@@ -102,8 +102,40 @@ def process_async_slack_event(slack_event_data):
         kb_response = get_bedrock_knowledgebase_response(user_query)
         response_text = kb_response["output"]["text"]
 
-        # Post the AI response back to Slack in the same thread
-        client.chat_postMessage(channel=channel, text=response_text, thread_ts=thread_ts)
+        # Create conversation key for feedback tracking
+        if event.get("channel_type") == "im":
+            conversation_key = f"dm#{channel}"
+        else:
+            conversation_key = f"thread#{channel}#{thread_ts}"
+
+        # Post response with feedback buttons
+        client.chat_postMessage(
+            channel=channel,
+            text=response_text,
+            thread_ts=thread_ts,
+            blocks=[
+                {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {"type": "plain_text", "text": "👍 Yes"},
+                            "action_id": "feedback_yes",
+                            "value": f"{conversation_key}|{user_query}",
+                        },
+                        {
+                            "type": "button",
+                            "text": {"type": "plain_text", "text": "👎 No"},
+                            "action_id": "feedback_no",
+                            "value": f"{conversation_key}|{user_query}",
+                        },
+                    ],
+                    "block_id": "feedback_block",
+                },
+                {"type": "context", "elements": [{"type": "mrkdwn", "text": "Was this helpful?"}]},
+            ],
+        )
 
     except Exception as err:
         logger.error(f"Error processing async @mention: {err}", extra={"event_id": event_id})
@@ -113,3 +145,29 @@ def process_async_slack_event(slack_event_data):
             text=BOT_MESSAGES["error_response"],
             thread_ts=thread_ts,
         )
+
+
+def store_feedback(conversation_key, user_query, feedback_type, user_id, additional_feedback=None):
+    """
+    Store user feedback for analytics
+    """
+    import time
+    from app.config.config import table
+
+    try:
+        ttl = int(time.time()) + 7776000  # 90 days
+        feedback_item = {
+            "eventId": f"feedback#{conversation_key}#{int(time.time())}",
+            "user_query": user_query,
+            "feedback_type": feedback_type,
+            "user_id": user_id,
+            "timestamp": int(time.time()),
+            "ttl": ttl,
+        }
+        if additional_feedback:
+            feedback_item["additional_feedback"] = additional_feedback
+
+        table.put_item(Item=feedback_item)
+        logger.info(f"Stored {feedback_type} feedback for {conversation_key}")
+    except Exception as e:
+        logger.error(f"Error storing feedback: {e}")
