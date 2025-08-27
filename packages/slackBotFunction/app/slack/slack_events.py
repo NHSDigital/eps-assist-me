@@ -7,7 +7,7 @@ import re
 import time
 import boto3
 from slack_sdk import WebClient
-from app.config.config import (
+from app.core.config import (
     table,
     logger,
     KNOWLEDGEBASE_ID,
