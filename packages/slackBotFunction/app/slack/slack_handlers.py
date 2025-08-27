@@ -5,6 +5,7 @@ Slack event handlers - handles @mentions and direct messages to the bot
 import time
 import json
 import os
+import re
 import boto3
 from botocore.exceptions import ClientError
 from aws_lambda_powertools import Logger
@@ -33,6 +34,14 @@ def setup_handlers(app):
         Acknowledges the event immediately and triggers async processing to avoid timeouts
         """
         ack()  # Acknowledge receipt to Slack within 3 seconds
+
+        # Handle feedback messages in @mentions
+        raw_text = event.get("text", "")
+        # Remove bot mention and check for feedback
+        clean_text = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
+        if clean_text.lower().startswith("feedback "):
+            handle_feedback_message(event, bot_token)
+            return
 
         event_id = body.get("event_id")
         # Skip processing if event is duplicate or missing ID to prevent double responses
@@ -114,8 +123,10 @@ def setup_handlers(app):
 
 def handle_feedback_message(event, bot_token):
     """Handle 'feedback [text]' messages - store detailed user suggestions"""
-    # Extract feedback text by removing "feedback " prefix (9 characters)
-    feedback_text = event["text"][9:].strip()
+    raw_text = event["text"]
+    # Remove bot mention tags and extract feedback text
+    clean_text = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
+    feedback_text = clean_text[9:].strip()  # Remove "feedback " prefix
 
     if feedback_text:
         # Store additional feedback with general conversation key
@@ -124,8 +135,11 @@ def handle_feedback_message(event, bot_token):
 
         # Send acknowledgment message
         client = WebClient(token=bot_token)
+        thread_ts = event.get("thread_ts")  # Reply in thread if it's a threaded message
         client.chat_postMessage(
-            channel=event["channel"], text="Thank you for your detailed feedback! We appreciate your input."
+            channel=event["channel"],
+            text="Thank you for your detailed feedback! We appreciate your input.",
+            thread_ts=thread_ts,
         )
 
 

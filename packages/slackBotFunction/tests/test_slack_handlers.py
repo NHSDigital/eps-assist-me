@@ -84,7 +84,7 @@ def test_app_mention_handler(mock_env):
     # Test the handler
     if mention_handler:
         mock_ack = Mock()
-        mock_event = {"user": "U123", "text": "test"}
+        mock_event = {"user": "U123", "text": "<@U456> test"}
         mock_body = {"event_id": "evt123"}
 
         with patch("app.slack.slack_handlers.is_duplicate_event", return_value=False):
@@ -298,9 +298,51 @@ def test_feedback_no_action_handler(mock_env):
             mock_client.chat_postMessage.assert_called_once()
 
 
+def test_app_mention_feedback_handler(mock_env):
+    """Test app mention feedback handling"""
+    from app.slack.slack_handlers import setup_handlers
+
+    mock_app = Mock()
+    mention_handler = None
+
+    def capture_event(event_type):
+        def decorator(func):
+            nonlocal mention_handler
+            if event_type == "app_mention":
+                mention_handler = func
+            return func
+
+        return decorator
+
+    mock_app.middleware = Mock()
+    mock_app.event = capture_event
+    mock_app.action = Mock()
+
+    with patch("app.config.config.bot_token", "test-token"):
+        setup_handlers(mock_app)
+
+    # Test feedback in @mention
+    if mention_handler:
+        mock_ack = Mock()
+        mock_event = {"user": "U123", "text": "<@U456> feedback test message"}
+        mock_body = {"event_id": "evt123"}
+
+        with patch("app.slack.slack_handlers.handle_feedback_message") as mock_handle:
+            mention_handler(mock_event, mock_ack, mock_body)
+
+            mock_ack.assert_called_once()
+            mock_handle.assert_called_once_with(mock_event, "test-token")
+
+
 def test_is_duplicate_event_error_handling(mock_env):
     """Test is_duplicate_event error handling"""
     from app.slack.slack_handlers import is_duplicate_event
+
+    with patch("app.config.config.table") as mock_table:
+        mock_table.put_item.side_effect = ClientError({"Error": {"Code": "SomeOtherError"}}, "put_item")
+
+        result = is_duplicate_event("test-event")
+        assert result is False  # Should return False on non-conditional errorsandlers import is_duplicate_event
 
     with patch("app.config.config.table") as mock_table:
         # Test non-ConditionalCheckFailedException error
