@@ -22,38 +22,18 @@ def mock_env():
         yield env_vars
 
 
-def test_middleware_function(mock_env):
-    """Test middleware function execution"""
+def test_setup_handlers_registers_correctly(mock_env):
+    """Test that setup_handlers registers all handlers correctly"""
     from app.slack.slack_handlers import setup_handlers
 
-    # Create mock app
     mock_app = Mock()
-
-    # Mock the middleware decorator to capture the function
-    middleware_func = None
-
-    def capture_middleware(func):
-        nonlocal middleware_func
-        middleware_func = func
-        return func
-
-    mock_app.middleware = capture_middleware
-    mock_app.event = Mock()
-    mock_app.action = Mock()
 
     with patch("app.config.config.bot_token", "test-token"):
         setup_handlers(mock_app)
 
-    # Test the middleware function
-    if middleware_func:
-        mock_logger = Mock()
-        mock_body = {"test": "data"}
-        mock_next = Mock(return_value="next_result")
-
-        result = middleware_func(mock_logger, mock_body, mock_next)
-
-        assert result == "next_result"
-        mock_next.assert_called_once()
+    # Verify all handlers are registered
+    assert mock_app.event.call_count == 2  # app_mention and message
+    assert mock_app.action.call_count == 2  # feedback_yes and feedback_no
 
 
 def test_app_mention_handler(mock_env):
@@ -74,7 +54,6 @@ def test_app_mention_handler(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = capture_event
     mock_app.action = Mock()
 
@@ -113,7 +92,6 @@ def test_message_handler_feedback_path(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = capture_event
     mock_app.action = Mock()
 
@@ -151,7 +129,6 @@ def test_message_handler_dm_path(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = capture_event
     mock_app.action = Mock()
 
@@ -190,7 +167,6 @@ def test_message_handler_non_dm_skip(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = capture_event
     mock_app.action = Mock()
 
@@ -228,7 +204,6 @@ def test_feedback_yes_action_handler(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = Mock()
     mock_app.action = capture_action
 
@@ -272,7 +247,6 @@ def test_feedback_no_action_handler(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = Mock()
     mock_app.action = capture_action
 
@@ -314,7 +288,6 @@ def test_app_mention_feedback_handler(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = capture_event
     mock_app.action = Mock()
 
@@ -342,18 +315,7 @@ def test_is_duplicate_event_error_handling(mock_env):
         mock_table.put_item.side_effect = ClientError({"Error": {"Code": "SomeOtherError"}}, "put_item")
 
         result = is_duplicate_event("test-event")
-        assert result is False  # Should return False on non-conditional errorsandlers import is_duplicate_event
-
-    with patch("app.config.config.table") as mock_table:
-        # Test non-ConditionalCheckFailedException error
-        error = ClientError(error_response={"Error": {"Code": "ServiceUnavailable"}}, operation_name="PutItem")
-        mock_table.put_item.side_effect = error
-
-        with patch("time.time", return_value=1000):
-            result = is_duplicate_event("test-event")
-
-            # Should return False on error to allow processing
-            assert result is False
+        assert result is False  # Should return False on non-conditional errors
 
 
 def test_duplicate_event_skip_processing(mock_env):
@@ -374,7 +336,6 @@ def test_duplicate_event_skip_processing(mock_env):
 
         return decorator
 
-    mock_app.middleware = Mock()
     mock_app.event = capture_event
     mock_app.action = Mock()
 

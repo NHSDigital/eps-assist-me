@@ -21,12 +21,6 @@ def setup_handlers(app):
     """
     from app.config.config import bot_token
 
-    @app.middleware
-    def log_request(slack_logger, body, next):
-        """Middleware to log all incoming Slack requests for debugging"""
-        logger.debug("Slack request received", extra={"body": body})
-        return next()
-
     @app.event("app_mention")
     def handle_app_mention(event, ack, body):
         """
