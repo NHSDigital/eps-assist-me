@@ -7,7 +7,16 @@ import re
 import time
 import boto3
 from slack_sdk import WebClient
-from app.core.config import table, logger, KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
+from app.config.config import (
+    table,
+    logger,
+    KNOWLEDGEBASE_ID,
+    RAG_MODEL_ID,
+    AWS_REGION,
+    GUARD_RAIL_ID,
+    GUARD_VERSION,
+    BOT_MESSAGES,
+)
 
 
 def process_async_slack_event(slack_event_data):
@@ -47,7 +56,7 @@ def process_async_slack_event(slack_event_data):
         if not user_query:
             client.chat_postMessage(
                 channel=channel,
-                text="Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+                text=BOT_MESSAGES["empty_query"],
                 thread_ts=thread_ts,
             )
             return
@@ -76,7 +85,7 @@ def process_async_slack_event(slack_event_data):
         try:
             client.chat_postMessage(
                 channel=channel,
-                text="Sorry, an error occurred while processing your request. Please try again later.",
+                text=BOT_MESSAGES["error_response"],
                 thread_ts=thread_ts,
             )
         except Exception as post_err:
