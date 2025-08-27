@@ -281,7 +281,7 @@ def test_process_async_slack_event_success(
         assert call_args[1]["text"] == "AI response"
         assert call_args[1]["thread_ts"] == "1234567890.123"
         assert "blocks" in call_args[1]
-        assert len(call_args[1]["blocks"]) == 3  # section, actions, context
+        assert len(call_args[1]["blocks"]) == 3  # section, question, actions
 
 
 @patch("aws_lambda_powertools.utilities.parameters.get_parameter")
