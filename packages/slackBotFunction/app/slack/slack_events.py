@@ -1,12 +1,15 @@
 """
-Slack event processing - handles async message processing and Bedrock integration
+Slack event processing
+Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
 import re
+import time
 import boto3
 from slack_sdk import WebClient
-from aws_lambda_powertools import Logger
-from app.config.config import (
+from app.core.config import (
+    table,
+    logger,
     KNOWLEDGEBASE_ID,
     RAG_MODEL_ID,
     AWS_REGION,
@@ -14,46 +17,6 @@ from app.config.config import (
     GUARD_VERSION,
     BOT_MESSAGES,
 )
-
-logger = Logger(service="slackBotFunction")
-
-
-def get_bedrock_knowledgebase_response(user_query):
-    """
-    Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
-
-    This function retrieves relevant documents from the knowledge base and generates
-    a response using the configured LLM model with guardrails for safety.
-    """
-    client = boto3.client(
-        service_name="bedrock-agent-runtime",
-        region_name=AWS_REGION,
-    )
-
-    # Structure the user's query for Bedrock
-    query_input = {
-        "text": user_query,
-    }
-
-    # Configure knowledge base with model and safety guardrails
-    config = {
-        "type": "KNOWLEDGE_BASE",
-        "knowledgeBaseConfiguration": {
-            "generationConfiguration": {
-                "guardrailConfiguration": {
-                    "guardrailId": GUARD_RAIL_ID,  # Content filtering and safety rules
-                    "guardrailVersion": GUARD_VERSION,
-                },
-            },
-            "knowledgeBaseId": KNOWLEDGEBASE_ID,  # Vector database with EPS documents
-            "modelArn": RAG_MODEL_ID,  # LLM model for text generation
-        },
-    }
-
-    # Execute RAG: retrieve relevant docs + generate response
-    response = client.retrieve_and_generate(input=query_input, retrieveAndGenerateConfiguration=config)
-    logger.info("Bedrock Knowledge Base Response received", extra={"response": response})
-    return response
 
 
 def process_async_slack_event(slack_event_data):
@@ -70,46 +33,144 @@ def process_async_slack_event(slack_event_data):
     client = WebClient(token=token)
 
     try:
-        # Extract message details from Slack event
         raw_text = event["text"]
         user_id = event["user"]
         channel = event["channel"]
-        # Use thread_ts for threaded replies, fallback to message timestamp
         thread_ts = event.get("thread_ts", event["ts"])
 
-        # Remove bot mention tags from message text (e.g., "<@U123456789>")
+        # figure out if this is a DM or channel thread
+        if event.get("channel_type") == "im":
+            conversation_key = f"dm#{channel}"
+            context_type = "DM"
+        else:
+            conversation_key = f"thread#{channel}#{thread_ts}"
+            context_type = "thread"
+
+        # clean up the user's message
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
 
         logger.info(
-            f"Processing async @mention from user {user_id}",
-            extra={
-                "user_query": user_query,
-                "thread_ts": thread_ts,
-                "event_id": event_id,
-            },
+            f"Processing {context_type} message from user {user_id}",
+            extra={"user_query": user_query, "conversation_key": conversation_key, "event_id": event_id},
         )
 
-        # Handle empty queries after removing bot mentions
+        # handles empty messages
         if not user_query:
             client.chat_postMessage(
                 channel=channel,
                 text=BOT_MESSAGES["empty_query"],
-                thread_ts=thread_ts,  # Reply in thread to keep conversation organized
+                thread_ts=thread_ts,
             )
             return
 
-        # Query the knowledge base and get AI-generated response
-        kb_response = get_bedrock_knowledgebase_response(user_query)
+        # check if we have an existing conversation
+        session_id = get_conversation_session(conversation_key)
+
+        kb_response = query_bedrock(user_query, session_id)
         response_text = kb_response["output"]["text"]
 
-        # Post the AI response back to Slack in the same thread
+        # store a new session if we just started a conversation
+        if not session_id and "sessionId" in kb_response:
+            store_conversation_session(
+                conversation_key,
+                kb_response["sessionId"],
+                user_id,
+                channel,
+                thread_ts if context_type == "thread" else None,
+            )
         client.chat_postMessage(channel=channel, text=response_text, thread_ts=thread_ts)
 
     except Exception as err:
-        logger.error(f"Error processing async @mention: {err}", extra={"event_id": event_id})
-        # Send user-friendly error message instead of exposing technical details
-        client.chat_postMessage(
-            channel=channel,
-            text=BOT_MESSAGES["error_response"],
-            thread_ts=thread_ts,
+        logger.error(f"Error processing message: {err}", extra={"event_id": event_id})
+
+        # incase Slack API call fails, we still want to log the error
+        try:
+            client.chat_postMessage(
+                channel=channel,
+                text=BOT_MESSAGES["error_response"],
+                thread_ts=thread_ts,
+            )
+        except Exception as post_err:
+            logger.error(f"Failed to post error message: {post_err}")
+
+
+def get_conversation_session(conversation_key):
+    """
+    Get existing Bedrock session for this conversation
+    """
+    try:
+        response = table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        if "Item" in response:
+            logger.info(f"Found existing session for {conversation_key}")
+            return response["Item"]["session_id"]
+        return None
+    except Exception as e:
+        logger.error(f"Error getting session: {e}")
+        return None
+
+
+def store_conversation_session(conversation_key, session_id, user_id, channel_id, thread_ts=None):
+    """
+    Store new Bedrock session for conversation memory
+    """
+    try:
+        ttl = int(time.time()) + 2592000  # 30 days
+        table.put_item(
+            Item={
+                "pk": conversation_key,
+                "sk": "session",
+                "session_id": session_id,
+                "user_id": user_id,
+                "channel_id": channel_id,
+                "thread_ts": thread_ts,
+                "created_at": int(time.time()),
+                "ttl": ttl,
+            }
         )
+        logger.info(f"Stored session {session_id} for {conversation_key}")
+    except Exception as e:
+        logger.error(f"Error storing session: {e}")
+
+
+def query_bedrock(user_query, session_id=None):
+    """
+    Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
+
+    This function retrieves relevant documents from the knowledge base and generates
+    a response using the configured LLM model with guardrails for safety.
+    """
+
+    client = boto3.client(
+        service_name="bedrock-agent-runtime",
+        region_name=AWS_REGION,
+    )
+    request_params = {
+        "input": {"text": user_query},
+        "retrieveAndGenerateConfiguration": {
+            "type": "KNOWLEDGE_BASE",
+            "knowledgeBaseConfiguration": {
+                "knowledgeBaseId": KNOWLEDGEBASE_ID,
+                "modelArn": RAG_MODEL_ID,
+                "generationConfiguration": {
+                    "guardrailConfiguration": {
+                        "guardrailId": GUARD_RAIL_ID,
+                        "guardrailVersion": GUARD_VERSION,
+                    }
+                },
+            },
+        },
+    }
+
+    # add session if we have one for conversation continuity
+    if session_id:
+        request_params["sessionId"] = session_id
+        logger.info(f"Using existing session ID: {session_id}")
+    else:
+        logger.info("Starting new conversation")
+
+    response = client.retrieve_and_generate(**request_params)
+    logger.info(
+        "Got Bedrock response",
+        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
+    )
+    return response
