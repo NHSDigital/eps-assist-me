@@ -3,6 +3,7 @@ Slack event processing - handles async message processing and Bedrock integratio
 """
 
 import re
+import time
 import boto3
 from slack_sdk import WebClient
 from aws_lambda_powertools import Logger
@@ -13,6 +14,7 @@ from app.config.config import (
     GUARD_RAIL_ID,
     GUARD_VERSION,
     BOT_MESSAGES,
+    table,
 )
 
 logger = Logger(service="slackBotFunction")
@@ -151,8 +153,6 @@ def store_feedback(conversation_key, user_query, feedback_type, user_id, additio
     """
     Store user feedback for analytics
     """
-    import time
-    from app.config.config import table
 
     try:
         ttl = int(time.time()) + 7776000  # 90 days

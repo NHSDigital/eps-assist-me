@@ -8,6 +8,8 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 from aws_lambda_powertools import Logger
+from slack_sdk import WebClient
+from app.slack.slack_events import store_feedback
 
 logger = Logger(service="slackBotFunction")
 
@@ -76,7 +78,6 @@ def setup_handlers(app):
     @app.action("feedback_yes")
     def handle_feedback_yes(ack, body, client):
         ack()
-        from app.slack.slack_events import store_feedback
 
         user_id = body["user"]["id"]
         conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
@@ -90,7 +91,6 @@ def setup_handlers(app):
     @app.action("feedback_no")
     def handle_feedback_no(ack, body, client):
         ack()
-        from app.slack.slack_events import store_feedback
 
         user_id = body["user"]["id"]
         conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
@@ -106,8 +106,6 @@ def setup_handlers(app):
 
 def handle_feedback_message(event, bot_token):
     """Handle feedback messages from users"""
-    from slack_sdk import WebClient
-    from app.slack.slack_events import store_feedback
 
     feedback_text = event["text"][9:].strip()  # Remove "feedback " prefix
     if feedback_text:
