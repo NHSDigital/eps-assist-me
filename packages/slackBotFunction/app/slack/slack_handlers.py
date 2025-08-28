@@ -1,179 +1,295 @@
 """
-Slack event handlers - handles @mentions and direct messages to the bot
+Slack event handlers for @mentions, DMs, and feedback capture.
+
+Design goals:
+- Acknowledge Slack events quickly.
+- Keep setup_handlers minimal; put real logic in small, testable functions.
+- Support mention-only start in channels, follow-ups in bot-owned threads, and 'feedback:' notes.
 """
 
+import re
 import time
 import json
 import os
-import re
 import boto3
 from botocore.exceptions import ClientError
-from aws_lambda_powertools import Logger
-from slack_sdk import WebClient
+
+from app.core.config import table, bot_token, logger, BOT_MESSAGES
 from app.slack.slack_events import store_feedback
 
-logger = Logger(service="slackBotFunction")
+
+# ================================================================
+# Common handler helpers (pure logic; no network calls)
+# ================================================================
+
+
+def _gate_common(event, body):
+    """
+    Apply common early checks that are shared across handlers.
+
+    Returns:
+        str | None: event_id if processing should continue; None to skip.
+
+    Gates:
+    - Missing or duplicate event_id (Slack retry dedupe)
+    - Bot/self messages or non-standard subtypes (edits, deletes, etc.)
+    """
+    event_id = body.get("event_id")
+    if not event_id:
+        logger.info("Skipping event without event_id")
+        return None
+
+    if event.get("bot_id") or event.get("subtype"):
+        return None
+
+    if is_duplicate_event(event_id):
+        logger.info(f"Skipping duplicate event: {event_id}")
+        return None
+
+    return event_id
+
+
+def _strip_mentions(text: str) -> str:
+    """Remove Slack user mentions like <@U123> or <@U123|alias> from text."""
+    return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", (text or "").strip()).strip()
+
+
+def _conversation_key_and_root(event):
+    """
+    Build a stable conversation scope and its root timestamp.
+
+    DM:
+        key = dm#<channel_id>
+        root = event.thread_ts or event.ts
+    Channel thread:
+        key = thread#<channel_id>#<root_ts>
+        root = event.thread_ts (or event.ts if thread root is the user’s top-level message)
+    """
+    channel_id = event["channel"]
+    root = event.get("thread_ts") or event.get("ts")
+    if event.get("channel_type") == "im":
+        return f"dm#{channel_id}", root
+    return f"thread#{channel_id}#{root}", root
+
+
+# ================================================================
+# Event and message handlers (business logic)
+# ================================================================
+
+
+def app_mention_handler(event, ack, body, client):
+    """
+    Channel interactions that mention the bot.
+    - If text after the mention starts with 'feedback:', store it as additional feedback.
+    - Otherwise, forward to the async processing pipeline (Q&A).
+    """
+    ack()
+    event_id = _gate_common(event, body)
+    if not event_id:
+        return
+
+    channel_id = event["channel"]
+    user_id = event.get("user", "unknown")
+    conversation_key, thread_root = _conversation_key_and_root(event)
+
+    cleaned = _strip_mentions(event.get("text") or "")
+    if cleaned.lower().startswith("feedback:"):
+        note = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
+        try:
+            store_feedback(
+                conversation_key=conversation_key,
+                user_query=None,
+                feedback_type="additional",
+                user_id=user_id,
+                channel_id=channel_id,
+                thread_ts=thread_root,
+                message_ts=None,
+                additional_feedback=note,
+            )
+        except Exception as e:
+            logger.error(f"Failed to store channel feedback via mention: {e}")
+
+        try:
+            client.chat_postMessage(
+                channel=channel_id,
+                text=BOT_MESSAGES.get("feedback_thanks", "Thank you for your feedback."),
+                thread_ts=thread_root,
+            )
+        except Exception as e:
+            logger.error(f"Failed to post channel feedback ack: {e}")
+        return
+
+    # Normal mention -> async processing
+    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+
+
+def dm_message_handler(event, ack, body, client):
+    """
+    Direct messages:
+    - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
+    - otherwise -> forward to async processing (Q&A).
+    """
+    if event.get("channel_type") != "im":
+        return  # not a DM; the channel handler will evaluate it
+    ack()
+    event_id = _gate_common(event, body)
+    if not event_id:
+        return
+
+    text = (event.get("text") or "").strip()
+    channel_id = event["channel"]
+    conversation_key, thread_root = _conversation_key_and_root(event)
+    user_id = event.get("user", "unknown")
+
+    if text.lower().startswith("feedback:"):
+        note = text.split(":", 1)[1].strip() if ":" in text else ""
+        try:
+            store_feedback(
+                conversation_key=conversation_key,
+                user_query=None,
+                feedback_type="additional",
+                user_id=user_id,
+                channel_id=channel_id,
+                thread_ts=thread_root,
+                message_ts=None,
+                additional_feedback=note,
+            )
+        except Exception as e:
+            logger.error(f"Failed to store DM additional feedback: {e}")
+
+        try:
+            client.chat_postMessage(
+                channel=channel_id,
+                text=BOT_MESSAGES.get("feedback_thanks", "Thank you for your feedback."),
+                thread_ts=thread_root,
+            )
+        except Exception as e:
+            logger.error(f"Failed to post DM feedback ack: {e}")
+        return
+
+    # Normal DM -> async processing
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+
+
+def channel_message_handler(event, ack, body, client):
+    """
+    Channel messages:
+    - Ignore top-level messages (policy: require @mention to start).
+    - For replies inside a thread the bot owns (session exists):
+        * 'feedback:' prefix -> store additional feedback.
+        * otherwise -> treat as follow-up question (no re-mention needed) and forward to async.
+    """
+    if event.get("channel_type") == "im":
+        return  # handled in the DM handler
+    ack()
+    event_id = _gate_common(event, body)
+    if not event_id:
+        return
+
+    text = (event.get("text") or "").strip()
+    channel_id = event["channel"]
+    thread_root = event.get("thread_ts")
+    if not thread_root:
+        return  # top-level message; require @mention to start
+
+    conversation_key = f"thread#{channel_id}#{thread_root}"
+    try:
+        resp = table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        if "Item" not in resp:
+            return  # not a bot-owned thread; ignore
+    except Exception as e:
+        logger.error(f"Error checking thread session: {e}")
+        return
+
+    if text.lower().startswith("feedback:"):
+        note = text.split(":", 1)[1].strip() if ":" in text else ""
+        user_id = event.get("user", "unknown")
+        try:
+            store_feedback(
+                conversation_key=conversation_key,
+                user_query=None,
+                feedback_type="additional",
+                user_id=user_id,
+                channel_id=channel_id,
+                thread_ts=thread_root,
+                message_ts=None,
+                additional_feedback=note,
+            )
+        except Exception as e:
+            logger.error(f"Failed to store channel additional feedback: {e}")
+
+        try:
+            client.chat_postMessage(
+                channel=channel_id,
+                text=BOT_MESSAGES.get("feedback_thanks", "Thank you for your feedback."),
+                thread_ts=thread_root,
+            )
+        except Exception as e:
+            logger.error(f"Failed to post channel feedback ack: {e}")
+        return
+
+    # Follow-up in a bot-owned thread (no re-mention required)
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+
+
+# ================================================================
+# Registration (kept minimal to satisfy complexity checkers)
+# ================================================================
 
 
 def setup_handlers(app):
-    """
-    Register all event handlers with the Slack app
-    """
-    from app.config.config import bot_token
-
-    @app.event("app_mention")
-    def handle_app_mention(event, ack, body):
-        """
-        Handle @mentions in channels - when users mention the bot in a channel
-        Acknowledges the event immediately and triggers async processing to avoid timeouts
-        """
-        ack()  # Acknowledge receipt to Slack within 3 seconds
-
-        # Handle feedback messages in @mentions
-        raw_text = event.get("text", "")
-        # Remove bot mention and check for feedback
-        clean_text = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
-        if clean_text.lower().startswith("feedback "):
-            handle_feedback_message(event, bot_token)
-            return
-
-        event_id = body.get("event_id")
-        # Skip processing if event is duplicate or missing ID to prevent double responses
-        if not event_id or is_duplicate_event(event_id):
-            logger.info(f"Skipping duplicate or missing event: {event_id}")
-            return
-
-        user_id = event.get("user", "unknown")
-        logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
-
-        # Trigger async Lambda invocation to handle Bedrock query without timeout
-        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
-
-    @app.event("message")
-    def handle_direct_message(event, ack, body):
-        """
-        Handle direct messages to the bot - private 1:1 conversations
-        Filters out channel messages and processes only direct messages
-        """
-        ack()  # Acknowledge receipt to Slack within 3 seconds
-
-        # Handle feedback messages
-        if event.get("text", "").lower().startswith("feedback "):
-            handle_feedback_message(event, bot_token)
-            return
-
-        # Only handle direct messages ("im" = instant message), ignore channel messages
-        if event.get("channel_type") != "im":
-            return
-
-        event_id = body.get("event_id")
-        # Skip processing if event is duplicate or missing ID to prevent double responses
-        if not event_id or is_duplicate_event(event_id):
-            logger.info(f"Skipping duplicate or missing event: {event_id}")
-            return
-
-        user_id = event.get("user", "unknown")
-        logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
-
-        # Trigger async Lambda invocation to handle Bedrock query without timeout
-        trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
-
-    @app.action("feedback_yes")
-    def handle_feedback_yes(ack, body, client):
-        """Handle Yes button clicks - store positive feedback and acknowledge"""
-        ack()  # Acknowledge button click to Slack
-
-        # Extract user ID and parse button value (conversation_key|original_question)
-        user_id = body["user"]["id"]
-        conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
-
-        # Store positive feedback linked to original question
-        store_feedback(conversation_key, user_query, "positive", user_id)
-
-        # Reply with thank you message in same thread
-        client.chat_postMessage(
-            channel=body["channel"]["id"], text="Thank you for your feedback!", thread_ts=body["message"]["ts"]
-        )
-
-    @app.action("feedback_no")
-    def handle_feedback_no(ack, body, client):
-        """Handle No button clicks - store negative feedback and prompt for details"""
-        ack()  # Acknowledge button click to Slack
-
-        # Extract user ID and parse button value (conversation_key|original_question)
-        user_id = body["user"]["id"]
-        conversation_key, user_query = body["actions"][0]["value"].split("|", 1)
-
-        # Store negative feedback linked to original question
-        store_feedback(conversation_key, user_query, "negative", user_id)
-
-        # Reply with thank you and prompt for detailed feedback
-        client.chat_postMessage(
-            channel=body["channel"]["id"],
-            text="Thank you for your feedback! Please type 'feedback' followed by your suggestions to help us improve.",
-            thread_ts=body["message"]["ts"],
-        )
+    """Register handlers. Intentionally minimal—no branching here."""
+    app.event("app_mention")(app_mention_handler)
+    app.event("message")(dm_message_handler)
+    app.event("message")(channel_message_handler)
 
 
-def handle_feedback_message(event, bot_token):
-    """Handle 'feedback [text]' messages - store detailed user suggestions"""
-    raw_text = event["text"]
-    # Remove bot mention tags and extract feedback text
-    clean_text = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
-    feedback_text = clean_text[9:].strip()  # Remove "feedback " prefix
-
-    if feedback_text:
-        # Store additional feedback with general conversation key
-        # Uses "general#{channel}" since this isn't linked to specific AI response
-        store_feedback(f"general#{event['channel']}", "Additional feedback", "additional", event["user"], feedback_text)
-
-        # Send acknowledgment message
-        client = WebClient(token=bot_token)
-        thread_ts = event.get("thread_ts")  # Reply in thread if it's a threaded message
-        client.chat_postMessage(
-            channel=event["channel"],
-            text="Thank you for your feedback.",
-            thread_ts=thread_ts,
-        )
+# ================================================================
+# AWS/Slack infrastructure helpers
+# ================================================================
 
 
 def is_duplicate_event(event_id):
     """
-    Check if we've already processed this event using DynamoDB conditional writes
+    Best-effort deduplication for Slack retries using DynamoDB conditional write.
 
-    Slack may send duplicate events due to retries, so we use DynamoDB's
-    conditional write to atomically check and record event processing.
+    Key:
+        pk = f"event#{event_id}", sk = "dedup", ttl = now + 1h
+    Behavior:
+        - First write succeeds (not a duplicate).
+        - Subsequent writes within TTL fail the condition and are treated as duplicates.
     """
-    from app.config.config import table
-
     try:
-        ttl = int(time.time()) + 3600  # 1 hour TTL for automatic cleanup
-        # Attempt to insert event record - fails if already exists
+        ttl = int(time.time()) + 3600  # 1 hour TTL
         table.put_item(
-            Item={"eventId": event_id, "ttl": ttl, "timestamp": int(time.time())},
-            ConditionExpression="attribute_not_exists(eventId)",  # Only insert if doesn't exist
+            Item={"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
+            ConditionExpression="attribute_not_exists(pk)",
         )
-        return False  # Successfully inserted = not a duplicate
+        return False
     except ClientError as e:
-        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            return True  # Insert failed = duplicate event
+        if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return True
         logger.error(f"Error checking event duplication: {e}")
-        return False  # On error, allow processing to avoid blocking legitimate events
+        return False
 
 
 def trigger_async_processing(event_data):
     """
-    Trigger asynchronous Lambda invocation to process Slack events
+    Asynchronously re-invoke this Lambda for long-running work (e.g., model calls).
 
-    Slack requires responses within 3 seconds, but Bedrock queries can take longer.
-    This function invokes the same Lambda function asynchronously to handle the
-    actual AI processing without blocking the initial Slack response.
+    Slack requires responses within ~3 seconds. To avoid timeouts, we:
+      1) ack immediately in the handler,
+      2) self-invoke the Lambda with InvocationType='Event',
+      3) perform the heavy work in the async path and post back to Slack.
     """
-    lambda_client = boto3.client("lambda")
-
-    # Invoke same Lambda function asynchronously ("Event" = fire-and-forget)
-    lambda_client.invoke(
-        FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
-        InvocationType="Event",  # Asynchronous invocation
-        Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
-    )
+    try:
+        lambda_client = boto3.client("lambda")
+        lambda_client.invoke(
+            FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
+            InvocationType="Event",
+            Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
+        )
+        logger.info("Async processing triggered successfully")
+    except Exception as e:
+        logger.error(f"Failed to trigger async processing: {e}")

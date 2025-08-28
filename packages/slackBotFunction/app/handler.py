@@ -7,19 +7,17 @@ This Lambda function serves two purposes:
 """
 
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
-from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from app.config.config import app
+
+from app.core.config import app, logger
 from app.slack.slack_events import process_async_slack_event
 from app.slack.slack_handlers import setup_handlers
 
-# Register Slack event handlers (@mentions, DMs, etc.)
+# register event handlers with the app
 setup_handlers(app)
 
-logger = Logger(service="slackBotFunction")
 
-
-@logger.inject_lambda_context
+@logger.inject_lambda_context(log_event=True)
 def handler(event: dict, context: LambdaContext) -> dict:
     """
     Main Lambda entry point - routes between Slack webhook and async processing
@@ -29,15 +27,18 @@ def handler(event: dict, context: LambdaContext) -> dict:
     2. Lambda acknowledges immediately and triggers async self-invocation
     3. Async invocation processes Bedrock query and responds to Slack
     """
-    logger.info("Lambda invoked for Slack bot", extra={"event": event})
+    logger.info("Lambda invoked", extra={"is_async": event.get("async_processing", False)})
 
-    # Route 2: Async processing path (self-invoked)
+    # handle async processing requests
     if event.get("async_processing"):
-        # Process the actual AI query without time constraints
-        process_async_slack_event(event["slack_event"])
+        slack_event_data = event.get("slack_event")
+        if not slack_event_data:
+            logger.error("Async processing requested but no slack_event provided")
+            return {"statusCode": 400}
+
+        process_async_slack_event(slack_event_data)
         return {"statusCode": 200}
 
-    # Route 1: Slack webhook path (via API Gateway)
-    # Handle initial Slack event, acknowledge quickly, trigger async processing
+    # handle Slack webhook requests
     slack_handler = SlackRequestHandler(app=app)
     return slack_handler.handle(event, context)

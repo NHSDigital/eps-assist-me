@@ -1,61 +1,23 @@
 """
-Slack event processing - handles async message processing and Bedrock integration
+Slack event processing
+Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
 import re
 import time
+import json
 import boto3
 from slack_sdk import WebClient
-from aws_lambda_powertools import Logger
-from app.config.config import (
+from app.core.config import (
+    table,
+    logger,
     KNOWLEDGEBASE_ID,
     RAG_MODEL_ID,
     AWS_REGION,
     GUARD_RAIL_ID,
     GUARD_VERSION,
     BOT_MESSAGES,
-    table,
 )
-
-logger = Logger(service="slackBotFunction")
-
-
-def get_bedrock_knowledgebase_response(user_query):
-    """
-    Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
-
-    This function retrieves relevant documents from the knowledge base and generates
-    a response using the configured LLM model with guardrails for safety.
-    """
-    client = boto3.client(
-        service_name="bedrock-agent-runtime",
-        region_name=AWS_REGION,
-    )
-
-    # Structure the user's query for Bedrock
-    query_input = {
-        "text": user_query,
-    }
-
-    # Configure knowledge base with model and safety guardrails
-    config = {
-        "type": "KNOWLEDGE_BASE",
-        "knowledgeBaseConfiguration": {
-            "generationConfiguration": {
-                "guardrailConfiguration": {
-                    "guardrailId": GUARD_RAIL_ID,  # Content filtering and safety rules
-                    "guardrailVersion": GUARD_VERSION,
-                },
-            },
-            "knowledgeBaseId": KNOWLEDGEBASE_ID,  # Vector database with EPS documents
-            "modelArn": RAG_MODEL_ID,  # LLM model for text generation
-        },
-    }
-
-    # Execute RAG: retrieve relevant docs + generate response
-    response = client.retrieve_and_generate(input=query_input, retrieveAndGenerateConfiguration=config)
-    logger.info("Bedrock Knowledge Base Response received", extra={"response": response})
-    return response
 
 
 def process_async_slack_event(slack_event_data):
@@ -72,102 +34,273 @@ def process_async_slack_event(slack_event_data):
     client = WebClient(token=token)
 
     try:
-        # Extract message details from Slack event
         raw_text = event["text"]
         user_id = event["user"]
         channel = event["channel"]
-        # Use thread_ts for threaded replies, fallback to message timestamp
         thread_ts = event.get("thread_ts", event["ts"])
 
-        # Remove bot mention tags from message text (e.g., "<@U123456789>")
+        # figure out if this is a DM or channel thread
+        if event.get("channel_type") == "im":
+            conversation_key = f"dm#{channel}"
+            context_type = "DM"
+        else:
+            conversation_key = f"thread#{channel}#{thread_ts}"
+            context_type = "thread"
+
+        # clean up the user's message
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
 
         logger.info(
-            f"Processing async @mention from user {user_id}",
-            extra={
-                "user_query": user_query,
-                "thread_ts": thread_ts,
-                "event_id": event_id,
-            },
+            f"Processing {context_type} message from user {user_id}",
+            extra={"user_query": user_query, "conversation_key": conversation_key, "event_id": event_id},
         )
 
-        # Handle empty queries after removing bot mentions
+        # handles empty messages
         if not user_query:
             client.chat_postMessage(
                 channel=channel,
                 text=BOT_MESSAGES["empty_query"],
-                thread_ts=thread_ts,  # Reply in thread to keep conversation organized
+                thread_ts=thread_ts,
             )
             return
 
-        # Query the knowledge base and get AI-generated response
-        kb_response = get_bedrock_knowledgebase_response(user_query)
+        # check if we have an existing conversation
+        session_id = get_conversation_session(conversation_key)
+
+        kb_response = query_bedrock(user_query, session_id)
         response_text = kb_response["output"]["text"]
 
-        # Create conversation key for feedback tracking
-        if event.get("channel_type") == "im":
-            conversation_key = f"dm#{channel}"
-        else:
-            conversation_key = f"thread#{channel}#{thread_ts}"
+        # store a new session if we just started a conversation
+        if not session_id and "sessionId" in kb_response:
+            store_conversation_session(
+                conversation_key,
+                kb_response["sessionId"],
+                user_id,
+                channel,
+                thread_ts if context_type == "thread" else None,
+            )
 
-        # Post response with feedback buttons
-        client.chat_postMessage(
+        # 1) Post the answer (plain) to get message_ts
+        post = client.chat_postMessage(
             channel=channel,
             text=response_text,
             thread_ts=thread_ts,
-            blocks=[
-                {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
-                {"type": "section", "text": {"type": "plain_text", "text": "Was this helpful?"}},
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "button",
-                            "text": {"type": "plain_text", "text": "Yes"},
-                            "action_id": "feedback_yes",
-                            "value": f"{conversation_key}|{user_query}",
-                        },
-                        {
-                            "type": "button",
-                            "text": {"type": "plain_text", "text": "No"},
-                            "action_id": "feedback_no",
-                            "value": f"{conversation_key}|{user_query}",
-                        },
-                    ],
-                    "block_id": "feedback_block",
-                },
-            ],
         )
+        message_ts = post["ts"]
+
+        # 2) Attach feedback buttons via chat_update (value kept small; no user_query)
+        feedback_value = json.dumps({"ck": conversation_key, "ch": channel, "tt": thread_ts, "mt": message_ts})
+        blocks = [
+            {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
+            {
+                "type": "section",
+                "text": {"type": "plain_text", "text": BOT_MESSAGES.get("feedback_prompt", "Was this helpful?")},
+            },
+            {
+                "type": "actions",
+                "block_id": "feedback_block",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Yes"},
+                        "action_id": "feedback_yes",
+                        "value": feedback_value,
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "No"},
+                        "style": "danger",
+                        "action_id": "feedback_no",
+                        "value": feedback_value,
+                    },
+                ],
+            },
+        ]
+        try:
+            client.chat_update(
+                channel=channel,
+                ts=message_ts,
+                text=response_text,
+                blocks=blocks,
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to attach feedback buttons: {e}",
+                extra={"event_id": event_id, "message_ts": message_ts},
+            )
 
     except Exception as err:
-        logger.error(f"Error processing async @mention: {err}", extra={"event_id": event_id})
-        # Send user-friendly error message instead of exposing technical details
-        client.chat_postMessage(
-            channel=channel,
-            text=BOT_MESSAGES["error_response"],
-            thread_ts=thread_ts,
+        logger.error(f"Error processing message: {err}", extra={"event_id": event_id})
+
+        # incase Slack API call fails, we still want to log the error
+        try:
+            client.chat_postMessage(
+                channel=channel,
+                text=BOT_MESSAGES["error_response"],
+                thread_ts=thread_ts,
+            )
+        except Exception as post_err:
+            logger.error(f"Failed to post error message: {post_err}")
+
+
+def store_feedback(
+    conversation_key,
+    user_query,
+    feedback_type,
+    user_id,
+    channel_id,
+    thread_ts=None,
+    message_ts=None,
+    additional_feedback=None,
+):
+    """
+    Store user feedback for analytics with rich context.
+
+    Key design:
+      - Per-answer vote:   pk="feedback#<conversation_key>#<message_ts>", sk="user#<user_id>"
+      - Conversation note: pk="feedback#<conversation_key>",            sk="user#<user_id>#note#<created_at>"
+
+    Idempotency:
+      - For votes (positive/negative) with message_ts, we conditionally write to prevent double-votes.
+    """
+    try:
+        now = int(time.time())
+        ttl = now + 7776000  # 90 days TTL for automatic cleanup
+
+        # Build keys: per-message votes if message_ts present; else conversation-scoped note
+        if message_ts:
+            pk = f"feedback#{conversation_key}#{message_ts}"
+            sk = f"user#{user_id}"
+            condition = "attribute_not_exists(pk) AND attribute_not_exists(sk)"
+        else:
+            pk = f"feedback#{conversation_key}"
+            sk = f"user#{user_id}#note#{now}"
+            condition = None
+
+        feedback_item = {
+            "pk": pk,
+            "sk": sk,
+            "conversation_key": conversation_key,
+            "feedback_type": feedback_type,  # 'positive' | 'negative' | 'additional'
+            "user_id": user_id,
+            "channel_id": channel_id,
+            "created_at": now,
+            "ttl": ttl,
+        }
+
+        # Optional context
+        if thread_ts:
+            feedback_item["thread_ts"] = thread_ts
+        if message_ts:
+            feedback_item["message_ts"] = message_ts
+        if user_query:
+            feedback_item["user_query"] = user_query[:1000]  # small excerpt to keep items compact
+        if additional_feedback:
+            feedback_item["additional_feedback"] = additional_feedback[:4000]
+
+        if condition:
+            table.put_item(Item=feedback_item, ConditionExpression=condition)
+        else:
+            table.put_item(Item=feedback_item)
+
+        logger.info(
+            "Stored feedback",
+            extra={
+                "pk": pk,
+                "sk": sk,
+                "feedback_type": feedback_type,
+                "conversation_key": conversation_key,
+                "user_id": user_id,
+                "has_thread": bool(thread_ts),
+                "has_message_ts": bool(message_ts),
+                "has_additional": bool(additional_feedback),
+            },
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Error storing feedback: {e}",
+            extra={"conversation_key": conversation_key, "feedback_type": feedback_type, "user_id": user_id},
         )
 
 
-def store_feedback(conversation_key, user_query, feedback_type, user_id, additional_feedback=None):
+def get_conversation_session(conversation_key):
     """
-    Store user feedback for analytics
+    Get existing Bedrock session for this conversation
     """
-
     try:
-        ttl = int(time.time()) + 7776000  # 90 days
-        feedback_item = {
-            "eventId": f"feedback#{conversation_key}#{int(time.time())}",
-            "user_query": user_query,
-            "feedback_type": feedback_type,
-            "user_id": user_id,
-            "timestamp": int(time.time()),
-            "ttl": ttl,
-        }
-        if additional_feedback:
-            feedback_item["additional_feedback"] = additional_feedback
-
-        table.put_item(Item=feedback_item)
-        logger.info(f"Stored {feedback_type} feedback for {conversation_key}")
+        response = table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        if "Item" in response:
+            logger.info(f"Found existing session for {conversation_key}")
+            return response["Item"]["session_id"]
+        return None
     except Exception as e:
-        logger.error(f"Error storing feedback: {e}")
+        logger.error(f"Error getting session: {e}")
+        return None
+
+
+def store_conversation_session(conversation_key, session_id, user_id, channel_id, thread_ts=None):
+    """
+    Store new Bedrock session for conversation memory
+    """
+    try:
+        ttl = int(time.time()) + 2592000  # 30 days
+        table.put_item(
+            Item={
+                "pk": conversation_key,
+                "sk": "session",
+                "session_id": session_id,
+                "user_id": user_id,
+                "channel_id": channel_id,
+                "thread_ts": thread_ts,
+                "created_at": int(time.time()),
+                "ttl": ttl,
+            }
+        )
+        logger.info(f"Stored session {session_id} for {conversation_key}")
+    except Exception as e:
+        logger.error(f"Error storing session: {e}")
+
+
+def query_bedrock(user_query, session_id=None):
+    """
+    Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
+
+    This function retrieves relevant documents from the knowledge base and generates
+    a response using the configured LLM model with guardrails for safety.
+    """
+
+    client = boto3.client(
+        service_name="bedrock-agent-runtime",
+        region_name=AWS_REGION,
+    )
+    request_params = {
+        "input": {"text": user_query},
+        "retrieveAndGenerateConfiguration": {
+            "type": "KNOWLEDGE_BASE",
+            "knowledgeBaseConfiguration": {
+                "knowledgeBaseId": KNOWLEDGEBASE_ID,
+                "modelArn": RAG_MODEL_ID,
+                "generationConfiguration": {
+                    "guardrailConfiguration": {
+                        "guardrailId": GUARD_RAIL_ID,
+                        "guardrailVersion": GUARD_VERSION,
+                    }
+                },
+            },
+        },
+    }
+
+    # add session if we have one for conversation continuity
+    if session_id:
+        request_params["sessionId"] = session_id
+        logger.info(f"Using existing session ID: {session_id}")
+    else:
+        logger.info("Starting new conversation")
+
+    response = client.retrieve_and_generate(**request_params)
+    logger.info(
+        "Got Bedrock response",
+        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
+    )
+    return response
