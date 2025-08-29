@@ -4,18 +4,15 @@ Slack event handlers - handles @mentions and direct messages to the bot
 
 import time
 import json
-import os
 import boto3
 from botocore.exceptions import ClientError
 from app.core.config import table, bot_token, logger
+import os
 
 
 def setup_handlers(app):
     """
-    Configure and register all Slack event handlers and middleware with the app.
-
-    This is the main entry point for setting up the bot's event handling capabilities.
-    Called during app initialization to wire up all handlers.
+    Register all event handlers with the Slack app
     """
 
     @app.middleware
@@ -93,6 +90,7 @@ def trigger_async_processing(event_data):
     This function invokes the same Lambda function asynchronously to handle the
     actual AI processing without blocking the initial Slack response.
     """
+    # incase we fail to re-invoke the lambda we should log an error
     try:
         lambda_client = boto3.client("lambda")
         lambda_client.invoke(
