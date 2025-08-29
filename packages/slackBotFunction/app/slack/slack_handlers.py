@@ -30,11 +30,11 @@ def setup_handlers(app):
 
         event_id = body.get("event_id")
         if not event_id or is_duplicate_event(event_id):
-            logger.info(f"Skipping duplicate or missing event: {event_id}")
+            logger.info("Skipping duplicate or missing event", extra={"event_id": event_id})
             return
 
         user_id = event.get("user", "unknown")
-        logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
+        logger.info("Processing @mention from user", extra={"user_id": user_id, "event_id": event_id})
 
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
@@ -52,11 +52,11 @@ def setup_handlers(app):
 
         event_id = body.get("event_id")
         if not event_id or is_duplicate_event(event_id):
-            logger.info(f"Skipping duplicate or missing event: {event_id}")
+            logger.info("Skipping duplicate or missing event", extra={"event_id": event_id})
             return
 
         user_id = event.get("user", "unknown")
-        logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
+        logger.info("Processing DM from user", extra={"user_id": user_id, "event_id": event_id})
 
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
@@ -78,7 +78,7 @@ def is_duplicate_event(event_id):
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return True  # Duplicate
-        logger.error(f"Error checking event duplication: {e}")
+        logger.error("Error checking event duplication", extra={"error": str(e)})
         return False
 
 
@@ -100,4 +100,4 @@ def trigger_async_processing(event_data):
         )
         logger.info("Async processing triggered successfully")
     except Exception as e:
-        logger.error(f"Failed to trigger async processing: {e}")
+        logger.error("Failed to trigger async processing", extra={"error": str(e)})

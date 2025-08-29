@@ -10,11 +10,8 @@ import json
 import time
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
-from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from app.config.config import AWS_REGION
-
-logger = Logger(service="createIndexFunction")
+from app.config.config import AWS_REGION, logger
 
 
 def get_opensearch_client(endpoint):

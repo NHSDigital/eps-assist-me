@@ -1,14 +1,11 @@
 import os
 import json
 import boto3
-from aws_lambda_powertools import Logger
 from .prompt_loader import load_prompt
 from .exceptions import ConfigurationError
 
-logger = Logger(service="queryReformulator")
 
-
-def reformulate_query(user_query: str) -> str:
+def reformulate_query(logger, user_query: str) -> str:
     """
     Reformulate user query using Claude Haiku for better RAG retrieval.
 
@@ -27,7 +24,7 @@ def reformulate_query(user_query: str) -> str:
             raise ConfigurationError("QUERY_REFORMULATION_PROMPT_NAME environment variable not set")
 
         # Load prompt with specified version (DRAFT by default)
-        prompt_template = load_prompt(prompt_name, prompt_version)
+        prompt_template = load_prompt(logger, prompt_name, prompt_version)
 
         logger.info(
             "Prompt loaded successfully from Bedrock",
