@@ -9,13 +9,7 @@ has access to the latest documentation for answering user queries.
 import time
 import boto3
 from botocore.exceptions import ClientError
-from aws_lambda_powertools import Logger
-from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID
-
-logger = Logger(service="syncKnowledgeBaseFunction")
-
-# Supported file types for Bedrock Knowledge Base ingestion
-SUPPORTED_FILE_TYPES = {".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"}
+from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID, SUPPORTED_FILE_TYPES, logger
 
 
 def is_supported_file_type(file_key):
