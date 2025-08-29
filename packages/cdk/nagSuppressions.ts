@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
@@ -123,7 +123,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda uses wildcard permissions as recommended by AWS docs for Bedrock prompt management."
+        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation."
       }
     ]
   )
@@ -141,9 +141,12 @@ export const nagSuppressions = (stack: Stack) => {
   )
 
   // Suppress secrets without rotation
-  safeAddNagSuppression(
+  safeAddNagSuppressionGroup(
     stack,
-    "/EpsAssistMeStack/Secrets/SlackBotToken/Secret/Resource",
+    [
+      "/EpsAssistMeStack/Secrets/SlackBotToken/Secret/Resource",
+      "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource"
+    ],
     [
       {
         id: "AwsSolutions-SMG4",
