@@ -203,3 +203,7 @@ const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<N
     console.log(`Could not find path ${path}: ${err}`)
   }
 }
+
+const safeAddNagSuppressionGroup = (stack: Stack, paths: Array<string>, suppressions: Array<NagPackSuppression>) => {
+  paths.forEach(path => safeAddNagSuppression(stack, path, suppressions))
+}
