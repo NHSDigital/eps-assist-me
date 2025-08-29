@@ -112,7 +112,7 @@ def app_mention_handler(event, ack, body, client):
         try:
             client.chat_postMessage(
                 channel=channel_id,
-                text=BOT_MESSAGES.get("feedback_thanks", "Thank you for your feedback."),
+                text=BOT_MESSAGES["feedback_thanks"],
                 thread_ts=thread_root,
             )
         except Exception as e:
@@ -124,7 +124,7 @@ def app_mention_handler(event, ack, body, client):
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
-def dm_message_handler(event, ack, body, client):
+def dm_message_handler(event, event_id, body, client):
     """
     Direct messages:
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
@@ -132,10 +132,6 @@ def dm_message_handler(event, ack, body, client):
     """
     if event.get("channel_type") != "im":
         return  # not a DM; the channel handler will evaluate it
-    ack()
-    event_id = _gate_common(event, body)
-    if not event_id:
-        return
 
     text = (event.get("text") or "").strip()
     channel_id = event["channel"]
@@ -161,7 +157,7 @@ def dm_message_handler(event, ack, body, client):
         try:
             client.chat_postMessage(
                 channel=channel_id,
-                text=BOT_MESSAGES.get("feedback_thanks", "Thank you for your feedback."),
+                text=BOT_MESSAGES["feedback_thanks"],
                 thread_ts=thread_root,
             )
         except Exception as e:
@@ -172,7 +168,7 @@ def dm_message_handler(event, ack, body, client):
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
-def channel_message_handler(event, ack, body, client):
+def channel_message_handler(event, event_id, body, client):
     """
     Channel messages:
     - Ignore top-level messages (policy: require @mention to start).
@@ -182,10 +178,6 @@ def channel_message_handler(event, ack, body, client):
     """
     if event.get("channel_type") == "im":
         return  # handled in the DM handler
-    ack()
-    event_id = _gate_common(event, body)
-    if not event_id:
-        return
 
     text = (event.get("text") or "").strip()
     channel_id = event["channel"]
@@ -197,7 +189,9 @@ def channel_message_handler(event, ack, body, client):
     try:
         resp = table.get_item(Key={"pk": conversation_key, "sk": "session"})
         if "Item" not in resp:
+            logger.info(f"No session found for thread: {conversation_key}")
             return  # not a bot-owned thread; ignore
+        logger.info(f"Found session for thread: {conversation_key}")
     except Exception as e:
         logger.error(f"Error checking thread session: {e}")
         return
@@ -222,7 +216,7 @@ def channel_message_handler(event, ack, body, client):
         try:
             client.chat_postMessage(
                 channel=channel_id,
-                text=BOT_MESSAGES.get("feedback_thanks", "Thank you for your feedback."),
+                text=BOT_MESSAGES["feedback_thanks"],
                 thread_ts=thread_root,
             )
         except Exception as e:
@@ -233,6 +227,68 @@ def channel_message_handler(event, ack, body, client):
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
+def unified_message_handler(event, ack, body, client):
+    """Handle all message events - DMs and channel messages"""
+    ack()
+    event_id = _gate_common(event, body)
+    if not event_id:
+        return
+
+    # Route to appropriate handler based on message type
+    if event.get("channel_type") == "im":
+        # DM handling
+        dm_message_handler(event, event_id, body, client)
+    else:
+        # Channel message handling
+        channel_message_handler(event, event_id, body, client)
+
+
+def feedback_yes_handler(ack, body, client):
+    """Handle positive feedback button clicks."""
+    ack()
+    try:
+        feedback_data = json.loads(body["actions"][0]["value"])
+        store_feedback(
+            feedback_data["ck"],
+            None,
+            "positive",
+            body["user"]["id"],
+            feedback_data["ch"],
+            feedback_data.get("tt"),
+            feedback_data.get("mt"),
+        )
+        client.chat_postMessage(
+            channel=feedback_data["ch"],
+            text=BOT_MESSAGES["feedback_positive_thanks"],
+            thread_ts=feedback_data.get("tt"),
+        )
+    except Exception as e:
+        logger.error(f"Error handling positive feedback: {e}")
+
+
+def feedback_no_handler(ack, body, client):
+    """Handle negative feedback button clicks."""
+    ack()
+    try:
+        feedback_data = json.loads(body["actions"][0]["value"])
+        store_feedback(
+            feedback_data["ck"],
+            None,
+            "negative",
+            body["user"]["id"],
+            feedback_data["ch"],
+            feedback_data.get("tt"),
+            feedback_data.get("mt"),
+        )
+        client.chat_postMessage(
+            channel=feedback_data["ch"],
+            text=BOT_MESSAGES["feedback_negative_thanks"],
+            thread_ts=feedback_data.get("tt"),
+        )
+    except Exception as e:
+        logger.error(f"Error handling negative feedback: {e}")
+
+
 # ================================================================
 # Registration (kept minimal to satisfy complexity checkers)
 # ================================================================
@@ -241,8 +297,9 @@ def channel_message_handler(event, ack, body, client):
 def setup_handlers(app):
     """Register handlers. Intentionally minimal—no branching here."""
     app.event("app_mention")(app_mention_handler)
-    app.event("message")(dm_message_handler)
-    app.event("message")(channel_message_handler)
+    app.event("message")(unified_message_handler)
+    app.action("feedback_yes")(feedback_yes_handler)
+    app.action("feedback_no")(feedback_no_handler)
 
 
 # ================================================================

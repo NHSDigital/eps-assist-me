@@ -52,5 +52,28 @@ def test_feedback_storage_with_additional_text(mock_store_feedback, mock_env):
 
 def test_feedback_message_empty_text(mock_env):
     """Test that empty feedback doesn't crash"""
-    # This test just ensures no crash occurs with empty feedback
-    assert True  # Placeholder test
+    from app.slack.slack_handlers import _gate_common, _strip_mentions, _conversation_key_and_root
+    from app.slack.slack_events import get_conversation_session
+
+    # Test _gate_common helper functions
+    result = _gate_common({}, {})
+    assert result is None
+
+    result = _gate_common({"bot_id": "B123"}, {"event_id": "evt123"})
+    assert result is None
+
+    # Test strip mentions
+    result = _strip_mentions("<@U123> hello world")
+    assert result == "hello world"
+
+    # Test conversation key for DM
+    event = {"channel": "D123", "ts": "456", "channel_type": "im"}
+    key, root = _conversation_key_and_root(event)
+    assert key == "dm#D123"
+    assert root == "456"
+
+    # Test error handling
+    with patch("app.core.config.table") as mock_table:
+        mock_table.get_item.side_effect = Exception("DB error")
+        result = get_conversation_session("test-conv")
+        assert result is None

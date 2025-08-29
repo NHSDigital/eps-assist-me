@@ -136,3 +136,26 @@ def test_trigger_async_processing_error(mock_boto_client, mock_boto_resource, mo
 
     mock_boto_client.assert_called_once_with("lambda")
     mock_lambda_client.invoke.assert_called_once()
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_handler_missing_slack_event(mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test handler with missing slack_event in async processing"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+
+    from app.handler import handler
+
+    event = {"async_processing": True}
+    context = Mock()
+
+    result = handler(event, context)
+    assert result["statusCode"] == 400

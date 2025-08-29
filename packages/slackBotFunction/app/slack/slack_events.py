@@ -37,15 +37,16 @@ def process_async_slack_event(slack_event_data):
         raw_text = event["text"]
         user_id = event["user"]
         channel = event["channel"]
-        thread_ts = event.get("thread_ts", event["ts"])
-
         # figure out if this is a DM or channel thread
         if event.get("channel_type") == "im":
             conversation_key = f"dm#{channel}"
             context_type = "DM"
+            thread_ts = event.get("thread_ts", event["ts"])
         else:
-            conversation_key = f"thread#{channel}#{thread_ts}"
+            thread_root = event.get("thread_ts", event["ts"])
+            conversation_key = f"thread#{channel}#{thread_root}"
             context_type = "thread"
+            thread_ts = thread_root
 
         # clean up the user's message
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
@@ -94,7 +95,7 @@ def process_async_slack_event(slack_event_data):
             {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
             {
                 "type": "section",
-                "text": {"type": "plain_text", "text": BOT_MESSAGES.get("feedback_prompt", "Was this helpful?")},
+                "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]},
             },
             {
                 "type": "actions",
@@ -109,7 +110,6 @@ def process_async_slack_event(slack_event_data):
                     {
                         "type": "button",
                         "text": {"type": "plain_text", "text": "No"},
-                        "style": "danger",
                         "action_id": "feedback_no",
                         "value": feedback_value,
                     },

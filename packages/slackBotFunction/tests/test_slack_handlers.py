@@ -32,7 +32,7 @@ def test_setup_handlers_registers_correctly(mock_env):
         setup_handlers(mock_app)
 
     # Verify all handlers are registered
-    assert mock_app.event.call_count == 3  # app_mention and 2 message handlers
+    assert mock_app.event.call_count == 2  # app_mention and unified message handler
 
 
 def test_app_mention_handler(mock_env):
@@ -199,7 +199,7 @@ def test_feedback_yes_action_handler(mock_env):
         mock_ack = Mock()
         mock_body = {
             "user": {"id": "U123"},
-            "actions": [{"value": "conv-key|test query"}],
+            "actions": [{"value": '{"ck": "conv-key", "ch": "C123", "tt": "123", "mt": "456"}'}],
             "channel": {"id": "C123"},
             "message": {"ts": "123"},
         }
@@ -209,7 +209,7 @@ def test_feedback_yes_action_handler(mock_env):
             yes_handler(mock_ack, mock_body, mock_client)
 
             mock_ack.assert_called_once()
-            mock_store.assert_called_once_with("conv-key", "test query", "positive", "U123")
+            mock_store.assert_called_once_with("conv-key", None, "positive", "U123", "C123", "123", "456")
             mock_client.chat_postMessage.assert_called_once()
 
 
@@ -242,7 +242,7 @@ def test_feedback_no_action_handler(mock_env):
         mock_ack = Mock()
         mock_body = {
             "user": {"id": "U123"},
-            "actions": [{"value": "conv-key|test query"}],
+            "actions": [{"value": '{"ck": "conv-key", "ch": "C123", "tt": "123", "mt": "456"}'}],
             "channel": {"id": "C123"},
             "message": {"ts": "123"},
         }
@@ -252,7 +252,7 @@ def test_feedback_no_action_handler(mock_env):
             no_handler(mock_ack, mock_body, mock_client)
 
             mock_ack.assert_called_once()
-            mock_store.assert_called_once_with("conv-key", "test query", "negative", "U123")
+            mock_store.assert_called_once_with("conv-key", None, "negative", "U123", "C123", "123", "456")
             mock_client.chat_postMessage.assert_called_once()
 
 
