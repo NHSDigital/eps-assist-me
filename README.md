@@ -197,7 +197,7 @@ These are used to do common commands related to cdk
 This .github folder contains workflows and templates related to GitHub, along with actions and scripts pertaining to Jira.
 
 - `dependabot.yml` Dependabot definition file.
-- `pull_request_template.yml` Template for pull requests.
+- `pull_request_template.md` Template for pull requests.
 
 Actions are in the `.github/actions` folder:
 
@@ -217,10 +217,11 @@ Scripts are in the `.github/scripts` folder:
 Workflows are in the `.github/workflows` folder:
 
 - `combine-dependabot-prs.yml` Workflow for combining dependabot pull requests. Runs on demand.
+- `create_release_notes.yml` Generates release notes for deployments and environment updates.
 - `delete_old_cloudformation_stacks.yml` Workflow for deleting old cloud formation stacks. Runs daily.
 - `dependabot_auto_approve_and_merge.yml` Workflow to auto merge dependabot updates.
 - `pr_title_check.yml` Checks PR titles for required prefix and ticket or dependabot reference.
-- `pr-link.yaml` This workflow template links Pull Requests to Jira tickets and runs when a pull request is opened.
+- `pr-link.yml` This workflow template links Pull Requests to Jira tickets and runs when a pull request is opened.
 - `pull_request.yml` Called when pull request is opened or updated. Packages and deploys the code to dev AWS account for testing.
 - `release.yml` Runs on demand to create a release and deploy to all environments.
 - `cdk_package_code.yml` Packages code into a docker image and uploads to a github artifact for later deployment.
