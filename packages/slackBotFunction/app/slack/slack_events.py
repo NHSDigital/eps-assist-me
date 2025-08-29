@@ -17,6 +17,7 @@ from app.core.config import (
     GUARD_VERSION,
     BOT_MESSAGES,
 )
+from app.services.query_reformulator import reformulate_query
 
 
 def process_async_slack_event(slack_event_data):
@@ -63,10 +64,15 @@ def process_async_slack_event(slack_event_data):
             )
             return
 
+        # Reformulate query for better RAG retrieval
+        reformulated_query = reformulate_query(logger, user_query)
+
         # check if we have an existing conversation
         session_id = get_conversation_session(conversation_key)
 
-        kb_response = query_bedrock(user_query, session_id)
+        # Query the knowledge base with reformulated query
+        kb_response = query_bedrock(reformulated_query, session_id)
+
         response_text = kb_response["output"]["text"]
 
         # store a new session if we just started a conversation
@@ -81,7 +87,7 @@ def process_async_slack_event(slack_event_data):
         client.chat_postMessage(channel=channel, text=response_text, thread_ts=thread_ts)
 
     except Exception as err:
-        logger.error(f"Error processing message: {err}", extra={"event_id": event_id})
+        logger.error("Error processing message", extra={"event_id": event_id, "error": str(err)})
 
         # incase Slack API call fails, we still want to log the error
         try:
@@ -91,7 +97,7 @@ def process_async_slack_event(slack_event_data):
                 thread_ts=thread_ts,
             )
         except Exception as post_err:
-            logger.error(f"Failed to post error message: {post_err}")
+            logger.error("Failed to post error message", extra={"error": str(post_err)})
 
 
 def get_conversation_session(conversation_key):
@@ -101,11 +107,11 @@ def get_conversation_session(conversation_key):
     try:
         response = table.get_item(Key={"pk": conversation_key, "sk": "session"})
         if "Item" in response:
-            logger.info(f"Found existing session for {conversation_key}")
+            logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]["session_id"]
         return None
     except Exception as e:
-        logger.error(f"Error getting session: {e}")
+        logger.error("Error getting session", extra={"error": str(e)})
         return None
 
 
@@ -127,9 +133,9 @@ def store_conversation_session(conversation_key, session_id, user_id, channel_id
                 "ttl": ttl,
             }
         )
-        logger.info(f"Stored session {session_id} for {conversation_key}")
+        logger.info("Stored session", extra={"session_id": session_id, "conversation_key": conversation_key})
     except Exception as e:
-        logger.error(f"Error storing session: {e}")
+        logger.error("Error storing session", extra={"error": str(e)})
 
 
 def query_bedrock(user_query, session_id=None):
@@ -164,7 +170,7 @@ def query_bedrock(user_query, session_id=None):
     # add session if we have one for conversation continuity
     if session_id:
         request_params["sessionId"] = session_id
-        logger.info(f"Using existing session ID: {session_id}")
+        logger.info("Using existing session", extra={"session_id": session_id})
     else:
         logger.info("Starting new conversation")
 

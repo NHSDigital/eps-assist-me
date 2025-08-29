@@ -15,6 +15,7 @@ import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
 import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
+import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 
 const VECTOR_INDEX_NAME = "eps-assist-os-index"
@@ -55,6 +56,11 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName
     })
 
+    // Create Bedrock Prompt Resources
+    const bedrockPromptResources = new BedrockPromptResources(this, "BedrockPromptResources", {
+      stackName: props.stackName
+    })
+
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
       stackName: props.stackName
@@ -88,7 +94,7 @@ export class EpsAssistMeStack extends Stack {
       account
     })
 
-    // Create runtime policies that depend on VectorKB ARNs
+    // Create runtime policies with resource dependencies
     const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
       region,
       account,
@@ -98,7 +104,8 @@ export class EpsAssistMeStack extends Stack {
       slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn,
       knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
       guardrailArn: vectorKB.guardrail.attrGuardrailArn,
-      dataSourceArn: vectorKB.dataSourceArn
+      dataSourceArn: vectorKB.dataSourceArn,
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
     })
 
     // Create Functions construct with actual values from VectorKB
@@ -122,7 +129,8 @@ export class EpsAssistMeStack extends Stack {
       account,
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
-      slackBotStateTable: tables.slackBotStateTable.table
+      slackBotStateTable: tables.slackBotStateTable.table,
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
     })
 
     // Create vector index after Functions are created
@@ -156,6 +164,12 @@ export class EpsAssistMeStack extends Stack {
     new CfnOutput(this, "SlackBotEventsEndpoint", {
       value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
       description: "Slack Events API endpoint for @mentions and direct messages"
+    })
+
+    // Output: Bedrock Prompt ARN
+    new CfnOutput(this, "QueryReformulationPromptArn", {
+      value: bedrockPromptResources.queryReformulationPrompt.promptArn,
+      description: "ARN of the query reformulation prompt in Bedrock"
     })
 
     // Final CDK Nag Suppressions

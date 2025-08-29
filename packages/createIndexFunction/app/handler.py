@@ -10,11 +10,8 @@ import json
 import time
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
-from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from app.config.config import AWS_REGION
-
-logger = Logger(service="createIndexFunction")
+from app.config.config import AWS_REGION, logger
 
 
 def get_opensearch_client(endpoint):
@@ -23,7 +20,7 @@ def get_opensearch_client(endpoint):
     """
     # Determine service type: AOSS (Serverless) or ES (managed)
     service = "aoss" if "aoss" in endpoint else "es"
-    logger.debug(f"Connecting to OpenSearch service: {service} at {endpoint}")
+    logger.debug("Connecting to OpenSearch service", extra={"service": service, "endpoint": endpoint})
     return OpenSearch(
         hosts=[{"host": endpoint, "port": 443}],
         http_auth=AWSV4SignerAuth(
@@ -45,7 +42,7 @@ def wait_for_index_aoss(opensearch_client, index_name, timeout=300, poll_interva
     AOSS has eventual consistency, so we need to poll until the index
     is fully created and mappings are available.
     """
-    logger.info(f"Waiting for index '{index_name}' to be available in AOSS...")
+    logger.info("Waiting for index to be available in AOSS", extra={"index_name": index_name})
     start = time.time()
     while True:
         try:
@@ -53,14 +50,14 @@ def wait_for_index_aoss(opensearch_client, index_name, timeout=300, poll_interva
                 # Verify mappings are also available (not just index existence)
                 mapping = opensearch_client.indices.get_mapping(index=index_name)
                 if mapping and index_name in mapping:
-                    logger.info(f"Index '{index_name}' exists and mappings are ready.")
+                    logger.info("Index exists and mappings are ready", extra={"index_name": index_name})
                     return True
             else:
-                logger.info(f"Index '{index_name}' does not exist yet...")
+                logger.info("Index does not exist yet", extra={"index_name": index_name})
         except Exception as exc:
-            logger.info(f"Still waiting for index '{index_name}': {exc}")
+            logger.info("Still waiting for index", extra={"index_name": index_name, "error": str(exc)})
         if time.time() - start > timeout:
-            logger.error(f"Timed out waiting for index '{index_name}' to be available.")
+            logger.error("Timed out waiting for index to be available", extra={"index_name": index_name})
             return False
         time.sleep(poll_interval)
 
@@ -109,18 +106,18 @@ def create_and_wait_for_index(client, index_name):
 
     try:
         if not client.indices.exists(index=params["index"]):
-            logger.info(f"Creating index {params['index']}")
+            logger.info("Creating index", extra={"index_name": params["index"]})
             client.indices.create(index=params["index"], body=params["body"])
-            logger.info(f"Index {params['index']} creation initiated.")
+            logger.info("Index creation initiated", extra={"index_name": params["index"]})
         else:
-            logger.info(f"Index {params['index']} already exists")
+            logger.info("Index already exists", extra={"index_name": params["index"]})
 
         if not wait_for_index_aoss(client, params["index"]):
             raise RuntimeError(f"Index {params['index']} failed to appear in time")
 
-        logger.info(f"Index {params['index']} is ready and active.")
+        logger.info("Index is ready and active", extra={"index_name": params["index"]})
     except Exception as e:
-        logger.error(f"Error creating or waiting for index: {e}")
+        logger.error("Error creating or waiting for index", extra={"error": str(e)})
         raise e
 
 
@@ -181,10 +178,10 @@ def handler(event: dict, context: LambdaContext) -> dict:
             try:
                 if client.indices.exists(index=index_name):
                     client.indices.delete(index=index_name)
-                    logger.info(f"Deleted index {index_name}")
+                    logger.info("Deleted index", extra={"index_name": index_name})
             except Exception as e:
                 # Don't fail deletion if index cleanup fails
-                logger.error(f"Error deleting index: {e}")
+                logger.error("Error deleting index", extra={"error": str(e)})
             return {
                 "PhysicalResourceId": event.get("PhysicalResourceId", f"index-{index_name}"),
                 "Status": "SUCCESS",
@@ -193,5 +190,5 @@ def handler(event: dict, context: LambdaContext) -> dict:
             raise ValueError(f"Invalid request type: {request_type}")
 
     except Exception as e:
-        logger.error(f"Error processing request: {e}")
+        logger.error("Error processing request", extra={"error": str(e)})
         raise

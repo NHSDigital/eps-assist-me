@@ -3,6 +3,8 @@ import {PolicyStatement, ManagedPolicy} from "aws-cdk-lib/aws-iam"
 
 // Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+// Claude model for query reformulation
+const QUERY_REFORMULATION_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 
 export interface RuntimePoliciesProps {
   readonly region: string
@@ -14,6 +16,7 @@ export interface RuntimePoliciesProps {
   readonly knowledgeBaseArn: string
   readonly guardrailArn: string
   readonly dataSourceArn: string
+  readonly promptName: string
 }
 
 export class RuntimePolicies extends Construct {
@@ -53,7 +56,35 @@ export class RuntimePolicies extends Construct {
     // Create managed policy for SlackBot Lambda function
     const slackBotPolicy = new PolicyStatement({
       actions: ["bedrock:InvokeModel"],
-      resources: [`arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`]
+      resources: [
+        `arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`,
+        `arn:aws:bedrock:${props.region}::foundation-model/${QUERY_REFORMULATION_MODEL_ID}`
+      ]
+    })
+
+    // Compehensive Bedrock prompt policy - includes all prompt management permissions
+    const slackBotPromptPolicy = new PolicyStatement({
+      sid: "PromptManagementPermissions",
+      actions: [
+        "bedrock:CreatePrompt",
+        "bedrock:UpdatePrompt",
+        "bedrock:GetPrompt",
+        "bedrock:ListPrompts",
+        "bedrock:DeletePrompt",
+        "bedrock:CreatePromptVersion",
+        "bedrock:OptimizePrompt",
+        "bedrock:GetFoundationModel",
+        "bedrock:ListFoundationModels",
+        "bedrock:GetInferenceProfile",
+        "bedrock:ListInferenceProfiles",
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:RenderPrompt",
+        "bedrock:TagResource",
+        "bedrock:UntagResource",
+        "bedrock:ListTagsForResource"
+      ],
+      resources: ["*"] // Use wildcard as recommended by AWS docs
     })
 
     const slackBotKnowledgeBasePolicy = new PolicyStatement({
@@ -108,6 +139,7 @@ export class RuntimePolicies extends Construct {
       description: "Policy for SlackBot Lambda to access Bedrock, SSM, Lambda, DynamoDB, and KMS",
       statements: [
         slackBotPolicy,
+        slackBotPromptPolicy,
         slackBotKnowledgeBasePolicy,
         slackBotSSMPolicy,
         slackBotLambdaPolicy,
