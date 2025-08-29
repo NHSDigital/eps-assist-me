@@ -81,7 +81,7 @@ def process_async_slack_event(slack_event_data):
                 thread_ts if context_type == "thread" else None,
             )
 
-        # 1) Post the answer (plain) to get message_ts
+        # Post the answer (plain) to get message_ts
         post = client.chat_postMessage(
             channel=channel,
             text=response_text,
@@ -89,7 +89,7 @@ def process_async_slack_event(slack_event_data):
         )
         message_ts = post["ts"]
 
-        # 2) Attach feedback buttons via chat_update (value kept small; no user_query)
+        # Attach feedback buttons via chat_update (value kept small; no user_query)
         feedback_value = json.dumps({"ck": conversation_key, "ch": channel, "tt": thread_ts, "mt": message_ts})
         blocks = [
             {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},

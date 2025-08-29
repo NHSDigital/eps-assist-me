@@ -309,7 +309,7 @@ def setup_handlers(app):
 
 def is_duplicate_event(event_id):
     """
-    Best-effort deduplication for Slack retries using DynamoDB conditional write.
+    Check if we've already processed this event using DynamoDB conditional writes.
 
     Key:
         pk = f"event#{event_id}", sk = "dedup", ttl = now + 1h
@@ -323,23 +323,23 @@ def is_duplicate_event(event_id):
             Item={"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
             ConditionExpression="attribute_not_exists(pk)",
         )
-        return False
+        return False  # Not a duplicate
     except ClientError as e:
         if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
-            return True
+            return True  # Duplicate
         logger.error(f"Error checking event duplication: {e}")
         return False
 
 
 def trigger_async_processing(event_data):
     """
-    Asynchronously re-invoke this Lambda for long-running work (e.g., model calls).
+    Trigger asynchronous Lambda invocation to process Slack events.
 
-    Slack requires responses within ~3 seconds. To avoid timeouts, we:
-      1) ack immediately in the handler,
-      2) self-invoke the Lambda with InvocationType='Event',
-      3) perform the heavy work in the async path and post back to Slack.
+    Slack requires responses within 3 seconds, but Bedrock queries can take longer.
+    This function invokes the same Lambda function asynchronously to handle the
+    actual AI processing without blocking the initial Slack response.
     """
+    # incase we fail to re-invoke the lambda we should log an error
     try:
         lambda_client = boto3.client("lambda")
         lambda_client.invoke(
