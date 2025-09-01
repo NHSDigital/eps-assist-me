@@ -40,7 +40,7 @@ try:
 except json.JSONDecodeError as e:
     raise ValueError(f"Invalid JSON in Parameter Store: {e}")
 except Exception as e:
-    logger.error(f"Configuration error: {e}")
+    logger.error("Configuration error", extra={"error": str(e)})
     raise
 
 # initialise the Slack app
@@ -57,7 +57,7 @@ AWS_REGION = os.environ["AWS_REGION"]
 GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
 GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
 
-logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
+logger.info("Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION})
 
 # Constants
 FEEDBACK_PREFIX = "feedback:"

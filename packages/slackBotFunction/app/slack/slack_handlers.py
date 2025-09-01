@@ -330,7 +330,7 @@ def is_duplicate_event(event_id):
     except ClientError as e:
         if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             return True  # Duplicate
-        logger.error(f"Error checking event duplication: {e}")
+        logger.error("Error checking event duplication", extra={"error": str(e)})
         return False
 
 
@@ -352,4 +352,4 @@ def trigger_async_processing(event_data):
         )
         logger.info("Async processing triggered successfully")
     except Exception as e:
-        logger.error(f"Failed to trigger async processing: {e}")
+        logger.error("Failed to trigger async processing", extra={"error": str(e)})

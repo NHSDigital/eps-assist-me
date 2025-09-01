@@ -7,6 +7,9 @@ import {TableV2} from "aws-cdk-lib/aws-dynamodb"
 
 // Claude model for RAG responses
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+// Claude model for query reformulation
+const QUERY_REFORMULATION_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+const QUERY_REFORMULATION_PROMPT_VERSION = "DRAFT"
 const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
 const LAMBDA_MEMORY_SIZE = "265"
 
@@ -31,6 +34,7 @@ export interface FunctionsProps {
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
   readonly slackBotStateTable: TableV2
+  readonly promptName: string
 }
 
 export class Functions extends Construct {
@@ -62,6 +66,7 @@ export class Functions extends Construct {
       additionalPolicies: [props.slackBotManagedPolicy],
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
+        "QUERY_REFORMULATION_MODEL_ID": QUERY_REFORMULATION_MODEL_ID,
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "BEDROCK_KB_DATA_SOURCE": BEDROCK_KB_DATA_SOURCE,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
@@ -69,7 +74,9 @@ export class Functions extends Construct {
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
         "GUARD_RAIL_ID": props.guardrailId,
         "GUARD_RAIL_VERSION": props.guardrailVersion,
-        "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName
+        "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName,
+        "QUERY_REFORMULATION_PROMPT_NAME": props.promptName,
+        "QUERY_REFORMULATION_PROMPT_VERSION": QUERY_REFORMULATION_PROMPT_VERSION
       }
     })
 

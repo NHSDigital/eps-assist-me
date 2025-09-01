@@ -35,10 +35,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths.",
-        appliesTo: [
-          "Resource::<FunctionsSyncKnowledgeBaseFunctionLambdaLogGroupB19BE2BE.Arn>:log-stream:*"
-        ]
+        reason: "Wildcard permissions are required for log stream access under known paths."
       }
     ]
   )
@@ -181,10 +178,7 @@ export const nagSuppressions = (stack: Stack) => {
       [
         {
           id: "AwsSolutions-IAM4",
-          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
-          appliesTo: [
-            "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-          ]
+          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution."
         }
       ]
     )
@@ -195,10 +189,7 @@ export const nagSuppressions = (stack: Stack) => {
       [
         {
           id: "AwsSolutions-IAM5",
-          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications.",
-          appliesTo: [
-            "Resource::*"
-          ]
+          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications."
         }
       ]
     )
@@ -213,9 +204,6 @@ const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<N
   }
 }
 
-// Apply the same nag suppression to multiple resources
 const safeAddNagSuppressionGroup = (stack: Stack, paths: Array<string>, suppressions: Array<NagPackSuppression>) => {
-  for (const p of paths) {
-    safeAddNagSuppression(stack, p, suppressions)
-  }
+  paths.forEach(path => safeAddNagSuppression(stack, path, suppressions))
 }

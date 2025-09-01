@@ -2,4 +2,4 @@
 max-line-length = 120
 exclude = .*,venv,node_modules,cdk.out
 max-complexity = 12
-ignore = F821,E203
+ignore = F821,E203,W503
