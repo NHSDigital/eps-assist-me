@@ -51,7 +51,7 @@ def _gate_common(event, body):
 
 def _strip_mentions(text: str) -> str:
     """Remove Slack user mentions like <@U123> or <@U123|alias> from text."""
-    return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", (text or "").strip()).strip()
+    return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", text or "").strip()
 
 
 def _conversation_key_and_root(event):
