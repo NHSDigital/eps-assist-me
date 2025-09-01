@@ -14,7 +14,19 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from app.core.config import table, bot_token, logger, BOT_MESSAGES
+from app.core.config import (
+    table,
+    bot_token,
+    logger,
+    BOT_MESSAGES,
+    FEEDBACK_PREFIX,
+    CHANNEL_TYPE_IM,
+    SESSION_SK,
+    DEDUP_SK,
+    EVENT_PREFIX,
+    DM_PREFIX,
+    THREAD_PREFIX,
+)
 from app.slack.slack_events import store_feedback
 
 
@@ -67,9 +79,9 @@ def _conversation_key_and_root(event):
     """
     channel_id = event["channel"]
     root = event.get("thread_ts") or event.get("ts")
-    if event.get("channel_type") == "im":
-        return f"dm#{channel_id}", root
-    return f"thread#{channel_id}#{root}", root
+    if event.get("channel_type") == CHANNEL_TYPE_IM:
+        return f"{DM_PREFIX}{channel_id}", root
+    return f"{THREAD_PREFIX}{channel_id}#{root}", root
 
 
 # ================================================================
@@ -93,7 +105,7 @@ def app_mention_handler(event, ack, body, client):
     conversation_key, thread_root = _conversation_key_and_root(event)
 
     cleaned = _strip_mentions(event.get("text") or "")
-    if cleaned.lower().startswith("feedback:"):
+    if cleaned.lower().startswith(FEEDBACK_PREFIX):
         note = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
         try:
             store_feedback(
@@ -130,7 +142,7 @@ def dm_message_handler(event, event_id, body, client):
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
     - otherwise -> forward to async processing (Q&A).
     """
-    if event.get("channel_type") != "im":
+    if event.get("channel_type") != CHANNEL_TYPE_IM:
         return  # not a DM; the channel handler will evaluate it
 
     text = (event.get("text") or "").strip()
@@ -138,7 +150,7 @@ def dm_message_handler(event, event_id, body, client):
     conversation_key, thread_root = _conversation_key_and_root(event)
     user_id = event.get("user", "unknown")
 
-    if text.lower().startswith("feedback:"):
+    if text.lower().startswith(FEEDBACK_PREFIX):
         note = text.split(":", 1)[1].strip() if ":" in text else ""
         try:
             store_feedback(
@@ -176,7 +188,7 @@ def channel_message_handler(event, event_id, body, client):
         * 'feedback:' prefix -> store additional feedback.
         * otherwise -> treat as follow-up question (no re-mention needed) and forward to async.
     """
-    if event.get("channel_type") == "im":
+    if event.get("channel_type") == CHANNEL_TYPE_IM:
         return  # handled in the DM handler
 
     text = (event.get("text") or "").strip()
@@ -185,9 +197,9 @@ def channel_message_handler(event, event_id, body, client):
     if not thread_root:
         return  # top-level message; require @mention to start
 
-    conversation_key = f"thread#{channel_id}#{thread_root}"
+    conversation_key = f"{THREAD_PREFIX}{channel_id}#{thread_root}"
     try:
-        resp = table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        resp = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" not in resp:
             logger.info(f"No session found for thread: {conversation_key}")
             return  # not a bot-owned thread; ignore
@@ -196,7 +208,7 @@ def channel_message_handler(event, event_id, body, client):
         logger.error(f"Error checking thread session: {e}")
         return
 
-    if text.lower().startswith("feedback:"):
+    if text.lower().startswith(FEEDBACK_PREFIX):
         note = text.split(":", 1)[1].strip() if ":" in text else ""
         user_id = event.get("user", "unknown")
         try:
@@ -235,7 +247,7 @@ def unified_message_handler(event, ack, body, client):
         return
 
     # Route to appropriate handler based on message type
-    if event.get("channel_type") == "im":
+    if event.get("channel_type") == CHANNEL_TYPE_IM:
         # DM handling
         dm_message_handler(event, event_id, body, client)
     else:
@@ -320,7 +332,7 @@ def is_duplicate_event(event_id):
     try:
         ttl = int(time.time()) + 3600  # 1 hour TTL
         table.put_item(
-            Item={"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
+            Item={"pk": f"{EVENT_PREFIX}{event_id}", "sk": DEDUP_SK, "ttl": ttl, "timestamp": int(time.time())},
             ConditionExpression="attribute_not_exists(pk)",
         )
         return False  # Not a duplicate

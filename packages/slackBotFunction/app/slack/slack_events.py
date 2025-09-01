@@ -17,6 +17,15 @@ from app.core.config import (
     GUARD_RAIL_ID,
     GUARD_VERSION,
     BOT_MESSAGES,
+    CONTEXT_TYPE_DM,
+    CONTEXT_TYPE_THREAD,
+    CHANNEL_TYPE_IM,
+    SESSION_SK,
+    FEEDBACK_PREFIX_KEY,
+    USER_PREFIX,
+    DM_PREFIX,
+    THREAD_PREFIX,
+    NOTE_SUFFIX,
 )
 
 
@@ -38,14 +47,14 @@ def process_async_slack_event(slack_event_data):
         user_id = event["user"]
         channel = event["channel"]
         # figure out if this is a DM or channel thread
-        if event.get("channel_type") == "im":
-            conversation_key = f"dm#{channel}"
-            context_type = "DM"
+        if event.get("channel_type") == CHANNEL_TYPE_IM:
+            conversation_key = f"{DM_PREFIX}{channel}"
+            context_type = CONTEXT_TYPE_DM
             thread_ts = event.get("thread_ts", event["ts"])
         else:
             thread_root = event.get("thread_ts", event["ts"])
-            conversation_key = f"thread#{channel}#{thread_root}"
-            context_type = "thread"
+            conversation_key = f"{THREAD_PREFIX}{channel}#{thread_root}"
+            context_type = CONTEXT_TYPE_THREAD
             thread_ts = thread_root
 
         # clean up the user's message
@@ -78,7 +87,7 @@ def process_async_slack_event(slack_event_data):
                 kb_response["sessionId"],
                 user_id,
                 channel,
-                thread_ts if context_type == "thread" else None,
+                thread_ts if context_type == CONTEXT_TYPE_THREAD else None,
             )
 
         # Post the answer (plain) to get message_ts
@@ -169,12 +178,12 @@ def store_feedback(
 
         # Build keys: per-message votes if message_ts present; else conversation-scoped note
         if message_ts:
-            pk = f"feedback#{conversation_key}#{message_ts}"
-            sk = f"user#{user_id}"
+            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
+            sk = f"{USER_PREFIX}{user_id}"
             condition = "attribute_not_exists(pk) AND attribute_not_exists(sk)"
         else:
-            pk = f"feedback#{conversation_key}"
-            sk = f"user#{user_id}#note#{now}"
+            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
+            sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
             condition = None
 
         feedback_item = {
@@ -229,7 +238,7 @@ def get_conversation_session(conversation_key):
     Get existing Bedrock session for this conversation
     """
     try:
-        response = table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             logger.info(f"Found existing session for {conversation_key}")
             return response["Item"]["session_id"]
@@ -248,7 +257,7 @@ def store_conversation_session(conversation_key, session_id, user_id, channel_id
         table.put_item(
             Item={
                 "pk": conversation_key,
-                "sk": "session",
+                "sk": SESSION_SK,
                 "session_id": session_id,
                 "user_id": user_id,
                 "channel_id": channel_id,

@@ -59,6 +59,20 @@ GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
 
 logger.info(f"Guardrail ID: {GUARD_RAIL_ID}, Version: {GUARD_VERSION}")
 
+# Constants
+FEEDBACK_PREFIX = "feedback:"
+CONTEXT_TYPE_DM = "DM"
+CONTEXT_TYPE_THREAD = "thread"
+CHANNEL_TYPE_IM = "im"
+SESSION_SK = "session"
+DEDUP_SK = "dedup"
+EVENT_PREFIX = "event#"
+FEEDBACK_PREFIX_KEY = "feedback#"
+USER_PREFIX = "user#"
+DM_PREFIX = "dm#"
+THREAD_PREFIX = "thread#"
+NOTE_SUFFIX = "#note#"
+
 # Bot response messages
 BOT_MESSAGES = {
     "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
