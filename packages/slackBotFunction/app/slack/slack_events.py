@@ -26,6 +26,8 @@ from app.core.config import (
     DM_PREFIX,
     THREAD_PREFIX,
     NOTE_SUFFIX,
+    TTL_FEEDBACK,
+    TTL_SESSION,
 )
 
 
@@ -174,7 +176,7 @@ def store_feedback(
     """
     try:
         now = int(time.time())
-        ttl = now + 7776000  # 90 days TTL for automatic cleanup
+        ttl = now + TTL_FEEDBACK
 
         # Build keys: per-message votes if message_ts present; else conversation-scoped note
         if message_ts:
@@ -253,7 +255,7 @@ def store_conversation_session(conversation_key, session_id, user_id, channel_id
     Store new Bedrock session for conversation memory
     """
     try:
-        ttl = int(time.time()) + 2592000  # 30 days
+        ttl = int(time.time()) + TTL_SESSION
         table.put_item(
             Item={
                 "pk": conversation_key,

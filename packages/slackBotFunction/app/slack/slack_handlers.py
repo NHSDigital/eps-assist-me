@@ -26,12 +26,13 @@ from app.core.config import (
     EVENT_PREFIX,
     DM_PREFIX,
     THREAD_PREFIX,
+    TTL_EVENT_DEDUP,
 )
 from app.slack.slack_events import store_feedback
 
 
 # ================================================================
-# Common handler helpers (pure logic; no network calls)
+# Common handler helpers
 # ================================================================
 
 
@@ -85,7 +86,7 @@ def _conversation_key_and_root(event):
 
 
 # ================================================================
-# Event and message handlers (business logic)
+# Event and message handlers
 # ================================================================
 
 
@@ -302,7 +303,7 @@ def feedback_no_handler(ack, body, client):
 
 
 # ================================================================
-# Registration (kept minimal to satisfy complexity checkers)
+# Registration
 # ================================================================
 
 
@@ -330,7 +331,7 @@ def is_duplicate_event(event_id):
         - Subsequent writes within TTL fail the condition and are treated as duplicates.
     """
     try:
-        ttl = int(time.time()) + 3600  # 1 hour TTL
+        ttl = int(time.time()) + TTL_EVENT_DEDUP
         table.put_item(
             Item={"pk": f"{EVENT_PREFIX}{event_id}", "sk": DEDUP_SK, "ttl": ttl, "timestamp": int(time.time())},
             ConditionExpression="attribute_not_exists(pk)",

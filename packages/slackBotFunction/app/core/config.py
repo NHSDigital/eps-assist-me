@@ -73,6 +73,11 @@ DM_PREFIX = "dm#"
 THREAD_PREFIX = "thread#"
 NOTE_SUFFIX = "#note#"
 
+# TTL constants (in seconds)
+TTL_EVENT_DEDUP = 3600  # 1 hour
+TTL_FEEDBACK = 7776000  # 90 days
+TTL_SESSION = 2592000  # 30 days
+
 # Bot response messages
 BOT_MESSAGES = {
     "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
