@@ -256,15 +256,28 @@ def unified_message_handler(event, ack, body, client):
         channel_message_handler(event, event_id, body, client)
 
 
-def feedback_yes_handler(ack, body, client):
-    """Handle positive feedback button clicks."""
+def feedback_handler(ack, body, client):
+    """Handle feedback button clicks (both positive and negative)."""
     ack()
     try:
+        action_id = body["actions"][0]["action_id"]
         feedback_data = json.loads(body["actions"][0]["value"])
+
+        # Determine feedback type and response message based on action_id
+        if action_id == "feedback_yes":
+            feedback_type = "positive"
+            response_message = BOT_MESSAGES["feedback_positive_thanks"]
+        elif action_id == "feedback_no":
+            feedback_type = "negative"
+            response_message = BOT_MESSAGES["feedback_negative_thanks"]
+        else:
+            logger.error(f"Unknown feedback action: {action_id}")
+            return
+
         store_feedback(
             feedback_data["ck"],
             None,
-            "positive",
+            feedback_type,
             body["user"]["id"],
             feedback_data["ch"],
             feedback_data.get("tt"),
@@ -272,34 +285,11 @@ def feedback_yes_handler(ack, body, client):
         )
         client.chat_postMessage(
             channel=feedback_data["ch"],
-            text=BOT_MESSAGES["feedback_positive_thanks"],
+            text=response_message,
             thread_ts=feedback_data.get("tt"),
         )
     except Exception as e:
-        logger.error(f"Error handling positive feedback: {e}")
-
-
-def feedback_no_handler(ack, body, client):
-    """Handle negative feedback button clicks."""
-    ack()
-    try:
-        feedback_data = json.loads(body["actions"][0]["value"])
-        store_feedback(
-            feedback_data["ck"],
-            None,
-            "negative",
-            body["user"]["id"],
-            feedback_data["ch"],
-            feedback_data.get("tt"),
-            feedback_data.get("mt"),
-        )
-        client.chat_postMessage(
-            channel=feedback_data["ch"],
-            text=BOT_MESSAGES["feedback_negative_thanks"],
-            thread_ts=feedback_data.get("tt"),
-        )
-    except Exception as e:
-        logger.error(f"Error handling negative feedback: {e}")
+        logger.error(f"Error handling feedback: {e}")
 
 
 # ================================================================
@@ -311,8 +301,8 @@ def setup_handlers(app):
     """Register handlers. Intentionally minimal—no branching here."""
     app.event("app_mention")(app_mention_handler)
     app.event("message")(unified_message_handler)
-    app.action("feedback_yes")(feedback_yes_handler)
-    app.action("feedback_no")(feedback_no_handler)
+    app.action("feedback_yes")(feedback_handler)
+    app.action("feedback_no")(feedback_handler)
 
 
 # ================================================================

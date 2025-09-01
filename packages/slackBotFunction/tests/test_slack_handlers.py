@@ -199,7 +199,9 @@ def test_feedback_yes_action_handler(mock_env):
         mock_ack = Mock()
         mock_body = {
             "user": {"id": "U123"},
-            "actions": [{"value": '{"ck": "conv-key", "ch": "C123", "tt": "123", "mt": "456"}'}],
+            "actions": [
+                {"action_id": "feedback_yes", "value": '{"ck": "conv-key", "ch": "C123", "tt": "123", "mt": "456"}'}
+            ],
             "channel": {"id": "C123"},
             "message": {"ts": "123"},
         }
@@ -242,7 +244,9 @@ def test_feedback_no_action_handler(mock_env):
         mock_ack = Mock()
         mock_body = {
             "user": {"id": "U123"},
-            "actions": [{"value": '{"ck": "conv-key", "ch": "C123", "tt": "123", "mt": "456"}'}],
+            "actions": [
+                {"action_id": "feedback_no", "value": '{"ck": "conv-key", "ch": "C123", "tt": "123", "mt": "456"}'}
+            ],
             "channel": {"id": "C123"},
             "message": {"ts": "123"},
         }
