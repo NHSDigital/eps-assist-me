@@ -69,4 +69,6 @@ BOT_MESSAGES = {
     ),
     "feedback_thanks": "Thank you for your feedback.",
     "feedback_prompt": "Was this helpful?",
+    "feedback_yes": "Yes",
+    "feedback_no": "No",
 }

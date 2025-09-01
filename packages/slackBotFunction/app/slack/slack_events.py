@@ -103,13 +103,13 @@ def process_async_slack_event(slack_event_data):
                 "elements": [
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "Yes"},
+                        "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_yes"]},
                         "action_id": "feedback_yes",
                         "value": feedback_value,
                     },
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "No"},
+                        "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_no"]},
                         "action_id": "feedback_no",
                         "value": feedback_value,
                     },
