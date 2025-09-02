@@ -37,6 +37,7 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
     """Delete previous Q&A pair if no feedback received"""
     try:
         previous_message_ts = session_data.get("latest_message_ts")
+        # Skip if no previous message or it's the same as current
         if not previous_message_ts or previous_message_ts == current_message_ts:
             return
 
@@ -44,7 +45,7 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
         feedback_exists = check_feedback_exists(conversation_key, previous_message_ts)
 
         if not feedback_exists:
-            # Delete unfeedback Q&A pair for privacy
+            # Delete unfeedback Q&A pair for privacy compliance
             previous_qa_key = f"qa#{conversation_key}#{previous_message_ts}"
             table.delete_item(Key={"pk": previous_qa_key, "sk": "turn"})
             logger.info("Deleted unfeedback Q&A for privacy", extra={"message_ts": previous_message_ts})
@@ -106,7 +107,8 @@ def process_async_slack_event(slack_event_data):
         raw_text = event["text"]
         user_id = event["user"]
         channel = event["channel"]
-        # figure out if this is a DM or channel thread
+
+        # Determine conversation context: DM vs channel thread
         if event.get("channel_type") == CHANNEL_TYPE_IM:
             conversation_key = f"{DM_PREFIX}{channel}"
             context_type = CONTEXT_TYPE_DM
@@ -117,7 +119,7 @@ def process_async_slack_event(slack_event_data):
             context_type = CONTEXT_TYPE_THREAD
             thread_ts = thread_root
 
-        # clean up the user's message
+        # Remove Slack user mentions from message text
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
 
         logger.info(
@@ -134,14 +136,14 @@ def process_async_slack_event(slack_event_data):
             )
             return
 
-        # Reformulate query for better RAG retrieval
+        # Reformulate query for better RAG retrieval using Claude
         reformulated_query = reformulate_query(logger, user_query)
 
-        # check if we have an existing conversation
+        # Check if we have an existing Bedrock conversation session
         session_data = get_conversation_session_data(conversation_key)
         session_id = session_data.get("session_id") if session_data else None
 
-        # Query the knowledge base with reformulated query
+        # Query Bedrock Knowledge Base with conversation context
         kb_response = query_bedrock(reformulated_query, session_id)
 
         response_text = kb_response["output"]["text"]
@@ -154,8 +156,9 @@ def process_async_slack_event(slack_event_data):
         )
         message_ts = post["ts"]
 
-        # store a new session if we just started a conversation
+        # Handle conversation session management
         if not session_id and "sessionId" in kb_response:
+            # Store new Bedrock session for conversation continuity
             store_conversation_session(
                 conversation_key,
                 kb_response["sessionId"],
@@ -165,9 +168,9 @@ def process_async_slack_event(slack_event_data):
                 message_ts,
             )
         elif session_id:
-            # Clean up previous unfeedback Q&A before storing new one
+            # Clean up previous unfeedback Q&A for privacy compliance
             cleanup_previous_unfeedback_qa(conversation_key, message_ts, session_data)
-            # Update existing session with latest message timestamp
+            # Track latest bot message for feedback validation
             update_session_latest_message(conversation_key, message_ts)
 
         # Store Q&A pair for feedback correlation
@@ -180,7 +183,7 @@ def process_async_slack_event(slack_event_data):
             user_id=user_id,
         )
 
-        # Attach feedback buttons via chat_update
+        # Create compact feedback payload for button actions
         feedback_value = json.dumps(
             {"ck": conversation_key, "ch": channel, "tt": thread_ts, "mt": message_ts}, separators=(",", ":")
         )
@@ -236,6 +239,33 @@ def process_async_slack_event(slack_event_data):
             logger.error("Failed to post error message", extra={"error": str(post_err)})
 
 
+def _retrieve_qa_data(conversation_key, message_ts, user_query, bot_response):
+    """Retrieve Q&A data from DynamoDB if not provided in function call"""
+    # Return early if we have all data or no message timestamp
+    if not message_ts or (user_query and bot_response):
+        return user_query, bot_response
+
+    try:
+        # Fetch stored Q&A pair from previous interaction
+        qa_response = table.get_item(Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"})
+        if "Item" in qa_response:
+            qa_item = qa_response["Item"]
+            return (user_query or qa_item.get("user_query"), bot_response or qa_item.get("bot_response"))
+    except Exception as e:
+        logger.error(f"Error retrieving Q&A data: {e}")
+
+    return user_query, bot_response
+
+
+def _build_feedback_keys(conversation_key, message_ts, user_id, now):
+    """Build DynamoDB primary and sort keys for feedback storage"""
+    if message_ts:
+        # Per-message feedback: enables vote deduplication
+        return (f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}", f"{USER_PREFIX}{user_id}")
+    # Conversation-level feedback: fallback for general notes
+    return (f"{FEEDBACK_PREFIX_KEY}{conversation_key}", f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}")
+
+
 def store_feedback_with_qa(
     conversation_key,
     user_query,
@@ -251,31 +281,11 @@ def store_feedback_with_qa(
     Store user feedback with Q&A context using message_ts linking
     """
     try:
-        # Use latest_message_ts for both button and text feedback
-        if not message_ts:
-            message_ts = get_latest_message_ts(conversation_key)
-
-        # Retrieve Q&A data if not provided and we have message_ts
-        if message_ts and (not user_query or not bot_response):
-            try:
-                qa_response = table.get_item(Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"})
-                if "Item" in qa_response:
-                    qa_item = qa_response["Item"]
-                    user_query = user_query or qa_item.get("user_query")
-                    bot_response = bot_response or qa_item.get("bot_response")
-            except Exception as e:
-                logger.error(f"Error retrieving Q&A data: {e}")
+        message_ts = message_ts or get_latest_message_ts(conversation_key)
+        user_query, bot_response = _retrieve_qa_data(conversation_key, message_ts, user_query, bot_response)
 
         now = int(time.time())
-        ttl = now + TTL_FEEDBACK
-
-        if message_ts:
-            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
-            sk = f"{USER_PREFIX}{user_id}"
-        else:
-            # Fallback if no message_ts available (shouldn't happen in normal flow)
-            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
-            sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
+        pk, sk = _build_feedback_keys(conversation_key, message_ts, user_id, now)
 
         feedback_item = {
             "pk": pk,
@@ -285,7 +295,7 @@ def store_feedback_with_qa(
             "user_id": user_id,
             "channel_id": channel_id,
             "created_at": now,
-            "ttl": ttl,
+            "ttl": now + TTL_FEEDBACK,
             "user_query": user_query[:1000] if user_query else None,
             "bot_response": bot_response[:2000] if bot_response else None,
         }
@@ -328,16 +338,17 @@ def store_feedback(
         now = int(time.time())
         ttl = now + TTL_FEEDBACK
 
-        # Use latest_message_ts consistently for both button and text feedback
+        # Get latest bot message timestamp for feedback linking
         if not message_ts:
             message_ts = get_latest_message_ts(conversation_key)
 
         if message_ts:
+            # Per-message feedback with deduplication
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
             sk = f"{USER_PREFIX}{user_id}"
-            condition = "attribute_not_exists(pk) AND attribute_not_exists(sk)"
+            condition = "attribute_not_exists(pk) AND attribute_not_exists(sk)"  # Prevent double-voting
         else:
-            # Fallback if no message_ts available (shouldn't happen in normal flow)
+            # Fallback for conversation-level feedback
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
             sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
             condition = None
@@ -506,7 +517,7 @@ def query_bedrock(user_query, session_id=None):
         },
     }
 
-    # add session if we have one for conversation continuity
+    # Include session ID for conversation continuity across messages
     if session_id:
         request_params["sessionId"] = session_id
         logger.info("Using existing session", extra={"session_id": session_id})
