@@ -1,4 +1,6 @@
 import pytest
+import json
+import sys
 from unittest.mock import Mock, patch
 import os
 from botocore.exceptions import ClientError
@@ -511,3 +513,37 @@ def test_feedback_handler_storage_error(mock_env):
     ):
         feedback_handler(mock_ack, mock_body, mock_client)
         mock_ack.assert_called_once()
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_is_latest_message_logic(mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test _is_latest_message function logic"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
+
+    from app.slack.slack_handlers import _is_latest_message
+
+    with patch("app.slack.slack_handlers.table") as mock_table:
+        # Test with matching message_ts
+        mock_table.get_item.return_value = {"Item": {"latest_message_ts": "123"}}
+        assert _is_latest_message("conv-key", "123") is True
+
+        # Test with non-matching message_ts
+        mock_table.get_item.return_value = {"Item": {"latest_message_ts": "456"}}
+        assert _is_latest_message("conv-key", "123") is False
+
+        # Test with no Item in response
+        mock_table.get_item.return_value = {}
+        assert _is_latest_message("conv-key", "123") is False
+
+        # Test with exception
+        mock_table.get_item.side_effect = Exception("DB error")
+        assert _is_latest_message("conv-key", "123") is False

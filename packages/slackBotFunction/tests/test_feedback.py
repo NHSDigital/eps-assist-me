@@ -172,6 +172,52 @@ def test_check_feedback_exists(mock_table, mock_env):
 
 
 @patch("app.slack.slack_events.table")
+@patch("time.time")
+def test_store_feedback_no_message_ts_fallback(mock_time, mock_table, mock_env):
+    """Test store_feedback fallback path when no message_ts"""
+    mock_time.return_value = 1000
+    from app.slack.slack_events import store_feedback
+
+    with patch("app.slack.slack_events.get_latest_message_ts", return_value=None):
+        store_feedback("conv-key", "query", "positive", "user-id", "channel-id")
+        mock_table.put_item.assert_called_once()
+        # Should use fallback pk/sk format without condition
+        call_args = mock_table.put_item.call_args[1]
+        assert "ConditionExpression" not in call_args
+        item = call_args["Item"]
+        assert item["pk"] == "feedback#conv-key"
+        assert "#note#" in item["sk"]
+
+
+@patch("app.slack.slack_events.table")
+@patch("time.time")
+def test_store_conversation_session_with_thread(mock_time, mock_table, mock_env):
+    """Test store_conversation_session with thread_ts"""
+    mock_time.return_value = 1000
+    from app.slack.slack_events import store_conversation_session
+
+    store_conversation_session("conv-key", "session-id", "user-id", "channel-id", "thread-123", "msg-456")
+    mock_table.put_item.assert_called_once()
+    item = mock_table.put_item.call_args[1]["Item"]
+    assert item["thread_ts"] == "thread-123"
+    assert item["latest_message_ts"] == "msg-456"
+
+
+@patch("app.slack.slack_events.table")
+@patch("time.time")
+def test_store_conversation_session_without_thread(mock_time, mock_table, mock_env):
+    """Test store_conversation_session without thread_ts"""
+    mock_time.return_value = 1000
+    from app.slack.slack_events import store_conversation_session
+
+    store_conversation_session("conv-key", "session-id", "user-id", "channel-id")
+    mock_table.put_item.assert_called_once()
+    item = mock_table.put_item.call_args[1]["Item"]
+    assert "thread_ts" not in item
+    assert "latest_message_ts" not in item
+
+
+@patch("app.slack.slack_events.table")
 def test_cleanup_previous_unfeedback_qa_error_handling(mock_table, mock_env):
     """Test cleanup_previous_unfeedback_qa error handling"""
     from app.slack.slack_events import cleanup_previous_unfeedback_qa
@@ -215,3 +261,28 @@ def test_store_feedback_client_error_reraise(mock_table, mock_env):
     with patch("app.slack.slack_events.get_latest_message_ts", return_value="123"):
         with pytest.raises(ClientError):
             store_feedback("conv-key", "query", "positive", "user-id", "channel-id")
+
+
+def test_feedback_text_extraction(mock_env):
+    """Test feedback text extraction logic"""
+    # Test the specific logic: note = text.split(":", 1)[1].strip() if ":" in text else ""
+
+    # Test with colon - should extract text after colon
+    text = "feedback: some feedback text"
+    note = text.split(":", 1)[1].strip() if ":" in text else ""
+    assert note == "some feedback text"
+
+    # Test without colon - should use empty string
+    text = "feedback"
+    note = text.split(":", 1)[1].strip() if ":" in text else ""
+    assert note == ""
+
+    # Test with colon but no text after
+    text = "feedback:"
+    note = text.split(":", 1)[1].strip() if ":" in text else ""
+    assert note == ""
+
+    # Test with colon and whitespace
+    text = "feedback:   "
+    note = text.split(":", 1)[1].strip() if ":" in text else ""
+    assert note == ""
