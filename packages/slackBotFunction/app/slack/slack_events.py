@@ -33,6 +33,39 @@ from app.core.config import (
 from app.services.query_reformulator import reformulate_query
 
 
+def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data):
+    """Delete previous Q&A pair if no feedback received"""
+    try:
+        previous_message_ts = session_data.get("latest_message_ts")
+        if not previous_message_ts or previous_message_ts == current_message_ts:
+            return
+
+        # Check if previous Q&A has any feedback
+        feedback_exists = check_feedback_exists(conversation_key, previous_message_ts)
+
+        if not feedback_exists:
+            # Delete unfeedback Q&A pair for privacy
+            previous_qa_key = f"qa#{conversation_key}#{previous_message_ts}"
+            table.delete_item(Key={"pk": previous_qa_key, "sk": "turn"})
+            logger.info("Deleted unfeedback Q&A for privacy", extra={"message_ts": previous_message_ts})
+
+    except Exception as e:
+        logger.error("Error cleaning up unfeedback Q&A", extra={"error": str(e)})
+
+
+def check_feedback_exists(conversation_key, message_ts):
+    """Check if any feedback exists for this Q&A pair"""
+    try:
+        response = table.query(
+            KeyConditionExpression="pk = :pk",
+            ExpressionAttributeValues={":pk": f"feedback#{conversation_key}#{message_ts}"},
+            Limit=1,
+        )
+        return len(response.get("Items", [])) > 0
+    except Exception:
+        return False
+
+
 def store_qa_pair(conversation_key, user_query, bot_response, message_ts, session_id, user_id):
     """
     Store Q&A pair for feedback correlation
@@ -105,7 +138,8 @@ def process_async_slack_event(slack_event_data):
         reformulated_query = reformulate_query(logger, user_query)
 
         # check if we have an existing conversation
-        session_id = get_conversation_session(conversation_key)
+        session_data = get_conversation_session_data(conversation_key)
+        session_id = session_data.get("session_id") if session_data else None
 
         # Query the knowledge base with reformulated query
         kb_response = query_bedrock(reformulated_query, session_id)
@@ -131,6 +165,8 @@ def process_async_slack_event(slack_event_data):
                 message_ts,
             )
         elif session_id:
+            # Clean up previous unfeedback Q&A before storing new one
+            cleanup_previous_unfeedback_qa(conversation_key, message_ts, session_data)
             # Update existing session with latest message timestamp
             update_session_latest_message(conversation_key, message_ts)
 
@@ -364,11 +400,19 @@ def get_conversation_session(conversation_key):
     """
     Get existing Bedrock session for this conversation
     """
+    session_data = get_conversation_session_data(conversation_key)
+    return session_data.get("session_id") if session_data else None
+
+
+def get_conversation_session_data(conversation_key):
+    """
+    Get full session data for this conversation
+    """
     try:
         response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
-            return response["Item"]["session_id"]
+            return response["Item"]
         return None
     except Exception as e:
         logger.error("Error getting session", extra={"error": str(e)})
