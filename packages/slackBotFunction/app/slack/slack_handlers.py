@@ -13,6 +13,7 @@ import json
 import os
 import boto3
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
 
 from app.core.config import (
     table,
@@ -28,7 +29,7 @@ from app.core.config import (
     THREAD_PREFIX,
     TTL_EVENT_DEDUP,
 )
-from app.slack.slack_events import store_feedback
+from app.slack.slack_events import store_feedback, store_feedback_with_qa
 
 
 # ================================================================
@@ -55,7 +56,7 @@ def _gate_common(event, body):
     if event.get("bot_id") or event.get("subtype"):
         return None
 
-    if is_duplicate_event(event_id):
+    if _is_duplicate_event(event_id):
         logger.info(f"Skipping duplicate event: {event_id}")
         return None
 
@@ -109,9 +110,15 @@ def app_mention_handler(event, ack, body, client):
     if cleaned.lower().startswith(FEEDBACK_PREFIX):
         note = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
         try:
-            store_feedback(
+            # Try to link to recent Q&A pair
+            recent_qa = _get_recent_qa_pair(conversation_key)
+            user_query = recent_qa.get("user_query") if recent_qa else None
+            bot_response = recent_qa.get("bot_response") if recent_qa else None
+
+            store_feedback_with_qa(
                 conversation_key=conversation_key,
-                user_query=None,
+                user_query=user_query,
+                bot_response=bot_response,
                 feedback_type="additional",
                 user_id=user_id,
                 channel_id=channel_id,
@@ -134,7 +141,7 @@ def app_mention_handler(event, ack, body, client):
 
     # Normal mention -> async processing
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 def dm_message_handler(event, event_id, body, client):
@@ -154,9 +161,15 @@ def dm_message_handler(event, event_id, body, client):
     if text.lower().startswith(FEEDBACK_PREFIX):
         note = text.split(":", 1)[1].strip() if ":" in text else ""
         try:
-            store_feedback(
+            # Try to link to recent Q&A pair
+            recent_qa = _get_recent_qa_pair(conversation_key)
+            user_query = recent_qa.get("user_query") if recent_qa else None
+            bot_response = recent_qa.get("bot_response") if recent_qa else None
+
+            store_feedback_with_qa(
                 conversation_key=conversation_key,
-                user_query=None,
+                user_query=user_query,
+                bot_response=bot_response,
                 feedback_type="additional",
                 user_id=user_id,
                 channel_id=channel_id,
@@ -178,7 +191,7 @@ def dm_message_handler(event, event_id, body, client):
         return
 
     # Normal DM -> async processing
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 def channel_message_handler(event, event_id, body, client):
@@ -213,9 +226,15 @@ def channel_message_handler(event, event_id, body, client):
         note = text.split(":", 1)[1].strip() if ":" in text else ""
         user_id = event.get("user", "unknown")
         try:
-            store_feedback(
+            # Try to link to recent Q&A pair
+            recent_qa = _get_recent_qa_pair(conversation_key)
+            user_query = recent_qa.get("user_query") if recent_qa else None
+            bot_response = recent_qa.get("bot_response") if recent_qa else None
+
+            store_feedback_with_qa(
                 conversation_key=conversation_key,
-                user_query=None,
+                user_query=user_query,
+                bot_response=bot_response,
                 feedback_type="additional",
                 user_id=user_id,
                 channel_id=channel_id,
@@ -237,7 +256,7 @@ def channel_message_handler(event, event_id, body, client):
         return
 
     # Follow-up in a bot-owned thread (no re-mention required)
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 def unified_message_handler(event, ack, body, client):
@@ -310,7 +329,7 @@ def setup_handlers(app):
 # ================================================================
 
 
-def is_duplicate_event(event_id):
+def _is_duplicate_event(event_id):
     """
     Check if we've already processed this event using DynamoDB conditional writes.
 
@@ -334,7 +353,20 @@ def is_duplicate_event(event_id):
         return False
 
 
-def trigger_async_processing(event_data):
+def _get_recent_qa_pair(conversation_key):
+    """Get most recent Q&A pair for linking additional feedback"""
+    try:
+        response = table.query(
+            KeyConditionExpression=Key("pk").begins_with(f"qa#{conversation_key}"), ScanIndexForward=False, Limit=1
+        )
+        if response["Items"]:
+            return response["Items"][0]
+    except Exception as e:
+        logger.error(f"Error getting recent Q&A pair: {e}")
+    return None
+
+
+def _trigger_async_processing(event_data):
     """
     Trigger asynchronous Lambda invocation to process Slack events.
 

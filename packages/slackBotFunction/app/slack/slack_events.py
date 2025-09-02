@@ -32,6 +32,29 @@ from app.core.config import (
 from app.services.query_reformulator import reformulate_query
 
 
+def store_qa_pair(conversation_key, user_query, bot_response, message_ts, session_id, user_id):
+    """
+    Store Q&A pair for feedback correlation
+    """
+    try:
+        table.put_item(
+            Item={
+                "pk": f"qa#{conversation_key}#{message_ts}",
+                "sk": "turn",
+                "user_query": user_query[:1000] if user_query else None,
+                "bot_response": bot_response[:2000] if bot_response else None,
+                "session_id": session_id,
+                "user_id": user_id,
+                "message_ts": message_ts,
+                "created_at": int(time.time()),
+                "ttl": int(time.time()) + TTL_FEEDBACK,
+            }
+        )
+        logger.info("Stored Q&A pair", extra={"conversation_key": conversation_key, "message_ts": message_ts})
+    except Exception as e:
+        logger.error("Failed to store Q&A pair", extra={"error": str(e)})
+
+
 def process_async_slack_event(slack_event_data):
     """
     Process Slack events asynchronously after initial acknowledgment
@@ -106,6 +129,16 @@ def process_async_slack_event(slack_event_data):
         )
         message_ts = post["ts"]
 
+        # Store Q&A pair for feedback correlation
+        store_qa_pair(
+            conversation_key=conversation_key,
+            user_query=user_query,
+            bot_response=response_text,
+            message_ts=message_ts,
+            session_id=kb_response.get("sessionId"),
+            user_id=user_id,
+        )
+
         # Attach feedback buttons via chat_update (value kept small; no user_query)
         feedback_value = json.dumps({"ck": conversation_key, "ch": channel, "tt": thread_ts, "mt": message_ts})
         blocks = [
@@ -158,6 +191,60 @@ def process_async_slack_event(slack_event_data):
             )
         except Exception as post_err:
             logger.error("Failed to post error message", extra={"error": str(post_err)})
+
+
+def store_feedback_with_qa(
+    conversation_key,
+    user_query,
+    bot_response,
+    feedback_type,
+    user_id,
+    channel_id,
+    thread_ts=None,
+    message_ts=None,
+    additional_feedback=None,
+):
+    """
+    Store user feedback with Q&A context
+    """
+    try:
+        now = int(time.time())
+        ttl = now + TTL_FEEDBACK
+
+        if message_ts:
+            # Button feedback - per message
+            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
+            sk = f"{USER_PREFIX}{user_id}"
+        else:
+            # Text feedback - conversation level
+            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
+            sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
+
+        feedback_item = {
+            "pk": pk,
+            "sk": sk,
+            "conversation_key": conversation_key,
+            "feedback_type": feedback_type,
+            "user_id": user_id,
+            "channel_id": channel_id,
+            "created_at": now,
+            "ttl": ttl,
+            "user_query": user_query[:1000] if user_query else None,
+            "bot_response": bot_response[:2000] if bot_response else None,
+        }
+
+        if thread_ts:
+            feedback_item["thread_ts"] = thread_ts
+        if message_ts:
+            feedback_item["message_ts"] = message_ts
+        if additional_feedback:
+            feedback_item["additional_feedback"] = additional_feedback[:4000]
+
+        table.put_item(Item=feedback_item)
+        logger.info("Stored feedback with Q&A context", extra={"pk": pk, "sk": sk})
+
+    except Exception as e:
+        logger.error("Error storing feedback", extra={"error": str(e)})
 
 
 def store_feedback(
