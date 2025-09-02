@@ -13,7 +13,6 @@ import json
 import os
 import boto3
 from botocore.exceptions import ClientError
-from boto3.dynamodb.conditions import Key
 
 from app.core.config import (
     table,
@@ -110,20 +109,15 @@ def app_mention_handler(event, ack, body, client):
     if cleaned.lower().startswith(FEEDBACK_PREFIX):
         note = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
         try:
-            # Try to link to recent Q&A pair
-            recent_qa = _get_recent_qa_pair(conversation_key)
-            user_query = recent_qa.get("user_query") if recent_qa else None
-            bot_response = recent_qa.get("bot_response") if recent_qa else None
-
             store_feedback_with_qa(
                 conversation_key=conversation_key,
-                user_query=user_query,
-                bot_response=bot_response,
+                user_query=None,  # Will be retrieved via latest_message_ts
+                bot_response=None,  # Will be retrieved via latest_message_ts
                 feedback_type="additional",
                 user_id=user_id,
                 channel_id=channel_id,
                 thread_ts=thread_root,
-                message_ts=None,
+                message_ts=None,  # Will use latest_message_ts from session
                 additional_feedback=note,
             )
         except Exception as e:
@@ -161,20 +155,15 @@ def dm_message_handler(event, event_id, body, client):
     if text.lower().startswith(FEEDBACK_PREFIX):
         note = text.split(":", 1)[1].strip() if ":" in text else ""
         try:
-            # Try to link to recent Q&A pair
-            recent_qa = _get_recent_qa_pair(conversation_key)
-            user_query = recent_qa.get("user_query") if recent_qa else None
-            bot_response = recent_qa.get("bot_response") if recent_qa else None
-
             store_feedback_with_qa(
                 conversation_key=conversation_key,
-                user_query=user_query,
-                bot_response=bot_response,
+                user_query=None,  # Will be retrieved via latest_message_ts
+                bot_response=None,  # Will be retrieved via latest_message_ts
                 feedback_type="additional",
                 user_id=user_id,
                 channel_id=channel_id,
                 thread_ts=thread_root,
-                message_ts=None,
+                message_ts=None,  # Will use latest_message_ts from session
                 additional_feedback=note,
             )
         except Exception as e:
@@ -226,20 +215,15 @@ def channel_message_handler(event, event_id, body, client):
         note = text.split(":", 1)[1].strip() if ":" in text else ""
         user_id = event.get("user", "unknown")
         try:
-            # Try to link to recent Q&A pair
-            recent_qa = _get_recent_qa_pair(conversation_key)
-            user_query = recent_qa.get("user_query") if recent_qa else None
-            bot_response = recent_qa.get("bot_response") if recent_qa else None
-
             store_feedback_with_qa(
                 conversation_key=conversation_key,
-                user_query=user_query,
-                bot_response=bot_response,
+                user_query=None,  # Will be retrieved via latest_message_ts
+                bot_response=None,  # Will be retrieved via latest_message_ts
                 feedback_type="additional",
                 user_id=user_id,
                 channel_id=channel_id,
                 thread_ts=thread_root,
-                message_ts=None,
+                message_ts=None,  # Will use latest_message_ts from session
                 additional_feedback=note,
             )
         except Exception as e:
@@ -282,6 +266,14 @@ def feedback_handler(ack, body, client):
         action_id = body["actions"][0]["action_id"]
         feedback_data = json.loads(body["actions"][0]["value"])
 
+        # Check if this is the latest message in the conversation
+        conversation_key = feedback_data["ck"]
+        message_ts = feedback_data.get("mt")
+
+        if message_ts and not _is_latest_message(conversation_key, message_ts):
+            logger.info(f"Feedback ignored - not latest message: {message_ts}")
+            return
+
         # Determine feedback type and response message based on action_id
         if action_id == "feedback_yes":
             feedback_type = "positive"
@@ -293,20 +285,30 @@ def feedback_handler(ack, body, client):
             logger.error(f"Unknown feedback action: {action_id}")
             return
 
-        store_feedback(
-            feedback_data["ck"],
-            None,
-            feedback_type,
-            body["user"]["id"],
-            feedback_data["ch"],
-            feedback_data.get("tt"),
-            feedback_data.get("mt"),
-        )
-        client.chat_postMessage(
-            channel=feedback_data["ch"],
-            text=response_message,
-            thread_ts=feedback_data.get("tt"),
-        )
+        try:
+            store_feedback(
+                feedback_data["ck"],
+                None,
+                feedback_type,
+                body["user"]["id"],
+                feedback_data["ch"],
+                feedback_data.get("tt"),
+                feedback_data.get("mt"),
+            )
+            # Only post message if storage succeeded
+            client.chat_postMessage(
+                channel=feedback_data["ch"],
+                text=response_message,
+                thread_ts=feedback_data.get("tt"),
+            )
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                # Silently ignore duplicate votes - user already voted on this message
+                logger.info(f"Duplicate vote ignored for user {body['user']['id']}")
+                return
+            logger.error(f"Feedback storage error: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected feedback error: {e}")
     except Exception as e:
         logger.error(f"Error handling feedback: {e}")
 
@@ -353,17 +355,17 @@ def _is_duplicate_event(event_id):
         return False
 
 
-def _get_recent_qa_pair(conversation_key):
-    """Get most recent Q&A pair for linking additional feedback"""
+def _is_latest_message(conversation_key, message_ts):
+    """Check if message_ts is the latest bot message using session data"""
     try:
-        response = table.query(
-            KeyConditionExpression=Key("pk").begins_with(f"qa#{conversation_key}"), ScanIndexForward=False, Limit=1
-        )
-        if response["Items"]:
-            return response["Items"][0]
+        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        if "Item" in response:
+            latest_message_ts = response["Item"].get("latest_message_ts")
+            return latest_message_ts == message_ts
+        return False
     except Exception as e:
-        logger.error(f"Error getting recent Q&A pair: {e}")
-    return None
+        logger.error(f"Error checking latest message: {e}")
+        return False
 
 
 def _trigger_async_processing(event_data):

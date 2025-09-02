@@ -7,6 +7,7 @@ import re
 import time
 import json
 import boto3
+from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
     table,
@@ -111,6 +112,14 @@ def process_async_slack_event(slack_event_data):
 
         response_text = kb_response["output"]["text"]
 
+        # Post the answer (plain) to get message_ts
+        post = client.chat_postMessage(
+            channel=channel,
+            text=response_text,
+            thread_ts=thread_ts,
+        )
+        message_ts = post["ts"]
+
         # store a new session if we just started a conversation
         if not session_id and "sessionId" in kb_response:
             store_conversation_session(
@@ -119,15 +128,11 @@ def process_async_slack_event(slack_event_data):
                 user_id,
                 channel,
                 thread_ts if context_type == CONTEXT_TYPE_THREAD else None,
+                message_ts,
             )
-
-        # Post the answer (plain) to get message_ts
-        post = client.chat_postMessage(
-            channel=channel,
-            text=response_text,
-            thread_ts=thread_ts,
-        )
-        message_ts = post["ts"]
+        elif session_id:
+            # Update existing session with latest message timestamp
+            update_session_latest_message(conversation_key, message_ts)
 
         # Store Q&A pair for feedback correlation
         store_qa_pair(
@@ -139,8 +144,10 @@ def process_async_slack_event(slack_event_data):
             user_id=user_id,
         )
 
-        # Attach feedback buttons via chat_update (value kept small; no user_query)
-        feedback_value = json.dumps({"ck": conversation_key, "ch": channel, "tt": thread_ts, "mt": message_ts})
+        # Attach feedback buttons via chat_update
+        feedback_value = json.dumps(
+            {"ck": conversation_key, "ch": channel, "tt": thread_ts, "mt": message_ts}, separators=(",", ":")
+        )
         blocks = [
             {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
             {
@@ -205,18 +212,32 @@ def store_feedback_with_qa(
     additional_feedback=None,
 ):
     """
-    Store user feedback with Q&A context
+    Store user feedback with Q&A context using message_ts linking
     """
     try:
+        # Use latest_message_ts for both button and text feedback
+        if not message_ts:
+            message_ts = get_latest_message_ts(conversation_key)
+
+        # Retrieve Q&A data if not provided and we have message_ts
+        if message_ts and (not user_query or not bot_response):
+            try:
+                qa_response = table.get_item(Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"})
+                if "Item" in qa_response:
+                    qa_item = qa_response["Item"]
+                    user_query = user_query or qa_item.get("user_query")
+                    bot_response = bot_response or qa_item.get("bot_response")
+            except Exception as e:
+                logger.error(f"Error retrieving Q&A data: {e}")
+
         now = int(time.time())
         ttl = now + TTL_FEEDBACK
 
         if message_ts:
-            # Button feedback - per message
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
             sk = f"{USER_PREFIX}{user_id}"
         else:
-            # Text feedback - conversation level
+            # Fallback if no message_ts available (shouldn't happen in normal flow)
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
             sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
 
@@ -271,12 +292,16 @@ def store_feedback(
         now = int(time.time())
         ttl = now + TTL_FEEDBACK
 
-        # Build keys: per-message votes if message_ts present; else conversation-scoped note
+        # Use latest_message_ts consistently for both button and text feedback
+        if not message_ts:
+            message_ts = get_latest_message_ts(conversation_key)
+
         if message_ts:
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
             sk = f"{USER_PREFIX}{user_id}"
             condition = "attribute_not_exists(pk) AND attribute_not_exists(sk)"
         else:
+            # Fallback if no message_ts available (shouldn't happen in normal flow)
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
             sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
             condition = None
@@ -321,6 +346,13 @@ def store_feedback(
             },
         )
 
+    except ClientError as e:
+        # Re-raise ClientError so caller can handle ConditionalCheckFailedException
+        logger.error(
+            f"Error storing feedback: {e}",
+            extra={"conversation_key": conversation_key, "feedback_type": feedback_type, "user_id": user_id},
+        )
+        raise
     except Exception as e:
         logger.error(
             f"Error storing feedback: {e}",
@@ -343,27 +375,62 @@ def get_conversation_session(conversation_key):
         return None
 
 
-def store_conversation_session(conversation_key, session_id, user_id, channel_id, thread_ts=None):
+def get_latest_message_ts(conversation_key):
+    """
+    Get latest message timestamp from session
+    """
+    try:
+        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        if "Item" in response:
+            return response["Item"].get("latest_message_ts")
+        return None
+    except Exception as e:
+        logger.error("Error getting latest message timestamp", extra={"error": str(e)})
+        return None
+
+
+def store_conversation_session(
+    conversation_key, session_id, user_id, channel_id, thread_ts=None, latest_message_ts=None
+):
     """
     Store new Bedrock session for conversation memory
     """
     try:
         ttl = int(time.time()) + TTL_SESSION
-        table.put_item(
-            Item={
-                "pk": conversation_key,
-                "sk": SESSION_SK,
-                "session_id": session_id,
-                "user_id": user_id,
-                "channel_id": channel_id,
-                "thread_ts": thread_ts,
-                "created_at": int(time.time()),
-                "ttl": ttl,
-            }
-        )
+        item = {
+            "pk": conversation_key,
+            "sk": SESSION_SK,
+            "session_id": session_id,
+            "user_id": user_id,
+            "channel_id": channel_id,
+            "created_at": int(time.time()),
+            "ttl": ttl,
+        }
+        # Add thread context for channel conversations (not needed for DMs)
+        if thread_ts:
+            item["thread_ts"] = thread_ts
+        # Track latest bot message timestamp for feedback restriction
+        if latest_message_ts:
+            item["latest_message_ts"] = latest_message_ts
+
+        table.put_item(Item=item)
         logger.info("Stored session", extra={"session_id": session_id, "conversation_key": conversation_key})
     except Exception as e:
         logger.error("Error storing session", extra={"error": str(e)})
+
+
+def update_session_latest_message(conversation_key, message_ts):
+    """
+    Update session with latest message timestamp
+    """
+    try:
+        table.update_item(
+            Key={"pk": conversation_key, "sk": SESSION_SK},
+            UpdateExpression="SET latest_message_ts = :ts",
+            ExpressionAttributeValues={":ts": message_ts},
+        )
+    except Exception as e:
+        logger.error("Error updating session latest message", extra={"error": str(e)})
 
 
 def query_bedrock(user_query, session_id=None):
