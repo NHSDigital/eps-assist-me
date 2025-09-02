@@ -472,3 +472,42 @@ def test_app_mention_handler_normal_mention(mock_env):
     ) as mock_trigger:
         app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
         mock_trigger.assert_called_once()
+
+
+def test_feedback_handler_conditional_check_failed(mock_env):
+    """Test feedback_handler with ConditionalCheckFailedException"""
+    from app.slack.slack_handlers import feedback_handler
+    from botocore.exceptions import ClientError
+
+    mock_ack = Mock()
+    mock_body = {
+        "user": {"id": "U123"},
+        "actions": [{"action_id": "feedback_yes", "value": '{"ck": "conv-key", "mt": "123"}'}],
+    }
+    mock_client = Mock()
+
+    error = ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "PutItem")
+
+    with patch("app.slack.slack_handlers._is_latest_message", return_value=True), patch(
+        "app.slack.slack_handlers.store_feedback", side_effect=error
+    ):
+        feedback_handler(mock_ack, mock_body, mock_client)
+        mock_ack.assert_called_once()
+
+
+def test_feedback_handler_storage_error(mock_env):
+    """Test feedback_handler with storage error"""
+    from app.slack.slack_handlers import feedback_handler
+
+    mock_ack = Mock()
+    mock_body = {
+        "user": {"id": "U123"},
+        "actions": [{"action_id": "feedback_yes", "value": '{"ck": "conv-key", "mt": "123"}'}],
+    }
+    mock_client = Mock()
+
+    with patch("app.slack.slack_handlers._is_latest_message", return_value=True), patch(
+        "app.slack.slack_handlers.store_feedback", side_effect=Exception("Storage error")
+    ):
+        feedback_handler(mock_ack, mock_body, mock_client)
+        mock_ack.assert_called_once()

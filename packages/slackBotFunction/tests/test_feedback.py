@@ -180,3 +180,38 @@ def test_cleanup_previous_unfeedback_qa_error_handling(mock_table, mock_env):
     with patch("app.slack.slack_events.check_feedback_exists", side_effect=Exception("Error")):
         # Should not raise exception
         cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+
+
+@patch("app.slack.slack_events.table")
+def test_get_conversation_session_data_no_item(mock_table, mock_env):
+    """Test get_conversation_session_data when no item exists"""
+    mock_table.get_item.return_value = {}  # No Item key
+    from app.slack.slack_events import get_conversation_session_data
+
+    result = get_conversation_session_data("test-key")
+    assert result is None
+
+
+@patch("app.slack.slack_events.table")
+def test_get_latest_message_ts_no_item(mock_table, mock_env):
+    """Test get_latest_message_ts when no item exists"""
+    mock_table.get_item.return_value = {}  # No Item key
+    from app.slack.slack_events import get_latest_message_ts
+
+    result = get_latest_message_ts("test-key")
+    assert result is None
+
+
+@patch("app.slack.slack_events.table")
+def test_store_feedback_client_error_reraise(mock_table, mock_env):
+    """Test store_feedback re-raises ClientError"""
+    from botocore.exceptions import ClientError
+
+    error = ClientError({"Error": {"Code": "ValidationException"}}, "PutItem")
+    mock_table.put_item.side_effect = error
+
+    from app.slack.slack_events import store_feedback
+
+    with patch("app.slack.slack_events.get_latest_message_ts", return_value="123"):
+        with pytest.raises(ClientError):
+            store_feedback("conv-key", "query", "positive", "user-id", "channel-id")

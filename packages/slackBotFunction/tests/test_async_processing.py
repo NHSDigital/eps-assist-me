@@ -364,3 +364,47 @@ def test_process_async_slack_event_post_error_message_fails(mock_boto_resource, 
 
         # Should not raise exception even when error posting fails
         process_async_slack_event(slack_event_data)
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_process_async_slack_event_dm_context(mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test process_async_slack_event with DM context"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+
+    with patch("slack_sdk.WebClient") as mock_webclient, patch(
+        "app.slack.slack_events.query_bedrock"
+    ) as mock_bedrock, patch("app.slack.slack_events.get_conversation_session") as mock_get_session, patch(
+        "boto3.client"
+    ):
+
+        mock_client = Mock()
+        mock_client.chat_postMessage.return_value = {"ts": "123"}
+        mock_webclient.return_value = mock_client
+
+        mock_bedrock.return_value = {"output": {"text": "AI response"}, "sessionId": "new-session"}
+        mock_get_session.return_value = None
+
+        from app.slack.slack_events import process_async_slack_event
+
+        slack_event_data = {
+            "event": {
+                "text": "test question",
+                "user": "U456",
+                "channel": "D789",
+                "ts": "123",
+                "channel_type": "im",  # DM context
+            },
+            "event_id": "evt123",
+            "bot_token": "bot-token",
+        }
+
+        process_async_slack_event(slack_event_data)
