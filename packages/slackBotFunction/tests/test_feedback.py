@@ -107,3 +107,76 @@ def test_update_session_latest_message_error_handling(mock_table, mock_env):
 
     # Should not raise exception
     update_session_latest_message("conv-key", "123")
+
+
+@patch("app.slack.slack_events.table")
+@patch("time.time")
+def test_store_feedback_with_qa_fallback_paths(mock_time, mock_table, mock_env):
+    """Test store_feedback_with_qa fallback paths"""
+    mock_time.return_value = 1000
+    from app.slack.slack_events import store_feedback_with_qa
+
+    with patch("app.slack.slack_events.get_latest_message_ts", return_value=None):
+        store_feedback_with_qa("conv-key", "query", "response", "positive", "user-id", "channel-id")
+        mock_table.put_item.assert_called()
+
+
+@patch("app.slack.slack_events.table")
+def test_cleanup_previous_unfeedback_qa(mock_table, mock_env):
+    """Test cleanup_previous_unfeedback_qa function"""
+    from app.slack.slack_events import cleanup_previous_unfeedback_qa
+
+    # Test with no previous message
+    session_data = {}
+    cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+    mock_table.delete_item.assert_not_called()
+
+    # Test with same message timestamp
+    session_data = {"latest_message_ts": "123"}
+    cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+    mock_table.delete_item.assert_not_called()
+
+    # Test with different message timestamp and no feedback
+    mock_table.reset_mock()
+    session_data = {"latest_message_ts": "456"}
+    with patch("app.slack.slack_events.check_feedback_exists", return_value=False):
+        cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+        mock_table.delete_item.assert_called_once_with(Key={"pk": "qa#conv-key#456", "sk": "turn"})
+
+    # Test with different message timestamp and existing feedback
+    mock_table.reset_mock()
+    with patch("app.slack.slack_events.check_feedback_exists", return_value=True):
+        cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+        mock_table.delete_item.assert_not_called()
+
+
+@patch("app.slack.slack_events.table")
+def test_check_feedback_exists(mock_table, mock_env):
+    """Test check_feedback_exists function"""
+    from app.slack.slack_events import check_feedback_exists
+
+    # Test with existing feedback
+    mock_table.query.return_value = {"Items": [{"feedback_type": "positive"}]}
+    result = check_feedback_exists("conv-key", "123")
+    assert result is True
+
+    # Test with no feedback
+    mock_table.query.return_value = {"Items": []}
+    result = check_feedback_exists("conv-key", "123")
+    assert result is False
+
+    # Test with exception
+    mock_table.query.side_effect = Exception("DB error")
+    result = check_feedback_exists("conv-key", "123")
+    assert result is False
+
+
+@patch("app.slack.slack_events.table")
+def test_cleanup_previous_unfeedback_qa_error_handling(mock_table, mock_env):
+    """Test cleanup_previous_unfeedback_qa error handling"""
+    from app.slack.slack_events import cleanup_previous_unfeedback_qa
+
+    session_data = {"latest_message_ts": "456"}
+    with patch("app.slack.slack_events.check_feedback_exists", side_effect=Exception("Error")):
+        # Should not raise exception
+        cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
