@@ -28,9 +28,9 @@ def test_is_duplicate_event(mock_time, mock_boto_resource, mock_get_parameter, m
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
 
-    from app.slack.slack_handlers import is_duplicate_event
+    from app.slack.slack_handlers import _is_duplicate_event
 
-    result = is_duplicate_event("test-event")
+    result = _is_duplicate_event("test-event")
     assert result is True
 
 
@@ -39,7 +39,7 @@ def test_is_duplicate_event(mock_time, mock_boto_resource, mock_get_parameter, m
 @patch("boto3.resource")
 @patch("time.time")
 def test_is_duplicate_event_client_error(mock_time, mock_boto_resource, mock_get_parameter, mock_app, mock_env):
-    """Test is_duplicate_event handles other ClientError"""
+    """Test _is_duplicate_event handles other ClientError"""
     mock_get_parameter.side_effect = [
         json.dumps({"token": "test-token"}),
         json.dumps({"secret": "test-secret"}),
@@ -59,9 +59,9 @@ def test_is_duplicate_event_client_error(mock_time, mock_boto_resource, mock_get
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
 
-    from app.slack.slack_handlers import is_duplicate_event
+    from app.slack.slack_handlers import _is_duplicate_event
 
-    result = is_duplicate_event("test-event")
+    result = _is_duplicate_event("test-event")
     assert result is False
 
 
@@ -70,7 +70,7 @@ def test_is_duplicate_event_client_error(mock_time, mock_boto_resource, mock_get
 @patch("boto3.resource")
 @patch("time.time")
 def test_is_duplicate_event_no_item(mock_time, mock_boto_resource, mock_get_parameter, mock_app, mock_env):
-    """Test is_duplicate_event when no item exists (successful put)"""
+    """Test _is_duplicate_event when no item exists (successful put)"""
     mock_get_parameter.side_effect = [
         json.dumps({"token": "test-token"}),
         json.dumps({"secret": "test-secret"}),
@@ -85,9 +85,9 @@ def test_is_duplicate_event_no_item(mock_time, mock_boto_resource, mock_get_para
     if "app.core.config" in sys.modules:
         del sys.modules["app.core.config"]
 
-    from app.slack.slack_handlers import is_duplicate_event
+    from app.slack.slack_handlers import _is_duplicate_event
 
-    result = is_duplicate_event("test-event")
+    result = _is_duplicate_event("test-event")
     assert result is False
 
 
@@ -115,7 +115,7 @@ def test_process_async_slack_event_exists(mock_boto_resource, mock_get_parameter
 @patch("boto3.resource")
 @patch("boto3.client")
 def test_trigger_async_processing_error(mock_boto_client, mock_boto_resource, mock_get_parameter, mock_app, mock_env):
-    """Test trigger_async_processing handles Lambda invoke errors"""
+    """Test _trigger_async_processing handles Lambda invoke errors"""
     mock_get_parameter.side_effect = [
         json.dumps({"token": "test-token"}),
         json.dumps({"secret": "test-secret"}),
@@ -128,11 +128,11 @@ def test_trigger_async_processing_error(mock_boto_client, mock_boto_resource, mo
     if "app.slack.slack_handlers" in sys.modules:
         del sys.modules["app.slack.slack_handlers"]
 
-    from app.slack.slack_handlers import trigger_async_processing
+    from app.slack.slack_handlers import _trigger_async_processing
 
     event_data = {"test": "data"}
     # Should not raise exception even if Lambda invoke fails
-    trigger_async_processing(event_data)
+    _trigger_async_processing(event_data)
 
     mock_boto_client.assert_called_once_with("lambda")
     mock_lambda_client.invoke.assert_called_once()

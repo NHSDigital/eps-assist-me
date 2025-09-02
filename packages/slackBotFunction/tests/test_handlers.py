@@ -60,10 +60,10 @@ def test_trigger_async_processing(mock_boto_client, mock_boto_resource, mock_get
     if "app.slack.slack_handlers" in sys.modules:
         del sys.modules["app.slack.slack_handlers"]
 
-    from app.slack.slack_handlers import trigger_async_processing
+    from app.slack.slack_handlers import _trigger_async_processing
 
     event_data = {"test": "data"}
-    trigger_async_processing(event_data)
+    _trigger_async_processing(event_data)
 
     mock_boto_client.assert_called_once_with("lambda")
     mock_lambda_client.invoke.assert_called_once()

@@ -66,8 +66,8 @@ def test_app_mention_handler(mock_env):
         mock_body = {"event_id": "evt123"}
         mock_client = Mock()
 
-        with patch("app.slack.slack_handlers.is_duplicate_event", return_value=False):
-            with patch("app.slack.slack_handlers.trigger_async_processing") as mock_trigger:
+        with patch("app.slack.slack_handlers._is_duplicate_event", return_value=False):
+            with patch("app.slack.slack_handlers._trigger_async_processing") as mock_trigger:
                 mention_handler(mock_event, mock_ack, mock_body, mock_client)
 
                 mock_ack.assert_called_once()
@@ -163,7 +163,7 @@ def test_message_handler_non_dm_skip(mock_env):
         mock_body = {"event_id": "evt123"}
         mock_client = Mock()
 
-        with patch("app.slack.slack_handlers.trigger_async_processing") as mock_trigger:
+        with patch("app.slack.slack_handlers._trigger_async_processing") as mock_trigger:
             message_handler(mock_event, mock_ack, mock_body, mock_client)
 
             mock_ack.assert_called_once()
@@ -288,13 +288,13 @@ def test_app_mention_feedback_handler(mock_env):
 
 
 def test_is_duplicate_event_error_handling(mock_env):
-    """Test is_duplicate_event error handling"""
-    from app.slack.slack_handlers import is_duplicate_event
+    """Test _is_duplicate_event error handling"""
+    from app.slack.slack_handlers import _is_duplicate_event
 
     with patch("app.core.config.table") as mock_table:
         mock_table.put_item.side_effect = ClientError({"Error": {"Code": "SomeOtherError"}}, "put_item")
 
-        result = is_duplicate_event("test-event")
+        result = _is_duplicate_event("test-event")
         assert result is False  # Should return False on non-conditional errors
 
 
@@ -329,8 +329,8 @@ def test_duplicate_event_skip_processing(mock_env):
         mock_body = {"event_id": "evt123"}
         mock_client = Mock()
 
-        with patch("app.slack.slack_handlers.is_duplicate_event", return_value=True):
-            with patch("app.slack.slack_handlers.trigger_async_processing") as mock_trigger:
+        with patch("app.slack.slack_handlers._is_duplicate_event", return_value=True):
+            with patch("app.slack.slack_handlers._trigger_async_processing") as mock_trigger:
                 mention_handler(mock_event, mock_ack, mock_body, mock_client)
 
                 mock_ack.assert_called_once()
