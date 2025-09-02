@@ -373,11 +373,10 @@ def test_dm_message_handler_feedback_error_handling(mock_env):
 
     mock_client = Mock()
     mock_event = {"text": "feedback: DM feedback", "user": "U456", "channel": "D789", "ts": "123", "channel_type": "im"}
-    mock_body = {"event_id": "evt123"}
 
     with patch("app.slack.slack_handlers.store_feedback_with_qa") as mock_store:
         mock_store.side_effect = Exception("Storage failed")
-        dm_message_handler(mock_event, "evt123", mock_body, mock_client)
+        dm_message_handler(mock_event, "evt123", mock_client)
         mock_client.chat_postMessage.assert_called_once()
 
 
@@ -387,12 +386,11 @@ def test_channel_message_handler_session_check_error(mock_env):
 
     mock_client = Mock()
     mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
-    mock_body = {"event_id": "evt123"}
 
     with patch("app.core.config.table") as mock_table:
         mock_table.get_item.side_effect = Exception("DB error")
         # Should return early due to error
-        channel_message_handler(mock_event, "evt123", mock_body, mock_client)
+        channel_message_handler(mock_event, "evt123", mock_client)
 
 
 def test_feedback_handler_unknown_action(mock_env):
@@ -426,11 +424,10 @@ def test_channel_message_handler_no_session(mock_env):
 
     mock_client = Mock()
     mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
-    mock_body = {"event_id": "evt123"}
 
     with patch("app.core.config.table") as mock_table:
         mock_table.get_item.return_value = {}  # No session
-        channel_message_handler(mock_event, "evt123", mock_body, mock_client)
+        channel_message_handler(mock_event, "evt123", mock_client)
 
 
 def test_channel_message_handler_feedback_path(mock_env):
@@ -439,12 +436,11 @@ def test_channel_message_handler_feedback_path(mock_env):
 
     mock_client = Mock()
     mock_event = {"text": "feedback: channel feedback", "channel": "C789", "thread_ts": "123", "user": "U456"}
-    mock_body = {"event_id": "evt123"}
 
     with patch("app.core.config.table") as mock_table:
         mock_table.get_item.return_value = {"Item": {"session_id": "session123"}}
         # Just test that the function runs without error
-        channel_message_handler(mock_event, "evt123", mock_body, mock_client)
+        channel_message_handler(mock_event, "evt123", mock_client)
 
 
 def test_dm_message_handler_normal_message(mock_env):
@@ -453,10 +449,9 @@ def test_dm_message_handler_normal_message(mock_env):
 
     mock_client = Mock()
     mock_event = {"text": "normal message", "user": "U456", "channel": "D789", "ts": "123", "channel_type": "im"}
-    mock_body = {"event_id": "evt123"}
 
     with patch("app.slack.slack_handlers._trigger_async_processing") as mock_trigger:
-        dm_message_handler(mock_event, "evt123", mock_body, mock_client)
+        dm_message_handler(mock_event, "evt123", mock_client)
         mock_trigger.assert_called_once()
 
 

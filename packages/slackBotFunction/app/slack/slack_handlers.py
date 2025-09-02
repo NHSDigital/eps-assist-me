@@ -138,7 +138,7 @@ def app_mention_handler(event, ack, body, client):
     _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
-def dm_message_handler(event, event_id, body, client):
+def dm_message_handler(event, event_id, client):
     """
     Direct messages:
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
@@ -183,7 +183,7 @@ def dm_message_handler(event, event_id, body, client):
     _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
-def channel_message_handler(event, event_id, body, client):
+def channel_message_handler(event, event_id, client):
     """
     Channel messages:
     - Ignore top-level messages (policy: require @mention to start).
@@ -253,10 +253,10 @@ def unified_message_handler(event, ack, body, client):
     # Route to appropriate handler based on message type
     if event.get("channel_type") == CHANNEL_TYPE_IM:
         # DM handling
-        dm_message_handler(event, event_id, body, client)
+        dm_message_handler(event, event_id, client)
     else:
         # Channel message handling
-        channel_message_handler(event, event_id, body, client)
+        channel_message_handler(event, event_id, client)
 
 
 def feedback_handler(ack, body, client):
