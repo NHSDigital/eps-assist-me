@@ -238,8 +238,11 @@ def test_process_async_slack_event_with_session_storage(
         json.dumps({"secret": "test-secret"}),
     ]
     mock_table = Mock()
+    mock_table.get_item.return_value = {}  # No existing session
     mock_boto_resource.return_value.Table.return_value = mock_table
     mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_update.return_value = {"ok": True}
     mock_webclient.return_value = mock_client
 
     # Clean up modules before import
@@ -248,7 +251,14 @@ def test_process_async_slack_event_with_session_storage(
         if module in sys.modules:
             del sys.modules[module]
 
-    with patch("boto3.client") as mock_bedrock_client:
+    with patch("boto3.client") as mock_bedrock_client, patch.dict(
+        "os.environ",
+        {
+            "QUERY_REFORMULATION_MODEL_ID": "test-model",
+            "QUERY_REFORMULATION_PROMPT_NAME": "test-prompt",
+            "QUERY_REFORMULATION_PROMPT_VERSION": "DRAFT",
+        },
+    ):
         # Mock the bedrock client to return a session ID
         mock_bedrock_client.return_value.retrieve_and_generate.return_value = {
             "output": {"text": "AI response"},
@@ -265,8 +275,92 @@ def test_process_async_slack_event_with_session_storage(
 
         process_async_slack_event(slack_event_data)
 
-        # Verify session was stored
-        mock_table.put_item.assert_called()
-        call_args = mock_table.put_item.call_args[1]["Item"]
-        assert call_args["session_id"] == "new-session-123"
-        assert call_args["user_id"] == "U456"
+        # Verify session was stored - should be called twice (Q&A pair + session)
+        assert mock_table.put_item.call_count >= 1
+        # Find the session storage call
+        session_call = None
+        for call in mock_table.put_item.call_args_list:
+            item = call[1]["Item"]
+            if "session_id" in item:
+                session_call = item
+                break
+
+        assert session_call is not None
+        assert session_call["session_id"] == "new-session-123"
+        assert session_call["user_id"] == "U456"
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_process_async_slack_event_chat_update_error(mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test process_async_slack_event with chat_update error"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+
+    with patch("slack_sdk.WebClient") as mock_webclient, patch(
+        "app.slack.slack_events.query_bedrock"
+    ) as mock_bedrock, patch("app.slack.slack_events.get_conversation_session") as mock_get_session, patch(
+        "boto3.client"
+    ):
+
+        mock_client = Mock()
+        mock_client.chat_postMessage.return_value = {"ts": "123"}
+        mock_client.chat_update.side_effect = Exception("Update failed")
+        mock_webclient.return_value = mock_client
+
+        mock_bedrock.return_value = {"output": {"text": "AI response"}}
+        mock_get_session.return_value = None
+
+        from app.slack.slack_events import process_async_slack_event
+
+        slack_event_data = {
+            "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "123"},
+            "event_id": "evt123",
+            "bot_token": "bot-token",
+        }
+
+        # Should not raise exception
+        process_async_slack_event(slack_event_data)
+
+
+@patch("slack_bolt.App")
+@patch("aws_lambda_powertools.utilities.parameters.get_parameter")
+@patch("boto3.resource")
+def test_process_async_slack_event_post_error_message_fails(mock_boto_resource, mock_get_parameter, mock_app, mock_env):
+    """Test process_async_slack_event when posting error message fails"""
+    mock_get_parameter.side_effect = [
+        json.dumps({"token": "test-token"}),
+        json.dumps({"secret": "test-secret"}),
+    ]
+    mock_boto_resource.return_value.Table.return_value = Mock()
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+
+    with patch("slack_sdk.WebClient") as mock_webclient, patch(
+        "app.slack.slack_events.query_bedrock"
+    ) as mock_bedrock, patch("boto3.client"):
+
+        mock_client = Mock()
+        mock_client.chat_postMessage.side_effect = Exception("Post failed")
+        mock_webclient.return_value = mock_client
+
+        mock_bedrock.side_effect = Exception("Bedrock error")
+
+        from app.slack.slack_events import process_async_slack_event
+
+        slack_event_data = {
+            "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "123"},
+            "event_id": "evt123",
+            "bot_token": "bot-token",
+        }
+
+        # Should not raise exception even when error posting fails
+        process_async_slack_event(slack_event_data)

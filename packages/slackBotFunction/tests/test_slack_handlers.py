@@ -207,7 +207,9 @@ def test_feedback_yes_action_handler(mock_env):
         }
         mock_client = Mock()
 
-        with patch("app.slack.slack_handlers.store_feedback") as mock_store:
+        with patch("app.slack.slack_handlers.store_feedback") as mock_store, patch(
+            "app.slack.slack_handlers._is_latest_message", return_value=True
+        ):
             yes_handler(mock_ack, mock_body, mock_client)
 
             mock_ack.assert_called_once()
@@ -252,7 +254,9 @@ def test_feedback_no_action_handler(mock_env):
         }
         mock_client = Mock()
 
-        with patch("app.slack.slack_handlers.store_feedback") as mock_store:
+        with patch("app.slack.slack_handlers.store_feedback") as mock_store, patch(
+            "app.slack.slack_handlers._is_latest_message", return_value=True
+        ):
             no_handler(mock_ack, mock_body, mock_client)
 
             mock_ack.assert_called_once()
@@ -335,3 +339,55 @@ def test_duplicate_event_skip_processing(mock_env):
 
                 mock_ack.assert_called_once()
                 mock_trigger.assert_not_called()  # Should not trigger for duplicate
+
+
+def test_app_mention_feedback_error_handling(mock_env):
+    """Test app mention feedback error handling"""
+    from app.slack.slack_handlers import app_mention_handler
+
+    mock_ack = Mock()
+    mock_client = Mock()
+    mock_event = {"text": "<@U123> feedback: this is feedback", "user": "U456", "channel": "C789", "ts": "123"}
+    mock_body = {"event_id": "evt123"}
+
+    with patch("app.slack.slack_handlers.store_feedback_with_qa") as mock_store:
+        mock_store.side_effect = Exception("Storage failed")
+        app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
+        # Should still try to post message
+        mock_client.chat_postMessage.assert_called_once()
+
+    # Test post message error
+    mock_client.reset_mock()
+    mock_client.chat_postMessage.side_effect = Exception("Post failed")
+
+    with patch("app.slack.slack_handlers.store_feedback_with_qa"):
+        app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
+        # Should not raise exception
+
+
+def test_dm_message_handler_feedback_error_handling(mock_env):
+    """Test DM message handler feedback error handling"""
+    from app.slack.slack_handlers import dm_message_handler
+
+    mock_client = Mock()
+    mock_event = {"text": "feedback: DM feedback", "user": "U456", "channel": "D789", "ts": "123", "channel_type": "im"}
+    mock_body = {"event_id": "evt123"}
+
+    with patch("app.slack.slack_handlers.store_feedback_with_qa") as mock_store:
+        mock_store.side_effect = Exception("Storage failed")
+        dm_message_handler(mock_event, "evt123", mock_body, mock_client)
+        mock_client.chat_postMessage.assert_called_once()
+
+
+def test_channel_message_handler_session_check_error(mock_env):
+    """Test channel_message_handler session check error"""
+    from app.slack.slack_handlers import channel_message_handler
+
+    mock_client = Mock()
+    mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
+    mock_body = {"event_id": "evt123"}
+
+    with patch("app.core.config.table") as mock_table:
+        mock_table.get_item.side_effect = Exception("DB error")
+        # Should return early due to error
+        channel_message_handler(mock_event, "evt123", mock_body, mock_client)

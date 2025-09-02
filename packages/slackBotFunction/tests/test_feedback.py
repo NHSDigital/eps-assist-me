@@ -77,3 +77,33 @@ def test_feedback_message_empty_text(mock_env):
         mock_table.get_item.side_effect = Exception("DB error")
         result = get_conversation_session("test-conv")
         assert result is None
+
+
+@patch("app.slack.slack_events.table")
+def test_store_qa_pair_error_handling(mock_table, mock_env):
+    """Test store_qa_pair error handling"""
+    mock_table.put_item.side_effect = Exception("DB error")
+    from app.slack.slack_events import store_qa_pair
+
+    # Should not raise exception
+    store_qa_pair("conv-key", "query", "response", "123", "session-id", "user-id")
+
+
+@patch("app.slack.slack_events.table")
+def test_store_conversation_session_error_handling(mock_table, mock_env):
+    """Test store_conversation_session error handling"""
+    mock_table.put_item.side_effect = Exception("DB error")
+    from app.slack.slack_events import store_conversation_session
+
+    # Should not raise exception
+    store_conversation_session("conv-key", "session-id", "user-id", "channel-id")
+
+
+@patch("app.slack.slack_events.table")
+def test_update_session_latest_message_error_handling(mock_table, mock_env):
+    """Test update_session_latest_message error handling"""
+    mock_table.update_item.side_effect = Exception("DB error")
+    from app.slack.slack_events import update_session_latest_message
+
+    # Should not raise exception
+    update_session_latest_message("conv-key", "123")
