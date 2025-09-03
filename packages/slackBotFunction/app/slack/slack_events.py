@@ -34,37 +34,27 @@ from app.services.query_reformulator import reformulate_query
 
 
 def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data):
-    """Delete previous Q&A pair if no feedback received"""
+    """Delete previous Q&A pair if no feedback received using atomic operation"""
     try:
         previous_message_ts = session_data.get("latest_message_ts")
         # Skip if no previous message or it's the same as current
         if not previous_message_ts or previous_message_ts == current_message_ts:
             return
 
-        # Check if previous Q&A has any feedback
-        feedback_exists = check_feedback_exists(conversation_key, previous_message_ts)
+        # Atomically delete Q&A only if no feedback received
+        table.delete_item(
+            Key={"pk": f"qa#{conversation_key}#{previous_message_ts}", "sk": "turn"},
+            ConditionExpression="attribute_not_exists(feedback_received)",
+        )
+        logger.info("Deleted unfeedback Q&A for privacy", extra={"message_ts": previous_message_ts})
 
-        if not feedback_exists:
-            # Delete unfeedback Q&A pair for privacy compliance
-            previous_qa_key = f"qa#{conversation_key}#{previous_message_ts}"
-            table.delete_item(Key={"pk": previous_qa_key, "sk": "turn"})
-            logger.info("Deleted unfeedback Q&A for privacy", extra={"message_ts": previous_message_ts})
-
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            logger.info("Q&A has feedback - keeping for user", extra={"message_ts": previous_message_ts})
+        else:
+            logger.error("Error cleaning up Q&A", extra={"error": str(e)})
     except Exception as e:
         logger.error("Error cleaning up unfeedback Q&A", extra={"error": str(e)})
-
-
-def check_feedback_exists(conversation_key, message_ts):
-    """Check if any feedback exists for this Q&A pair"""
-    try:
-        response = table.query(
-            KeyConditionExpression="pk = :pk",
-            ExpressionAttributeValues={":pk": f"feedback#{conversation_key}#{message_ts}"},
-            Limit=1,
-        )
-        return len(response.get("Items", [])) > 0
-    except Exception:
-        return False
 
 
 def store_qa_pair(conversation_key, user_query, bot_response, message_ts, session_id, user_id):
@@ -308,6 +298,11 @@ def store_feedback_with_qa(
             feedback_item["additional_feedback"] = additional_feedback[:4000]
 
         table.put_item(Item=feedback_item)
+
+        # Mark Q&A as having received feedback to prevent deletion
+        if message_ts:
+            _mark_qa_feedback_received(conversation_key, message_ts)
+
         logger.info("Stored feedback with Q&A context", extra={"pk": pk, "sk": sk})
 
     except Exception as e:
@@ -357,7 +352,7 @@ def store_feedback(
             "pk": pk,
             "sk": sk,
             "conversation_key": conversation_key,
-            "feedback_type": feedback_type,  # 'positive' | 'negative' | 'additional'
+            "feedback_type": feedback_type,
             "user_id": user_id,
             "channel_id": channel_id,
             "created_at": now,
@@ -370,14 +365,18 @@ def store_feedback(
         if message_ts:
             feedback_item["message_ts"] = message_ts
         if user_query:
-            feedback_item["user_query"] = user_query[:1000]  # small excerpt to keep items compact
+            feedback_item["user_query"] = user_query[:1000]  # Truncate to keep items compact
         if additional_feedback:
-            feedback_item["additional_feedback"] = additional_feedback[:4000]
+            feedback_item["additional_feedback"] = additional_feedback[:4000]  # Truncate to keep items compact
 
         if condition:
             table.put_item(Item=feedback_item, ConditionExpression=condition)
         else:
             table.put_item(Item=feedback_item)
+
+        # Mark Q&A as having received feedback to prevent deletion
+        if message_ts:
+            _mark_qa_feedback_received(conversation_key, message_ts)
 
         logger.info(
             "Stored feedback",
@@ -486,6 +485,18 @@ def update_session_latest_message(conversation_key, message_ts):
         )
     except Exception as e:
         logger.error("Error updating session latest message", extra={"error": str(e)})
+
+
+def _mark_qa_feedback_received(conversation_key, message_ts):
+    """Mark Q&A record as having received feedback to prevent deletion"""
+    try:
+        table.update_item(
+            Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
+            UpdateExpression="SET feedback_received = :val",
+            ExpressionAttributeValues={":val": True},
+        )
+    except Exception as e:
+        logger.error("Error marking Q&A feedback received", extra={"error": str(e)})
 
 
 def query_bedrock(user_query, session_id=None):

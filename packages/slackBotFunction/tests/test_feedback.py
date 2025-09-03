@@ -136,39 +136,24 @@ def test_cleanup_previous_unfeedback_qa(mock_table, mock_env):
     cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
     mock_table.delete_item.assert_not_called()
 
-    # Test with different message timestamp and no feedback
+    # Test with different message timestamp - atomic delete
     mock_table.reset_mock()
     session_data = {"latest_message_ts": "456"}
-    with patch("app.slack.slack_events.check_feedback_exists", return_value=False):
-        cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
-        mock_table.delete_item.assert_called_once_with(Key={"pk": "qa#conv-key#456", "sk": "turn"})
+    cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+    mock_table.delete_item.assert_called_once_with(
+        Key={"pk": "qa#conv-key#456", "sk": "turn"}, ConditionExpression="attribute_not_exists(feedback_received)"
+    )
 
-    # Test with different message timestamp and existing feedback
+    # Test with ConditionalCheckFailedException (feedback exists)
     mock_table.reset_mock()
-    with patch("app.slack.slack_events.check_feedback_exists", return_value=True):
-        cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
-        mock_table.delete_item.assert_not_called()
+    from botocore.exceptions import ClientError
 
-
-@patch("app.slack.slack_events.table")
-def test_check_feedback_exists(mock_table, mock_env):
-    """Test check_feedback_exists function"""
-    from app.slack.slack_events import check_feedback_exists
-
-    # Test with existing feedback
-    mock_table.query.return_value = {"Items": [{"feedback_type": "positive"}]}
-    result = check_feedback_exists("conv-key", "123")
-    assert result is True
-
-    # Test with no feedback
-    mock_table.query.return_value = {"Items": []}
-    result = check_feedback_exists("conv-key", "123")
-    assert result is False
-
-    # Test with exception
-    mock_table.query.side_effect = Exception("DB error")
-    result = check_feedback_exists("conv-key", "123")
-    assert result is False
+    error = ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "DeleteItem")
+    mock_table.delete_item.side_effect = error
+    cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+    mock_table.delete_item.assert_called_once_with(
+        Key={"pk": "qa#conv-key#456", "sk": "turn"}, ConditionExpression="attribute_not_exists(feedback_received)"
+    )
 
 
 @patch("app.slack.slack_events.table")
@@ -223,9 +208,9 @@ def test_cleanup_previous_unfeedback_qa_error_handling(mock_table, mock_env):
     from app.slack.slack_events import cleanup_previous_unfeedback_qa
 
     session_data = {"latest_message_ts": "456"}
-    with patch("app.slack.slack_events.check_feedback_exists", side_effect=Exception("Error")):
-        # Should not raise exception
-        cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
+    mock_table.delete_item.side_effect = Exception("DB error")
+    # Should not raise exception
+    cleanup_previous_unfeedback_qa("conv-key", "123", session_data)
 
 
 @patch("app.slack.slack_events.table")
