@@ -376,7 +376,6 @@ def _trigger_async_processing(event_data):
     This function invokes the same Lambda function asynchronously to handle the
     actual AI processing without blocking the initial Slack response.
     """
-    # incase we fail to re-invoke the lambda we should log an error
     try:
         lambda_client = boto3.client("lambda")
         lambda_client.invoke(
