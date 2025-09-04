@@ -166,10 +166,10 @@ def dm_message_handler(event, event_id, client):
             logger.error(f"Failed to store DM additional feedback: {e}")
 
         try:
+            # DMs don't use threads - post directly to channel
             client.chat_postMessage(
                 channel=channel_id,
                 text=BOT_MESSAGES["feedback_thanks"],
-                thread_ts=thread_root,
             )
         except Exception as e:
             logger.error(f"Failed to post DM feedback ack: {e}")
@@ -289,11 +289,10 @@ def feedback_handler(ack, body, client):
                 feedback_data.get("mt"),
             )
             # Only post message if storage succeeded
-            client.chat_postMessage(
-                channel=feedback_data["ch"],
-                text=response_message,
-                thread_ts=feedback_data.get("tt"),
-            )
+            post_params = {"channel": feedback_data["ch"], "text": response_message}
+            if feedback_data.get("tt"):  # Only add thread_ts if it exists (not for DMs)
+                post_params["thread_ts"] = feedback_data["tt"]
+            client.chat_postMessage(**post_params)
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
                 # Silently ignore duplicate votes - user already voted on this message

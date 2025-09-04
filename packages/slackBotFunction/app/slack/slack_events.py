@@ -100,6 +100,76 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
 
 
 # ================================================================
+# Event processing helpers
+# ================================================================
+
+
+def _extract_conversation_context(event):
+    """Extract conversation key and thread context from event"""
+    channel = event["channel"]
+    # Determine conversation context: DM vs channel thread
+    if event.get("channel_type") == CHANNEL_TYPE_IM:
+        return f"{DM_PREFIX}{channel}", CONTEXT_TYPE_DM, None  # DMs don't use threads
+    else:
+        thread_root = event.get("thread_ts", event["ts"])
+        return f"{THREAD_PREFIX}{channel}#{thread_root}", CONTEXT_TYPE_THREAD, thread_root
+
+
+def _handle_session_management(
+    conversation_key, session_data, session_id, kb_response, user_id, channel, thread_ts, context_type, message_ts
+):
+    """Handle Bedrock session creation and cleanup"""
+    # Handle conversation session management
+    if not session_id and "sessionId" in kb_response:
+        # Store new Bedrock session for conversation continuity
+        store_conversation_session(
+            conversation_key,
+            kb_response["sessionId"],
+            user_id,
+            channel,
+            thread_ts if context_type == CONTEXT_TYPE_THREAD else None,
+            message_ts,
+        )
+    elif session_id:
+        # Clean up previous unfeedback Q&A for privacy compliance
+        cleanup_previous_unfeedback_qa(conversation_key, message_ts, session_data)
+        # Track latest bot message for feedback validation
+        update_session_latest_message(conversation_key, message_ts)
+
+
+def _create_feedback_blocks(response_text, conversation_key, channel, message_ts, thread_ts):
+    """Create Slack blocks with feedback buttons"""
+    # Create compact feedback payload for button actions
+    feedback_data = {"ck": conversation_key, "ch": channel, "mt": message_ts}
+    if thread_ts:  # Only include thread_ts for channel threads, not DMs
+        feedback_data["tt"] = thread_ts
+    feedback_value = json.dumps(feedback_data, separators=(",", ":"))
+
+    return [
+        {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
+        {"type": "section", "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]}},
+        {
+            "type": "actions",
+            "block_id": "feedback_block",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_yes"]},
+                    "action_id": "feedback_yes",
+                    "value": feedback_value,
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_no"]},
+                    "action_id": "feedback_no",
+                    "value": feedback_value,
+                },
+            ],
+        },
+    ]
+
+
+# ================================================================
 # Main async event processing
 # ================================================================
 
@@ -113,28 +183,15 @@ def process_async_slack_event(slack_event_data):
     """
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
-    token = slack_event_data["bot_token"]
-
-    client = WebClient(token=token)
+    client = WebClient(token=slack_event_data["bot_token"])
 
     try:
-        raw_text = event["text"]
         user_id = event["user"]
         channel = event["channel"]
-
-        # Determine conversation context: DM vs channel thread
-        if event.get("channel_type") == CHANNEL_TYPE_IM:
-            conversation_key = f"{DM_PREFIX}{channel}"
-            context_type = CONTEXT_TYPE_DM
-            thread_ts = event.get("thread_ts", event["ts"])
-        else:
-            thread_root = event.get("thread_ts", event["ts"])
-            conversation_key = f"{THREAD_PREFIX}{channel}#{thread_root}"
-            context_type = CONTEXT_TYPE_THREAD
-            thread_ts = thread_root
+        conversation_key, context_type, thread_ts = _extract_conversation_context(event)
 
         # Remove Slack user mentions from message text
-        user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", raw_text).strip()
+        user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()
 
         logger.info(
             f"Processing {context_type} message from user {user_id}",
@@ -143,11 +200,10 @@ def process_async_slack_event(slack_event_data):
 
         # handles empty messages
         if not user_query:
-            client.chat_postMessage(
-                channel=channel,
-                text=BOT_MESSAGES["empty_query"],
-                thread_ts=thread_ts,
-            )
+            post_params = {"channel": channel, "text": BOT_MESSAGES["empty_query"]}
+            if thread_ts:  # Only add thread_ts for channel threads, not DMs
+                post_params["thread_ts"] = thread_ts
+            client.chat_postMessage(**post_params)
             return
 
         # Reformulate query for better RAG retrieval
@@ -159,96 +215,47 @@ def process_async_slack_event(slack_event_data):
 
         # Query Bedrock Knowledge Base with conversation context
         kb_response = query_bedrock(reformulated_query, session_id)
-
         response_text = kb_response["output"]["text"]
 
         # Post the answer (plain) to get message_ts
-        post = client.chat_postMessage(
-            channel=channel,
-            text=response_text,
-            thread_ts=thread_ts,
-        )
+        post_params = {"channel": channel, "text": response_text}
+        if thread_ts:  # Only add thread_ts for channel threads, not DMs
+            post_params["thread_ts"] = thread_ts
+        post = client.chat_postMessage(**post_params)
         message_ts = post["ts"]
 
-        # Handle conversation session management
-        if not session_id and "sessionId" in kb_response:
-            # Store new Bedrock session for conversation continuity
-            store_conversation_session(
-                conversation_key,
-                kb_response["sessionId"],
-                user_id,
-                channel,
-                thread_ts if context_type == CONTEXT_TYPE_THREAD else None,
-                message_ts,
-            )
-        elif session_id:
-            # Clean up previous unfeedback Q&A for privacy compliance
-            cleanup_previous_unfeedback_qa(conversation_key, message_ts, session_data)
-            # Track latest bot message for feedback validation
-            update_session_latest_message(conversation_key, message_ts)
+        _handle_session_management(
+            conversation_key,
+            session_data,
+            session_id,
+            kb_response,
+            user_id,
+            channel,
+            thread_ts,
+            context_type,
+            message_ts,
+        )
 
         # Store Q&A pair for feedback correlation
-        store_qa_pair(
-            conversation_key=conversation_key,
-            user_query=user_query,
-            bot_response=response_text,
-            message_ts=message_ts,
-            session_id=kb_response.get("sessionId"),
-            user_id=user_id,
-        )
+        store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
-        # Create compact feedback payload for button actions
-        feedback_value = json.dumps(
-            {"ck": conversation_key, "ch": channel, "tt": thread_ts, "mt": message_ts}, separators=(",", ":")
-        )
-        blocks = [
-            {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
-            {
-                "type": "section",
-                "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]},
-            },
-            {
-                "type": "actions",
-                "block_id": "feedback_block",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_yes"]},
-                        "action_id": "feedback_yes",
-                        "value": feedback_value,
-                    },
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_no"]},
-                        "action_id": "feedback_no",
-                        "value": feedback_value,
-                    },
-                ],
-            },
-        ]
+        blocks = _create_feedback_blocks(response_text, conversation_key, channel, message_ts, thread_ts)
         try:
-            client.chat_update(
-                channel=channel,
-                ts=message_ts,
-                text=response_text,
-                blocks=blocks,
-            )
+            client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
-                f"Failed to attach feedback buttons: {e}",
-                extra={"event_id": event_id, "message_ts": message_ts},
+                f"Failed to attach feedback buttons: {e}", extra={"event_id": event_id, "message_ts": message_ts}
             )
 
     except Exception as err:
         logger.error("Error processing message", extra={"event_id": event_id, "error": str(err)})
 
-        # incase Slack API call fails, we still want to log the error
+        # Try to notify user of error via Slack
         try:
-            client.chat_postMessage(
-                channel=channel,
-                text=BOT_MESSAGES["error_response"],
-                thread_ts=thread_ts,
-            )
+            post_params = {"channel": channel, "text": BOT_MESSAGES["error_response"]}
+            if thread_ts:  # Only add thread_ts for channel threads, not DMs
+                post_params["thread_ts"] = thread_ts
+            client.chat_postMessage(**post_params)
         except Exception as post_err:
             logger.error("Failed to post error message", extra={"error": str(post_err)})
 
