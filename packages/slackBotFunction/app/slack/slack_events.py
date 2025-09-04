@@ -33,6 +33,11 @@ from app.core.config import (
 from app.services.query_reformulator import reformulate_query
 
 
+# ================================================================
+# Privacy and Q&A management helpers
+# ================================================================
+
+
 def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data):
     """Delete previous Q&A pair if no feedback received using atomic operation"""
     try:
@@ -78,6 +83,25 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
         logger.info("Stored Q&A pair", extra={"conversation_key": conversation_key, "message_ts": message_ts})
     except Exception as e:
         logger.error("Failed to store Q&A pair", extra={"error": str(e)})
+
+
+def _mark_qa_feedback_received(conversation_key, message_ts):
+    """
+    Mark Q&A record as having received feedback to prevent deletion
+    """
+    try:
+        table.update_item(
+            Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
+            UpdateExpression="SET feedback_received = :val",
+            ExpressionAttributeValues={":val": True},
+        )
+    except Exception as e:
+        logger.error("Error marking Q&A feedback received", extra={"error": str(e)})
+
+
+# ================================================================
+# Main async event processing
+# ================================================================
 
 
 def process_async_slack_event(slack_event_data):
@@ -229,6 +253,11 @@ def process_async_slack_event(slack_event_data):
             logger.error("Failed to post error message", extra={"error": str(post_err)})
 
 
+# ================================================================
+# Feedback management
+# ================================================================
+
+
 def store_feedback(
     conversation_key,
     feedback_type,
@@ -309,6 +338,11 @@ def store_feedback(
         raise
     except Exception as e:
         logger.error(f"Error storing feedback: {e}")
+
+
+# ================================================================
+# Session management
+# ================================================================
 
 
 def get_conversation_session(conversation_key):
@@ -392,18 +426,9 @@ def update_session_latest_message(conversation_key, message_ts):
         logger.error("Error updating session latest message", extra={"error": str(e)})
 
 
-def _mark_qa_feedback_received(conversation_key, message_ts):
-    """
-    Mark Q&A record as having received feedback to prevent deletion
-    """
-    try:
-        table.update_item(
-            Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
-            UpdateExpression="SET feedback_received = :val",
-            ExpressionAttributeValues={":val": True},
-        )
-    except Exception as e:
-        logger.error("Error marking Q&A feedback received", extra={"error": str(e)})
+# ================================================================
+# Bedrock integration
+# ================================================================
 
 
 def query_bedrock(user_query, session_id=None):
