@@ -29,12 +29,11 @@ def test_store_feedback(mock_time, mock_table, mock_env):
 
     from app.slack.slack_events import store_feedback
 
-    store_feedback("test-conversation", "test query", "positive", "U123", "C123")
+    store_feedback("test-conversation", "positive", "U123", "C123")
 
     mock_table.put_item.assert_called_once()
     call_args = mock_table.put_item.call_args[1]["Item"]
     assert call_args["feedback_type"] == "positive"
-    assert call_args["user_query"] == "test query"
     assert call_args["user_id"] == "U123"
 
 
@@ -43,10 +42,10 @@ def test_feedback_storage_with_additional_text(mock_store_feedback, mock_env):
     """Test feedback storage with additional feedback text"""
     from app.slack.slack_events import store_feedback
 
-    store_feedback("test-conversation", "test query", "additional", "U123", "This is additional feedback")
+    store_feedback("test-conversation", "additional", "U123", "C123", feedback_text="This is additional feedback")
 
     mock_store_feedback.assert_called_once_with(
-        "test-conversation", "test query", "additional", "U123", "This is additional feedback"
+        "test-conversation", "additional", "U123", "C123", feedback_text="This is additional feedback"
     )
 
 
@@ -112,12 +111,12 @@ def test_update_session_latest_message_error_handling(mock_table, mock_env):
 @patch("app.slack.slack_events.table")
 @patch("time.time")
 def test_store_feedback_with_qa_fallback_paths(mock_time, mock_table, mock_env):
-    """Test store_feedback_with_qa fallback paths"""
+    """Test store_feedback fallback paths when no message_ts"""
     mock_time.return_value = 1000
-    from app.slack.slack_events import store_feedback_with_qa
+    from app.slack.slack_events import store_feedback
 
     with patch("app.slack.slack_events.get_latest_message_ts", return_value=None):
-        store_feedback_with_qa("conv-key", "query", "response", "positive", "user-id", "channel-id")
+        store_feedback("conv-key", "positive", "user-id", "channel-id")
         mock_table.put_item.assert_called()
 
 
@@ -164,7 +163,7 @@ def test_store_feedback_no_message_ts_fallback(mock_time, mock_table, mock_env):
     from app.slack.slack_events import store_feedback
 
     with patch("app.slack.slack_events.get_latest_message_ts", return_value=None):
-        store_feedback("conv-key", "query", "positive", "user-id", "channel-id")
+        store_feedback("conv-key", "positive", "user-id", "channel-id")
         mock_table.put_item.assert_called_once()
         # Should use fallback pk/sk format without condition
         call_args = mock_table.put_item.call_args[1]
@@ -245,7 +244,7 @@ def test_store_feedback_client_error_reraise(mock_table, mock_env):
 
     with patch("app.slack.slack_events.get_latest_message_ts", return_value="123"):
         with pytest.raises(ClientError):
-            store_feedback("conv-key", "query", "positive", "user-id", "channel-id")
+            store_feedback("conv-key", "positive", "user-id", "channel-id")
 
 
 def test_feedback_text_extraction(mock_env):
@@ -271,3 +270,50 @@ def test_feedback_text_extraction(mock_env):
     text = "feedback:   "
     note = text.split(":", 1)[1].strip() if ":" in text else ""
     assert note == ""
+
+
+@patch("app.slack.slack_events.boto3.client")
+def test_query_bedrock_with_session(mock_boto_client, mock_env):
+    """Test query_bedrock with existing session"""
+    from unittest.mock import Mock
+    from app.slack.slack_events import query_bedrock
+
+    mock_client = Mock()
+    mock_response = {"output": {"text": "response"}, "sessionId": "session123"}
+    mock_client.retrieve_and_generate.return_value = mock_response
+    mock_boto_client.return_value = mock_client
+
+    result = query_bedrock("test query", session_id="existing_session")
+
+    assert result == mock_response
+    call_args = mock_client.retrieve_and_generate.call_args[1]
+    assert call_args["sessionId"] == "existing_session"
+
+
+@patch("app.slack.slack_events.boto3.client")
+def test_query_bedrock_without_session(mock_boto_client, mock_env):
+    """Test query_bedrock without session"""
+    from unittest.mock import Mock
+    from app.slack.slack_events import query_bedrock
+
+    mock_client = Mock()
+    mock_response = {"output": {"text": "response"}, "sessionId": "new_session"}
+    mock_client.retrieve_and_generate.return_value = mock_response
+    mock_boto_client.return_value = mock_client
+
+    result = query_bedrock("test query")
+
+    assert result == mock_response
+    call_args = mock_client.retrieve_and_generate.call_args[1]
+    assert "sessionId" not in call_args
+
+
+@patch("app.slack.slack_events.table")
+def test_mark_qa_feedback_received_error(mock_table, mock_env):
+    """Test _mark_qa_feedback_received error handling"""
+    from app.slack.slack_events import _mark_qa_feedback_received
+
+    mock_table.update_item.side_effect = Exception("DB error")
+
+    # Should not raise exception
+    _mark_qa_feedback_received("conv-key", "123")

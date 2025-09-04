@@ -229,105 +229,17 @@ def process_async_slack_event(slack_event_data):
             logger.error("Failed to post error message", extra={"error": str(post_err)})
 
 
-def _retrieve_qa_data(conversation_key, message_ts, user_query, bot_response):
-    """Retrieve Q&A data from DynamoDB if not provided in function call"""
-    # Return early if we have all data or no message timestamp
-    if not message_ts or (user_query and bot_response):
-        return user_query, bot_response
-
-    try:
-        # Fetch stored Q&A pair from previous interaction
-        qa_response = table.get_item(Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"})
-        if "Item" in qa_response:
-            qa_item = qa_response["Item"]
-            return (user_query or qa_item.get("user_query"), bot_response or qa_item.get("bot_response"))
-    except Exception as e:
-        logger.error(f"Error retrieving Q&A data: {e}")
-
-    return user_query, bot_response
-
-
-def _build_feedback_keys(conversation_key, message_ts, user_id, now):
-    """Build DynamoDB primary and sort keys for feedback storage"""
-    if message_ts:
-        # Per-message feedback: enables vote deduplication
-        return (f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}", f"{USER_PREFIX}{user_id}")
-    # Conversation-level feedback: fallback for general notes
-    return (f"{FEEDBACK_PREFIX_KEY}{conversation_key}", f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}")
-
-
-def store_feedback_with_qa(
-    conversation_key,
-    user_query,
-    bot_response,
-    feedback_type,
-    user_id,
-    channel_id,
-    thread_ts=None,
-    message_ts=None,
-    additional_feedback=None,
-):
-    """
-    Store user feedback with Q&A context using message_ts linking
-    """
-    try:
-        message_ts = message_ts or get_latest_message_ts(conversation_key)
-        user_query, bot_response = _retrieve_qa_data(conversation_key, message_ts, user_query, bot_response)
-
-        now = int(time.time())
-        pk, sk = _build_feedback_keys(conversation_key, message_ts, user_id, now)
-
-        feedback_item = {
-            "pk": pk,
-            "sk": sk,
-            "conversation_key": conversation_key,
-            "feedback_type": feedback_type,
-            "user_id": user_id,
-            "channel_id": channel_id,
-            "created_at": now,
-            "ttl": now + TTL_FEEDBACK,
-            "user_query": user_query[:1000] if user_query else None,
-            "bot_response": bot_response[:2000] if bot_response else None,
-        }
-
-        if thread_ts:
-            feedback_item["thread_ts"] = thread_ts
-        if message_ts:
-            feedback_item["message_ts"] = message_ts
-        if additional_feedback:
-            feedback_item["additional_feedback"] = additional_feedback[:4000]
-
-        table.put_item(Item=feedback_item)
-
-        # Mark Q&A as having received feedback to prevent deletion
-        if message_ts:
-            _mark_qa_feedback_received(conversation_key, message_ts)
-
-        logger.info("Stored feedback with Q&A context", extra={"pk": pk, "sk": sk})
-
-    except Exception as e:
-        logger.error("Error storing feedback", extra={"error": str(e)})
-
-
 def store_feedback(
     conversation_key,
-    user_query,
     feedback_type,
     user_id,
     channel_id,
     thread_ts=None,
     message_ts=None,
-    additional_feedback=None,
+    feedback_text=None,
 ):
     """
-    Store user feedback for analytics with rich context.
-
-    Key design:
-      - Per-answer vote:   pk="feedback#<conversation_key>#<message_ts>", sk="user#<user_id>"
-      - Conversation note: pk="feedback#<conversation_key>",            sk="user#<user_id>#note#<created_at>"
-
-    Idempotency:
-      - For votes (positive/negative) with message_ts, we conditionally write to prevent double-votes.
+    Store user feedback with reference to Q&A record.
     """
     try:
         now = int(time.time())
@@ -364,10 +276,9 @@ def store_feedback(
             feedback_item["thread_ts"] = thread_ts
         if message_ts:
             feedback_item["message_ts"] = message_ts
-        if user_query:
-            feedback_item["user_query"] = user_query[:1000]  # Truncate to keep items compact
-        if additional_feedback:
-            feedback_item["additional_feedback"] = additional_feedback[:4000]  # Truncate to keep items compact
+            feedback_item["qa_ref"] = f"qa#{conversation_key}#{message_ts}"
+        if feedback_text:
+            feedback_item["feedback_text"] = feedback_text[:4000]
 
         if condition:
             table.put_item(Item=feedback_item, ConditionExpression=condition)
@@ -384,26 +295,15 @@ def store_feedback(
                 "pk": pk,
                 "sk": sk,
                 "feedback_type": feedback_type,
-                "conversation_key": conversation_key,
-                "user_id": user_id,
-                "has_thread": bool(thread_ts),
-                "has_message_ts": bool(message_ts),
-                "has_additional": bool(additional_feedback),
+                "has_qa_ref": bool(message_ts),
             },
         )
 
     except ClientError as e:
-        # Re-raise ClientError so caller can handle ConditionalCheckFailedException
-        logger.error(
-            f"Error storing feedback: {e}",
-            extra={"conversation_key": conversation_key, "feedback_type": feedback_type, "user_id": user_id},
-        )
+        logger.error(f"Error storing feedback: {e}")
         raise
     except Exception as e:
-        logger.error(
-            f"Error storing feedback: {e}",
-            extra={"conversation_key": conversation_key, "feedback_type": feedback_type, "user_id": user_id},
-        )
+        logger.error(f"Error storing feedback: {e}")
 
 
 def get_conversation_session(conversation_key):

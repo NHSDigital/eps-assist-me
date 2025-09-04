@@ -28,7 +28,7 @@ from app.core.config import (
     THREAD_PREFIX,
     TTL_EVENT_DEDUP,
 )
-from app.slack.slack_events import store_feedback, store_feedback_with_qa
+from app.slack.slack_events import store_feedback
 
 
 # ================================================================
@@ -107,18 +107,16 @@ def app_mention_handler(event, ack, body, client):
 
     cleaned = _strip_mentions(event.get("text") or "")
     if cleaned.lower().startswith(FEEDBACK_PREFIX):
-        note = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
+        feedback_text = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
         try:
-            store_feedback_with_qa(
-                conversation_key=conversation_key,
-                user_query=None,  # Will be retrieved via latest_message_ts
-                bot_response=None,  # Will be retrieved via latest_message_ts
-                feedback_type="additional",
-                user_id=user_id,
-                channel_id=channel_id,
-                thread_ts=thread_root,
-                message_ts=None,  # Will use latest_message_ts from session
-                additional_feedback=note,
+            store_feedback(
+                conversation_key,
+                "additional",
+                user_id,
+                channel_id,
+                thread_root,
+                None,
+                feedback_text,
             )
         except Exception as e:
             logger.error(f"Failed to store channel feedback via mention: {e}")
@@ -153,18 +151,16 @@ def dm_message_handler(event, event_id, client):
     user_id = event.get("user", "unknown")
 
     if text.lower().startswith(FEEDBACK_PREFIX):
-        note = text.split(":", 1)[1].strip() if ":" in text else ""
+        feedback_text = text.split(":", 1)[1].strip() if ":" in text else ""
         try:
-            store_feedback_with_qa(
-                conversation_key=conversation_key,
-                user_query=None,  # Will be retrieved via latest_message_ts
-                bot_response=None,  # Will be retrieved via latest_message_ts
-                feedback_type="additional",
-                user_id=user_id,
-                channel_id=channel_id,
-                thread_ts=thread_root,
-                message_ts=None,  # Will use latest_message_ts from session
-                additional_feedback=note,
+            store_feedback(
+                conversation_key,
+                "additional",
+                user_id,
+                channel_id,
+                thread_root,
+                None,
+                feedback_text,
             )
         except Exception as e:
             logger.error(f"Failed to store DM additional feedback: {e}")
@@ -212,19 +208,17 @@ def channel_message_handler(event, event_id, client):
         return
 
     if text.lower().startswith(FEEDBACK_PREFIX):
-        note = text.split(":", 1)[1].strip() if ":" in text else ""
+        feedback_text = text.split(":", 1)[1].strip() if ":" in text else ""
         user_id = event.get("user", "unknown")
         try:
-            store_feedback_with_qa(
-                conversation_key=conversation_key,
-                user_query=None,  # Will be retrieved via latest_message_ts
-                bot_response=None,  # Will be retrieved via latest_message_ts
-                feedback_type="additional",
-                user_id=user_id,
-                channel_id=channel_id,
-                thread_ts=thread_root,
-                message_ts=None,  # Will use latest_message_ts from session
-                additional_feedback=note,
+            store_feedback(
+                conversation_key,
+                "additional",
+                user_id,
+                channel_id,
+                thread_root,
+                None,
+                feedback_text,
             )
         except Exception as e:
             logger.error(f"Failed to store channel additional feedback: {e}")
@@ -288,7 +282,6 @@ def feedback_handler(ack, body, client):
         try:
             store_feedback(
                 feedback_data["ck"],
-                None,
                 feedback_type,
                 body["user"]["id"],
                 feedback_data["ch"],

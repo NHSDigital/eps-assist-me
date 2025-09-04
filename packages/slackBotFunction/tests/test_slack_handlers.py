@@ -215,7 +215,7 @@ def test_feedback_yes_action_handler(mock_env):
             yes_handler(mock_ack, mock_body, mock_client)
 
             mock_ack.assert_called_once()
-            mock_store.assert_called_once_with("conv-key", None, "positive", "U123", "C123", "123", "456")
+            mock_store.assert_called_once_with("conv-key", "positive", "U123", "C123", "123", "456")
             mock_client.chat_postMessage.assert_called_once()
 
 
@@ -262,7 +262,7 @@ def test_feedback_no_action_handler(mock_env):
             no_handler(mock_ack, mock_body, mock_client)
 
             mock_ack.assert_called_once()
-            mock_store.assert_called_once_with("conv-key", None, "negative", "U123", "C123", "123", "456")
+            mock_store.assert_called_once_with("conv-key", "negative", "U123", "C123", "123", "456")
             mock_client.chat_postMessage.assert_called_once()
 
 
@@ -352,7 +352,7 @@ def test_app_mention_feedback_error_handling(mock_env):
     mock_event = {"text": "<@U123> feedback: this is feedback", "user": "U456", "channel": "C789", "ts": "123"}
     mock_body = {"event_id": "evt123"}
 
-    with patch("app.slack.slack_handlers.store_feedback_with_qa") as mock_store:
+    with patch("app.slack.slack_handlers.store_feedback") as mock_store:
         mock_store.side_effect = Exception("Storage failed")
         app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
         # Should still try to post message
@@ -362,7 +362,7 @@ def test_app_mention_feedback_error_handling(mock_env):
     mock_client.reset_mock()
     mock_client.chat_postMessage.side_effect = Exception("Post failed")
 
-    with patch("app.slack.slack_handlers.store_feedback_with_qa"):
+    with patch("app.slack.slack_handlers.store_feedback"):
         app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
         # Should not raise exception
 
@@ -374,7 +374,7 @@ def test_dm_message_handler_feedback_error_handling(mock_env):
     mock_client = Mock()
     mock_event = {"text": "feedback: DM feedback", "user": "U456", "channel": "D789", "ts": "123", "channel_type": "im"}
 
-    with patch("app.slack.slack_handlers.store_feedback_with_qa") as mock_store:
+    with patch("app.slack.slack_handlers.store_feedback") as mock_store:
         mock_store.side_effect = Exception("Storage failed")
         dm_message_handler(mock_event, "evt123", mock_client)
         mock_client.chat_postMessage.assert_called_once()
@@ -542,3 +542,60 @@ def test_is_latest_message_logic(mock_boto_resource, mock_get_parameter, mock_ap
         # Test with exception
         mock_table.get_item.side_effect = Exception("DB error")
         assert _is_latest_message("conv-key", "123") is False
+
+
+def test_gate_common_missing_event_id(mock_env):
+    """Test _gate_common with missing event_id"""
+    from app.slack.slack_handlers import _gate_common
+
+    event = {"text": "test"}
+    body = {}  # Missing event_id
+
+    result = _gate_common(event, body)
+    assert result is None
+
+
+def test_gate_common_bot_message(mock_env):
+    """Test _gate_common with bot message"""
+    from app.slack.slack_handlers import _gate_common
+
+    event = {"text": "test", "bot_id": "B123"}
+    body = {"event_id": "evt123"}
+
+    result = _gate_common(event, body)
+    assert result is None
+
+
+def test_gate_common_subtype_message(mock_env):
+    """Test _gate_common with subtype message"""
+    from app.slack.slack_handlers import _gate_common
+
+    event = {"text": "test", "subtype": "message_changed"}
+    body = {"event_id": "evt123"}
+
+    result = _gate_common(event, body)
+    assert result is None
+
+
+def test_strip_mentions_with_alias(mock_env):
+    """Test _strip_mentions with user alias"""
+    from app.slack.slack_handlers import _strip_mentions
+
+    text = "<@U123|username> hello world"
+    result = _strip_mentions(text)
+    assert result == "hello world"
+
+
+def test_trigger_async_processing_error(mock_env):
+    """Test _trigger_async_processing error handling"""
+    from app.slack.slack_handlers import _trigger_async_processing
+
+    event_data = {"event": {"text": "test"}, "event_id": "evt123"}
+
+    with patch("boto3.client") as mock_boto:
+        mock_lambda_client = Mock()
+        mock_lambda_client.invoke.side_effect = Exception("Lambda invoke failed")
+        mock_boto.return_value = mock_lambda_client
+
+        # Should not raise exception
+        _trigger_async_processing(event_data)
