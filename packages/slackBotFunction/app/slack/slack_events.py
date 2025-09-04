@@ -239,7 +239,7 @@ def store_feedback(
     feedback_text=None,
 ):
     """
-    Store user feedback with reference to Q&A record.
+    Store user feedback with reference to Q&A record
     """
     try:
         now = int(time.time())
@@ -393,7 +393,9 @@ def update_session_latest_message(conversation_key, message_ts):
 
 
 def _mark_qa_feedback_received(conversation_key, message_ts):
-    """Mark Q&A record as having received feedback to prevent deletion"""
+    """
+    Mark Q&A record as having received feedback to prevent deletion
+    """
     try:
         table.update_item(
             Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
