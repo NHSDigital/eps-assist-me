@@ -29,3 +29,4 @@ token: props\.slackBotToken
 secretValue: JSON\.stringify\(\{token: props\.slackBotToken\}\)
 token = slack_event_data\["bot_token"\]
 client = WebClient\(token=token\)
+client = WebClient\(token=slack_event_data\["bot_token"\]\)
