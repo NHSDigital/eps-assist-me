@@ -90,7 +90,7 @@ def _conversation_key_and_root(event):
 # ================================================================
 
 
-def app_mention_handler(event, ack, body, client):
+def mention_handler(event, ack, body, client):
     """
     Channel interactions that mention the bot.
     - If text after the mention starts with 'feedback:', store it as additional feedback.
@@ -179,9 +179,9 @@ def dm_message_handler(event, event_id, client):
     _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
-def channel_message_handler(event, event_id, client):
+def thread_message_handler(event, event_id, client):
     """
-    Channel messages:
+    Thread messages:
     - Ignore top-level messages (policy: require @mention to start).
     - For replies inside a thread the bot owns (session exists):
         * 'feedback:' prefix -> store additional feedback.
@@ -250,7 +250,7 @@ def unified_message_handler(event, ack, body, client):
         dm_message_handler(event, event_id, client)
     else:
         # Channel message handling
-        channel_message_handler(event, event_id, client)
+        thread_message_handler(event, event_id, client)
 
 
 def feedback_handler(ack, body, client):
@@ -313,7 +313,7 @@ def feedback_handler(ack, body, client):
 
 def setup_handlers(app):
     """Register handlers. Intentionally minimal—no branching here."""
-    app.event("app_mention")(app_mention_handler)
+    app.event("app_mention")(mention_handler)
     app.event("message")(unified_message_handler)
     app.action("feedback_yes")(feedback_handler)
     app.action("feedback_no")(feedback_handler)

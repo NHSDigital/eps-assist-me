@@ -345,7 +345,7 @@ def test_duplicate_event_skip_processing(mock_env):
 
 def test_app_mention_feedback_error_handling(mock_env):
     """Test app mention feedback error handling"""
-    from app.slack.slack_handlers import app_mention_handler
+    from app.slack.slack_handlers import mention_handler
 
     mock_ack = Mock()
     mock_client = Mock()
@@ -354,7 +354,7 @@ def test_app_mention_feedback_error_handling(mock_env):
 
     with patch("app.slack.slack_handlers.store_feedback") as mock_store:
         mock_store.side_effect = Exception("Storage failed")
-        app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
+        mention_handler(mock_event, mock_ack, mock_body, mock_client)
         # Should still try to post message
         mock_client.chat_postMessage.assert_called_once()
 
@@ -363,7 +363,7 @@ def test_app_mention_feedback_error_handling(mock_env):
     mock_client.chat_postMessage.side_effect = Exception("Post failed")
 
     with patch("app.slack.slack_handlers.store_feedback"):
-        app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
+        mention_handler(mock_event, mock_ack, mock_body, mock_client)
         # Should not raise exception
 
 
@@ -380,9 +380,9 @@ def test_dm_message_handler_feedback_error_handling(mock_env):
         mock_client.chat_postMessage.assert_called_once()
 
 
-def test_channel_message_handler_session_check_error(mock_env):
-    """Test channel_message_handler session check error"""
-    from app.slack.slack_handlers import channel_message_handler
+def test_thread_message_handler_session_check_error(mock_env):
+    """Test thread_message_handler session check error"""
+    from app.slack.slack_handlers import thread_message_handler
 
     mock_client = Mock()
     mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
@@ -390,7 +390,7 @@ def test_channel_message_handler_session_check_error(mock_env):
     with patch("app.core.config.table") as mock_table:
         mock_table.get_item.side_effect = Exception("DB error")
         # Should return early due to error
-        channel_message_handler(mock_event, "evt123", mock_client)
+        thread_message_handler(mock_event, "evt123", mock_client)
 
 
 def test_feedback_handler_unknown_action(mock_env):
@@ -418,21 +418,21 @@ def test_feedback_handler_not_latest_message(mock_env):
         mock_ack.assert_called_once()
 
 
-def test_channel_message_handler_no_session(mock_env):
-    """Test channel_message_handler when no session found"""
-    from app.slack.slack_handlers import channel_message_handler
+def test_thread_message_handler_no_session(mock_env):
+    """Test thread_message_handler when no session found"""
+    from app.slack.slack_handlers import thread_message_handler
 
     mock_client = Mock()
     mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
 
     with patch("app.core.config.table") as mock_table:
         mock_table.get_item.return_value = {}  # No session
-        channel_message_handler(mock_event, "evt123", mock_client)
+        thread_message_handler(mock_event, "evt123", mock_client)
 
 
-def test_channel_message_handler_feedback_path(mock_env):
-    """Test channel_message_handler feedback path"""
-    from app.slack.slack_handlers import channel_message_handler
+def test_thread_message_handler_feedback_path(mock_env):
+    """Test thread_message_handler feedback path"""
+    from app.slack.slack_handlers import thread_message_handler
 
     mock_client = Mock()
     mock_event = {"text": "feedback: channel feedback", "channel": "C789", "thread_ts": "123", "user": "U456"}
@@ -440,7 +440,7 @@ def test_channel_message_handler_feedback_path(mock_env):
     with patch("app.core.config.table") as mock_table:
         mock_table.get_item.return_value = {"Item": {"session_id": "session123"}}
         # Just test that the function runs without error
-        channel_message_handler(mock_event, "evt123", mock_client)
+        thread_message_handler(mock_event, "evt123", mock_client)
 
 
 def test_dm_message_handler_normal_message(mock_env):
@@ -455,9 +455,9 @@ def test_dm_message_handler_normal_message(mock_env):
         mock_trigger.assert_called_once()
 
 
-def test_app_mention_handler_normal_mention(mock_env):
-    """Test app_mention_handler with normal mention"""
-    from app.slack.slack_handlers import app_mention_handler
+def test_mention_handler_normal_mention(mock_env):
+    """Test mention_handler with normal mention"""
+    from app.slack.slack_handlers import mention_handler
 
     mock_ack = Mock()
     mock_client = Mock()
@@ -467,7 +467,7 @@ def test_app_mention_handler_normal_mention(mock_env):
     with patch("app.slack.slack_handlers._is_duplicate_event", return_value=False), patch(
         "app.slack.slack_handlers._trigger_async_processing"
     ) as mock_trigger:
-        app_mention_handler(mock_event, mock_ack, mock_body, mock_client)
+        mention_handler(mock_event, mock_ack, mock_body, mock_client)
         mock_trigger.assert_called_once()
 
 
