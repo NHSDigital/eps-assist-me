@@ -91,12 +91,11 @@ Bot: "EPS is..." [Yes] [No]
 DM:
 User: "How do I authenticate?"          ← dm_message_handler
 Bot: "Use OAuth..." [Yes] [No]
-
-├─ User clicks [Yes/No]                 ← feedback_handler
-│  Bot: "Thank you for your feedback."
-│  User: "feedback: Could be clearer"   ← dm_message_handler
-│  Bot: "Thank you for your feedback."
-└─ User: "What scopes?"                 ← dm_message_handler
+User clicks [Yes/No]                    ← feedback_handler
+Bot: "Thank you for your feedback."
+User: "feedback: Could be clearer"      ← dm_message_handler
+Bot: "Thank you for your feedback."
+User: "What scopes?"                    ← dm_message_handler
 ```
 
 ## Conversation Flow Rules
