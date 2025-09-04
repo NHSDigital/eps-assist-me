@@ -126,7 +126,7 @@ def process_async_slack_event(slack_event_data):
             )
             return
 
-        # Reformulate query for better RAG retrieval using Claude
+        # Reformulate query for better RAG retrieval
         reformulated_query = reformulate_query(logger, user_query)
 
         # Check if we have an existing Bedrock conversation session
@@ -249,11 +249,16 @@ def store_feedback(
         if not message_ts:
             message_ts = get_latest_message_ts(conversation_key)
 
-        if message_ts:
-            # Per-message feedback with deduplication
+        if message_ts and feedback_type in ["positive", "negative"]:
+            # Per-message feedback with deduplication for button votes only
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
             sk = f"{USER_PREFIX}{user_id}"
             condition = "attribute_not_exists(pk) AND attribute_not_exists(sk)"  # Prevent double-voting
+        elif message_ts:
+            # Text feedback allows multiple entries per user
+            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
+            sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
+            condition = None
         else:
             # Fallback for conversation-level feedback
             pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
