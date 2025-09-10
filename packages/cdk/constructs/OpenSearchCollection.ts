@@ -1,5 +1,6 @@
 import {Construct} from "constructs"
 import {CfnCollection, CfnSecurityPolicy, CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
+import {Tags} from "aws-cdk-lib"
 
 export interface OpenSearchCollectionProps {
   readonly collectionName: string
@@ -61,17 +62,24 @@ export class OpenSearchCollection extends Construct {
     })
 
     // Vector search collection for document embeddings
-    this.collection = new CfnCollection(this, "Collection", {
+    // this can not be modified (including tags) so if we modify any properties
+    // we should ensure the name is changed to ensure a new resource is created
+    const collection = new CfnCollection(this, "Collection", {
       name: props.collectionName,
       description: "EPS Assist Vector Store",
       type: "VECTORSEARCH"
     })
 
-    // Ensure collection waits for all policies
-    this.collection.addDependency(encryptionPolicy)
-    this.collection.addDependency(networkPolicy)
-    this.collection.addDependency(accessPolicy)
+    // set static values for commit and version tags to stop it being recreated
+    Tags.of(collection).add("commit", "static_value")
+    Tags.of(collection).add("version", "static_value")
 
-    this.endpoint = `${this.collection.attrId}.${this.collection.stack.region}.aoss.amazonaws.com`
+    // Ensure collection waits for all policies
+    collection.addDependency(encryptionPolicy)
+    collection.addDependency(networkPolicy)
+    collection.addDependency(accessPolicy)
+
+    this.endpoint = `${collection.attrId}.${collection.stack.region}.aoss.amazonaws.com`
+    this.collection = collection
   }
 }

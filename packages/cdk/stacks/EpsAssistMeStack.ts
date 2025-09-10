@@ -137,12 +137,11 @@ export class EpsAssistMeStack extends Stack {
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
       indexName: VECTOR_INDEX_NAME,
       collection: openSearchResources.collection.collection,
-      createIndexFunction: functions.functions.createIndex,
       endpoint
     })
 
     // Ensure knowledge base waits for vector index
-    vectorKB.knowledgeBase.node.addDependency(vectorIndex.vectorIndex)
+    vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
 
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
