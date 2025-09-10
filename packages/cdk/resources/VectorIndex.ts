@@ -71,11 +71,11 @@ export class VectorIndex extends Construct {
       }
     })
 
-    //const collectionArn = `arn:aws:aoss:${props.region}:${props.account}:collection/${props.collection.name}`
+    const collectionArn = `arn:aws:aoss:collection/${props.collection.name}`
     // eslint-disable-next-line max-len
     // const indexArn = `arn:aws:aoss:${props.region}:${props.account}:index/${props.collection.name}/${props.indexName}`
 
-    const collectionArn = "aoss:collection/*"
+    //const collectionArn = "aoss:collection/*"
     const indexArn = `arn:aws:aoss:${props.region}:${props.account}:index/*`
     const getCollectionPolicy = new PolicyStatement({
       actions: [
