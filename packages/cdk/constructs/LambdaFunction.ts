@@ -24,7 +24,7 @@ export interface LambdaFunctionProps {
   readonly functionName: string
   readonly packageBasePath: string
   readonly handler: string
-  readonly environmentVariables: {[key: string]: string}
+  readonly environmentVariables?: {[key: string]: string}
   readonly additionalPolicies?: Array<IManagedPolicy>
   readonly logRetentionInDays: number
   readonly logLevel: string

@@ -92,6 +92,30 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress IAM wildcard permissions for waiter function execution role policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes."
+      }
+    ]
+  )
+
+  // Suppress IAM wildcard permissions for waiter on event role policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/IndexWaiterProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes."
+      }
+    ]
+  )
+
   // Suppress wildcard permissions for SlackBot policy
   safeAddNagSuppression(
     stack,
@@ -138,6 +162,17 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "AwsSolutions-SMG4",
         reason: "Slack signing secret rotation is handled manually as part of the Slack app configuration process."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/IndexWaiterProvider/framework-onEvent/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Waiter function on event using managed policies is fine"
       }
     ]
   )
