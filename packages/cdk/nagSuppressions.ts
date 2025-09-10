@@ -16,18 +16,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard log permissions for CreateIndex Lambda
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/CreateIndexFunction/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths."
-      }
-    ]
-  )
-
   // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
   safeAddNagSuppression(
     stack,

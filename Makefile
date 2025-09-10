@@ -10,7 +10,6 @@ install: install-python install-hooks install-node
 
 install-python:
 	poetry install
-	cd packages/createIndexFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 	cd packages/syncKnowledgeBaseFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 
@@ -46,15 +45,12 @@ lint-flake8:
 	poetry run flake8 .
 
 test:
-	cd packages/createIndexFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
-	rm -rf packages/createIndexFunction/coverage
-	rm -rf packages/createIndexFunction/.coverage
 	rm -rf packages/slackBotFunction/coverage
 	rm -rf packages/slackBotFunction/.coverage
 	rm -rf packages/syncKnowledgeBaseFunction/coverage

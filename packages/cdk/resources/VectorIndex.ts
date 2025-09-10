@@ -1,68 +1,56 @@
 import {Construct} from "constructs"
-import {Duration} from "aws-cdk-lib"
-import {PolicyStatement} from "aws-cdk-lib/aws-iam"
-import {CfnCollection} from "aws-cdk-lib/aws-opensearchserverless"
-import {AwsCustomResource, PhysicalResourceId, AwsCustomResourcePolicy} from "aws-cdk-lib/custom-resources"
-import {LambdaFunction} from "../constructs/LambdaFunction"
+import {CfnCollection, CfnIndex} from "aws-cdk-lib/aws-opensearchserverless"
 
 export interface VectorIndexProps {
   readonly indexName: string
   readonly collection: CfnCollection
-  readonly createIndexFunction: LambdaFunction
   readonly endpoint: string
 }
 
 export class VectorIndex extends Construct {
-  public readonly vectorIndex: AwsCustomResource
+  public readonly cfnIndex: CfnIndex
 
   constructor(scope: Construct, id: string, props: VectorIndexProps) {
     super(scope, id)
 
-    // Custom resource to manage OpenSearch vector index lifecycle via Lambda
-    this.vectorIndex = new AwsCustomResource(this, "VectorIndex", {
-      installLatestAwsSdk: true,
-      // Create index when stack is deployed
-      onCreate: {
-        service: "Lambda",
-        action: "invoke",
-        parameters: {
-          FunctionName: props.createIndexFunction.function.functionName,
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            RequestType: "Create",
-            CollectionName: props.collection.name,
-            IndexName: props.indexName,
-            Endpoint: props.endpoint
-          })
+    const indexMapping: CfnIndex.MappingsProperty = {
+      properties: {
+        "bedrock-knowledge-base-default-vector": {
+          type: "knn_vector",
+          dimension: 1024,
+          method: {
+            name: "hnsw",
+            engine: "faiss",
+            parameters: {},
+            spaceType: "l2"
+          }
         },
-        physicalResourceId: PhysicalResourceId.of(`VectorIndex-${props.indexName}`)
-      },
-      // Delete index when stack is destroyed
-      onDelete: {
-        service: "Lambda",
-        action: "invoke",
-        parameters: {
-          FunctionName: props.createIndexFunction.function.functionName,
-          InvocationType: "RequestResponse",
-          Payload: JSON.stringify({
-            RequestType: "Delete",
-            CollectionName: props.collection.name,
-            IndexName: props.indexName,
-            Endpoint: props.endpoint
-          })
+        "AMAZON_BEDROCK_METADATA": {
+          type: "text",
+          index: false
+        },
+        "AMAZON_BEDROCK_TEXT_CHUNK": {
+          type: "text",
+          index: false
         }
-      },
-      // Grant permission to invoke the Lambda function
-      policy: AwsCustomResourcePolicy.fromStatements([
-        new PolicyStatement({
-          actions: ["lambda:InvokeFunction"],
-          resources: [props.createIndexFunction.function.functionArn]
-        })
-      ]),
-      timeout: Duration.seconds(60)
+      }
+    }
+
+    const cfnIndex = new CfnIndex(this, "MyCfnIndex", {
+      collectionEndpoint: props.endpoint,
+      indexName: props.indexName,
+      mappings: indexMapping,
+      // the properties below are optional
+      settings: {
+        index: {
+          knn: true,
+          knnAlgoParamEfSearch: 512
+        }
+      }
     })
 
     // Ensure collection exists before creating index
-    this.vectorIndex.node.addDependency(props.collection)
+    cfnIndex.node.addDependency(props.collection)
+    this.cfnIndex = cfnIndex
   }
 }
