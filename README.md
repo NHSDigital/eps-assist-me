@@ -28,11 +28,6 @@ packages/
 │   │   └── RestApiGateway/     # API Gateway specific constructs
 │   ├── resources/              # AWS resource definitions
 │   └── stacks/                 # CDK stack definitions
-├── createIndexFunction/        # Lambda function for OpenSearch index management
-│   ├── app/                    # Application code
-│   │   ├── config/             # Configuration and environment variables
-│   │   └── handler.py          # Lambda handler
-│   └── tests/                  # Unit tests
 ├── slackBotFunction/           # Lambda function for Slack bot integration
 │   ├── app/                    # Application code
 │   │   ├── config/             # Configuration and environment variables

@@ -16,18 +16,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard log permissions for CreateIndex Lambda
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/CreateIndexFunction/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths."
-      }
-    ]
-  )
-
   // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
   safeAddNagSuppression(
     stack,
@@ -48,18 +36,6 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "AwsSolutions-APIG2",
         reason: "Validation is handled within Lambda; request validation is intentionally omitted."
-      }
-    ]
-  )
-
-  // Suppress AWS managed policy usage in default CDK role
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Auto-generated service role uses AWS managed policy, which is acceptable here."
       }
     ]
   )

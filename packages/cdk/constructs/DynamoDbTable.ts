@@ -28,15 +28,15 @@ export class DynamoDbTable extends Construct {
   constructor(scope: Construct, id: string, props: DynamoDbTableProps) {
     super(scope, id)
 
-    this.kmsKey = new Key(this, "TableKey", {
+    const kmsKey = new Key(this, "TableKey", {
       enableKeyRotation: true,
       description: `KMS key for ${props.tableName} DynamoDB table encryption`,
       removalPolicy: RemovalPolicy.DESTROY
     })
 
-    this.kmsKey.addAlias(`alias/${props.tableName}-dynamodb-key`)
+    kmsKey.addAlias(`alias/${props.tableName}-dynamodb-key`)
 
-    this.table = new TableV2(this, props.tableName, {
+    const table = new TableV2(this, props.tableName, {
       tableName: props.tableName,
       partitionKey: props.partitionKey,
       sortKey: props.sortKey,
@@ -46,7 +46,10 @@ export class DynamoDbTable extends Construct {
         pointInTimeRecoveryEnabled: true
       },
       removalPolicy: RemovalPolicy.DESTROY,
-      encryption: TableEncryptionV2.customerManagedKey(this.kmsKey)
+      encryption: TableEncryptionV2.customerManagedKey(kmsKey)
     })
+
+    this.kmsKey = kmsKey
+    this.table = table
   }
 }
