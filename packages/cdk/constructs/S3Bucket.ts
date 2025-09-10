@@ -4,7 +4,9 @@ import {
   Bucket,
   BucketEncryption,
   BlockPublicAccess,
-  ObjectOwnership
+  ObjectOwnership,
+  CfnBucket,
+  CfnBucketPolicy
 } from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
 
@@ -37,6 +39,32 @@ export class S3Bucket extends Construct {
       versioned: props.versioned ?? false,
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
+
+    const cfnBucket = bucket.node.defaultChild as CfnBucket
+    cfnBucket.cfnOptions.metadata = {
+      ...cfnBucket.cfnOptions.metadata,
+      guard: {
+        SuppressedRules: [
+          "S3_BUCKET_REPLICATION_ENABLED",
+          "S3_BUCKET_VERSIONING_ENABLED",
+          "S3_BUCKET_DEFAULT_LOCK_ENABLED",
+          "S3_BUCKET_LOGGING_ENABLED"
+        ]
+      }
+    }
+
+    const policy = bucket.policy!
+    const cfnBucketPolicy = policy.node.defaultChild as CfnBucketPolicy
+    cfnBucketPolicy.cfnOptions.metadata = (
+      {
+        ...cfnBucketPolicy.cfnOptions.metadata,
+        guard: {
+          SuppressedRules: [
+            "S3_BUCKET_SSL_REQUESTS_ONLY"
+          ]
+        }
+      }
+    )
 
     this.kmsKey = kmsKey
     this.bucket = bucket

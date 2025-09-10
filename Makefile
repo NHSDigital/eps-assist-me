@@ -102,7 +102,7 @@ cdk-synth:
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context accountId=undefined \
+		--context accountId=123456789012 \
 		--context stackName=epsam \
 		--context versionNumber=undefined \
 		--context commitId=undefined \
@@ -110,7 +110,6 @@ cdk-synth:
 		--context slackBotToken=dummy \
 		--context slackSigningSecret=dummy \
 		--context cfnDriftDetectionGroup=dummy
-	./scripts/fix_cfn_guard.sh
 
 cdk-diff:
 	npx cdk diff \
