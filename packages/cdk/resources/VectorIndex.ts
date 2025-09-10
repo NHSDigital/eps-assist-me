@@ -71,9 +71,12 @@ export class VectorIndex extends Construct {
       }
     })
 
-    const collectionArn = `arn:aws:aoss:${props.region}:${props.account}:collection/${props.collection.name}`
-    const indexArn = `arn:aws:aoss:${props.region}:${props.account}:index/${props.collection.name}/${props.indexName}`
+    // const collectionArn = `arn:aws:aoss:${props.region}:${props.account}:collection/${props.collection.name}`
+    // eslint-disable-next-line max-len
+    // const indexArn = `arn:aws:aoss:${props.region}:${props.account}:index/${props.collection.name}/${props.indexName}`
 
+    const collectionArn = `arn:aws:aoss:${props.region}:${props.account}:collection/*`
+    const indexArn = `arn:aws:aoss:${props.region}:${props.account}:index/*`
     const getCollectionPolicy = new PolicyStatement({
       actions: [
         "opensearchserverless:BatchGetCollection"
@@ -86,7 +89,7 @@ export class VectorIndex extends Construct {
       ],
       resources: [indexArn]
     })
-    const waiterFnManagedPolicy = new ManagedPolicy(this, "Policy", {
+    const waiterFnManagedPolicy = new ManagedPolicy(this, "waiterFnManagedPolicy", {
       description: "Policy for Bedrock Knowledge Base to access S3 and OpenSearch",
       statements: [
         getCollectionPolicy,
