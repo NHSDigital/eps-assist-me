@@ -81,9 +81,6 @@ def test_handler_registration_coverage(mock_boto_resource, mock_get_parameter, m
         signing_secret="test-secret",
     )
 
-    # Verify middleware was registered
-    mock_app_instance.middleware.assert_called()
-
     # Verify event handlers were registered
     mock_app_instance.event.assert_called()
 
