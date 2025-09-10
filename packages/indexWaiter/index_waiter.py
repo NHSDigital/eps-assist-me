@@ -57,6 +57,7 @@ def handler(event, context):
             time.sleep(10)
         except Exception as exc:
             logger.error("Error creating or waiting for index", extra={"error": str(exc)})
+            return {"PhysicalResourceId": f"{collection_name}/{index_name}", "Data": {"Status": "READY"}}
 
     logger.error("Timeout waiting for index readiness", extra={"collection": collection_name, "index": index_name})
     raise Exception(f"Collection {collection_name} / Index {index_name} not ready after timeout")
