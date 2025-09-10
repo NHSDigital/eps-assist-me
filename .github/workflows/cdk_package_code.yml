@@ -63,6 +63,7 @@ jobs:
         run: |
           pip3 install -r packages/slackBotFunction/requirements.txt -t packages/slackBotFunction
           pip3 install -r packages/syncKnowledgeBaseFunction/requirements.txt -t packages/syncKnowledgeBaseFunction
+          pip3 install -r packages/indexWaiter/requirements.txt -t packages/indexWaiter
 
       - name: 'Tar files'
         run: |
