@@ -100,7 +100,7 @@ export class VectorIndex extends Construct {
     const waiterFn = new LambdaFunction(this, "SlackBotLambda", {
       stackName: props.stackName,
       functionName: `${props.stackName}-VectorIndexWaiter`,
-      packageBasePath: "packages/cdk/resources/lambda",
+      packageBasePath: "packages/indexWaiter",
       handler: "index_waiter.handler",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,

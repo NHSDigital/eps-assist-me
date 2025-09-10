@@ -204,7 +204,21 @@ export const nagSuppressions = (stack: Stack) => {
         }
       ]
     )
+
+    // TO REMOVE
+    safeAddNagSuppression(
+      stack,
+      "EpsAssistMeStack/VectorIndex/waiterFnManagedPolicy/Resource",
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications."
+        }
+      ]
+    )
+
   })
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {

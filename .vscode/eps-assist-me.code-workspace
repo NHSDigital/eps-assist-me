@@ -15,6 +15,10 @@
 		{
 			"name": "packages/syncKnowledgeBaseFunction",
 			"path": "../packages/syncKnowledgeBaseFunction"
+		},
+		{
+			"name": "packages/indexWaiter",
+			"path": "../packages/indexWaiter"
 		}
 	],
 	"settings": {
