@@ -15,8 +15,7 @@ logger = Logger(service="slackBotFunction")
 
 # DynamoDB table for deduplication and session storage
 dynamodb = boto3.resource("dynamodb")
-slack_bot_state_table = dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])
-feedback_table = dynamodb.Table(os.environ["FEEDBACK_TABLE"])
+table = dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])
 
 # get Slack credentials from Parameter Store
 bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]

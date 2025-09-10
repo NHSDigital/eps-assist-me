@@ -8,7 +8,6 @@ export interface TablesProps {
 
 export class DatabaseTables extends Construct {
   public readonly slackBotStateTable: DynamoDbTable
-  public readonly feedbackTable: DynamoDbTable
 
   constructor(scope: Construct, id: string, props: TablesProps) {
     super(scope, id)
@@ -25,19 +24,5 @@ export class DatabaseTables extends Construct {
       },
       timeToLiveAttribute: "ttl"
     })
-
-    this.feedbackTable = new DynamoDbTable(this, "FeedbackTable", {
-      tableName: `${props.stackName}-Feedback`,
-      partitionKey: {
-        name: "pk",
-        type: AttributeType.STRING
-      },
-      sortKey: {
-        name: "sk",
-        type: AttributeType.STRING
-      },
-      timeToLiveAttribute: "ttl"
-    })
-
   }
 }
