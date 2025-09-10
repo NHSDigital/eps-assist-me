@@ -126,7 +126,7 @@ export class LambdaFunction extends Construct {
       role,
       environment: {
         ...props.environmentVariables,
-        LOG_LEVEL: props.logLevel
+        POWERTOOLS_LOG_LEVEL: props.logLevel
       },
       logGroup,
       layers: [insightsLambdaLayer]
