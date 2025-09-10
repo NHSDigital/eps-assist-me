@@ -35,6 +35,11 @@ fix_boolean_number_key() {
     mv .build/cdk.new.json .build/cdk.json
 }
 
+CFN_DRIFT_DETECTION_GROUP="epsam"
+if [[ "$STACK_NAME" =~ -pr-[0-9]+$ ]]; then
+  CFN_DRIFT_DETECTION_GROUP="epsam-pull-request"
+fi
+
 # go through all the key values we need to set
 fix_string_key accountId "${ACCOUNT_ID}"
 fix_string_key stackName "${STACK_NAME}"
@@ -44,3 +49,4 @@ fix_string_key logRetentionInDays "${LOG_RETENTION_IN_DAYS}"
 fix_string_key logLevel "${LOG_LEVEL}"
 fix_string_key slackBotToken "${SLACK_BOT_TOKEN}"
 fix_string_key slackSigningSecret "${SLACK_SIGNING_SECRET}"
+fix_string_key cfnDriftDetectionGroup "${CFN_DRIFT_DETECTION_GROUP}"
