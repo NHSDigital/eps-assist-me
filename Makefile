@@ -98,7 +98,6 @@ cdk-deploy: guard-STACK_NAME
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
-
 cdk-synth:
 	npx cdk synth \
 		--quiet \
@@ -109,7 +108,8 @@ cdk-synth:
 		--context commitId=undefined \
 		--context logRetentionInDays=30 \
 		--context slackBotToken=dummy \
-		--context slackSigningSecret=dummy
+		--context slackSigningSecret=dummy \
+		--context cfnDriftDetectionGroup=dummy
 	./scripts/fix_cfn_guard.sh
 
 cdk-diff:

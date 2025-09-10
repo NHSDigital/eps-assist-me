@@ -20,14 +20,14 @@ export class S3Bucket extends Construct {
   constructor(scope: Construct, id: string, props: S3BucketProps) {
     super(scope, id)
 
-    this.kmsKey = new Key(this, "BucketKey", {
+    const kmsKey = new Key(this, "BucketKey", {
       enableKeyRotation: true,
       description: `KMS key for ${props.bucketName} S3 bucket encryption`,
       removalPolicy: RemovalPolicy.DESTROY
     })
-    this.kmsKey.addAlias(`alias/${props.bucketName}-s3-key`)
+    kmsKey.addAlias(`alias/${props.bucketName}-s3-key`)
 
-    this.bucket = new Bucket(this, props.bucketName, {
+    const bucket = new Bucket(this, props.bucketName, {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.KMS,
       encryptionKey: this.kmsKey,
@@ -37,5 +37,8 @@ export class S3Bucket extends Construct {
       versioned: props.versioned ?? false,
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
+
+    this.kmsKey = kmsKey
+    this.bucket = bucket
   }
 }
