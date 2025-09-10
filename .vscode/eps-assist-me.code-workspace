@@ -9,10 +9,6 @@
 			"path": "../packages/cdk"
 		},
 		{
-			"name": "packages/createIndexFunction",
-			"path": "../packages/createIndexFunction"
-		},
-		{
 			"name": "packages/slackBotFunction",
 			"path": "../packages/slackBotFunction"
 		},

@@ -10,7 +10,6 @@ install: install-python install-hooks install-node
 
 install-python:
 	poetry install
-	cd packages/createIndexFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 	cd packages/syncKnowledgeBaseFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
 
@@ -30,7 +29,10 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
-lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8
+lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8 lint-node
+
+lint-node:
+	npm run lint --workspace packages/cdk
 
 lint-githubactions:
 	actionlint
@@ -46,15 +48,12 @@ lint-flake8:
 	poetry run flake8 .
 
 test:
-	cd packages/createIndexFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
-	rm -rf packages/createIndexFunction/coverage
-	rm -rf packages/createIndexFunction/.coverage
 	rm -rf packages/slackBotFunction/coverage
 	rm -rf packages/slackBotFunction/.coverage
 	rm -rf packages/syncKnowledgeBaseFunction/coverage
@@ -99,19 +98,18 @@ cdk-deploy: guard-STACK_NAME
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
-
 cdk-synth:
 	npx cdk synth \
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context accountId=undefined \
+		--context accountId=123456789012 \
 		--context stackName=epsam \
 		--context versionNumber=undefined \
 		--context commitId=undefined \
 		--context logRetentionInDays=30 \
 		--context slackBotToken=dummy \
-		--context slackSigningSecret=dummy
-	./scripts/fix_cfn_guard.sh
+		--context slackSigningSecret=dummy \
+		--context cfnDriftDetectionGroup=dummy
 
 cdk-diff:
 	npx cdk diff \
