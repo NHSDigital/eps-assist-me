@@ -62,6 +62,8 @@ export class OpenSearchCollection extends Construct {
     })
 
     // Vector search collection for document embeddings
+    // this can not be modified (including tags) so if we modify any properties
+    // we should ensure the name is changed to ensure a new resource is created
     const collection = new CfnCollection(this, "Collection", {
       name: props.collectionName,
       description: "EPS Assist Vector Store",
@@ -71,6 +73,7 @@ export class OpenSearchCollection extends Construct {
     // set static values for commit and version tags to stop it being recreated
     Tags.of(collection).add("commit", "static_value")
     Tags.of(collection).add("version", "static_value")
+
     // Ensure collection waits for all policies
     collection.addDependency(encryptionPolicy)
     collection.addDependency(networkPolicy)

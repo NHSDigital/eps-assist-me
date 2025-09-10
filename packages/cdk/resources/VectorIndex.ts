@@ -31,7 +31,19 @@ export class VectorIndex extends Construct {
         },
         "AMAZON_BEDROCK_TEXT_CHUNK": {
           type: "text",
-          index: false
+          index: true
+        },
+        "id": {
+          type: "text",
+          index: true
+        },
+        "x-amz-bedrock-kb-data-source-id": {
+          type: "text",
+          index: true
+        },
+        "x-amz-bedrock-kb-source-uri": {
+          type: "text",
+          index: true
         }
       }
     }
