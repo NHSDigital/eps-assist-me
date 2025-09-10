@@ -130,6 +130,7 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
+      feedbackTable: tables.feedbackTable.table,
       promptName: bedrockPromptResources.queryReformulationPrompt.promptName
     })
 

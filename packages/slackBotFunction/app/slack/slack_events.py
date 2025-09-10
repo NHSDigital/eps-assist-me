@@ -10,7 +10,8 @@ import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
-    table,
+    slack_bot_state_table,
+    feedback_table,
     logger,
     KNOWLEDGEBASE_ID,
     RAG_MODEL_ID,
@@ -47,7 +48,7 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
             return
 
         # Atomically delete Q&A only if no feedback received
-        table.delete_item(
+        slack_bot_state_table.delete_item(
             Key={"pk": f"qa#{conversation_key}#{previous_message_ts}", "sk": "turn"},
             ConditionExpression="attribute_not_exists(feedback_received)",
         )
@@ -67,7 +68,7 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
     Store Q&A pair for feedback correlation
     """
     try:
-        table.put_item(
+        slack_bot_state_table.put_item(
             Item={
                 "pk": f"qa#{conversation_key}#{message_ts}",
                 "sk": "turn",
@@ -90,7 +91,7 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
     Mark Q&A record as having received feedback to prevent deletion
     """
     try:
-        table.update_item(
+        slack_bot_state_table.update_item(
             Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
             UpdateExpression="SET feedback_received = :val",
             ExpressionAttributeValues={":val": True},
@@ -322,9 +323,9 @@ def store_feedback(
             feedback_item["feedback_text"] = feedback_text[:4000]
 
         if condition:
-            table.put_item(Item=feedback_item, ConditionExpression=condition)
+            feedback_table.put_item(Item=feedback_item, ConditionExpression=condition)
         else:
-            table.put_item(Item=feedback_item)
+            feedback_table.put_item(Item=feedback_item)
 
         # Mark Q&A as having received feedback to prevent deletion
         if message_ts:
@@ -365,7 +366,7 @@ def get_conversation_session_data(conversation_key):
     Get full session data for this conversation
     """
     try:
-        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        response = slack_bot_state_table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]
@@ -380,7 +381,7 @@ def get_latest_message_ts(conversation_key):
     Get latest message timestamp from session
     """
     try:
-        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        response = slack_bot_state_table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             return response["Item"].get("latest_message_ts")
         return None
@@ -413,7 +414,7 @@ def store_conversation_session(
         if latest_message_ts:
             item["latest_message_ts"] = latest_message_ts
 
-        table.put_item(Item=item)
+        slack_bot_state_table.put_item(Item=item)
         logger.info("Stored session", extra={"session_id": session_id, "conversation_key": conversation_key})
     except Exception as e:
         logger.error("Error storing session", extra={"error": str(e)})
@@ -424,7 +425,7 @@ def update_session_latest_message(conversation_key, message_ts):
     Update session with latest message timestamp
     """
     try:
-        table.update_item(
+        slack_bot_state_table.update_item(
             Key={"pk": conversation_key, "sk": SESSION_SK},
             UpdateExpression="SET latest_message_ts = :ts",
             ExpressionAttributeValues={":ts": message_ts},

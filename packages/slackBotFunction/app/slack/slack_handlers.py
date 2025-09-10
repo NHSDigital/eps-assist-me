@@ -15,7 +15,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from app.core.config import (
-    table,
+    slack_bot_state_table,
     bot_token,
     logger,
     BOT_MESSAGES,
@@ -198,7 +198,7 @@ def thread_message_handler(event, event_id, client):
 
     conversation_key = f"{THREAD_PREFIX}{channel_id}#{thread_root}"
     try:
-        resp = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        resp = slack_bot_state_table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" not in resp:
             logger.info(f"No session found for thread: {conversation_key}")
             return  # not a bot-owned thread; ignore
@@ -335,7 +335,7 @@ def _is_duplicate_event(event_id):
     """
     try:
         ttl = int(time.time()) + TTL_EVENT_DEDUP
-        table.put_item(
+        slack_bot_state_table.put_item(
             Item={"pk": f"{EVENT_PREFIX}{event_id}", "sk": DEDUP_SK, "ttl": ttl, "timestamp": int(time.time())},
             ConditionExpression="attribute_not_exists(pk)",
         )
@@ -350,7 +350,7 @@ def _is_duplicate_event(event_id):
 def _is_latest_message(conversation_key, message_ts):
     """Check if message_ts is the latest bot message using session data"""
     try:
-        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        response = slack_bot_state_table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             latest_message_ts = response["Item"].get("latest_message_ts")
             return latest_message_ts == message_ts
