@@ -8,9 +8,8 @@ logger = Logger(service="opensearch-index-waiter")
 aoss = boto3.client("opensearchserverless")
 
 
-@logger.inject_lambda_context
+@logger.inject_lambda_context(log_event=True)
 def handler(event, context):
-    logger.info("Received event", extra={"event": event})
     request_type = event["RequestType"]
     collection_name = event["ResourceProperties"]["CollectionName"]
     index_name = event["ResourceProperties"]["IndexName"]
