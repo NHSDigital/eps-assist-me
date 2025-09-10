@@ -174,7 +174,7 @@ def handle_client_error(e, start_time):
         }
 
 
-@logger.inject_lambda_context
+@logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
     """
     Main Lambda handler for S3-triggered knowledge base synchronization
