@@ -62,7 +62,6 @@ jobs:
       - name: Build Python Lambda Functions
         run: |
           pip3 install -r packages/slackBotFunction/requirements.txt -t packages/slackBotFunction
-          pip3 install -r packages/createIndexFunction/requirements.txt -t packages/createIndexFunction
           pip3 install -r packages/syncKnowledgeBaseFunction/requirements.txt -t packages/syncKnowledgeBaseFunction
 
       - name: 'Tar files'
