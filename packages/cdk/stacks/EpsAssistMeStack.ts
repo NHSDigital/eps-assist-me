@@ -84,15 +84,15 @@ export class EpsAssistMeStack extends Stack {
     const endpoint = openSearchResources.collection.endpoint
 
     // Create VectorKnowledgeBase construct with Bedrock execution role
-    // const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-    //   stackName: props.stackName,
-    //   docsBucket: storage.kbDocsBucket.bucket,
-    //   bedrockExecutionRole: bedrockExecutionRole.role,
-    //   collectionArn: openSearchResources.collection.collectionArn,
-    //   vectorIndexName: VECTOR_INDEX_NAME,
-    //   region,
-    //   account
-    // })
+    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
+      docsBucket: storage.kbDocsBucket.bucket,
+      bedrockExecutionRole: bedrockExecutionRole.role,
+      collectionArn: openSearchResources.collection.collectionArn,
+      vectorIndexName: VECTOR_INDEX_NAME,
+      region,
+      account
+    })
 
     // Create runtime policies with resource dependencies
     // const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
@@ -141,7 +141,7 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // Ensure knowledge base waits for vector index
-    // vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
+    vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
 
     // Add S3 notification to trigger sync Lambda function
     // new S3LambdaNotification(this, "S3LambdaNotification", {
