@@ -95,7 +95,7 @@ export const nagSuppressions = (stack: Stack) => {
   // Suppress IAM wildcard permissions for waiter function execution role policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
+    "/EpsAssistMeStack/VectorIndex/waiterLambda/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
