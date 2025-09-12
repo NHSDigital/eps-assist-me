@@ -76,7 +76,7 @@ export class VectorIndex extends Construct {
     // const indexArn = `arn:aws:aoss:${props.region}:${props.account}:index/${props.collection.name}/${props.indexName}`
 
     //const collectionArn = "aoss:collection/*"
-    const indexArn = `arn:aws:aoss:${props.region}:${props.account}:index/*`
+    const indexArn = `arn:aws:aoss:${props.region}:${props.account}:collection/${props.collection.attrId}`
     const getCollectionPolicy = new PolicyStatement({
       actions: [
         "aoss:BatchGetCollection"
