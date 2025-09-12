@@ -37,15 +37,16 @@ def handler(event, context):
                 continue
 
             # 2. Check index
-            idx_resp = aoss.get_index(indexName=index_name, id=coll.id)
-            idx = next((i for i in idx_resp.get("indexDetails", []) if i["name"] == index_name), None)
-
-            if not idx:
+            try:
+                aoss.get_index(indexName=index_name, id=coll["id"])
+            except aoss.exceptions.ResourceNotFoundException:
                 logger.warning(
                     "Index missing", extra={"collection": collection_name, "index": index_name, "attempt": attempt}
                 )
                 time.sleep(10)
                 continue
+            except Exception:
+                raise
 
             logger.info(
                 "Index status check",
