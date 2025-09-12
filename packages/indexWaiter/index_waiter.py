@@ -1,3 +1,4 @@
+import traceback
 import boto3
 import time
 from aws_lambda_powertools import Logger
@@ -55,8 +56,8 @@ def handler(event, context):
                 return {"PhysicalResourceId": f"{collection_name}/{index_name}", "Data": {"Status": "READY"}}
 
             time.sleep(10)
-        except Exception as exc:
-            logger.error("Error creating or waiting for index", extra={"error": str(exc)})
+        except Exception:
+            logger.error("Error creating or waiting for index", extra={"error": traceback.format_exc()})
             return {"PhysicalResourceId": f"{collection_name}/{index_name}", "Data": {"Status": "READY"}}
 
     logger.error("Timeout waiting for index readiness", extra={"collection": collection_name, "index": index_name})
