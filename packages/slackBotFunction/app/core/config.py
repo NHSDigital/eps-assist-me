@@ -5,6 +5,7 @@ Sets up all the AWS and Slack connections we need.
 
 import os
 import json
+import traceback
 import boto3
 from slack_bolt import App
 from aws_lambda_powertools import Logger
@@ -40,8 +41,8 @@ try:
 
 except json.JSONDecodeError as e:
     raise ValueError(f"Invalid JSON in Parameter Store: {e}")
-except Exception as e:
-    logger.error("Configuration error", extra={"error": str(e)})
+except Exception:
+    logger.error("Configuration error", extra={"error": traceback.format_exc()})
     raise
 
 # initialise the Slack app

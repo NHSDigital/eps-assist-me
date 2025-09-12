@@ -5,6 +5,7 @@ Handles conversation memory, Bedrock queries, and responding back to Slack
 
 import re
 import time
+import traceback
 import boto3
 from slack_sdk import WebClient
 from app.core.config import (
@@ -86,8 +87,8 @@ def process_async_slack_event(slack_event_data):
             )
         client.chat_postMessage(channel=channel, text=response_text, thread_ts=thread_ts)
 
-    except Exception as err:
-        logger.error("Error processing message", extra={"event_id": event_id, "error": str(err)})
+    except Exception:
+        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
         # incase Slack API call fails, we still want to log the error
         try:
@@ -96,8 +97,8 @@ def process_async_slack_event(slack_event_data):
                 text=BOT_MESSAGES["error_response"],
                 thread_ts=thread_ts,
             )
-        except Exception as post_err:
-            logger.error("Failed to post error message", extra={"error": str(post_err)})
+        except Exception:
+            logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
 
 
 def get_conversation_session(conversation_key):
@@ -110,8 +111,8 @@ def get_conversation_session(conversation_key):
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]["session_id"]
         return None
-    except Exception as e:
-        logger.error("Error getting session", extra={"error": str(e)})
+    except Exception:
+        logger.error("Error getting session", extra={"error": traceback.format_exc()})
         return None
 
 
@@ -134,8 +135,8 @@ def store_conversation_session(conversation_key, session_id, user_id, channel_id
             }
         )
         logger.info("Stored session", extra={"session_id": session_id, "conversation_key": conversation_key})
-    except Exception as e:
-        logger.error("Error storing session", extra={"error": str(e)})
+    except Exception:
+        logger.error("Error storing session", extra={"error": traceback.format_exc()})
 
 
 def query_bedrock(user_query, session_id=None):

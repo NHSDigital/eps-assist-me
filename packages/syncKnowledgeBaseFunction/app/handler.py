@@ -7,6 +7,7 @@ has access to the latest documentation for answering user queries.
 """
 
 import time
+import traceback
 import boto3
 from botocore.exceptions import ClientError
 from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID, SUPPORTED_FILE_TYPES, logger
@@ -259,6 +260,7 @@ def handler(event, context):
                 "error_type": type(e).__name__,
                 "error_message": str(e),
                 "duration_ms": round((time.time() - start_time) * 1000, 2),
+                "error": traceback.format_exc(),
             },
         )
         return {"statusCode": 500, "body": f"Unexpected error: {str(e)}"}

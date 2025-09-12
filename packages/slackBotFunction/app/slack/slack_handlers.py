@@ -4,6 +4,7 @@ Slack event handlers - handles @mentions and direct messages to the bot
 
 import time
 import json
+import traceback
 import boto3
 from botocore.exceptions import ClientError
 from app.core.config import table, bot_token, logger
@@ -78,7 +79,7 @@ def is_duplicate_event(event_id):
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return True  # Duplicate
-        logger.error("Error checking event duplication", extra={"error": str(e)})
+        logger.error("Error checking event duplication", extra={"error": traceback.format_exc()})
         return False
 
 
@@ -99,5 +100,5 @@ def trigger_async_processing(event_data):
             Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
         )
         logger.info("Async processing triggered successfully")
-    except Exception as e:
-        logger.error("Failed to trigger async processing", extra={"error": str(e)})
+    except Exception:
+        logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
