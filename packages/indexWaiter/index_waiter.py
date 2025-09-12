@@ -69,8 +69,8 @@ def handler(event, context):
         return {"PhysicalResourceId": f"index-{index_name}", "Data": {"Status": "DELETED"}}
 
     client = get_opensearch_client(endpoint)
-    if not wait_for_index_aoss(client, params["index"]):
-        raise RuntimeError(f"Index {params['index']} failed to appear in time")
+    if not wait_for_index_aoss(client, index_name):
+        raise RuntimeError(f"Index {index_name} failed to appear in time")
     return {
         "PhysicalResourceId": event.get("PhysicalResourceId", f"index-{index_name}"),
         "Status": "SUCCESS",
