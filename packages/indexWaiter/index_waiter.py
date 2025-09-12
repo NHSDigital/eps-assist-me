@@ -7,6 +7,7 @@ from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
 logger = Logger(service="opensearch-index-waiter")
 
 aoss = boto3.client("opensearchserverless")
+AWS_REGION = "eu-west-2"
 
 
 def get_opensearch_client(endpoint):
