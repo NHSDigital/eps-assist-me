@@ -114,7 +114,7 @@ export class VectorIndex extends Construct {
     const indexReady = new CustomResource(this, "IndexReady", {
       serviceToken: provider.serviceToken,
       properties: {
-        CollectionName: props.collection.name,
+        Endpoint: props.endpoint,
         IndexName: props.indexName
       }
     })

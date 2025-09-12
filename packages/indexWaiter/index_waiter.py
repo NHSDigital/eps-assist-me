@@ -1,7 +1,7 @@
-import traceback
 import boto3
 import time
 from aws_lambda_powertools import Logger
+from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
 
 # Structured logger (auto-captures request ID, cold start, etc.)
 logger = Logger(service="opensearch-index-waiter")
@@ -9,57 +9,68 @@ logger = Logger(service="opensearch-index-waiter")
 aoss = boto3.client("opensearchserverless")
 
 
+def get_opensearch_client(endpoint):
+    """
+    Create authenticated OpenSearch client for Serverless or managed service
+    """
+    # Determine service type: AOSS (Serverless) or ES (managed)
+    service = "aoss" if "aoss" in endpoint else "es"
+    logger.debug("Connecting to OpenSearch service", extra={"service": service, "endpoint": endpoint})
+    return OpenSearch(
+        hosts=[{"host": endpoint, "port": 443}],
+        http_auth=AWSV4SignerAuth(
+            boto3.Session().get_credentials(),
+            AWS_REGION,
+            service,
+        ),
+        use_ssl=True,
+        verify_certs=True,
+        connection_class=RequestsHttpConnection,
+        pool_maxsize=10,
+    )
+
+
+def wait_for_index_aoss(opensearch_client, index_name, timeout=300, poll_interval=5):
+    """
+    Wait for index to become available in OpenSearch Serverless
+
+    AOSS has eventual consistency, so we need to poll until the index
+    is fully created and mappings are available.
+    """
+    logger.info("Waiting for index to be available in AOSS", extra={"index_name": index_name})
+    start = time.time()
+    while True:
+        try:
+            if opensearch_client.indices.exists(index=index_name):
+                # Verify mappings are also available (not just index existence)
+                mapping = opensearch_client.indices.get_mapping(index=index_name)
+                if mapping and index_name in mapping:
+                    logger.info("Index exists and mappings are ready", extra={"index_name": index_name})
+                    return True
+            else:
+                logger.info("Index does not exist yet", extra={"index_name": index_name})
+        except Exception as exc:
+            logger.info("Still waiting for index", extra={"index_name": index_name, "error": str(exc)})
+        if time.time() - start > timeout:
+            logger.error("Timed out waiting for index to be available", extra={"index_name": index_name})
+            return False
+        time.sleep(poll_interval)
+
+
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
     request_type = event["RequestType"]
-    collection_name = event["ResourceProperties"]["CollectionName"]
+    endpoint = event["ResourceProperties"]["Endpoint"]
     index_name = event["ResourceProperties"]["IndexName"]
 
     if request_type == "Delete":
-        logger.info("Delete event - no action required", extra={"collection": collection_name, "index": index_name})
-        return {"PhysicalResourceId": f"{collection_name}/{index_name}", "Data": {"Status": "DELETED"}}
+        logger.info("Delete event - no action required", extra={"endpoint": endpoint, "index": index_name})
+        return {"PhysicalResourceId": f"index-{index_name}", "Data": {"Status": "DELETED"}}
 
-    # Poll until both collection + index become ACTIVE
-    for attempt in range(60):  # up to ~10 minutes
-        # 1. Check collection
-        try:
-            coll_resp = aoss.batch_get_collection(names=[collection_name])
-            coll = next((c for c in coll_resp.get("collectionDetails", []) if c["name"] == collection_name), None)
-
-            if not coll:
-                logger.warning("Collection missing", extra={"collection": collection_name, "attempt": attempt})
-                time.sleep(10)
-                continue
-
-            logger.info("Collection status check", extra={"collection": collection_name, "status": coll["status"]})
-            if coll["status"] != "ACTIVE":
-                time.sleep(10)
-                continue
-
-            # 2. Check index
-            try:
-                aoss.get_index(indexName=index_name, id=coll["id"])
-            except aoss.exceptions.ResourceNotFoundException:
-                logger.warning(
-                    "Index missing", extra={"collection": collection_name, "index": index_name, "attempt": attempt}
-                )
-                time.sleep(10)
-                continue
-            except Exception:
-                raise
-
-            logger.info(
-                "Index status check",
-                extra={"collection": collection_name, "index": index_name, "status": idx["status"]},
-            )
-            if idx["status"] == "ACTIVE":
-                logger.info("Index is ready ✅", extra={"collection": collection_name, "index": index_name})
-                return {"PhysicalResourceId": f"{collection_name}/{index_name}", "Data": {"Status": "READY"}}
-
-            time.sleep(10)
-        except Exception:
-            logger.error("Error creating or waiting for index", extra={"error": traceback.format_exc()})
-            return {"PhysicalResourceId": f"{collection_name}/{index_name}", "Data": {"Status": "READY"}}
-
-    logger.error("Timeout waiting for index readiness", extra={"collection": collection_name, "index": index_name})
-    raise Exception(f"Collection {collection_name} / Index {index_name} not ready after timeout")
+    client = get_opensearch_client(endpoint)
+    if not wait_for_index_aoss(client, params["index"]):
+        raise RuntimeError(f"Index {params['index']} failed to appear in time")
+    return {
+        "PhysicalResourceId": event.get("PhysicalResourceId", f"index-{index_name}"),
+        "Status": "SUCCESS",
+    }
