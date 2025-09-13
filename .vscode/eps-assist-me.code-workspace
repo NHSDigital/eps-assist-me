@@ -15,10 +15,6 @@
 		{
 			"name": "packages/syncKnowledgeBaseFunction",
 			"path": "../packages/syncKnowledgeBaseFunction"
-		},
-		{
-			"name": "packages/indexWaiter",
-			"path": "../packages/indexWaiter"
 		}
 	],
 	"settings": {
@@ -26,8 +22,7 @@
 			"eps-assist-me",
 			"packages/cdk",
 			"packages/slackBotFunction",
-			"packages/syncKnowledgeBaseFunction",
-			"packages/indexWaiter"
+			"packages/syncKnowledgeBaseFunction"
 		],
 		"files.exclude": {
 			"packages/": true

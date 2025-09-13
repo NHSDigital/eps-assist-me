@@ -46,12 +46,6 @@ aws-lambda-powertools = "^3.20.0"
 boto3 = "^1.40.29"
 aws-lambda-powertools = "^3.20.0"
 
-
-[tool.poetry.group.indexWaiter.dependencies]
-aws-lambda-powertools = "^3.20.0"
-boto3 = "^1.40.29"
-opensearch-py = "^3.0.0"
-
 [tool.black]
 line-length = 120
 
