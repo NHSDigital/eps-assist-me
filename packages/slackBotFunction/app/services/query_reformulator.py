@@ -1,5 +1,6 @@
 import os
 import json
+import traceback
 import boto3
 from .prompt_loader import load_prompt
 from .exceptions import ConfigurationError
@@ -71,6 +72,7 @@ def reformulate_query(logger, user_query: str) -> str:
                 "prompt_name": os.environ.get("QUERY_REFORMULATION_PROMPT_NAME"),
                 "prompt_version": os.environ.get("QUERY_REFORMULATION_PROMPT_VERSION", "auto"),
                 "error_type": type(e).__name__,
+                "error": traceback.format_exc(),
             },
         )
 

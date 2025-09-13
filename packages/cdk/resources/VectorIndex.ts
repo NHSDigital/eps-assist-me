@@ -61,8 +61,6 @@ export class VectorIndex extends Construct {
       }
     })
 
-    // Ensure collection exists before creating index
-    cfnIndex.node.addDependency(props.collection)
     this.cfnIndex = cfnIndex
   }
 }

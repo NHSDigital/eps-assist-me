@@ -17,6 +17,7 @@ from app.slack.slack_handlers import setup_handlers
 setup_handlers(app)
 
 
+@logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event: dict, context: LambdaContext) -> dict:
     """
     Main Lambda entry point - routes between Slack webhook and async processing

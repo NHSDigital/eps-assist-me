@@ -92,6 +92,18 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress IAM wildcard permissions for waiter function execution role policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/waiterLambda/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes."
+      }
+    ]
+  )
+
   // Suppress wildcard permissions for SlackBot policy
   safeAddNagSuppression(
     stack,
@@ -169,7 +181,21 @@ export const nagSuppressions = (stack: Stack) => {
         }
       ]
     )
+
+    // TO REMOVE
+    safeAddNagSuppression(
+      stack,
+      "EpsAssistMeStack/VectorIndex/waiterFnManagedPolicy/Resource",
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications."
+        }
+      ]
+    )
+
   })
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
