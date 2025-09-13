@@ -61,9 +61,12 @@ jobs:
 
       - name: Build Python Lambda Functions
         run: |
-          pip3 install -r packages/slackBotFunction/requirements.txt -t packages/slackBotFunction
-          pip3 install -r packages/syncKnowledgeBaseFunction/requirements.txt -t packages/syncKnowledgeBaseFunction
-          pip3 install -r packages/indexWaiter/requirements.txt -t packages/indexWaiter
+          poetry export --without-hashes --format=requirements.txt --with slackBotFunction > requirements_slackBotFunction
+          poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction
+          poetry export --without-hashes --format=requirements.txt --with indexWaiter > requirements_indexWaiter
+          pip3 install -r requirements_slackBotFunction -t packages/slackBotFunction
+          pip3 install -r requirements_syncKnowledgeBaseFunction -t packages/syncKnowledgeBaseFunction
+          pip3 install -r requirements_indexWaiter -t packages/indexWaiter
 
       - name: 'Tar files'
         run: |

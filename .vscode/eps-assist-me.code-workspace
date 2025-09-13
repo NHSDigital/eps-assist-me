@@ -1,7 +1,7 @@
 {
 	"folders": [
 		{
-			"name": "eps-assist-me-monorepo",
+			"name": "eps-assist-me",
 			"path": ".."
 		},
 		{
@@ -23,7 +23,11 @@
 	],
 	"settings": {
 		"jest.disabledWorkspaceFolders": [
-			"eps-assist-me"
+			"eps-assist-me",
+			"packages/cdk",
+			"packages/slackBotFunction",
+			"packages/syncKnowledgeBaseFunction",
+			"packages/indexWaiter"
 		],
 		"files.exclude": {
 			"packages/": true

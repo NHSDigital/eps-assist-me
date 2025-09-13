@@ -1,3 +1,0 @@
-aws-lambda-powertools
-boto3
-opensearch-py==2.4.2
