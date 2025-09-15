@@ -11,9 +11,11 @@ from slack_sdk import WebClient
 from app.core.config import (
     get_environment_variables,
     get_slack_bot_state_table,
-    logger,
+    get_logger,
 )
 from app.services.query_reformulator import reformulate_query
+
+logger = get_logger()
 
 
 def process_async_slack_event(slack_event_data):

@@ -9,8 +9,10 @@ import traceback
 import boto3
 from botocore.exceptions import ClientError
 from slack_bolt import App
-from app.core.config import get_app, get_slack_bot_state_table, logger
+from app.core.config import get_app, get_slack_bot_state_table, get_logger
 import os
+
+logger = get_logger()
 
 
 @lru_cache()

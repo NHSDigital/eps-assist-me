@@ -13,8 +13,12 @@ from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
 
 
-# set up logging
-logger = Logger(service="slackBotFunction")
+@lru_cache()
+def get_logger():
+    return Logger(service="slackBotFunction")
+
+
+logger = get_logger()
 
 
 @lru_cache()
