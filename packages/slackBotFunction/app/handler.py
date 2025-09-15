@@ -25,7 +25,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
     3. Async invocation processes Bedrock query and responds to Slack
     """
     # register event handlers with the app
-    app, bot_token = get_app()
+    app, _ = get_app()
     setup_handlers(app)
 
     logger.info("Lambda invoked", extra={"is_async": event.get("async_processing", False)})

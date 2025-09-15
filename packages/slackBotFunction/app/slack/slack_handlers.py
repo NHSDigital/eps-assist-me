@@ -40,7 +40,7 @@ def setup_handlers(app: App):
         user_id = event.get("user", "unknown")
         logger.info("Processing @mention from user", extra={"user_id": user_id, "event_id": event_id})
 
-        app, bot_token = get_app()
+        _, bot_token = get_app()
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
     @app.event("message")
@@ -63,7 +63,7 @@ def setup_handlers(app: App):
         user_id = event.get("user", "unknown")
         logger.info("Processing DM from user", extra={"user_id": user_id, "event_id": event_id})
 
-        app, bot_token = get_app()
+        _, bot_token = get_app()
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 

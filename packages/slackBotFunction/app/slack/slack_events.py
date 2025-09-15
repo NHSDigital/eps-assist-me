@@ -26,7 +26,7 @@ def process_async_slack_event(slack_event_data):
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
     token = slack_event_data["bot_token"]
-    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION, BOT_MESSAGES = get_environment_variables()
+    _, _, _, _, _, BOT_MESSAGES = get_environment_variables()
 
     client = WebClient(token=token)
 
