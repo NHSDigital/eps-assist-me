@@ -61,6 +61,7 @@ def get_app():
         process_before_response=True,
         token=bot_token,
         signing_secret=signing_secret,
+        logger=logger,
     )
     return app, bot_token
 
