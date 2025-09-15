@@ -135,3 +135,6 @@ cdk-watch: guard-STACK_NAME
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
+
+sync-docs: 
+	./scripts/sync_docs.sh

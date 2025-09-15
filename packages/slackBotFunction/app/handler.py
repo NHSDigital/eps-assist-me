@@ -41,5 +41,5 @@ def handler(event: dict, context: LambdaContext) -> dict:
         return {"statusCode": 200}
 
     # handle Slack webhook requests
-    slack_handler = SlackRequestHandler(app=app)
+    slack_handler = SlackRequestHandler(app=app, logger=logger)
     return slack_handler.handle(event, context)
