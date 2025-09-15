@@ -2,16 +2,19 @@
 Slack event handlers - handles @mentions and direct messages to the bot
 """
 
+from functools import lru_cache
 import time
 import json
 import traceback
 import boto3
 from botocore.exceptions import ClientError
-from app.core.config import table, bot_token, logger
+from slack_bolt import App
+from app.core.config import get_app, get_slack_bot_state_table, logger
 import os
 
 
-def setup_handlers(app):
+@lru_cache()
+def setup_handlers(app: App):
     """
     Register all event handlers with the Slack app
     """
@@ -37,6 +40,7 @@ def setup_handlers(app):
         user_id = event.get("user", "unknown")
         logger.info("Processing @mention from user", extra={"user_id": user_id, "event_id": event_id})
 
+        app, bot_token = get_app()
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
     @app.event("message")
@@ -59,6 +63,7 @@ def setup_handlers(app):
         user_id = event.get("user", "unknown")
         logger.info("Processing DM from user", extra={"user_id": user_id, "event_id": event_id})
 
+        app, bot_token = get_app()
         trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
@@ -71,7 +76,8 @@ def is_duplicate_event(event_id):
     """
     try:
         ttl = int(time.time()) + 3600  # 1 hour TTL
-        table.put_item(
+        slack_bot_state_table = get_slack_bot_state_table()
+        slack_bot_state_table.put_item(
             Item={"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
             ConditionExpression="attribute_not_exists(pk)",
         )

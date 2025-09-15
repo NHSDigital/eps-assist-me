@@ -9,14 +9,9 @@ import traceback
 import boto3
 from slack_sdk import WebClient
 from app.core.config import (
-    table,
+    get_environment_variables,
+    get_slack_bot_state_table,
     logger,
-    KNOWLEDGEBASE_ID,
-    RAG_MODEL_ID,
-    AWS_REGION,
-    GUARD_RAIL_ID,
-    GUARD_VERSION,
-    BOT_MESSAGES,
 )
 from app.services.query_reformulator import reformulate_query
 
@@ -31,6 +26,7 @@ def process_async_slack_event(slack_event_data):
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
     token = slack_event_data["bot_token"]
+    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION, BOT_MESSAGES = get_environment_variables()
 
     client = WebClient(token=token)
 
@@ -106,7 +102,8 @@ def get_conversation_session(conversation_key):
     Get existing Bedrock session for this conversation
     """
     try:
-        response = table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        slack_bot_state_table = get_slack_bot_state_table()
+        response = slack_bot_state_table.get_item(Key={"pk": conversation_key, "sk": "session"})
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]["session_id"]
@@ -122,7 +119,8 @@ def store_conversation_session(conversation_key, session_id, user_id, channel_id
     """
     try:
         ttl = int(time.time()) + 2592000  # 30 days
-        table.put_item(
+        slack_bot_state_table = get_slack_bot_state_table()
+        slack_bot_state_table.put_item(
             Item={
                 "pk": conversation_key,
                 "sk": "session",
@@ -147,6 +145,7 @@ def query_bedrock(user_query, session_id=None):
     a response using the configured LLM model with guardrails for safety.
     """
 
+    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION, BOT_MESSAGES = get_environment_variables()
     client = boto3.client(
         service_name="bedrock-agent-runtime",
         region_name=AWS_REGION,

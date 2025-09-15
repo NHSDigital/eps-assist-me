@@ -1,8 +1,7 @@
+import json
 import pytest
 
-from unittest.mock import Mock, patch
-from moto import mock_aws
-import boto3
+from unittest.mock import MagicMock, Mock, patch
 import os
 
 
@@ -30,23 +29,37 @@ def mock_env():
 
 
 @pytest.fixture
-def mock_dynamodb_table():
-    """Mock DynamoDB table"""
-    with mock_aws():
-        dynamodb = boto3.resource("dynamodb")
-        table = dynamodb.create_table(
-            TableName="test-bot-state-table",
-            KeySchema=[{"AttributeName": "eventId", "KeyType": "HASH"}],
-            AttributeDefinitions=[{"AttributeName": "eventId", "AttributeType": "S"}],
-            BillingMode="PAY_PER_REQUEST",
-        )
-        yield table
-
-
-@pytest.fixture
 def lambda_context():
     """Mock Lambda context"""
     context = Mock()
     context.function_name = "test-function"
     context.aws_request_id = "test-request-id"
     return context
+
+
+@pytest.fixture
+def mock_get_parameter():
+    def fake_get_parameter(name, *args, **kwargs):
+        return {
+            "/test/bot-token": json.dumps({"token": "test-token"}),
+            "/test/signing-secret": json.dumps({"secret": "test-secret"}),
+        }[name]
+
+    with patch("app.core.config.get_parameter", side_effect=fake_get_parameter) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_slack_app():
+    with patch("app.core.config.App") as mock_app_cls:
+        mock_instance = MagicMock()
+        mock_app_cls.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def mock_table():
+    with patch("app.core.config.get_slack_bot_state_table") as mock_func:
+        fake_table = MagicMock()
+        mock_func.return_value = fake_table
+        yield fake_table
