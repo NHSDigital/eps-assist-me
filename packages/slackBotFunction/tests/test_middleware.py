@@ -1,8 +1,6 @@
 import sys
 from unittest.mock import Mock, patch
 
-from botocore.exceptions import ClientError
-
 
 def test_log_request_middleware_execution(mock_slack_app, mock_env, mock_get_parameter, lambda_context):
     """Test log_request middleware actual execution"""
@@ -35,13 +33,12 @@ def test_log_request_middleware_execution(mock_slack_app, mock_env, mock_get_par
     mock_next.assert_called_once()
 
 
-@patch("boto3.client")
+@patch("app.utils.handler_utils.is_duplicate_event")
+@patch("app.utils.handler_utils.trigger_async_processing")
 def test_app_mention_handler_execution_simple(
-    mock_boto_client, mock_slack_app, mock_env, mock_get_parameter, mock_table, lambda_context
+    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
 ):
     """Test app mention handler execution by simulating the handler registration process"""
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
     # Create a mock app that captures the registered handlers
     registered_handlers = {}
 
@@ -66,6 +63,7 @@ def test_app_mention_handler_execution_simple(
     handler_func = registered_handlers["app_mention"]
 
     mock_ack = Mock()
+    mock_is_duplicate_event.return_value = False
 
     # Test: Successful flow (no duplicate)
     event = {"user": "U123", "text": "test message"}
@@ -74,17 +72,16 @@ def test_app_mention_handler_execution_simple(
     handler_func(event, mock_ack, body)
 
     mock_ack.assert_called()
-    mock_lambda_client.invoke.assert_called_once()
-    mock_table.put_item.assert_called()
+    mock_trigger_async_processing.assert_called_once()
+    mock_is_duplicate_event.assert_called()
 
 
-@patch("boto3.client")
+@patch("app.utils.handler_utils.is_duplicate_event")
+@patch("app.utils.handler_utils.trigger_async_processing")
 def test_direct_message_handler_execution_simple(
-    mock_boto_client, mock_slack_app, mock_env, mock_get_parameter, mock_table, lambda_context
+    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
 ):
     """Test direct message handler execution by simulating the handler registration process"""
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
     # Create a mock app that captures the registered handlers
     registered_handlers = {}
 
@@ -108,6 +105,7 @@ def test_direct_message_handler_execution_simple(
     handler_func = registered_handlers["message"]
 
     mock_ack = Mock()
+    mock_is_duplicate_event.return_value = False
 
     # Test: Successful flow (no duplicate)
     event = {"user": "U123", "text": "test direct message", "channel_type": "im"}
@@ -116,21 +114,16 @@ def test_direct_message_handler_execution_simple(
     handler_func(event, mock_ack, body)
 
     mock_ack.assert_called()
-    mock_lambda_client.invoke.assert_called_once()
-    mock_table.put_item.assert_called()
+    mock_trigger_async_processing.assert_called_once()
+    mock_is_duplicate_event.assert_called()
 
 
-@patch("boto3.client")
+@patch("app.utils.handler_utils.is_duplicate_event")
+@patch("app.utils.handler_utils.trigger_async_processing")
 def test_app_mention_handler_duplicate_event(
-    mock_boto_client, mock_slack_app, mock_env, mock_get_parameter, mock_table, lambda_context
+    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
 ):
     """Test app mention handler with duplicate event"""
-
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
-    error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
-    mock_table.put_item.side_effect = error
-
     registered_handlers = {}
 
     def mock_event_decorator(event_type):
@@ -152,6 +145,7 @@ def test_app_mention_handler_duplicate_event(
     handler_func = registered_handlers["app_mention"]
 
     mock_ack = Mock()
+    mock_is_duplicate_event.return_value = True
 
     event = {"user": "U123", "text": "test message"}
     body = {"event_id": "duplicate-event-123"}
@@ -159,17 +153,16 @@ def test_app_mention_handler_duplicate_event(
     handler_func(event, mock_ack, body)
 
     mock_ack.assert_called()
-    mock_table.put_item.assert_called()
-    mock_lambda_client.invoke.assert_not_called()
+    mock_is_duplicate_event.assert_called()
+    mock_trigger_async_processing.assert_not_called()
 
 
-@patch("boto3.client")
+@patch("app.utils.handler_utils.is_duplicate_event")
+@patch("app.utils.handler_utils.trigger_async_processing")
 def test_app_mention_handler_missing_event_id(
-    mock_boto_client, mock_slack_app, mock_env, mock_get_parameter, mock_table, lambda_context
+    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
 ):
     """Test app mention handler with missing event ID"""
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
     # Create a mock app that captures the registered handlers
     registered_handlers = {}
 
@@ -199,20 +192,16 @@ def test_app_mention_handler_missing_event_id(
     handler_func(event, mock_ack, body)
 
     mock_ack.assert_called()
-    mock_table.put_item.assert_not_called()
-    mock_lambda_client.invoke.assert_not_called()
+    mock_trigger_async_processing.put_item.assert_not_called()
+    mock_is_duplicate_event.invoke.assert_not_called()
 
 
-@patch("boto3.client")
+@patch("app.utils.handler_utils.is_duplicate_event")
+@patch("app.utils.handler_utils.trigger_async_processing")
 def test_direct_message_handler_duplicate_event(
-    mock_boto_client, mock_slack_app, mock_env, mock_get_parameter, mock_table, lambda_context
+    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
 ):
     """Test direct message handler with duplicate event"""
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
-    error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
-    mock_table.put_item.side_effect = error
-
     registered_handlers = {}
 
     def mock_event_decorator(event_type):
@@ -234,6 +223,7 @@ def test_direct_message_handler_duplicate_event(
     handler_func = registered_handlers["message"]
 
     mock_ack = Mock()
+    mock_is_duplicate_event.return_value = False
 
     event = {"user": "U123", "text": "test direct message", "channel_type": "im"}
     body = {"event_id": "duplicate-dm-event-456"}
@@ -241,17 +231,16 @@ def test_direct_message_handler_duplicate_event(
     handler_func(event, mock_ack, body)
 
     mock_ack.assert_called()
-    mock_table.put_item.assert_called()
-    mock_lambda_client.invoke.assert_not_called()
+    mock_is_duplicate_event.assert_called()
+    mock_trigger_async_processing.assert_called()
 
 
-@patch("boto3.client")
+@patch("app.utils.handler_utils.is_duplicate_event")
+@patch("app.utils.handler_utils.trigger_async_processing")
 def test_direct_message_handler_missing_event_id(
-    mock_boto_client, mock_slack_app, mock_env, mock_get_parameter, mock_table, lambda_context
+    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
 ):
     """Test direct message handler with missing event ID"""
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
     # Create a mock app that captures the registered handlers
     registered_handlers = {}
 
@@ -282,18 +271,16 @@ def test_direct_message_handler_missing_event_id(
 
     mock_ack.assert_called()
     # No DynamoDB or Lambda calls should be made
-    mock_table.put_item.assert_not_called()
-    mock_lambda_client.invoke.assert_not_called()
+    mock_is_duplicate_event.assert_not_called()
+    mock_trigger_async_processing.assert_not_called()
 
 
-@patch("boto3.client")
+@patch("app.utils.handler_utils.is_duplicate_event")
+@patch("app.utils.handler_utils.trigger_async_processing")
 def test_direct_message_handler_non_dm_channel(
-    mock_boto_client, mock_slack_app, mock_env, mock_get_parameter, mock_table, lambda_context
+    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
 ):
     """Test direct message handler ignores non-DM channels"""
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
-
     # Create a mock app that captures the registered handlers
     registered_handlers = {}
 
@@ -326,5 +313,5 @@ def test_direct_message_handler_non_dm_channel(
 
     mock_ack.assert_called()
     # No DynamoDB or Lambda calls should be made for non-DM messages
-    mock_table.put_item.assert_not_called()
-    mock_lambda_client.invoke.assert_not_called()
+    mock_is_duplicate_event.assert_not_called()
+    mock_trigger_async_processing.assert_not_called()

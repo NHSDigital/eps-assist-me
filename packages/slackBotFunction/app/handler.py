@@ -9,9 +9,9 @@ This Lambda function serves two purposes:
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from app.core.config import get_app, get_logger
+from app.core.config import get_logger
+from app.services.app import get_app
 from app.slack.slack_events import process_async_slack_event
-from app.slack.slack_handlers import setup_handlers
 
 logger = get_logger()
 
@@ -27,8 +27,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
     3. Async invocation processes Bedrock query and responds to Slack
     """
     # register event handlers with the app
-    app, _ = get_app()
-    setup_handlers(app)
+    app = get_app()
 
     logger.info("Lambda invoked", extra={"is_async": event.get("async_processing", False)})
 

@@ -9,7 +9,8 @@ import traceback
 import boto3
 from slack_sdk import WebClient
 from app.core.config import (
-    get_environment_variables,
+    get_bot_messages,
+    get_guardrail_config,
     get_slack_bot_state_table,
     get_logger,
 )
@@ -28,7 +29,7 @@ def process_async_slack_event(slack_event_data):
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
     token = slack_event_data["bot_token"]
-    _, _, _, _, _, BOT_MESSAGES = get_environment_variables()
+    BOT_MESSAGES = get_bot_messages()
 
     client = WebClient(token=token)
 
@@ -147,7 +148,7 @@ def query_bedrock(user_query, session_id=None):
     a response using the configured LLM model with guardrails for safety.
     """
 
-    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION, BOT_MESSAGES = get_environment_variables()
+    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION = get_guardrail_config()
     client = boto3.client(
         service_name="bedrock-agent-runtime",
         region_name=AWS_REGION,

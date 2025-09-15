@@ -51,7 +51,7 @@ def mock_get_parameter():
 
 @pytest.fixture
 def mock_slack_app():
-    with patch("app.core.config.App") as mock_app_cls:
+    with patch("app.services.app.App") as mock_app_cls:
         mock_instance = MagicMock()
         mock_app_cls.return_value = mock_instance
         yield mock_instance

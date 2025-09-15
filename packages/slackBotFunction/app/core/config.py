@@ -8,7 +8,6 @@ import os
 import json
 import traceback
 import boto3
-from slack_bolt import App
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
 
@@ -29,11 +28,9 @@ def get_slack_bot_state_table():
 
 
 @lru_cache()
-def get_app():
-    # get Slack credentials from Parameter Store
+def get_ssm_params():
     bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
     signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
-
     try:
         bot_token_raw = get_parameter(bot_token_parameter, decrypt=True)
         signing_secret_raw = get_parameter(signing_secret_parameter, decrypt=True)
@@ -55,19 +52,29 @@ def get_app():
     except Exception:
         logger.error("Configuration error", extra={"error": traceback.format_exc()})
         raise
+    return bot_token, signing_secret
 
-    # initialise the Slack app
-    app = App(
-        process_before_response=True,
-        token=bot_token,
-        signing_secret=signing_secret,
-        logger=logger,
-    )
-    return app, bot_token
+
+@lru_cache
+def get_bot_token():
+    bot_token, _ = get_ssm_params()
+    return bot_token
 
 
 @lru_cache()
-def get_environment_variables():
+def get_bot_messages():
+
+    # Bot response messages
+    BOT_MESSAGES = {
+        "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+        "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
+    }
+
+    return BOT_MESSAGES
+
+
+@lru_cache
+def get_guardrail_config():
     # Bedrock configuration from environment
     KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
     RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
@@ -78,11 +85,4 @@ def get_environment_variables():
     logger.info(
         "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
     )
-
-    # Bot response messages
-    BOT_MESSAGES = {
-        "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
-        "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
-    }
-
-    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION, BOT_MESSAGES
+    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION

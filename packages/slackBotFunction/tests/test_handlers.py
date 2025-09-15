@@ -1,6 +1,5 @@
 import sys
 from unittest.mock import Mock, patch
-from app.slack.slack_handlers import trigger_async_processing
 
 
 def test_handler_normal_event(mock_slack_app, mock_env, mock_get_parameter, lambda_context):
@@ -39,24 +38,6 @@ def test_handler_async_processing(mock_process, mock_get_parameter, mock_slack_a
 
     mock_process.assert_called_once_with(slack_event_data)
     assert result["statusCode"] == 200
-
-
-@patch("boto3.client")
-def test_trigger_async_processing(
-    mock_boto_client,
-    mock_slack_app,
-    mock_env,
-    mock_get_parameter,
-):
-    """Test triggering async processing"""
-    mock_lambda_client = Mock()
-    mock_boto_client.return_value = mock_lambda_client
-
-    event_data = {"test": "data"}
-    trigger_async_processing(event_data)
-
-    mock_boto_client.assert_called_once_with("lambda")
-    mock_lambda_client.invoke.assert_called_once()
 
 
 def test_handler_async_processing_missing_slack_event(mock_slack_app, mock_env, mock_get_parameter, lambda_context):

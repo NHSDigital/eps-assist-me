@@ -58,6 +58,7 @@ clean:
 	rm -rf packages/syncKnowledgeBaseFunction/.coverage
 	rm -rf cdk.out
 	rm -rf .build
+	find . -name '.pytest_cache' -type d -prune -exec rm -rf '{}' +
 
 deep-clean: clean
 	rm -rf .venv
