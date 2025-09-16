@@ -170,6 +170,7 @@ export const nagSuppressions = (stack: Stack) => {
       ]
     )
   })
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {

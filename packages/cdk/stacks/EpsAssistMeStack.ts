@@ -171,6 +171,15 @@ export class EpsAssistMeStack extends Stack {
       description: "ARN of the query reformulation prompt in Bedrock"
     })
 
+    new CfnOutput(this, "kbDocsBucketArn", {
+      value: storage.kbDocsBucket.bucket.bucketArn,
+      exportName: `${props.stackName}:kbDocsBucket:Arn`
+    })
+    new CfnOutput(this, "kbDocsBucketName", {
+      value: storage.kbDocsBucket.bucket.bucketName,
+      exportName: `${props.stackName}:kbDocsBucket:Name`
+    })
+
     // Final CDK Nag Suppressions
     nagSuppressions(this)
   }

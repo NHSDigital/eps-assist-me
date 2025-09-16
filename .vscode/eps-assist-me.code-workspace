@@ -1,7 +1,7 @@
 {
 	"folders": [
 		{
-			"name": "eps-assist-me-monorepo",
+			"name": "eps-assist-me",
 			"path": ".."
 		},
 		{
@@ -19,7 +19,10 @@
 	],
 	"settings": {
 		"jest.disabledWorkspaceFolders": [
-			"eps-assist-me"
+			"eps-assist-me",
+			"packages/cdk",
+			"packages/slackBotFunction",
+			"packages/syncKnowledgeBaseFunction"
 		],
 		"files.exclude": {
 			"packages/": true
@@ -103,7 +106,8 @@
 		"jest.jestCommandLine": "NODE_OPTIONS=--experimental-vm-modules node_modules/.bin/jest --no-cache",
 		"jest.nodeEnv": {
 			"POWERTOOLS_DEV": true
-		}
+		},
+		"python.defaultInterpreterPath": "/workspaces/eps-assist-me/.venv/bin/python"
 	},
 	"extensions": {
 		"recommendations": [

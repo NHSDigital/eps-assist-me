@@ -1,4 +1,5 @@
 import os
+import traceback
 import boto3
 from botocore.exceptions import ClientError
 from app.services.exceptions import PromptNotFoundError, PromptLoadError
@@ -52,7 +53,12 @@ def load_prompt(logger, prompt_name: str, prompt_version: str = None) -> str:
 
         logger.error(
             f"Failed to load prompt '{prompt_name}' version '{prompt_version}': {error_code} - {error_message}",
-            extra={"prompt_name": prompt_name, "error_code": error_code, "requested_version": prompt_version},
+            extra={
+                "prompt_name": prompt_name,
+                "error_code": error_code,
+                "requested_version": prompt_version,
+                "error": traceback.format_exc(),
+            },
         )
         raise PromptLoadError(
             f"Failed to load prompt '{prompt_name}' version '{prompt_version}': {error_code} - {error_message}"
@@ -61,7 +67,7 @@ def load_prompt(logger, prompt_name: str, prompt_version: str = None) -> str:
     except Exception as e:
         logger.error(
             "Unexpected error loading prompt",
-            extra={"prompt_name": prompt_name, "error": str(e), "error_type": type(e).__name__},
+            extra={"prompt_name": prompt_name, "error_type": type(e).__name__, "error": traceback.format_exc()},
         )
         raise PromptLoadError(f"Unexpected error loading prompt '{prompt_name}': {e}")
 
@@ -82,6 +88,6 @@ def get_prompt_id_from_name(logger, client, prompt_name: str) -> str | None:
         logger.error("No prompt found with name", extra={"prompt_name": prompt_name})
         return None
 
-    except ClientError as e:
-        logger.error("Failed to list prompts", extra={"error": str(e)})
+    except ClientError:
+        logger.error("Failed to list prompts", extra={"error": traceback.format_exc()})
         return None

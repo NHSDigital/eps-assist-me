@@ -7,29 +7,25 @@ Design goals:
 - Support mention-only start in channels, follow-ups in bot-owned threads, and 'feedback:' notes.
 """
 
-import re
-import time
 import json
-import os
-import boto3
+import re
+from functools import lru_cache
 from botocore.exceptions import ClientError
-
 from app.core.config import (
-    table,
-    bot_token,
-    logger,
-    BOT_MESSAGES,
+    get_bot_messages,
+    get_bot_token,
+    get_logger,
     FEEDBACK_PREFIX,
     CHANNEL_TYPE_IM,
     SESSION_SK,
-    DEDUP_SK,
-    EVENT_PREFIX,
     DM_PREFIX,
     THREAD_PREFIX,
-    TTL_EVENT_DEDUP,
+    get_slack_bot_state_table,
 )
+from app.utils.handler_utils import is_duplicate_event, trigger_async_processing, respond_with_eyes
 from app.slack.slack_events import store_feedback
 
+logger = get_logger()
 
 # ================================================================
 # Common handler helpers
@@ -55,7 +51,7 @@ def _gate_common(event, body):
     if event.get("bot_id") or event.get("subtype"):
         return None
 
-    if _is_duplicate_event(event_id):
+    if is_duplicate_event(event_id):
         logger.info(f"Skipping duplicate event: {event_id}")
         return None
 
@@ -100,7 +96,8 @@ def mention_handler(event, ack, body, client):
     event_id = _gate_common(event, body)
     if not event_id:
         return
-
+    bot_token = get_bot_token()
+    respond_with_eyes(bot_token, event)
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
     conversation_key, thread_root = _conversation_key_and_root(event)
@@ -120,7 +117,7 @@ def mention_handler(event, ack, body, client):
             )
         except Exception as e:
             logger.error(f"Failed to store channel feedback via mention: {e}")
-
+        BOT_MESSAGES = get_bot_messages()
         try:
             client.chat_postMessage(
                 channel=channel_id,
@@ -133,7 +130,7 @@ def mention_handler(event, ack, body, client):
 
     # Normal mention -> async processing
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
-    _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 def dm_message_handler(event, event_id, client):
@@ -144,7 +141,8 @@ def dm_message_handler(event, event_id, client):
     """
     if event.get("channel_type") != CHANNEL_TYPE_IM:
         return  # not a DM; the channel handler will evaluate it
-
+    bot_token = get_bot_token()
+    respond_with_eyes(bot_token, event)
     text = (event.get("text") or "").strip()
     channel_id = event["channel"]
     conversation_key, thread_root = _conversation_key_and_root(event)
@@ -164,6 +162,7 @@ def dm_message_handler(event, event_id, client):
             )
         except Exception as e:
             logger.error(f"Failed to store DM additional feedback: {e}")
+        BOT_MESSAGES = get_bot_messages()
 
         try:
             # DMs don't use threads - post directly to channel
@@ -176,7 +175,7 @@ def dm_message_handler(event, event_id, client):
         return
 
     # Normal DM -> async processing
-    _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 def thread_message_handler(event, event_id, client):
@@ -198,6 +197,7 @@ def thread_message_handler(event, event_id, client):
 
     conversation_key = f"{THREAD_PREFIX}{channel_id}#{thread_root}"
     try:
+        table = get_slack_bot_state_table()
         resp = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" not in resp:
             logger.info(f"No session found for thread: {conversation_key}")
@@ -224,6 +224,8 @@ def thread_message_handler(event, event_id, client):
             logger.error(f"Failed to store channel additional feedback: {e}")
 
         try:
+            BOT_MESSAGES = get_bot_messages()
+
             client.chat_postMessage(
                 channel=channel_id,
                 text=BOT_MESSAGES["feedback_thanks"],
@@ -234,7 +236,7 @@ def thread_message_handler(event, event_id, client):
         return
 
     # Follow-up in a bot-owned thread (no re-mention required)
-    _trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
 def unified_message_handler(event, ack, body, client):
@@ -267,6 +269,7 @@ def feedback_handler(ack, body, client):
         if message_ts and not _is_latest_message(conversation_key, message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
             return
+        BOT_MESSAGES = get_bot_messages()
 
         # Determine feedback type and response message based on action_id
         if action_id == "feedback_yes":
@@ -310,6 +313,7 @@ def feedback_handler(ack, body, client):
 # ================================================================
 
 
+@lru_cache
 def setup_handlers(app):
     """Register handlers. Intentionally minimal—no branching here."""
     app.event("app_mention")(mention_handler)
@@ -323,33 +327,10 @@ def setup_handlers(app):
 # ================================================================
 
 
-def _is_duplicate_event(event_id):
-    """
-    Check if we've already processed this event using DynamoDB conditional writes.
-
-    Key:
-        pk = f"event#{event_id}", sk = "dedup", ttl = now + 1h
-    Behavior:
-        - First write succeeds (not a duplicate).
-        - Subsequent writes within TTL fail the condition and are treated as duplicates.
-    """
-    try:
-        ttl = int(time.time()) + TTL_EVENT_DEDUP
-        table.put_item(
-            Item={"pk": f"{EVENT_PREFIX}{event_id}", "sk": DEDUP_SK, "ttl": ttl, "timestamp": int(time.time())},
-            ConditionExpression="attribute_not_exists(pk)",
-        )
-        return False  # Not a duplicate
-    except ClientError as e:
-        if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
-            return True  # Duplicate
-        logger.error("Error checking event duplication", extra={"error": str(e)})
-        return False
-
-
 def _is_latest_message(conversation_key, message_ts):
     """Check if message_ts is the latest bot message using session data"""
     try:
+        table = get_slack_bot_state_table()
         response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             latest_message_ts = response["Item"].get("latest_message_ts")
@@ -358,23 +339,3 @@ def _is_latest_message(conversation_key, message_ts):
     except Exception as e:
         logger.error(f"Error checking latest message: {e}")
         return False
-
-
-def _trigger_async_processing(event_data):
-    """
-    Trigger asynchronous Lambda invocation to process Slack events.
-
-    Slack requires responses within 3 seconds, but Bedrock queries can take longer.
-    This function invokes the same Lambda function asynchronously to handle the
-    actual AI processing without blocking the initial Slack response.
-    """
-    try:
-        lambda_client = boto3.client("lambda")
-        lambda_client.invoke(
-            FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
-            InvocationType="Event",
-            Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
-        )
-        logger.info("Async processing triggered successfully")
-    except Exception as e:
-        logger.error("Failed to trigger async processing", extra={"error": str(e)})

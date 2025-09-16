@@ -9,9 +9,7 @@ guard-%:
 install: install-python install-hooks install-node
 
 install-python:
-	poetry install
-	cd packages/slackBotFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
-	cd packages/syncKnowledgeBaseFunction && pip install -r requirements.txt && pip install -r requirements-test.txt
+	poetry sync --all-groups
 
 install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
@@ -48,8 +46,8 @@ lint-flake8:
 	poetry run flake8 .
 
 test:
-	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
-	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage python -m pytest
+	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
+	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
@@ -60,6 +58,7 @@ clean:
 	rm -rf packages/syncKnowledgeBaseFunction/.coverage
 	rm -rf cdk.out
 	rm -rf .build
+	find . -name '.pytest_cache' -type d -prune -exec rm -rf '{}' +
 
 deep-clean: clean
 	rm -rf .venv
@@ -137,3 +136,6 @@ cdk-watch: guard-STACK_NAME
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
+
+sync-docs: 
+	./scripts/sync_docs.sh

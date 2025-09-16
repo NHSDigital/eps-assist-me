@@ -5,19 +5,12 @@ Handles conversation memory, Bedrock queries, and responding back to Slack
 
 import re
 import time
+import traceback
 import json
 import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
-    table,
-    logger,
-    KNOWLEDGEBASE_ID,
-    RAG_MODEL_ID,
-    AWS_REGION,
-    GUARD_RAIL_ID,
-    GUARD_VERSION,
-    BOT_MESSAGES,
     CONTEXT_TYPE_DM,
     CONTEXT_TYPE_THREAD,
     CHANNEL_TYPE_IM,
@@ -29,8 +22,15 @@ from app.core.config import (
     NOTE_SUFFIX,
     TTL_FEEDBACK,
     TTL_SESSION,
+    get_bot_messages,
+    get_guardrail_config,
+    get_slack_bot_state_table,
+    get_logger,
+    get_table,
 )
 from app.services.query_reformulator import reformulate_query
+
+logger = get_logger()
 
 
 # ================================================================
@@ -47,6 +47,7 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
             return
 
         # Atomically delete Q&A only if no feedback received
+        table = get_table()
         table.delete_item(
             Key={"pk": f"qa#{conversation_key}#{previous_message_ts}", "sk": "turn"},
             ConditionExpression="attribute_not_exists(feedback_received)",
@@ -67,6 +68,7 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
     Store Q&A pair for feedback correlation
     """
     try:
+        table = get_table()
         table.put_item(
             Item={
                 "pk": f"qa#{conversation_key}#{message_ts}",
@@ -90,6 +92,7 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
     Mark Q&A record as having received feedback to prevent deletion
     """
     try:
+        table = get_table()
         table.update_item(
             Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
             UpdateExpression="SET feedback_received = :val",
@@ -183,7 +186,10 @@ def process_async_slack_event(slack_event_data):
     """
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
-    client = WebClient(token=slack_event_data["bot_token"])
+    token = slack_event_data["bot_token"]
+    BOT_MESSAGES = get_bot_messages()
+
+    client = WebClient(token=token)
 
     try:
         user_id = event["user"]
@@ -247,8 +253,8 @@ def process_async_slack_event(slack_event_data):
                 f"Failed to attach feedback buttons: {e}", extra={"event_id": event_id, "message_ts": message_ts}
             )
 
-    except Exception as err:
-        logger.error("Error processing message", extra={"event_id": event_id, "error": str(err)})
+    except Exception:
+        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
         # Try to notify user of error via Slack
         try:
@@ -321,6 +327,7 @@ def store_feedback(
         if feedback_text:
             feedback_item["feedback_text"] = feedback_text[:4000]
 
+        table = get_slack_bot_state_table()
         if condition:
             table.put_item(Item=feedback_item, ConditionExpression=condition)
         else:
@@ -365,13 +372,14 @@ def get_conversation_session_data(conversation_key):
     Get full session data for this conversation
     """
     try:
-        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        slack_bot_state_table = get_slack_bot_state_table()
+        response = slack_bot_state_table.get_item(Key={"pk": conversation_key, "sk": "session"})
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]
         return None
-    except Exception as e:
-        logger.error("Error getting session", extra={"error": str(e)})
+    except Exception:
+        logger.error("Error getting session", extra={"error": traceback.format_exc()})
         return None
 
 
@@ -413,10 +421,11 @@ def store_conversation_session(
         if latest_message_ts:
             item["latest_message_ts"] = latest_message_ts
 
+        table = get_slack_bot_state_table()
         table.put_item(Item=item)
         logger.info("Stored session", extra={"session_id": session_id, "conversation_key": conversation_key})
-    except Exception as e:
-        logger.error("Error storing session", extra={"error": str(e)})
+    except Exception:
+        logger.error("Error storing session", extra={"error": traceback.format_exc()})
 
 
 def update_session_latest_message(conversation_key, message_ts):
@@ -424,6 +433,7 @@ def update_session_latest_message(conversation_key, message_ts):
     Update session with latest message timestamp
     """
     try:
+        table = get_slack_bot_state_table()
         table.update_item(
             Key={"pk": conversation_key, "sk": SESSION_SK},
             UpdateExpression="SET latest_message_ts = :ts",
@@ -446,6 +456,7 @@ def query_bedrock(user_query, session_id=None):
     a response using the configured LLM model with guardrails for safety.
     """
 
+    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION = get_guardrail_config()
     client = boto3.client(
         service_name="bedrock-agent-runtime",
         region_name=AWS_REGION,
