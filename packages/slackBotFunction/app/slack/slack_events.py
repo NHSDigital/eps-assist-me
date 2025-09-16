@@ -7,7 +7,6 @@ import re
 import time
 import traceback
 import json
-import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
@@ -23,10 +22,14 @@ from app.core.config import (
     TTL_FEEDBACK,
     TTL_SESSION,
     get_bot_messages,
-    get_guardrail_config,
-    get_slack_bot_state_table,
     get_logger,
-    get_table,
+)
+from app.services.bedrock import query_bedrock
+from app.services.dynamo import (
+    delete_state_information,
+    get_state_information,
+    store_state_information,
+    update_state_information,
 )
 from app.services.query_reformulator import reformulate_query
 
@@ -47,10 +50,8 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
             return
 
         # Atomically delete Q&A only if no feedback received
-        table = get_table()
-        table.delete_item(
-            Key={"pk": f"qa#{conversation_key}#{previous_message_ts}", "sk": "turn"},
-            ConditionExpression="attribute_not_exists(feedback_received)",
+        delete_state_information(
+            f"qa#{conversation_key}#{previous_message_ts}", "turn", "attribute_not_exists(feedback_received)"
         )
         logger.info("Deleted unfeedback Q&A for privacy", extra={"message_ts": previous_message_ts})
 
@@ -68,20 +69,18 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
     Store Q&A pair for feedback correlation
     """
     try:
-        table = get_table()
-        table.put_item(
-            Item={
-                "pk": f"qa#{conversation_key}#{message_ts}",
-                "sk": "turn",
-                "user_query": user_query[:1000] if user_query else None,
-                "bot_response": bot_response[:2000] if bot_response else None,
-                "session_id": session_id,
-                "user_id": user_id,
-                "message_ts": message_ts,
-                "created_at": int(time.time()),
-                "ttl": int(time.time()) + TTL_FEEDBACK,
-            }
-        )
+        item = {
+            "pk": f"qa#{conversation_key}#{message_ts}",
+            "sk": "turn",
+            "user_query": user_query[:1000] if user_query else None,
+            "bot_response": bot_response[:2000] if bot_response else None,
+            "session_id": session_id,
+            "user_id": user_id,
+            "message_ts": message_ts,
+            "created_at": int(time.time()),
+            "ttl": int(time.time()) + TTL_FEEDBACK,
+        }
+        store_state_information(item)
         logger.info("Stored Q&A pair", extra={"conversation_key": conversation_key, "message_ts": message_ts})
     except Exception as e:
         logger.error("Failed to store Q&A pair", extra={"error": str(e)})
@@ -92,11 +91,10 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
     Mark Q&A record as having received feedback to prevent deletion
     """
     try:
-        table = get_table()
-        table.update_item(
-            Key={"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
-            UpdateExpression="SET feedback_received = :val",
-            ExpressionAttributeValues={":val": True},
+        update_state_information(
+            {"pk": f"qa#{conversation_key}#{message_ts}", "sk": "turn"},
+            "SET feedback_received = :val",
+            {":val": True},
         )
     except Exception as e:
         logger.error("Error marking Q&A feedback received", extra={"error": str(e)})
@@ -147,7 +145,7 @@ def _create_feedback_blocks(response_text, conversation_key, channel, message_ts
     if thread_ts:  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = thread_ts
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-
+    BOT_MESSAGES = get_bot_messages()
     return [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
         {"type": "section", "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]}},
@@ -327,11 +325,7 @@ def store_feedback(
         if feedback_text:
             feedback_item["feedback_text"] = feedback_text[:4000]
 
-        table = get_slack_bot_state_table()
-        if condition:
-            table.put_item(Item=feedback_item, ConditionExpression=condition)
-        else:
-            table.put_item(Item=feedback_item)
+        store_state_information(feedback_item, condition)
 
         # Mark Q&A as having received feedback to prevent deletion
         if message_ts:
@@ -372,8 +366,7 @@ def get_conversation_session_data(conversation_key):
     Get full session data for this conversation
     """
     try:
-        slack_bot_state_table = get_slack_bot_state_table()
-        response = slack_bot_state_table.get_item(Key={"pk": conversation_key, "sk": "session"})
+        response = get_state_information({"pk": conversation_key, "sk": "session"})
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]
@@ -388,7 +381,7 @@ def get_latest_message_ts(conversation_key):
     Get latest message timestamp from session
     """
     try:
-        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        response = get_state_information({"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             return response["Item"].get("latest_message_ts")
         return None
@@ -421,8 +414,7 @@ def store_conversation_session(
         if latest_message_ts:
             item["latest_message_ts"] = latest_message_ts
 
-        table = get_slack_bot_state_table()
-        table.put_item(Item=item)
+        store_state_information(item)
         logger.info("Stored session", extra={"session_id": session_id, "conversation_key": conversation_key})
     except Exception:
         logger.error("Error storing session", extra={"error": traceback.format_exc()})
@@ -433,61 +425,10 @@ def update_session_latest_message(conversation_key, message_ts):
     Update session with latest message timestamp
     """
     try:
-        table = get_slack_bot_state_table()
-        table.update_item(
-            Key={"pk": conversation_key, "sk": SESSION_SK},
-            UpdateExpression="SET latest_message_ts = :ts",
-            ExpressionAttributeValues={":ts": message_ts},
+        update_state_information(
+            {"pk": conversation_key, "sk": SESSION_SK},
+            "SET latest_message_ts = :ts",
+            {":ts": message_ts},
         )
     except Exception as e:
         logger.error("Error updating session latest message", extra={"error": str(e)})
-
-
-# ================================================================
-# Bedrock integration
-# ================================================================
-
-
-def query_bedrock(user_query, session_id=None):
-    """
-    Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
-
-    This function retrieves relevant documents from the knowledge base and generates
-    a response using the configured LLM model with guardrails for safety.
-    """
-
-    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION = get_guardrail_config()
-    client = boto3.client(
-        service_name="bedrock-agent-runtime",
-        region_name=AWS_REGION,
-    )
-    request_params = {
-        "input": {"text": user_query},
-        "retrieveAndGenerateConfiguration": {
-            "type": "KNOWLEDGE_BASE",
-            "knowledgeBaseConfiguration": {
-                "knowledgeBaseId": KNOWLEDGEBASE_ID,
-                "modelArn": RAG_MODEL_ID,
-                "generationConfiguration": {
-                    "guardrailConfiguration": {
-                        "guardrailId": GUARD_RAIL_ID,
-                        "guardrailVersion": GUARD_VERSION,
-                    }
-                },
-            },
-        },
-    }
-
-    # Include session ID for conversation continuity across messages
-    if session_id:
-        request_params["sessionId"] = session_id
-        logger.info("Using existing session", extra={"session_id": session_id})
-    else:
-        logger.info("Starting new conversation")
-
-    response = client.retrieve_and_generate(**request_params)
-    logger.info(
-        "Got Bedrock response",
-        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
-    )
-    return response

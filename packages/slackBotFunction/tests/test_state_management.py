@@ -1,14 +1,18 @@
 import sys
 from unittest.mock import Mock, patch
+from botocore.exceptions import ClientError
 
 
-def test_is_duplicate_event(mock_env, mock_table):
+@patch("app.services.dynamo.store_state_information")
+def test_is_duplicate_event(
+    mock_store_state_information,
+    mock_env,
+):
     """Test duplicate event detection with conditional put"""
     # Mock ConditionalCheckFailedException
-    from botocore.exceptions import ClientError
 
     error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
-    mock_table.put_item.side_effect = error
+    mock_store_state_information.side_effect = error
 
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
@@ -19,14 +23,15 @@ def test_is_duplicate_event(mock_env, mock_table):
     assert result is True
 
 
-def test_is_duplicate_event_client_error(mock_env, mock_table):
+@patch("app.services.dynamo.store_state_information")
+def test_is_duplicate_event_client_error(
+    mock_store_state_information,
+    mock_env,
+):
     """Test is_duplicate_event handles other ClientError"""
 
-    # Mock other ClientError (not ConditionalCheckFailedException)
-    from botocore.exceptions import ClientError
-
     error = ClientError(error_response={"Error": {"Code": "SomeOtherError"}}, operation_name="PutItem")
-    mock_table.put_item.side_effect = error
+    mock_store_state_information.side_effect = error
 
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
@@ -37,7 +42,11 @@ def test_is_duplicate_event_client_error(mock_env, mock_table):
     assert result is False
 
 
-def test_is_duplicate_event_no_item(mock_env, mock_table):
+@patch("app.services.dynamo.store_state_information")
+def test_is_duplicate_event_no_item(
+    mock_store_state_information,
+    mock_env,
+):
     """Test is_duplicate_event when no item exists (successful put)"""
     # put_item succeeds (no exception)
 

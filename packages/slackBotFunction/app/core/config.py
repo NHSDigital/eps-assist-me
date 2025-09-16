@@ -10,6 +10,7 @@ import traceback
 import boto3
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
+from mypy_boto3_dynamodb.service_resource import Table
 
 
 @lru_cache()
@@ -21,7 +22,7 @@ logger = get_logger()
 
 
 @lru_cache()
-def get_slack_bot_state_table():
+def get_slack_bot_state_table() -> Table:
     # DynamoDB table for deduplication and session storage
     dynamodb = boto3.resource("dynamodb")
     return dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])

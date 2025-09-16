@@ -20,8 +20,8 @@ from app.core.config import (
     SESSION_SK,
     DM_PREFIX,
     THREAD_PREFIX,
-    get_slack_bot_state_table,
 )
+from app.services.dynamo import get_state_information
 from app.utils.handler_utils import is_duplicate_event, trigger_async_processing, respond_with_eyes
 from app.slack.slack_events import store_feedback
 
@@ -197,8 +197,7 @@ def thread_message_handler(event, event_id, client):
 
     conversation_key = f"{THREAD_PREFIX}{channel_id}#{thread_root}"
     try:
-        table = get_slack_bot_state_table()
-        resp = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        resp = get_state_information({"pk": conversation_key, "sk": SESSION_SK})
         if "Item" not in resp:
             logger.info(f"No session found for thread: {conversation_key}")
             return  # not a bot-owned thread; ignore
@@ -236,6 +235,7 @@ def thread_message_handler(event, event_id, client):
         return
 
     # Follow-up in a bot-owned thread (no re-mention required)
+    bot_token = get_bot_token()
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
@@ -330,8 +330,7 @@ def setup_handlers(app):
 def _is_latest_message(conversation_key, message_ts):
     """Check if message_ts is the latest bot message using session data"""
     try:
-        table = get_slack_bot_state_table()
-        response = table.get_item(Key={"pk": conversation_key, "sk": SESSION_SK})
+        response = get_state_information({"pk": conversation_key, "sk": SESSION_SK})
         if "Item" in response:
             latest_message_ts = response["Item"].get("latest_message_ts")
             return latest_message_ts == message_ts

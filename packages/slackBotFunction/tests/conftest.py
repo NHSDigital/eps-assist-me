@@ -22,6 +22,9 @@ def mock_env():
         "GUARD_RAIL_ID": "test-guard-id",
         "GUARD_RAIL_VERSION": "1",
         "AWS_LAMBDA_FUNCTION_NAME": "test-function",
+        "QUERY_REFORMULATION_MODEL_ID": "test-model",
+        "QUERY_REFORMULATION_PROMPT_NAME": "test-prompt",
+        "QUERY_REFORMULATION_PROMPT_VERSION": "DRAFT",
     }
     env_vars["AWS_DEFAULT_REGION"] = env_vars["AWS_REGION"]
     with patch.dict(os.environ, env_vars, clear=False):
@@ -51,7 +54,7 @@ def mock_get_parameter():
 
 @pytest.fixture
 def mock_slack_app():
-    with patch("app.services.app.App") as mock_app_cls:
+    with patch("slack_bolt.App") as mock_app_cls:
         mock_instance = MagicMock()
         mock_app_cls.return_value = mock_instance
         yield mock_instance
