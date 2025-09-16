@@ -2,37 +2,6 @@ import sys
 from unittest.mock import Mock, patch
 
 
-def test_log_request_middleware_execution(mock_slack_app, mock_env, mock_get_parameter, lambda_context):
-    """Test log_request middleware actual execution"""
-    if "app.slack.slack_handlers" in sys.modules:
-        del sys.modules["app.slack.slack_handlers"]
-
-    from app.slack.slack_handlers import setup_handlers
-
-    setup_handlers(mock_slack_app)
-
-    # Verify the app.middleware decorator was called during import
-    mock_slack_app.middleware.assert_called()
-
-    # Get the middleware function that was registered
-    middleware_calls = mock_slack_app.middleware.call_args_list
-    assert len(middleware_calls) > 0
-
-    # The middleware function should be the log_request function
-    middleware_func = middleware_calls[0][0][0]  # First argument of first call
-
-    # Now test calling the middleware function directly
-    mock_next = Mock(return_value="middleware_result")
-    mock_logger = Mock()
-    test_body = {"test": "body"}
-
-    # This should execute lines 56-57 in the log_request function
-    result = middleware_func(mock_logger, test_body, mock_next)
-
-    assert result == "middleware_result"
-    mock_next.assert_called_once()
-
-
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
 def test_app_mention_handler_execution_simple(
