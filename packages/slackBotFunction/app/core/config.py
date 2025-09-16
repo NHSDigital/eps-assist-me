@@ -3,6 +3,7 @@ Core configuration for the Slack bot.
 Sets up all the AWS and Slack connections we need.
 """
 
+from dataclasses import dataclass
 from functools import lru_cache
 import os
 import json
@@ -56,24 +57,42 @@ def get_ssm_params():
     return bot_token, signing_secret
 
 
-# Constants
-FEEDBACK_PREFIX = "feedback:"
-CONTEXT_TYPE_DM = "DM"
-CONTEXT_TYPE_THREAD = "thread"
-CHANNEL_TYPE_IM = "im"
-SESSION_SK = "session"
-DEDUP_SK = "dedup"
-EVENT_PREFIX = "event#"
-FEEDBACK_PREFIX_KEY = "feedback#"
-USER_PREFIX = "user#"
-DM_PREFIX = "dm#"
-THREAD_PREFIX = "thread#"
-NOTE_SUFFIX = "#note#"
+@dataclass
+class Constants:
+    FEEDBACK_PREFIX: str
+    CONTEXT_TYPE_DM: str
+    CONTEXT_TYPE_THREAD: str
+    CHANNEL_TYPE_IM: str
+    SESSION_SK: str
+    DEDUP_SK: str
+    EVENT_PREFIX: str
+    FEEDBACK_PREFIX_KEY: str
+    USER_PREFIX: str
+    DM_PREFIX: str
+    THREAD_PREFIX: str
+    NOTE_SUFFIX: str
+    TTL_EVENT_DEDUP: int
+    TTL_FEEDBACK: int
+    TTL_SESSION: int
 
-# TTL constants (in seconds)
-TTL_EVENT_DEDUP = 3600  # 1 hour
-TTL_FEEDBACK = 7776000  # 90 days
-TTL_SESSION = 2592000  # 30 days
+
+constants = Constants(
+    FEEDBACK_PREFIX="feedback:",
+    CONTEXT_TYPE_DM="DM",
+    CONTEXT_TYPE_THREAD="thread",
+    CHANNEL_TYPE_IM="im",
+    SESSION_SK="session",
+    DEDUP_SK="dedup",
+    EVENT_PREFIX="event#",
+    FEEDBACK_PREFIX_KEY="feedback#",
+    USER_PREFIX="user#",
+    DM_PREFIX="dm#",
+    THREAD_PREFIX="thread#",
+    NOTE_SUFFIX="#note#",
+    TTL_EVENT_DEDUP=3600,  # 1 hour
+    TTL_FEEDBACK=7776000,  # 90 days
+    TTL_SESSION=2592000,  # 30 days
+)
 
 
 @lru_cache

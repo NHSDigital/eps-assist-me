@@ -15,11 +15,7 @@ from app.core.config import (
     get_bot_messages,
     get_bot_token,
     get_logger,
-    FEEDBACK_PREFIX,
-    CHANNEL_TYPE_IM,
-    SESSION_SK,
-    DM_PREFIX,
-    THREAD_PREFIX,
+    constants,
 )
 from app.services.dynamo import get_state_information
 from app.utils.handler_utils import is_duplicate_event, trigger_async_processing, respond_with_eyes
@@ -76,9 +72,9 @@ def _conversation_key_and_root(event):
     """
     channel_id = event["channel"]
     root = event.get("thread_ts") or event.get("ts")
-    if event.get("channel_type") == CHANNEL_TYPE_IM:
-        return f"{DM_PREFIX}{channel_id}", root
-    return f"{THREAD_PREFIX}{channel_id}#{root}", root
+    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
+        return f"{constants.DM_PREFIX}{channel_id}", root
+    return f"{constants.THREAD_PREFIX}{channel_id}#{root}", root
 
 
 # ================================================================
@@ -103,7 +99,7 @@ def mention_handler(event, ack, body, client):
     conversation_key, thread_root = _conversation_key_and_root(event)
 
     cleaned = _strip_mentions(event.get("text") or "")
-    if cleaned.lower().startswith(FEEDBACK_PREFIX):
+    if cleaned.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
         try:
             store_feedback(
@@ -139,7 +135,7 @@ def dm_message_handler(event, event_id, client):
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
     - otherwise -> forward to async processing (Q&A).
     """
-    if event.get("channel_type") != CHANNEL_TYPE_IM:
+    if event.get("channel_type") != constants.CHANNEL_TYPE_IM:
         return  # not a DM; the channel handler will evaluate it
     bot_token = get_bot_token()
     respond_with_eyes(bot_token, event)
@@ -148,7 +144,7 @@ def dm_message_handler(event, event_id, client):
     conversation_key, thread_root = _conversation_key_and_root(event)
     user_id = event.get("user", "unknown")
 
-    if text.lower().startswith(FEEDBACK_PREFIX):
+    if text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = text.split(":", 1)[1].strip() if ":" in text else ""
         try:
             store_feedback(
@@ -186,7 +182,7 @@ def thread_message_handler(event, event_id, client):
         * 'feedback:' prefix -> store additional feedback.
         * otherwise -> treat as follow-up question (no re-mention needed) and forward to async.
     """
-    if event.get("channel_type") == CHANNEL_TYPE_IM:
+    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         return  # handled in the DM handler
 
     text = (event.get("text") or "").strip()
@@ -195,9 +191,9 @@ def thread_message_handler(event, event_id, client):
     if not thread_root:
         return  # top-level message; require @mention to start
 
-    conversation_key = f"{THREAD_PREFIX}{channel_id}#{thread_root}"
+    conversation_key = f"{constants.THREAD_PREFIX}{channel_id}#{thread_root}"
     try:
-        resp = get_state_information({"pk": conversation_key, "sk": SESSION_SK})
+        resp = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
         if "Item" not in resp:
             logger.info(f"No session found for thread: {conversation_key}")
             return  # not a bot-owned thread; ignore
@@ -206,7 +202,7 @@ def thread_message_handler(event, event_id, client):
         logger.error(f"Error checking thread session: {e}")
         return
 
-    if text.lower().startswith(FEEDBACK_PREFIX):
+    if text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = text.split(":", 1)[1].strip() if ":" in text else ""
         user_id = event.get("user", "unknown")
         try:
@@ -247,7 +243,7 @@ def unified_message_handler(event, ack, body, client):
         return
 
     # Route to appropriate handler based on message type
-    if event.get("channel_type") == CHANNEL_TYPE_IM:
+    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         # DM handling
         dm_message_handler(event, event_id, client)
     else:
@@ -330,7 +326,7 @@ def setup_handlers(app):
 def _is_latest_message(conversation_key, message_ts):
     """Check if message_ts is the latest bot message using session data"""
     try:
-        response = get_state_information({"pk": conversation_key, "sk": SESSION_SK})
+        response = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
         if "Item" in response:
             latest_message_ts = response["Item"].get("latest_message_ts")
             return latest_message_ts == message_ts

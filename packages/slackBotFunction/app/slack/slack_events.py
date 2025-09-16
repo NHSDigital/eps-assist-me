@@ -10,17 +10,7 @@ import json
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
-    CONTEXT_TYPE_DM,
-    CONTEXT_TYPE_THREAD,
-    CHANNEL_TYPE_IM,
-    SESSION_SK,
-    FEEDBACK_PREFIX_KEY,
-    USER_PREFIX,
-    DM_PREFIX,
-    THREAD_PREFIX,
-    NOTE_SUFFIX,
-    TTL_FEEDBACK,
-    TTL_SESSION,
+    constants,
     get_bot_messages,
     get_logger,
 )
@@ -78,7 +68,7 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
             "user_id": user_id,
             "message_ts": message_ts,
             "created_at": int(time.time()),
-            "ttl": int(time.time()) + TTL_FEEDBACK,
+            "ttl": int(time.time()) + constants.TTL_FEEDBACK,
         }
         store_state_information(item=item)
         logger.info("Stored Q&A pair", extra={"conversation_key": conversation_key, "message_ts": message_ts})
@@ -109,11 +99,11 @@ def _extract_conversation_context(event):
     """Extract conversation key and thread context from event"""
     channel = event["channel"]
     # Determine conversation context: DM vs channel thread
-    if event.get("channel_type") == CHANNEL_TYPE_IM:
-        return f"{DM_PREFIX}{channel}", CONTEXT_TYPE_DM, None  # DMs don't use threads
+    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
+        return f"{constants.DM_PREFIX}{channel}", constants.CONTEXT_TYPE_DM, None  # DMs don't use threads
     else:
         thread_root = event.get("thread_ts", event["ts"])
-        return f"{THREAD_PREFIX}{channel}#{thread_root}", CONTEXT_TYPE_THREAD, thread_root
+        return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
 
 
 def _handle_session_management(
@@ -128,7 +118,7 @@ def _handle_session_management(
             kb_response["sessionId"],
             user_id,
             channel,
-            thread_ts if context_type == CONTEXT_TYPE_THREAD else None,
+            thread_ts if context_type == constants.CONTEXT_TYPE_THREAD else None,
             message_ts,
         )
     elif session_id:
@@ -283,7 +273,7 @@ def store_feedback(
     """
     try:
         now = int(time.time())
-        ttl = now + TTL_FEEDBACK
+        ttl = now + constants.TTL_FEEDBACK
 
         # Get latest bot message timestamp for feedback linking
         if not message_ts:
@@ -291,18 +281,18 @@ def store_feedback(
 
         if message_ts and feedback_type in ["positive", "negative"]:
             # Per-message feedback with deduplication for button votes only
-            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
-            sk = f"{USER_PREFIX}{user_id}"
+            pk = f"{constants.FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
+            sk = f"{constants.USER_PREFIX}{user_id}"
             condition = "attribute_not_exists(pk) AND attribute_not_exists(sk)"  # Prevent double-voting
         elif message_ts:
             # Text feedback allows multiple entries per user
-            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
-            sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
+            pk = f"{constants.FEEDBACK_PREFIX_KEY}{conversation_key}#{message_ts}"
+            sk = f"{constants.USER_PREFIX}{user_id}{constants.NOTE_SUFFIX}{now}"
             condition = None
         else:
             # Fallback for conversation-level feedback
-            pk = f"{FEEDBACK_PREFIX_KEY}{conversation_key}"
-            sk = f"{USER_PREFIX}{user_id}{NOTE_SUFFIX}{now}"
+            pk = f"{constants.FEEDBACK_PREFIX_KEY}{conversation_key}"
+            sk = f"{constants.USER_PREFIX}{user_id}{constants.NOTE_SUFFIX}{now}"
             condition = None
 
         feedback_item = {
@@ -381,7 +371,7 @@ def get_latest_message_ts(conversation_key):
     Get latest message timestamp from session
     """
     try:
-        response = get_state_information({"pk": conversation_key, "sk": SESSION_SK})
+        response = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
         if "Item" in response:
             return response["Item"].get("latest_message_ts")
         return None
@@ -397,10 +387,10 @@ def store_conversation_session(
     Store new Bedrock session for conversation memory
     """
     try:
-        ttl = int(time.time()) + TTL_SESSION
+        ttl = int(time.time()) + constants.TTL_SESSION
         item = {
             "pk": conversation_key,
-            "sk": SESSION_SK,
+            "sk": constants.SESSION_SK,
             "session_id": session_id,
             "user_id": user_id,
             "channel_id": channel_id,
@@ -426,7 +416,7 @@ def update_session_latest_message(conversation_key, message_ts):
     """
     try:
         update_state_information(
-            {"pk": conversation_key, "sk": SESSION_SK},
+            {"pk": conversation_key, "sk": constants.SESSION_SK},
             "SET latest_message_ts = :ts",
             {":ts": message_ts},
         )

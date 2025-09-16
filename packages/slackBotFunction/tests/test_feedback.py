@@ -16,7 +16,7 @@ def test_store_feedback(mock_get_state_information, mock_store_state_information
     store_feedback("test-conversation", "positive", "U123", "C123")
 
     mock_store_state_information.assert_called_once()
-    call_args = mock_store_state_information.call_args[0][0]
+    call_args = mock_store_state_information.call_args.kwargs["item"]
     assert call_args["feedback_type"] == "positive"
     assert call_args["user_id"] == "U123"
 
@@ -32,7 +32,7 @@ def test_feedback_storage_with_additional_text(mock_get_state_information, mock_
     store_feedback("test-conversation", "additional", "U123", "C123", feedback_text="This is additional feedback")
 
     mock_store_state_information.assert_called_once()
-    call_args = mock_store_state_information.call_args[0][0]
+    call_args = mock_store_state_information.call_args.kwargs["item"]
     assert call_args["feedback_type"] == "additional"
     assert call_args["user_id"] == "U123"
     assert call_args["feedback_text"] == "This is additional feedback"
@@ -157,9 +157,9 @@ def test_store_feedback_no_message_ts_fallback(mock_store_state_information, moc
         store_feedback("conv-key", "positive", "user-id", "channel-id")
         mock_store_state_information.assert_called_once()
         # Should use fallback pk/sk format without condition
-        call_args = mock_store_state_information.call_args[0]
+        call_args = mock_store_state_information.call_args.kwargs
         assert "ConditionExpression" not in call_args
-        item = call_args[0]
+        item = call_args["item"]
         assert item["pk"] == "feedback#conv-key"
         assert "#note#" in item["sk"]
 
@@ -174,7 +174,7 @@ def test_store_conversation_session_with_thread(mock_get_state_information, mock
 
     store_conversation_session("conv-key", "session-id", "user-id", "channel-id", "thread-123", "msg-456")
     mock_store_state_information.assert_called_once()
-    item = mock_store_state_information.call_args[0][0]
+    item = mock_store_state_information.call_args.kwargs["item"]
     assert item["thread_ts"] == "thread-123"
     assert item["latest_message_ts"] == "msg-456"
 
@@ -189,7 +189,7 @@ def test_store_conversation_session_without_thread(mock_get_state_information, m
 
     store_conversation_session("conv-key", "session-id", "user-id", "channel-id")
     mock_store_state_information.assert_called_once()
-    item = mock_store_state_information.call_args[0][0]
+    item = mock_store_state_information.call_args.kwargs["item"]
     assert "thread_ts" not in item
     assert "latest_message_ts" not in item
 
