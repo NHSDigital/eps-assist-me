@@ -28,6 +28,7 @@ packages/
 │   │   └── RestApiGateway/     # API Gateway specific constructs
 │   ├── resources/              # AWS resource definitions
 │   └── stacks/                 # CDK stack definitions
+├── sample_docs/                # Contains sample docs for testing purposes. These should not be used for real usage
 ├── slackBotFunction/           # Lambda function for Slack bot integration
 │   ├── app/                    # Application code
 │   │   ├── config/             # Configuration and environment variables
@@ -171,6 +172,7 @@ These are used to do common commands related to cdk
 - `git-secrets-docker-setup` Sets up git-secrets Docker container.
 - `pre-commit` Runs pre-commit hooks on all files.
 - `test` Runs unit tests for Lambda functions.
+- `sync-docs` Runs a script to sync sample docs to s3 bucket for a pull request. Useful for setting up a stack for testing
 
 #### Compiling
 
