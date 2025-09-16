@@ -7,6 +7,7 @@ import json
 import traceback
 import boto3
 from botocore.exceptions import ClientError
+from slack_sdk import WebClient
 from app.core.config import get_slack_bot_state_table, get_logger
 import os
 
@@ -54,3 +55,10 @@ def trigger_async_processing(event_data):
         logger.info("Async processing triggered successfully")
     except Exception:
         logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
+
+
+def respond_with_eyes(bot_token, event):
+    client = WebClient(token=bot_token)
+    channel = event["channel"]
+    ts = event["ts"]
+    client.reactions_add(channel=channel, timestamp=ts, name="eyes")

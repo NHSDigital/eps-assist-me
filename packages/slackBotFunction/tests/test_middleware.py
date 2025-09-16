@@ -4,8 +4,15 @@ from unittest.mock import Mock, patch
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
+@patch("app.utils.handler_utils.respond_with_eyes")
 def test_app_mention_handler_execution_simple(
-    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
+    mock_respond_with_eyes,
+    mock_trigger_async_processing,
+    mock_is_duplicate_event,
+    mock_slack_app,
+    mock_env,
+    mock_get_parameter,
+    lambda_context,
 ):
     """Test app mention handler execution by simulating the handler registration process"""
     # Create a mock app that captures the registered handlers
@@ -43,12 +50,20 @@ def test_app_mention_handler_execution_simple(
     mock_ack.assert_called()
     mock_trigger_async_processing.assert_called_once()
     mock_is_duplicate_event.assert_called()
+    mock_respond_with_eyes.assert_called()
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
+@patch("app.utils.handler_utils.respond_with_eyes")
 def test_direct_message_handler_execution_simple(
-    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
+    mock_respond_with_eyes,
+    mock_trigger_async_processing,
+    mock_is_duplicate_event,
+    mock_slack_app,
+    mock_env,
+    mock_get_parameter,
+    lambda_context,
 ):
     """Test direct message handler execution by simulating the handler registration process"""
     # Create a mock app that captures the registered handlers
@@ -85,12 +100,20 @@ def test_direct_message_handler_execution_simple(
     mock_ack.assert_called()
     mock_trigger_async_processing.assert_called_once()
     mock_is_duplicate_event.assert_called()
+    mock_respond_with_eyes.assert_called()
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
+@patch("app.utils.handler_utils.respond_with_eyes")
 def test_app_mention_handler_duplicate_event(
-    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
+    mock_respond_with_eyes,
+    mock_trigger_async_processing,
+    mock_is_duplicate_event,
+    mock_slack_app,
+    mock_env,
+    mock_get_parameter,
+    lambda_context,
 ):
     """Test app mention handler with duplicate event"""
     registered_handlers = {}
@@ -124,12 +147,20 @@ def test_app_mention_handler_duplicate_event(
     mock_ack.assert_called()
     mock_is_duplicate_event.assert_called()
     mock_trigger_async_processing.assert_not_called()
+    mock_respond_with_eyes.assert_not_called()
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
+@patch("app.utils.handler_utils.respond_with_eyes")
 def test_app_mention_handler_missing_event_id(
-    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
+    mock_respond_with_eyes,
+    mock_trigger_async_processing,
+    mock_is_duplicate_event,
+    mock_slack_app,
+    mock_env,
+    mock_get_parameter,
+    lambda_context,
 ):
     """Test app mention handler with missing event ID"""
     # Create a mock app that captures the registered handlers
@@ -163,12 +194,20 @@ def test_app_mention_handler_missing_event_id(
     mock_ack.assert_called()
     mock_trigger_async_processing.put_item.assert_not_called()
     mock_is_duplicate_event.invoke.assert_not_called()
+    mock_respond_with_eyes.assert_not_called()
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
+@patch("app.utils.handler_utils.respond_with_eyes")
 def test_direct_message_handler_duplicate_event(
-    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
+    mock_respond_with_eyes,
+    mock_trigger_async_processing,
+    mock_is_duplicate_event,
+    mock_slack_app,
+    mock_env,
+    mock_get_parameter,
+    lambda_context,
 ):
     """Test direct message handler with duplicate event"""
     registered_handlers = {}
@@ -202,12 +241,20 @@ def test_direct_message_handler_duplicate_event(
     mock_ack.assert_called()
     mock_is_duplicate_event.assert_called()
     mock_trigger_async_processing.assert_called()
+    mock_respond_with_eyes.assert_called()
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
+@patch("app.utils.handler_utils.respond_with_eyes")
 def test_direct_message_handler_missing_event_id(
-    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
+    mock_respond_with_eyes,
+    mock_trigger_async_processing,
+    mock_is_duplicate_event,
+    mock_slack_app,
+    mock_env,
+    mock_get_parameter,
+    lambda_context,
 ):
     """Test direct message handler with missing event ID"""
     # Create a mock app that captures the registered handlers
@@ -242,12 +289,20 @@ def test_direct_message_handler_missing_event_id(
     # No DynamoDB or Lambda calls should be made
     mock_is_duplicate_event.assert_not_called()
     mock_trigger_async_processing.assert_not_called()
+    mock_respond_with_eyes.assert_not_called()
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.trigger_async_processing")
+@patch("app.utils.handler_utils.respond_with_eyes")
 def test_direct_message_handler_non_dm_channel(
-    mock_trigger_async_processing, mock_is_duplicate_event, mock_slack_app, mock_env, mock_get_parameter, lambda_context
+    mock_respond_with_eyes,
+    mock_trigger_async_processing,
+    mock_is_duplicate_event,
+    mock_slack_app,
+    mock_env,
+    mock_get_parameter,
+    lambda_context,
 ):
     """Test direct message handler ignores non-DM channels"""
     # Create a mock app that captures the registered handlers
@@ -284,3 +339,4 @@ def test_direct_message_handler_non_dm_channel(
     # No DynamoDB or Lambda calls should be made for non-DM messages
     mock_is_duplicate_event.assert_not_called()
     mock_trigger_async_processing.assert_not_called()
+    mock_respond_with_eyes.assert_not_called()

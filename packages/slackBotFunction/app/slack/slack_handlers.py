@@ -5,7 +5,7 @@ Slack event handlers - handles @mentions and direct messages to the bot
 from functools import lru_cache
 from slack_bolt import App
 from app.core.config import get_bot_token, get_logger
-from app.utils.handler_utils import is_duplicate_event, trigger_async_processing
+from app.utils.handler_utils import is_duplicate_event, trigger_async_processing, respond_with_eyes
 
 logger = get_logger()
 
@@ -30,6 +30,7 @@ def mention_handler(event, ack, body):
     logger.info("Processing @mention from user", extra={"user_id": user_id, "event_id": event_id})
 
     bot_token = get_bot_token()
+    respond_with_eyes(bot_token, event)
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
@@ -53,6 +54,7 @@ def dm_message_handler(event, ack, body):
     logger.info("Processing DM from user", extra={"user_id": user_id, "event_id": event_id})
 
     bot_token = get_bot_token()
+    respond_with_eyes(bot_token, event)
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
