@@ -161,7 +161,9 @@ files = [
 
 [package.dependencies]
 botocore-stubs = "*"
+mypy-boto3-bedrock-agent = {version = ">=1.40.0,<1.41.0", optional = true, markers = "extra == \"bedrock-agent\""}
 mypy-boto3-bedrock-agent-runtime = {version = ">=1.40.0,<1.41.0", optional = true, markers = "extra == \"bedrock-agent-runtime\""}
+mypy-boto3-bedrock-runtime = {version = ">=1.40.0,<1.41.0", optional = true, markers = "extra == \"bedrock-runtime\""}
 mypy-boto3-dynamodb = {version = ">=1.40.0,<1.41.0", optional = true, markers = "extra == \"dynamodb\""}
 types-s3transfer = "*"
 
@@ -1421,6 +1423,18 @@ gmpy = ["gmpy2 (>=2.1.0a4) ; platform_python_implementation != \"PyPy\""]
 tests = ["pytest (>=4.6)"]
 
 [[package]]
+name = "mypy-boto3-bedrock-agent"
+version = "1.40.11"
+description = "Type annotations for boto3 AgentsforBedrock 1.40.11 service generated with mypy-boto3-builder 8.11.0"
+optional = false
+python-versions = ">=3.8"
+groups = ["slackBotFunction"]
+files = [
+    {file = "mypy_boto3_bedrock_agent-1.40.11-py3-none-any.whl", hash = "sha256:b5788e43d31c49b3caa17b6d059c501ea0854f670a5a9b2940e48ac2516b7c7a"},
+    {file = "mypy_boto3_bedrock_agent-1.40.11.tar.gz", hash = "sha256:4acb7be8a58124c9214fac4175ec4348e5647f29ab42f29f398f57e64bc9310f"},
+]
+
+[[package]]
 name = "mypy-boto3-bedrock-agent-runtime"
 version = "1.40.0"
 description = "Type annotations for boto3 AgentsforBedrockRuntime 1.40.0 service generated with mypy-boto3-builder 8.11.0"
@@ -1430,6 +1444,18 @@ groups = ["slackBotFunction"]
 files = [
     {file = "mypy_boto3_bedrock_agent_runtime-1.40.0-py3-none-any.whl", hash = "sha256:c25c82470cb2bc99383d3a7a0e19454ec34ec3199d77ddcee28af752d08b6b72"},
     {file = "mypy_boto3_bedrock_agent_runtime-1.40.0.tar.gz", hash = "sha256:abff0cda522ec8267dfcd88234c1ccf20666657be80aafc450c6c089218a0ccf"},
+]
+
+[[package]]
+name = "mypy-boto3-bedrock-runtime"
+version = "1.40.21"
+description = "Type annotations for boto3 BedrockRuntime 1.40.21 service generated with mypy-boto3-builder 8.11.0"
+optional = false
+python-versions = ">=3.8"
+groups = ["slackBotFunction"]
+files = [
+    {file = "mypy_boto3_bedrock_runtime-1.40.21-py3-none-any.whl", hash = "sha256:4c9ea181ef00cb3d15f9b051a50e3b78272122d24cd24ac34938efe6ddfecc62"},
+    {file = "mypy_boto3_bedrock_runtime-1.40.21.tar.gz", hash = "sha256:fa9401e86d42484a53803b1dba0782d023ab35c817256e707fbe4fff88aeb881"},
 ]
 
 [[package]]
@@ -2545,4 +2571,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "eaecbc96a4ee6dd2a211a31452201f587e08cd44e8fb14b34a82f71d8cc7b9e4"
+content-hash = "e76f9b686f3a7b2ae1050e3539413235766783c957d6aae078c7580ae1164704"

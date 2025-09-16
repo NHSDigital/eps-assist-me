@@ -5,14 +5,18 @@ from botocore.exceptions import ClientError
 
 def test_setup_handlers_registers_correctly(mock_env):
     """Test that setup_handlers registers all handlers correctly"""
+    # set up mocks
+    mock_app = Mock()
+
+    # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
         del sys.modules["app.slack.slack_handlers"]
     from app.slack.slack_handlers import setup_handlers
 
-    mock_app = Mock()
-
+    # perform operation
     setup_handlers(mock_app)
 
+    # assertions
     # Verify all handlers are registered
     assert mock_app.event.call_count == 2  # app_mention and unified message handler
 
@@ -24,12 +28,8 @@ def test_app_mention_handler(
     mock_respond_with_eyes, mock_trigger_async_processing, mock_is_duplicate_event, mock_get_parameter, mock_env
 ):
     """Test app mention handler execution"""
-    if "app.slack.slack_handlers" in sys.modules:
-        del sys.modules["app.slack.slack_handlers"]
-    from app.slack.slack_handlers import setup_handlers
-
+    # set up mocks
     mock_app = Mock()
-
     # Capture the app_mention handler
     mention_handler = None
 
@@ -44,17 +44,22 @@ def test_app_mention_handler(
 
     mock_app.event = capture_event
     mock_app.action = Mock()
-
-    setup_handlers(mock_app)
-
     mock_ack = Mock()
     mock_event = {"user": "U123", "text": "<@U456> test", "channel": "C123"}
     mock_body = {"event_id": "evt123"}
     mock_client = Mock()
     mock_is_duplicate_event.return_value = False
 
+    # delete and import module to test
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
+    from app.slack.slack_handlers import setup_handlers
+
+    # perform operation
+    setup_handlers(mock_app)
     mention_handler(mock_event, mock_ack, mock_body, mock_client)
 
+    # assertions
     mock_ack.assert_called_once()
     mock_trigger_async_processing.assert_called_once()
     mock_respond_with_eyes.assert_called_once()
@@ -67,10 +72,7 @@ def test_message_handler_non_dm_skip(
     mock_respond_with_eyes, mock_trigger_async_processing, mock_is_duplicate_event, mock_get_parameter, mock_env
 ):
     """Test message handler skips non-DM messages"""
-    if "app.slack.slack_handlers" in sys.modules:
-        del sys.modules["app.slack.slack_handlers"]
-    from app.slack.slack_handlers import setup_handlers
-
+    # set up mocks
     mock_app = Mock()
 
     # Capture the message handler
@@ -87,17 +89,22 @@ def test_message_handler_non_dm_skip(
 
     mock_app.event = capture_event
     mock_app.action = Mock()
-
-    setup_handlers(mock_app)
-
-    # Test non-DM skip
     mock_ack = Mock()
     mock_event = {"text": "regular message", "channel_type": "channel", "channel": "C123"}  # Not "im"
     mock_body = {"event_id": "evt123"}
     mock_client = Mock()
 
+    # delete and import module to test
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
+    from app.slack.slack_handlers import setup_handlers
+
+    # perform operation
+    setup_handlers(mock_app)
+    # Test non-DM skip
     message_handler(mock_event, mock_ack, mock_body, mock_client)
 
+    # assertions
     mock_ack.assert_called_once()
     mock_trigger_async_processing.assert_not_called()  # Should not trigger for non-DM
 

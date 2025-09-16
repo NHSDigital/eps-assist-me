@@ -8,6 +8,7 @@ def test_app_mention_handler_registered(
     lambda_context,
 ):
     """Test app mention handler execution by simulating the handler registration process"""
+    # set up mocks
     # Create a mock app that captures the registered handlers
     registered_handlers = {}
 
@@ -20,14 +21,15 @@ def test_app_mention_handler_registered(
 
     mock_slack_app.event = mock_event_decorator
 
+    # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
         del sys.modules["app.slack.slack_handlers"]
-
     from app.slack.slack_handlers import setup_handlers
 
+    # perform operation
     setup_handlers(mock_slack_app)
 
-    # Now we should have the actual handler function
+    # assertions
     assert "app_mention" in registered_handlers
 
 
@@ -38,6 +40,7 @@ def test_message_handler_registered(
     lambda_context,
 ):
     """Test direct message handler execution by simulating the handler registration process"""
+    # set up mocks
     # Create a mock app that captures the registered handlers
     registered_handlers = {}
 
@@ -49,12 +52,14 @@ def test_message_handler_registered(
         return decorator
 
     mock_slack_app.event = mock_event_decorator
+
+    # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
         del sys.modules["app.slack.slack_handlers"]
-
     from app.slack.slack_handlers import setup_handlers
 
+    # perform operation
     setup_handlers(mock_slack_app)
 
-    # Now we should have the actual handler function
+    # assertions
     assert "message" in registered_handlers
