@@ -80,7 +80,7 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
             "created_at": int(time.time()),
             "ttl": int(time.time()) + TTL_FEEDBACK,
         }
-        store_state_information(item)
+        store_state_information(item=item)
         logger.info("Stored Q&A pair", extra={"conversation_key": conversation_key, "message_ts": message_ts})
     except Exception as e:
         logger.error("Failed to store Q&A pair", extra={"error": str(e)})
@@ -325,7 +325,7 @@ def store_feedback(
         if feedback_text:
             feedback_item["feedback_text"] = feedback_text[:4000]
 
-        store_state_information(feedback_item, condition)
+        store_state_information(item=feedback_item, condition=condition)
 
         # Mark Q&A as having received feedback to prevent deletion
         if message_ts:
@@ -414,7 +414,7 @@ def store_conversation_session(
         if latest_message_ts:
             item["latest_message_ts"] = latest_message_ts
 
-        store_state_information(item)
+        store_state_information(item=item)
         logger.info("Stored session", extra={"session_id": session_id, "conversation_key": conversation_key})
     except Exception:
         logger.error("Error storing session", extra={"error": traceback.format_exc()})
