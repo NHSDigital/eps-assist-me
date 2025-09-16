@@ -6,7 +6,7 @@ def get_state_information(key):
     table.get_item(Key=key)
 
 
-def store_state_information(item, condition):
+def store_state_information(item, condition=None):
     table = get_slack_bot_state_table()
     if condition:
         table.put_item(Item=item, ConditionExpression=condition)
