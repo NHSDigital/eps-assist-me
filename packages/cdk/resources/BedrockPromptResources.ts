@@ -25,7 +25,8 @@ User Query: {{user_query}}`
     const queryReformulationPrompt = new Prompt(this, "QueryReformulationPrompt", {
       promptName: `${props.stackName}-queryReformulation`,
       description: "Prompt for reformulating user queries to improve RAG retrieval",
-      defaultVariant: promptVariant
+      defaultVariant: promptVariant,
+      variants: [promptVariant]
     })
 
     this.queryReformulationPrompt = queryReformulationPrompt

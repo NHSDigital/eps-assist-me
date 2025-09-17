@@ -77,7 +77,7 @@ export class VectorKnowledgeBaseResources extends Construct {
         {
           type: ContentFilterType.PROMPT_ATTACK,
           inputStrength: ContentFilterStrength.HIGH,
-          outputStrength: ContentFilterStrength.HIGH
+          outputStrength: ContentFilterStrength.NONE
         }
       ],
       piiFilters: [
