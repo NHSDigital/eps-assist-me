@@ -241,7 +241,7 @@ def process_async_slack_event(slack_event_data):
                 f"Failed to attach feedback buttons: {e}",
                 extra={"event_id": event_id, "message_ts": message_ts, "error": traceback.format_exc()},
             )
-
+        log_query_stats(user_query, event, channel, client, thread_ts)
     except Exception:
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
@@ -253,6 +253,36 @@ def process_async_slack_event(slack_event_data):
             client.chat_postMessage(**post_params)
         except Exception:
             logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
+
+
+def log_query_stats(user_query, event, channel, client, thread_ts):
+    query_length = len(user_query)
+    start_time = float(event["event_ts"])
+    end_time = time.time()
+    duration = end_time - start_time
+    is_direct_message = event.get("channel_type") == constants.CHANNEL_TYPE_IM
+    friendly_channel_name = channel
+    try:
+        conversations_info_response = client.conversations_info(channel=channel)
+        if conversations_info_response["ok"]:
+            friendly_channel_name = conversations_info_response["channel"]["name"]
+        else:
+            logger(
+                "There was a problem getting the friendly channel name",
+                extra={"conversations_info_response": conversations_info_response},
+            )
+    except Exception:
+        logger.error("There was an error getting the friendly channel name", extra={"error", traceback.format_exc()})
+    reporting_info = {
+        "query_length": query_length,
+        "start_time": start_time,
+        "end_time": end_time,
+        "duration": duration,
+        "thread_ts": thread_ts,
+        "is_direct_message": is_direct_message,
+        "channel": friendly_channel_name,
+    }
+    logger.info("REPORTING: query_stats", extra={"reporting_info": reporting_info})
 
 
 # ================================================================
