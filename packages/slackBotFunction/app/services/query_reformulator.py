@@ -1,9 +1,11 @@
 import os
-import json
 import traceback
 import boto3
+
+from app.services.bedrock import invoke_model
 from .prompt_loader import load_prompt
 from .exceptions import ConfigurationError
+from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 
 
 def reformulate_query(logger, user_query: str) -> str:
@@ -14,7 +16,7 @@ def reformulate_query(logger, user_query: str) -> str:
     query, and uses Claude to generate a reformulated version optimized for vector search.
     """
     try:
-        client = boto3.client("bedrock-runtime", region_name=os.environ["AWS_REGION"])
+        client: BedrockRuntimeClient = boto3.client("bedrock-runtime", region_name=os.environ["AWS_REGION"])
         model_id = os.environ["QUERY_REFORMULATION_MODEL_ID"]
 
         # Load prompt template from Bedrock Prompt Management
@@ -34,22 +36,8 @@ def reformulate_query(logger, user_query: str) -> str:
 
         # Format the prompt with the user query (using double braces from Bedrock template)
         prompt = prompt_template.replace("{{user_query}}", user_query)
+        result = invoke_model(prompt=prompt, model_id=model_id, client=client)
 
-        response = client.invoke_model(
-            modelId=model_id,
-            body=json.dumps(
-                {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "temperature": 0.1,
-                    "top_p": 0.9,
-                    "top_k": 50,
-                    "max_tokens": 150,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-            ),
-        )
-
-        result = json.loads(response["body"].read())
         reformulated_query = result["content"][0]["text"].strip()
 
         logger.info(

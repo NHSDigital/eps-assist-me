@@ -28,6 +28,7 @@ export interface LambdaFunctionProps {
   readonly additionalPolicies?: Array<IManagedPolicy>
   readonly logRetentionInDays: number
   readonly logLevel: string
+  readonly dependencyLocation?: string
 }
 
 // Lambda Insights layer for enhanced monitoring
@@ -115,6 +116,16 @@ export class LambdaFunction extends Construct {
       managedPolicies: requiredPolicies
     })
 
+    const layers = [insightsLambdaLayer]
+    if (props.dependencyLocation) {
+      const dependencyLayer = new LayerVersion(this, "DependencyLayer", {
+        removalPolicy: RemovalPolicy.DESTROY,
+        code: Code.fromAsset(props.dependencyLocation),
+        compatibleArchitectures: [Architecture.X86_64]
+      })
+      layers.push(dependencyLayer)
+    }
+
     // Create Lambda function with Python runtime and monitoring
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
       runtime: Runtime.PYTHON_3_13,
@@ -129,7 +140,7 @@ export class LambdaFunction extends Construct {
         POWERTOOLS_LOG_LEVEL: props.logLevel
       },
       logGroup,
-      layers: [insightsLambdaLayer]
+      layers: layers
     })
 
     // Suppress CFN guard rules for Lambda function

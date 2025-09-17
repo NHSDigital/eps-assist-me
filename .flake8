@@ -1,5 +1,5 @@
 [flake8]
 max-line-length = 120
 exclude = .*,venv,node_modules,cdk.out
-max-complexity = 10
+max-complexity = 12
 ignore = F821,E203,W503

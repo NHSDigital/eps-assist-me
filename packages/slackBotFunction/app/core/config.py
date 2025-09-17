@@ -3,6 +3,7 @@ Core configuration for the Slack bot.
 Sets up all the AWS and Slack connections we need.
 """
 
+from dataclasses import dataclass
 from functools import lru_cache
 import os
 import json
@@ -10,10 +11,11 @@ import traceback
 import boto3
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
+from mypy_boto3_dynamodb.service_resource import Table
 
 
 @lru_cache()
-def get_logger():
+def get_logger() -> Logger:
     return Logger(service="slackBotFunction")
 
 
@@ -21,7 +23,7 @@ logger = get_logger()
 
 
 @lru_cache()
-def get_slack_bot_state_table():
+def get_slack_bot_state_table() -> Table:
     # DynamoDB table for deduplication and session storage
     dynamodb = boto3.resource("dynamodb")
     return dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])
@@ -55,6 +57,44 @@ def get_ssm_params():
     return bot_token, signing_secret
 
 
+@dataclass
+class Constants:
+    FEEDBACK_PREFIX: str
+    CONTEXT_TYPE_DM: str
+    CONTEXT_TYPE_THREAD: str
+    CHANNEL_TYPE_IM: str
+    SESSION_SK: str
+    DEDUP_SK: str
+    EVENT_PREFIX: str
+    FEEDBACK_PREFIX_KEY: str
+    USER_PREFIX: str
+    DM_PREFIX: str
+    THREAD_PREFIX: str
+    NOTE_SUFFIX: str
+    TTL_EVENT_DEDUP: int
+    TTL_FEEDBACK: int
+    TTL_SESSION: int
+
+
+constants = Constants(
+    FEEDBACK_PREFIX="feedback:",
+    CONTEXT_TYPE_DM="DM",
+    CONTEXT_TYPE_THREAD="thread",
+    CHANNEL_TYPE_IM="im",
+    SESSION_SK="session",
+    DEDUP_SK="dedup",
+    EVENT_PREFIX="event#",
+    FEEDBACK_PREFIX_KEY="feedback#",
+    USER_PREFIX="user#",
+    DM_PREFIX="dm#",
+    THREAD_PREFIX="thread#",
+    NOTE_SUFFIX="#note#",
+    TTL_EVENT_DEDUP=3600,  # 1 hour
+    TTL_FEEDBACK=7776000,  # 90 days
+    TTL_SESSION=2592000,  # 30 days
+)
+
+
 @lru_cache
 def get_bot_token():
     bot_token, _ = get_ssm_params()
@@ -68,6 +108,14 @@ def get_bot_messages():
     BOT_MESSAGES = {
         "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
         "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
+        "feedback_positive_thanks": "Thank you for your feedback.",
+        "feedback_negative_thanks": (
+            'Please let us know how the answer could be improved. Start your message with "feedback:"'
+        ),
+        "feedback_thanks": "Thank you for your feedback.",
+        "feedback_prompt": "Was this helpful?",
+        "feedback_yes": "Yes",
+        "feedback_no": "No",
     }
 
     return BOT_MESSAGES

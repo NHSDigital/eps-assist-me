@@ -52,6 +52,7 @@ export class Functions extends Construct {
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       additionalPolicies: [props.slackBotManagedPolicy],
+      dependencyLocation: ".dependencies/slackBotFunction",
       environmentVariables: {
         "RAG_MODEL_ID": RAG_MODEL_ID,
         "QUERY_REFORMULATION_MODEL_ID": QUERY_REFORMULATION_MODEL_ID,
@@ -80,6 +81,7 @@ export class Functions extends Construct {
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
+      dependencyLocation: ".dependencies/syncKnowledgeBaseFunction",
       environmentVariables: {
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "DATA_SOURCE_ID": props.dataSourceId

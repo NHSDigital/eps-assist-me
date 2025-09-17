@@ -54,10 +54,13 @@ clean:
 	rm -rf packages/cdk/lib
 	rm -rf packages/slackBotFunction/coverage
 	rm -rf packages/slackBotFunction/.coverage
+	rm -rf packages/slackBotFunction/.dependencies
 	rm -rf packages/syncKnowledgeBaseFunction/coverage
-	rm -rf packages/syncKnowledgeBaseFunction/.coverage
+	rm -rf .dependencies/
 	rm -rf cdk.out
 	rm -rf .build
+	rm -rf .local_config
+	rm -rf cfn_guard_output
 	find . -name '.pytest_cache' -type d -prune -exec rm -rf '{}' +
 
 deep-clean: clean
@@ -98,17 +101,20 @@ cdk-deploy: guard-STACK_NAME
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 cdk-synth:
-	npx cdk synth \
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .local_config
+	STACK_NAME=epsam \
+	COMMIT_ID=undefined \
+	VERSION_NUMBER=undefined \
+	SLACK_BOT_TOKEN=dummy_token \
+	SLACK_SIGNING_SECRET=dummy_secret \
+	LOG_RETENTION_IN_DAYS=30 \
+	LOG_LEVEL=debug \
+		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
+	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
 		--quiet \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context accountId=123456789012 \
-		--context stackName=epsam \
-		--context versionNumber=undefined \
-		--context commitId=undefined \
-		--context logRetentionInDays=30 \
-		--context slackBotToken=dummy \
-		--context slackSigningSecret=dummy \
-		--context cfnDriftDetectionGroup=dummy
+		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
 
 cdk-diff:
 	npx cdk diff \
@@ -119,23 +125,8 @@ cdk-diff:
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-watch: guard-STACK_NAME
-	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
-	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
-	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
-		npx cdk deploy \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--watch \
-		--all \
-		--ci true \
-		--require-approval $${REQUIRE_APPROVAL} \
-		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$STACK_NAME \
-		--context versionNumber=$$VERSION_NUMBER \
-		--context commitId=$$COMMIT_ID \
-		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
-		--context slackBotToken=$$SLACK_BOT_TOKEN \
-		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
+cdk-watch:
+	./scripts/run_sync.sh
 
 sync-docs: 
 	./scripts/sync_docs.sh

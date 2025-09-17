@@ -8,8 +8,10 @@ import traceback
 import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
-from app.core.config import get_slack_bot_state_table, get_logger
+from app.core.config import get_logger
 import os
+
+from app.services.dynamo import store_state_information
 
 logger = get_logger()
 
@@ -23,10 +25,9 @@ def is_duplicate_event(event_id):
     """
     try:
         ttl = int(time.time()) + 3600  # 1 hour TTL
-        slack_bot_state_table = get_slack_bot_state_table()
-        slack_bot_state_table.put_item(
-            Item={"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
-            ConditionExpression="attribute_not_exists(pk)",
+        store_state_information(
+            {"pk": f"event#{event_id}", "sk": "dedup", "ttl": ttl, "timestamp": int(time.time())},
+            "attribute_not_exists(pk)",
         )
         return False  # Not a duplicate
     except ClientError as e:
@@ -61,4 +62,8 @@ def respond_with_eyes(bot_token, event):
     client = WebClient(token=bot_token)
     channel = event["channel"]
     ts = event["ts"]
-    client.reactions_add(channel=channel, timestamp=ts, name="eyes")
+    try:
+        logger.debug("Responding with eyes")
+        client.reactions_add(channel=channel, timestamp=ts, name="eyes")
+    except Exception:
+        logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})

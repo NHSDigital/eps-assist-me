@@ -63,8 +63,8 @@ jobs:
         run: |
           poetry export --without-hashes --format=requirements.txt --with slackBotFunction > requirements_slackBotFunction
           poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction
-          pip3 install -r requirements_slackBotFunction -t packages/slackBotFunction
-          pip3 install -r requirements_syncKnowledgeBaseFunction -t packages/syncKnowledgeBaseFunction
+          pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
+          pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 
       - name: 'Tar files'
         run: |
@@ -75,7 +75,8 @@ jobs:
             package.json \
             package-lock.json \
             tsconfig.defaults.json \
-            cdk.json
+            cdk.json \
+            .dependencies
 
       - uses: actions/upload-artifact@v4
         name: upload build artifact

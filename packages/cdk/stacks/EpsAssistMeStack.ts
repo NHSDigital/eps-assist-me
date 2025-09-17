@@ -35,6 +35,7 @@ export class EpsAssistMeStack extends Stack {
     const account = Stack.of(this).account
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
     const logLevel: string = this.node.tryGetContext("logLevel")
+    const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
 
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
@@ -179,7 +180,24 @@ export class EpsAssistMeStack extends Stack {
       value: storage.kbDocsBucket.bucket.bucketName,
       exportName: `${props.stackName}:kbDocsBucket:Name`
     })
-
+    if (isPullRequest) {
+      new CfnOutput(this, "VERSION_NUMBER", {
+        value: props.version,
+        exportName: `${props.stackName}:local:VERSION-NUMBER`
+      })
+      new CfnOutput(this, "COMMIT_ID", {
+        value: props.commitId,
+        exportName: `${props.stackName}:local:COMMIT-ID`
+      })
+      new CfnOutput(this, "slackBotToken", {
+        value: slackBotToken,
+        exportName: `${props.stackName}:local:slackBotToken`
+      })
+      new CfnOutput(this, "slackSigningSecret", {
+        value: slackSigningSecret,
+        exportName: `${props.stackName}:local:slackSigningSecret`
+      })
+    }
     // Final CDK Nag Suppressions
     nagSuppressions(this)
   }
