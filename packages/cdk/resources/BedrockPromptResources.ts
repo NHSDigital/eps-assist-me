@@ -11,7 +11,7 @@ export class BedrockPromptResources extends Construct {
   constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
 
-    const claudeModel = BedrockFoundationModel.ANTHROPIC_CLAUDE_3_5_HAIKU_V1_0
+    const claudeModel = BedrockFoundationModel.ANTHROPIC_CLAUDE_HAIKU_V1_0
     const promptVariant = PromptVariant.text({
       variantName: "default",
       model: claudeModel,
