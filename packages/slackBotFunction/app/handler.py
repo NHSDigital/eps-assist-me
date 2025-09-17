@@ -14,6 +14,7 @@ from app.services.app import get_app
 from app.slack.slack_events import process_async_slack_event
 
 logger = get_logger()
+app = get_app()
 
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)
@@ -26,8 +27,6 @@ def handler(event: dict, context: LambdaContext) -> dict:
     2. Lambda acknowledges immediately and triggers async self-invocation
     3. Async invocation processes Bedrock query and responds to Slack
     """
-    # register event handlers with the app
-    app = get_app()
 
     # handle async processing requests
     if event.get("async_processing"):
