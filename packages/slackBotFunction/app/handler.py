@@ -29,8 +29,6 @@ def handler(event: dict, context: LambdaContext) -> dict:
     # register event handlers with the app
     app = get_app()
 
-    logger.info("Lambda invoked", extra={"is_async": event.get("async_processing", False)})
-
     # handle async processing requests
     if event.get("async_processing"):
         slack_event_data = event.get("slack_event")

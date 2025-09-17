@@ -88,6 +88,7 @@ def mention_handler(event, ack, body, client):
     - If text after the mention starts with 'feedback:', store it as additional feedback.
     - Otherwise, forward to the async processing pipeline (Q&A).
     """
+    logger.debug("Sending ack response")
     ack()
     event_id = _gate_common(event, body)
     if not event_id:
@@ -237,7 +238,10 @@ def thread_message_handler(event, event_id, client):
 
 def unified_message_handler(event, ack, body, client):
     """Handle all message events - DMs and channel messages"""
+    logger.debug("Sending ack response")
     ack()
+    bot_token = get_bot_token()
+    respond_with_eyes(bot_token, event)
     event_id = _gate_common(event, body)
     if not event_id:
         return
@@ -253,6 +257,7 @@ def unified_message_handler(event, ack, body, client):
 
 def feedback_handler(ack, body, client):
     """Handle feedback button clicks (both positive and negative)."""
+    logger.debug("Sending ack response")
     ack()
     try:
         action_id = body["actions"][0]["action_id"]

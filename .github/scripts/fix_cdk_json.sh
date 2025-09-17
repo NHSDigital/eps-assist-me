@@ -36,8 +36,10 @@ fix_boolean_number_key() {
 }
 
 CFN_DRIFT_DETECTION_GROUP="epsam"
+IS_PULL_REQUEST="false"
 if [[ "$STACK_NAME" =~ -pr-[0-9]+$ ]]; then
   CFN_DRIFT_DETECTION_GROUP="epsam-pull-request"
+  IS_PULL_REQUEST="true"
 fi
 
 # go through all the key values we need to set
@@ -50,3 +52,4 @@ fix_string_key logLevel "${LOG_LEVEL}"
 fix_string_key slackBotToken "${SLACK_BOT_TOKEN}"
 fix_string_key slackSigningSecret "${SLACK_SIGNING_SECRET}"
 fix_string_key cfnDriftDetectionGroup "${CFN_DRIFT_DETECTION_GROUP}"
+fix_boolean_number_key isPullRequest "${IS_PULL_REQUEST}"
