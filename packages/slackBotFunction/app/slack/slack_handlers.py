@@ -293,7 +293,7 @@ def feedback_handler(ack, body, client):
                 user_id=body["user"]["id"],
                 channel_id=feedback_data["ch"],
                 thread_ts=feedback_data.get("tt"),
-                feedback_text=feedback_data.get("mt"),
+                message_ts=feedback_data.get("mt"),
                 client=client,
             )
             # Only post message if storage succeeded
