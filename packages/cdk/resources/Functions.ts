@@ -48,7 +48,7 @@ export class Functions extends Construct {
       stackName: props.stackName,
       functionName: `${props.stackName}-SlackBotFunction`,
       packageBasePath: "packages/slackBotFunction",
-      handler: "app.handler.handler",
+      handler: "handler.handler",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       additionalPolicies: [props.slackBotManagedPolicy],
@@ -77,7 +77,7 @@ export class Functions extends Construct {
       stackName: props.stackName,
       functionName: `${props.stackName}-SyncKnowledgeBaseFunction`,
       packageBasePath: "packages/syncKnowledgeBaseFunction",
-      handler: "app.handler.handler",
+      handler: "handler.handler",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: props.logLevel,
       environmentVariables: {

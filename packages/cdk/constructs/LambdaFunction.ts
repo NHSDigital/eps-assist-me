@@ -129,7 +129,7 @@ export class LambdaFunction extends Construct {
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
       handler: props.handler,
-      code: Code.fromAsset(props.packageBasePath),
+      code: Code.fromAsset(path.join(props.packageBasePath, "app")),
       role,
       environment: {
         ...props.environmentVariables,
