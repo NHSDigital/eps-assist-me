@@ -2,10 +2,10 @@
 set -e
 
 if [ -z "${PULL_REQUEST_ID}" ]; then
-    echo "What is the pull request id?"
+    echo "What is the pull request id? "
     read -r PULL_REQUEST_ID
 else
-    read -r -p "Getting exports for pull request id ${PULL_REQUEST_ID}. Is this correct?" yn
+    read -r -p "Getting exports for pull request id ${PULL_REQUEST_ID}. Is this correct? " yn
     case $yn in
         [Yy]* ) ;;
         [Nn]* ) exit;;

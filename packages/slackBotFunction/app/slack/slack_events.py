@@ -45,13 +45,13 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
         )
         logger.info("Deleted unfeedback Q&A for privacy", extra={"message_ts": previous_message_ts})
 
-    except ClientError as e:
+    except ClientError:
         if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             logger.info("Q&A has feedback - keeping for user", extra={"message_ts": previous_message_ts})
         else:
-            logger.error("Error cleaning up Q&A", extra={"error": str(e)})
-    except Exception as e:
-        logger.error("Error cleaning up unfeedback Q&A", extra={"error": str(e)})
+            logger.error("Error cleaning up Q&A", extra={"error": traceback.format_exc()})
+    except Exception:
+        logger.error("Error cleaning up unfeedback Q&A", extra={"error": traceback.format_exc()})
 
 
 def store_qa_pair(conversation_key, user_query, bot_response, message_ts, session_id, user_id):
@@ -72,8 +72,8 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
         }
         store_state_information(item=item)
         logger.info("Stored Q&A pair", extra={"conversation_key": conversation_key, "message_ts": message_ts})
-    except Exception as e:
-        logger.error("Failed to store Q&A pair", extra={"error": str(e)})
+    except Exception:
+        logger.error("Failed to store Q&A pair", extra={"error": traceback.format_exc()})
 
 
 def _mark_qa_feedback_received(conversation_key, message_ts):
@@ -86,8 +86,8 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
             "SET feedback_received = :val",
             {":val": True},
         )
-    except Exception as e:
-        logger.error("Error marking Q&A feedback received", extra={"error": str(e)})
+    except Exception:
+        logger.error("Error marking Q&A feedback received", extra={"error": traceback.format_exc()})
 
 
 # ================================================================
@@ -238,7 +238,8 @@ def process_async_slack_event(slack_event_data):
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
-                f"Failed to attach feedback buttons: {e}", extra={"event_id": event_id, "message_ts": message_ts}
+                f"Failed to attach feedback buttons: {e}",
+                extra={"event_id": event_id, "message_ts": message_ts, "error": traceback.format_exc()},
             )
 
     except Exception:
@@ -250,8 +251,8 @@ def process_async_slack_event(slack_event_data):
             if thread_ts:  # Only add thread_ts for channel threads, not DMs
                 post_params["thread_ts"] = thread_ts
             client.chat_postMessage(**post_params)
-        except Exception as post_err:
-            logger.error("Failed to post error message", extra={"error": str(post_err)})
+        except Exception:
+            logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
 
 
 # ================================================================
@@ -332,10 +333,10 @@ def store_feedback(
         )
 
     except ClientError as e:
-        logger.error(f"Error storing feedback: {e}")
+        logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
         raise
     except Exception as e:
-        logger.error(f"Error storing feedback: {e}")
+        logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
 
 
 # ================================================================
@@ -375,8 +376,8 @@ def get_latest_message_ts(conversation_key):
         if "Item" in response:
             return response["Item"].get("latest_message_ts")
         return None
-    except Exception as e:
-        logger.error("Error getting latest message timestamp", extra={"error": str(e)})
+    except Exception:
+        logger.error("Error getting latest message timestamp", extra={"error": traceback.format_exc()})
         return None
 
 
@@ -420,5 +421,5 @@ def update_session_latest_message(conversation_key, message_ts):
             "SET latest_message_ts = :ts",
             {":ts": message_ts},
         )
-    except Exception as e:
-        logger.error("Error updating session latest message", extra={"error": str(e)})
+    except Exception:
+        logger.error("Error updating session latest message", extra={"error": traceback.format_exc()})

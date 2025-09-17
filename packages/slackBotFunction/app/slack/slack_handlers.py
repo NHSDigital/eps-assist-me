@@ -10,6 +10,7 @@ Design goals:
 import json
 import re
 from functools import lru_cache
+import traceback
 from botocore.exceptions import ClientError
 from app.core.config import (
     get_bot_messages,
@@ -113,7 +114,7 @@ def mention_handler(event, ack, body, client):
                 feedback_text,
             )
         except Exception as e:
-            logger.error(f"Failed to store channel feedback via mention: {e}")
+            logger.error(f"Failed to store channel feedback via mention: {e}", extra={"error": traceback.format_exc()})
         BOT_MESSAGES = get_bot_messages()
         try:
             client.chat_postMessage(
@@ -122,7 +123,7 @@ def mention_handler(event, ack, body, client):
                 thread_ts=thread_root,
             )
         except Exception as e:
-            logger.error(f"Failed to post channel feedback ack: {e}")
+            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
         return
 
     # Normal mention -> async processing
@@ -158,7 +159,7 @@ def dm_message_handler(event, event_id, client):
                 feedback_text,
             )
         except Exception as e:
-            logger.error(f"Failed to store DM additional feedback: {e}")
+            logger.error(f"Failed to store DM additional feedback: {e}", extra={"error": traceback.format_exc()})
         BOT_MESSAGES = get_bot_messages()
 
         try:
@@ -168,7 +169,7 @@ def dm_message_handler(event, event_id, client):
                 text=BOT_MESSAGES["feedback_thanks"],
             )
         except Exception as e:
-            logger.error(f"Failed to post DM feedback ack: {e}")
+            logger.error(f"Failed to post DM feedback ack: {e}", extra={"error": traceback.format_exc()})
         return
 
     # Normal DM -> async processing
@@ -200,7 +201,7 @@ def thread_message_handler(event, event_id, client):
             return  # not a bot-owned thread; ignore
         logger.info(f"Found session for thread: {conversation_key}")
     except Exception as e:
-        logger.error(f"Error checking thread session: {e}")
+        logger.error(f"Error checking thread session: {e}", extra={"error": traceback.format_exc()})
         return
 
     if text.lower().startswith(constants.FEEDBACK_PREFIX):
@@ -217,7 +218,7 @@ def thread_message_handler(event, event_id, client):
                 feedback_text,
             )
         except Exception as e:
-            logger.error(f"Failed to store channel additional feedback: {e}")
+            logger.error(f"Failed to store channel additional feedback: {e}", extra={"error": traceback.format_exc()})
 
         try:
             BOT_MESSAGES = get_bot_messages()
@@ -228,7 +229,7 @@ def thread_message_handler(event, event_id, client):
                 thread_ts=thread_root,
             )
         except Exception as e:
-            logger.error(f"Failed to post channel feedback ack: {e}")
+            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
         return
 
     # Follow-up in a bot-owned thread (no re-mention required)
@@ -302,11 +303,11 @@ def feedback_handler(ack, body, client):
                 # Silently ignore duplicate votes - user already voted on this message
                 logger.info(f"Duplicate vote ignored for user {body['user']['id']}")
                 return
-            logger.error(f"Feedback storage error: {e}")
+            logger.error(f"Feedback storage error: {e}", extra={"error": traceback.format_exc()})
         except Exception as e:
-            logger.error(f"Unexpected feedback error: {e}")
+            logger.error(f"Unexpected feedback error: {e}", extra={"error": traceback.format_exc()})
     except Exception as e:
-        logger.error(f"Error handling feedback: {e}")
+        logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
 
 
 # ================================================================
@@ -337,5 +338,5 @@ def _is_latest_message(conversation_key, message_ts):
             return latest_message_ts == message_ts
         return False
     except Exception as e:
-        logger.error(f"Error checking latest message: {e}")
+        logger.error(f"Error checking latest message: {e}", extra={"error": traceback.format_exc()})
         return False

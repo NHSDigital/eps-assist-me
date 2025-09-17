@@ -3,7 +3,7 @@ from app.core.config import get_slack_bot_state_table
 
 def get_state_information(key):
     table = get_slack_bot_state_table()
-    table.get_item(Key=key)
+    return table.get_item(Key=key)
 
 
 def store_state_information(item, condition=None):
