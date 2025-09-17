@@ -33,5 +33,4 @@ cdk.out
 .requirements_slackBotFunction
 .requirements_syncKnowledgeBaseFunction
 .local_config/
-packages/slackBotFunction/.dependencies/
-packages/syncKnowledgeBaseFunction/.dependencies/
+.dependencies/

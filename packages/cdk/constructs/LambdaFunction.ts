@@ -18,7 +18,6 @@ import {
   Code
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
-import path from "path"
 
 export interface LambdaFunctionProps {
   readonly stackName: string
@@ -29,6 +28,7 @@ export interface LambdaFunctionProps {
   readonly additionalPolicies?: Array<IManagedPolicy>
   readonly logRetentionInDays: number
   readonly logLevel: string
+  readonly dependencyLocation?: string
 }
 
 // Lambda Insights layer for enhanced monitoring
@@ -116,11 +116,15 @@ export class LambdaFunction extends Construct {
       managedPolicies: requiredPolicies
     })
 
-    const dependencyLayer = new LayerVersion(this, "DependencyLayer", {
-      removalPolicy: RemovalPolicy.DESTROY,
-      code: Code.fromAsset(path.join(props.packageBasePath, ".dependencies")),
-      compatibleArchitectures: [Architecture.X86_64]
-    })
+    const layers = [insightsLambdaLayer]
+    if (props.dependencyLocation) {
+      const dependencyLayer = new LayerVersion(this, "DependencyLayer", {
+        removalPolicy: RemovalPolicy.DESTROY,
+        code: Code.fromAsset(props.dependencyLocation),
+        compatibleArchitectures: [Architecture.X86_64]
+      })
+      layers.push(dependencyLayer)
+    }
 
     // Create Lambda function with Python runtime and monitoring
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
@@ -129,14 +133,14 @@ export class LambdaFunction extends Construct {
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
       handler: props.handler,
-      code: Code.fromAsset(path.join(props.packageBasePath, "app")),
+      code: Code.fromAsset(props.packageBasePath),
       role,
       environment: {
         ...props.environmentVariables,
         POWERTOOLS_LOG_LEVEL: props.logLevel
       },
       logGroup,
-      layers: [insightsLambdaLayer, dependencyLayer]
+      layers: layers
     })
 
     // Suppress CFN guard rules for Lambda function

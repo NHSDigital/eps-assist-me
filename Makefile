@@ -100,8 +100,8 @@ cdk-deploy: guard-STACK_NAME
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 cdk-synth:
-	mkdir -p packages/slackBotFunction/.dependencies
-	mkdir -p packages/syncKnowledgeBaseFunction/.dependencies
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/SyncKnowledgeBaseFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam \
 	COMMIT_ID=undefined \
