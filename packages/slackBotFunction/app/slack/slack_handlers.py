@@ -140,7 +140,6 @@ def dm_message_handler(event, event_id, client):
     if event.get("channel_type") != constants.CHANNEL_TYPE_IM:
         return  # not a DM; the channel handler will evaluate it
     bot_token = get_bot_token()
-    respond_with_eyes(bot_token, event)
     text = (event.get("text") or "").strip()
     channel_id = event["channel"]
     conversation_key, thread_root = _conversation_key_and_root(event)
