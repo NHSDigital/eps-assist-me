@@ -105,13 +105,14 @@ def mention_handler(event, ack, body, client):
         feedback_text = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
         try:
             store_feedback(
-                conversation_key,
-                "additional",
-                user_id,
-                channel_id,
-                thread_root,
-                None,
-                feedback_text,
+                conversation_key=conversation_key,
+                feedback_type="additional",
+                user_id=user_id,
+                channel_id=channel_id,
+                thread_ts=thread_root,
+                message_ts=None,
+                feedback_text=feedback_text,
+                client=client,
             )
         except Exception as e:
             logger.error(f"Failed to store channel feedback via mention: {e}", extra={"error": traceback.format_exc()})
@@ -149,13 +150,14 @@ def dm_message_handler(event, event_id, client):
         feedback_text = text.split(":", 1)[1].strip() if ":" in text else ""
         try:
             store_feedback(
-                conversation_key,
-                "additional",
-                user_id,
-                channel_id,
-                thread_root,
-                None,
-                feedback_text,
+                conversation_key=conversation_key,
+                feedback_type="additional",
+                user_id=user_id,
+                channel_id=channel_id,
+                thread_ts=thread_root,
+                message_ts=None,
+                feedback_text=feedback_text,
+                client=client,
             )
         except Exception as e:
             logger.error(f"Failed to store DM additional feedback: {e}", extra={"error": traceback.format_exc()})
@@ -208,13 +210,14 @@ def thread_message_handler(event, event_id, client):
         user_id = event.get("user", "unknown")
         try:
             store_feedback(
-                conversation_key,
-                "additional",
-                user_id,
-                channel_id,
-                thread_root,
-                None,
-                feedback_text,
+                conversation_key=conversation_key,
+                feedback_type="additional",
+                user_id=user_id,
+                channel_id=channel_id,
+                thread_ts=thread_root,
+                message_ts=None,
+                feedback_text=feedback_text,
+                client=client,
             )
         except Exception as e:
             logger.error(f"Failed to store channel additional feedback: {e}", extra={"error": traceback.format_exc()})
@@ -285,12 +288,13 @@ def feedback_handler(ack, body, client):
 
         try:
             store_feedback(
-                feedback_data["ck"],
-                feedback_type,
-                body["user"]["id"],
-                feedback_data["ch"],
-                feedback_data.get("tt"),
-                feedback_data.get("mt"),
+                conversation_key=feedback_data["ck"],
+                feedback_type=feedback_type,
+                user_id=body["user"]["id"],
+                channel_id=feedback_data["ch"],
+                thread_ts=feedback_data.get("tt"),
+                feedback_text=feedback_data.get("mt"),
+                client=client,
             )
             # Only post message if storage succeeded
             post_params = {"channel": feedback_data["ch"], "text": response_message}

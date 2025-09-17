@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 from botocore.exceptions import ClientError
 
 
@@ -161,7 +161,15 @@ def test_feedback_yes_action_handler(
         yes_handler(mock_ack, mock_body, mock_client)
 
         mock_ack.assert_called_once()
-        mock_store_feedback.assert_called_once_with("conv-key", "positive", "U123", "C123", "123", "456")
+        mock_store_feedback.assert_called_once_with(
+            conversation_key="conv-key",
+            feedback_type="positive",
+            user_id="U123",
+            channel_id="C123",
+            thread_ts="123",
+            feedback_text="456",
+            client=ANY,
+        )
         mock_client.chat_postMessage.assert_called_once()
 
 
@@ -217,7 +225,15 @@ def test_feedback_no_action_handler(
         no_handler(mock_ack, mock_body, mock_client)
 
         mock_ack.assert_called_once()
-        mock_store_feedback.assert_called_once_with("conv-key", "negative", "U123", "C123", "123", "456")
+        mock_store_feedback.assert_called_once_with(
+            conversation_key="conv-key",
+            feedback_type="negative",
+            user_id="U123",
+            channel_id="C123",
+            thread_ts="123",
+            feedback_text="456",
+            client=ANY,
+        )
         mock_client.chat_postMessage.assert_called_once()
 
 

@@ -22,6 +22,7 @@ from app.services.dynamo import (
     update_state_information,
 )
 from app.services.query_reformulator import reformulate_query
+from app.services.slack import get_friendly_channel_name
 
 logger = get_logger()
 
@@ -261,18 +262,7 @@ def log_query_stats(user_query, event, channel, client, thread_ts):
     end_time = time.time()
     duration = end_time - start_time
     is_direct_message = event.get("channel_type") == constants.CHANNEL_TYPE_IM
-    friendly_channel_name = channel
-    try:
-        conversations_info_response = client.conversations_info(channel=channel)
-        if conversations_info_response["ok"]:
-            friendly_channel_name = conversations_info_response["channel"]["name"]
-        else:
-            logger(
-                "There was a problem getting the friendly channel name",
-                extra={"conversations_info_response": conversations_info_response},
-            )
-    except Exception:
-        logger.error("There was an error getting the friendly channel name", extra={"error", traceback.format_exc()})
+    friendly_channel_name = get_friendly_channel_name(channel_id=channel, client=client)
     reporting_info = {
         "query_length": query_length,
         "start_time": start_time,
@@ -295,6 +285,7 @@ def store_feedback(
     feedback_type,
     user_id,
     channel_id,
+    client: WebClient,
     thread_ts=None,
     message_ts=None,
     feedback_text=None,
@@ -303,6 +294,14 @@ def store_feedback(
     Store user feedback with reference to Q&A record
     """
     try:
+        friendly_channel_name = get_friendly_channel_name(channel_id=channel_id, client=client)
+        reporting_info = {
+            "feedback_type": feedback_type,
+            "feedback_text": feedback_text,
+            "thread_ts": thread_ts,
+            "channel": friendly_channel_name,
+        }
+        logger.info("REPORTING: feedback_stats", extra={"reporting_info": reporting_info})
         now = int(time.time())
         ttl = now + constants.TTL_FEEDBACK
 

@@ -1,14 +1,18 @@
 import sys
 import pytest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from botocore.exceptions import ClientError
 
 
 @patch("app.services.dynamo.store_state_information")
 @patch("app.services.dynamo.get_state_information")
-def test_store_feedback(mock_get_state_information, mock_store_state_information, mock_env):
+@patch("app.services.slack.get_friendly_channel_name")
+def test_store_feedback(
+    mock_get_friendly_channel_name, mock_get_state_information, mock_store_state_information, mock_env
+):
     """Test feedback storage functionality"""
     # set up mocks
+    mock_client = Mock()
 
     # delete and import module to test
     if "app.slack.slack_events" in sys.modules:
@@ -16,7 +20,7 @@ def test_store_feedback(mock_get_state_information, mock_store_state_information
     from app.slack.slack_events import store_feedback
 
     # perform operation
-    store_feedback("test-conversation", "positive", "U123", "C123")
+    store_feedback("test-conversation", "positive", "U123", "C123", mock_client)
 
     # assertions
     mock_store_state_information.assert_called_once()
@@ -27,9 +31,13 @@ def test_store_feedback(mock_get_state_information, mock_store_state_information
 
 @patch("app.services.dynamo.store_state_information")
 @patch("app.services.dynamo.get_state_information")
-def test_feedback_storage_with_additional_text(mock_get_state_information, mock_store_state_information, mock_env):
+@patch("app.services.slack.get_friendly_channel_name")
+def test_feedback_storage_with_additional_text(
+    mock_get_friendly_channel_name, mock_get_state_information, mock_store_state_information, mock_env
+):
     """Test feedback storage with additional feedback text"""
     # set up mocks
+    mock_client = Mock()
 
     # delete and import module to test
     if "app.slack.slack_events" in sys.modules:
@@ -37,7 +45,9 @@ def test_feedback_storage_with_additional_text(mock_get_state_information, mock_
     from app.slack.slack_events import store_feedback
 
     # perform operation
-    store_feedback("test-conversation", "additional", "U123", "C123", feedback_text="This is additional feedback")
+    store_feedback(
+        "test-conversation", "additional", "U123", "C123", mock_client, feedback_text="This is additional feedback"
+    )
 
     # assertions
     mock_store_state_information.assert_called_once()
@@ -239,10 +249,14 @@ def test_cleanup_previous_unfeedback_qa_does_not_throw_error(delete_state_inform
 
 @patch("app.services.dynamo.store_state_information")
 @patch("app.slack.slack_events.get_latest_message_ts")
-def test_store_feedback_no_message_ts_fallback(mock_get_latest_message_ts, mock_store_state_information, mock_env):
+@patch("app.services.slack.get_friendly_channel_name")
+def test_store_feedback_no_message_ts_fallback(
+    mock_get_friendly_channel_name, mock_get_latest_message_ts, mock_store_state_information, mock_env
+):
     """Test store_feedback fallback path when no message_ts"""
     # set up mocks
     mock_get_latest_message_ts.return_value = None
+    mock_client = Mock()
 
     # delete and import module to test
     if "app.slack.slack_events" in sys.modules:
@@ -250,7 +264,7 @@ def test_store_feedback_no_message_ts_fallback(mock_get_latest_message_ts, mock_
     from app.slack.slack_events import store_feedback
 
     # perform operation
-    store_feedback("conv-key", "positive", "user-id", "channel-id")
+    store_feedback("conv-key", "positive", "user-id", "channel-id", mock_client)
 
     # assertions
     mock_store_state_information.assert_called_once()
@@ -361,12 +375,16 @@ def test_get_latest_message_ts_no_item(mock_get_state_information, mock_env):
 
 @patch("app.services.dynamo.store_state_information")
 @patch("app.slack.slack_events.get_latest_message_ts")
-def test_store_feedback_client_error_reraise(mock_get_latest_message_ts, mock_store_state_information, mock_env):
+@patch("app.services.slack.get_friendly_channel_name")
+def test_store_feedback_client_error_reraise(
+    mock_get_friendly_channel_name, mock_get_latest_message_ts, mock_store_state_information, mock_env
+):
     """Test store_feedback re-raises ClientError"""
     # set up mocks
     error = ClientError({"Error": {"Code": "ValidationException"}}, "PutItem")
     mock_store_state_information.side_effect = error
     mock_get_latest_message_ts.return_value = "123"
+    mock_client = Mock()
 
     # delete and import module to test
     if "app.slack.slack_events" in sys.modules:
@@ -375,7 +393,7 @@ def test_store_feedback_client_error_reraise(mock_get_latest_message_ts, mock_st
 
     # perform operation
     with pytest.raises(ClientError):
-        store_feedback("conv-key", "positive", "user-id", "channel-id")
+        store_feedback("conv-key", "positive", "user-id", "channel-id", mock_client)
 
 
 @patch("app.services.dynamo.store_state_information")
