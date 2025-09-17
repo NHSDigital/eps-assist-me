@@ -30,3 +30,6 @@ vendor
 .npmrc
 cdk.out
 .build
+.requirements_slackBotFunction
+.requirements_syncKnowledgeBaseFunction
+.local_config/

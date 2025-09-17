@@ -107,7 +107,7 @@ jobs:
 
       - name: fix cdk.json for deployment
         run: |
-          ./.github/scripts/fix_cdk_json.sh
+          ./.github/scripts/fix_cdk_json.sh .build/epsam_app.json
         env:
           ACCOUNT_ID: "${{ env.ACCOUNT_ID }}"
           STACK_NAME: "${{ inputs.STACK_NAME }}"
@@ -128,6 +128,7 @@ jobs:
             -e AWS_REGION="eu-west-2" \
             -e SHOW_DIFF="true" \
             -e DEPLOY_CODE="false" \
+            -e CONFIG_FILE_NAME="epsam_app.json" \
             -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
             cdk-utils-build-repo:latest
 
@@ -142,6 +143,7 @@ jobs:
             -e AWS_REGION="eu-west-2" \
             -e SHOW_DIFF="false" \
             -e DEPLOY_CODE="true" \
+            -e CONFIG_FILE_NAME="epsam_app.json" \
             -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
             cdk-utils-build-repo:latest
         shell: bash
