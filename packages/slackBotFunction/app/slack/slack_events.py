@@ -46,7 +46,7 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
         )
         logger.info("Deleted unfeedback Q&A for privacy", extra={"message_ts": previous_message_ts})
 
-    except ClientError:
+    except ClientError as e:
         if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             logger.info("Q&A has feedback - keeping for user", extra={"message_ts": previous_message_ts})
         else:
