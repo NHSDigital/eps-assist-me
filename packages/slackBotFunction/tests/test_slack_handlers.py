@@ -167,7 +167,7 @@ def test_feedback_yes_action_handler(
             user_id="U123",
             channel_id="C123",
             thread_ts="123",
-            feedback_text="456",
+            message_ts="456",
             client=ANY,
         )
         mock_client.chat_postMessage.assert_called_once()
@@ -231,7 +231,7 @@ def test_feedback_no_action_handler(
             user_id="U123",
             channel_id="C123",
             thread_ts="123",
-            feedback_text="456",
+            message_ts="456",
             client=ANY,
         )
         mock_client.chat_postMessage.assert_called_once()
