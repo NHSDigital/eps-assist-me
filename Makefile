@@ -54,8 +54,10 @@ clean:
 	rm -rf packages/cdk/lib
 	rm -rf packages/slackBotFunction/coverage
 	rm -rf packages/slackBotFunction/.coverage
+	rm -rf packages/slackBotFunction/.dependencies
 	rm -rf packages/syncKnowledgeBaseFunction/coverage
 	rm -rf packages/syncKnowledgeBaseFunction/.coverage
+	rm -rf packages/syncKnowledgeBaseFunction/.dependencies
 	rm -rf cdk.out
 	rm -rf .build
 	find . -name '.pytest_cache' -type d -prune -exec rm -rf '{}' +
@@ -98,6 +100,8 @@ cdk-deploy: guard-STACK_NAME
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 cdk-synth:
+	mkdir -p packages/slackBotFunction/.dependencies
+	mkdir -p packages/syncKnowledgeBaseFunction/.dependencies
 	mkdir -p .local_config
 	STACK_NAME=epsam \
 	COMMIT_ID=undefined \
