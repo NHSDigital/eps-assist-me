@@ -104,7 +104,7 @@ export class EpsAssistMeStack extends Stack {
       slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
       slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn,
       knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
-      guardrailArn: vectorKB.guardrail.attrGuardrailArn,
+      guardrailArn: vectorKB.guardrail.guardrailArn,
       dataSourceArn: vectorKB.dataSourceArn,
       promptName: bedrockPromptResources.queryReformulationPrompt.promptName
     })
@@ -121,8 +121,8 @@ export class EpsAssistMeStack extends Stack {
       syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
-      guardrailId: vectorKB.guardrail.attrGuardrailId,
-      guardrailVersion: vectorKB.guardrail.attrVersion,
+      guardrailId: vectorKB.guardrail.guardrailId,
+      guardrailVersion: vectorKB.guardrail.guardrailVersion,
       collectionId: openSearchResources.collection.collection.attrId,
       knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
       dataSourceId: vectorKB.dataSource.attrDataSourceId,

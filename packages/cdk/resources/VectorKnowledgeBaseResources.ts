@@ -1,7 +1,15 @@
 import {Construct} from "constructs"
 import {Role} from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
-import {CfnKnowledgeBase, CfnGuardrail, CfnDataSource} from "aws-cdk-lib/aws-bedrock"
+import {CfnKnowledgeBase, CfnDataSource} from "aws-cdk-lib/aws-bedrock"
+import {
+  ContentFilterStrength,
+  ContentFilterType,
+  Guardrail,
+  GuardrailAction,
+  ManagedWordFilterType,
+  PIIType
+} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -18,7 +26,7 @@ export interface VectorKnowledgeBaseProps {
 
 export class VectorKnowledgeBaseResources extends Construct {
   public readonly knowledgeBase: CfnKnowledgeBase
-  public readonly guardrail: CfnGuardrail
+  public readonly guardrail: Guardrail
   public readonly dataSource: CfnDataSource
   private readonly region: string
   private readonly account: string
@@ -35,40 +43,72 @@ export class VectorKnowledgeBaseResources extends Construct {
     this.region = props.region
     this.account = props.account
 
-    // Create Bedrock guardrail for content filtering
-    this.guardrail = new CfnGuardrail(this, "Guardrail", {
+    const guardrail = new Guardrail(this, "bedrockGuardrails", {
       name: `${props.stackName}-guardrail`,
       description: "Guardrail for EPS Assist Me Slackbot",
       blockedInputMessaging: "Your input was blocked.",
       blockedOutputsMessaging: "Your output was blocked.",
-      contentPolicyConfig: {
-        // Content filters for harmful content
-        filtersConfig: [
-          {type: "SEXUAL", inputStrength: "HIGH", outputStrength: "HIGH"},
-          {type: "VIOLENCE", inputStrength: "HIGH", outputStrength: "HIGH"},
-          {type: "HATE", inputStrength: "HIGH", outputStrength: "HIGH"},
-          {type: "INSULTS", inputStrength: "HIGH", outputStrength: "HIGH"},
-          {type: "MISCONDUCT", inputStrength: "HIGH", outputStrength: "HIGH"},
-          {type: "PROMPT_ATTACK", inputStrength: "HIGH", outputStrength: "NONE"}
-        ]
-      },
-      sensitiveInformationPolicyConfig: {
-        // PII detection and handling
-        piiEntitiesConfig: [
-          {type: "EMAIL", action: "ANONYMIZE"},
-          {type: "PHONE", action: "ANONYMIZE"},
-          {type: "NAME", action: "ANONYMIZE"},
-          {type: "CREDIT_DEBIT_CARD_NUMBER", action: "BLOCK"}
-        ]
-      },
-      wordPolicyConfig: {
-        // Block profanity using AWS managed word lists
-        managedWordListsConfig: [{type: "PROFANITY"}]
-      }
+      contentFilters: [
+        {
+          type: ContentFilterType.SEXUAL,
+          inputStrength: ContentFilterStrength.HIGH,
+          outputStrength: ContentFilterStrength.HIGH
+        },
+        {
+          type: ContentFilterType.VIOLENCE,
+          inputStrength: ContentFilterStrength.HIGH,
+          outputStrength: ContentFilterStrength.HIGH
+        },
+        {
+          type: ContentFilterType.HATE,
+          inputStrength: ContentFilterStrength.HIGH,
+          outputStrength: ContentFilterStrength.HIGH
+        },
+        {
+          type: ContentFilterType.INSULTS,
+          inputStrength: ContentFilterStrength.HIGH,
+          outputStrength: ContentFilterStrength.HIGH
+        },
+        {
+          type: ContentFilterType.MISCONDUCT,
+          inputStrength: ContentFilterStrength.HIGH,
+          outputStrength: ContentFilterStrength.HIGH
+        },
+        {
+          type: ContentFilterType.PROMPT_ATTACK,
+          inputStrength: ContentFilterStrength.HIGH,
+          outputStrength: ContentFilterStrength.HIGH
+        }
+      ],
+      piiFilters: [
+        {
+          type: PIIType.General.EMAIL,
+          action: GuardrailAction.ANONYMIZE
+        },
+        {
+          type: PIIType.General.PHONE,
+          action: GuardrailAction.ANONYMIZE
+        },
+        {
+          type: PIIType.General.NAME,
+          action: GuardrailAction.ANONYMIZE
+        },
+        {
+          type: PIIType.Finance.CREDIT_DEBIT_CARD_NUMBER,
+          action: GuardrailAction.BLOCK
+        },
+        {
+          type: PIIType.UKSpecific.UK_NATIONAL_HEALTH_SERVICE_NUMBER,
+          action: GuardrailAction.ANONYMIZE
+        }
+      ],
+      managedWordListFilters: [
+        {type: ManagedWordFilterType.PROFANITY}
+      ]
     })
 
     // Create vector knowledge base for document retrieval
-    this.knowledgeBase = new CfnKnowledgeBase(this, "VectorKB", {
+    const knowledgeBase = new CfnKnowledgeBase(this, "VectorKB", {
       name: `${props.stackName}-kb`,
       description: "Knowledge base for EPS Assist Me Slackbot",
       roleArn: props.bedrockExecutionRole.roleArn,
@@ -95,8 +135,8 @@ export class VectorKnowledgeBaseResources extends Construct {
     })
 
     // Create S3 data source for knowledge base documents
-    this.dataSource = new CfnDataSource(this, "S3DataSource", {
-      knowledgeBaseId: this.knowledgeBase.attrKnowledgeBaseId,
+    const dataSource = new CfnDataSource(this, "S3DataSource", {
+      knowledgeBaseId: knowledgeBase.attrKnowledgeBaseId,
       name: `${props.stackName}-s3-datasource`,
       dataSourceConfiguration: {
         type: "S3",
@@ -105,5 +145,9 @@ export class VectorKnowledgeBaseResources extends Construct {
         }
       }
     })
+
+    this.knowledgeBase = knowledgeBase
+    this.dataSource = dataSource
+    this.guardrail = guardrail
   }
 }
