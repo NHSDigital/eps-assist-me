@@ -63,8 +63,8 @@ jobs:
         run: |
           poetry export --without-hashes --format=requirements.txt --with slackBotFunction > requirements_slackBotFunction
           poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction
-          pip3 install -r requirements_slackBotFunction -t packages/slackBotFunction/.dependencies
-          pip3 install -r requirements_syncKnowledgeBaseFunction -t packages/syncKnowledgeBaseFunction/.dependencies
+          pip3 install -r requirements_slackBotFunction -t packages/slackBotFunction/.dependencies/python
+          pip3 install -r requirements_syncKnowledgeBaseFunction -t packages/syncKnowledgeBaseFunction/.dependencies/python
 
       - name: 'Tar files'
         run: |

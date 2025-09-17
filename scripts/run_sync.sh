@@ -65,8 +65,8 @@ echo "Generating config for ${EPSAM_CONFIG}"
 echo "Installing dependencies locally"
 poetry export --without-hashes --format=requirements.txt --with slackBotFunction > .requirements_slackBotFunction
 poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > .requirements_syncKnowledgeBaseFunction
-pip3 install -r .requirements_slackBotFunction -t packages/slackBotFunction/.dependencies
-pip3 install -r .requirements_syncKnowledgeBaseFunction -t packages/syncKnowledgeBaseFunction/.dependencies
+pip3 install -r .requirements_slackBotFunction -t packages/slackBotFunction/.dependencies/python
+pip3 install -r .requirements_syncKnowledgeBaseFunction -t packages/syncKnowledgeBaseFunction/.dependencies/python
 
 sync_epsam_app() {
     echo "Starting sync epsam CDK app"
@@ -82,4 +82,4 @@ sync_epsam_app() {
 }
 
 
-# (trap 'kill 0' SIGINT; sync_epsam_app)
+(trap 'kill 0' SIGINT; sync_epsam_app)
