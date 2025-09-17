@@ -14,10 +14,10 @@ def get_friendly_channel_name(channel_id: str, client: WebClient) -> str:
         if conversations_info_response["ok"]:
             friendly_channel_name = conversations_info_response["channel"]["name"]
         else:
-            logger(
+            logger.warning(
                 "There was a problem getting the friendly channel name",
                 extra={"conversations_info_response": conversations_info_response},
             )
     except Exception:
-        logger.error("There was an error getting the friendly channel name", extra={"error": traceback.format_exc()})
+        logger.warning("There was an error getting the friendly channel name", extra={"error": traceback.format_exc()})
     return friendly_channel_name

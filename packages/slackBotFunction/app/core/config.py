@@ -15,7 +15,7 @@ from mypy_boto3_dynamodb.service_resource import Table
 
 
 @lru_cache()
-def get_logger():
+def get_logger() -> Logger:
     return Logger(service="slackBotFunction")
 
 
