@@ -63,6 +63,7 @@ def respond_with_eyes(bot_token, event):
     channel = event["channel"]
     ts = event["ts"]
     try:
+        logger.debug("Responding with eyes")
         client.reactions_add(channel=channel, timestamp=ts, name="eyes")
     except Exception:
         logger.error("Failed to respond with eyes", extra={"error": traceback.format_exc()})

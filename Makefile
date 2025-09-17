@@ -56,10 +56,11 @@ clean:
 	rm -rf packages/slackBotFunction/.coverage
 	rm -rf packages/slackBotFunction/.dependencies
 	rm -rf packages/syncKnowledgeBaseFunction/coverage
-	rm -rf packages/syncKnowledgeBaseFunction/.coverage
-	rm -rf packages/syncKnowledgeBaseFunction/.dependencies
+	rm -rf .dependencies/
 	rm -rf cdk.out
 	rm -rf .build
+	rm -rf .local_config
+	rm -rf cfn_guard_output
 	find . -name '.pytest_cache' -type d -prune -exec rm -rf '{}' +
 
 deep-clean: clean
@@ -101,7 +102,7 @@ cdk-deploy: guard-STACK_NAME
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
 cdk-synth:
 	mkdir -p .dependencies/slackBotFunction
-	mkdir -p .dependencies/SyncKnowledgeBaseFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam \
 	COMMIT_ID=undefined \
