@@ -18,6 +18,7 @@ import {
   Code
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
+import path from "path"
 
 export interface LambdaFunctionProps {
   readonly stackName: string
@@ -115,6 +116,12 @@ export class LambdaFunction extends Construct {
       managedPolicies: requiredPolicies
     })
 
+    const dependencyLayer = new LayerVersion(this, "DependencyLayer", {
+      removalPolicy: RemovalPolicy.DESTROY,
+      code: Code.fromAsset(path.join(props.packageBasePath, ".dependencies")),
+      compatibleArchitectures: [Architecture.X86_64]
+    })
+
     // Create Lambda function with Python runtime and monitoring
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
       runtime: Runtime.PYTHON_3_13,
@@ -129,7 +136,7 @@ export class LambdaFunction extends Construct {
         POWERTOOLS_LOG_LEVEL: props.logLevel
       },
       logGroup,
-      layers: [insightsLambdaLayer]
+      layers: [insightsLambdaLayer, dependencyLayer]
     })
 
     // Suppress CFN guard rules for Lambda function
