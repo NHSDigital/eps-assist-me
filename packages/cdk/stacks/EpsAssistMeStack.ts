@@ -154,7 +154,6 @@ export class EpsAssistMeStack extends Stack {
     const apis = new Apis(this, "Apis", {
       stackName: props.stackName,
       logRetentionInDays,
-      enableMutalTls: false,
       functions: {
         slackBot: functions.slackBotLambda
       }
