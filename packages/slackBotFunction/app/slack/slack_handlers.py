@@ -105,64 +105,30 @@ def mention_handler(event, ack, body, client):
     - If text after the mention starts with 'feedback:', store it as additional feedback.
     - Otherwise, forward to the async processing pipeline (Q&A).
     """
+    bot_token = get_bot_token()
     logger.debug("Sending ack response")
     ack()
+    respond_with_eyes(bot_token, event)
     event_id = _gate_common(event, body)
     if not event_id:
         return
-    bot_token = get_bot_token()
-    respond_with_eyes(bot_token, event)
+    original_message_text = (event.get("text") or "").strip()
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
     conversation_key, thread_root = _conversation_key_and_root(event)
 
-    cleaned = _strip_mentions(event.get("text") or "")
-    if cleaned.lower().startswith(constants.FEEDBACK_PREFIX):
-        feedback_text = cleaned.split(":", 1)[1].strip() if ":" in cleaned else ""
-        try:
-            store_feedback(
-                conversation_key=conversation_key,
-                feedback_type="additional",
-                user_id=user_id,
-                channel_id=channel_id,
-                thread_ts=thread_root,
-                message_ts=None,
-                feedback_text=feedback_text,
-                client=client,
-            )
-        except Exception as e:
-            logger.error(f"Failed to store channel feedback via mention: {e}", extra={"error": traceback.format_exc()})
-        BOT_MESSAGES = get_bot_messages()
-        try:
-            client.chat_postMessage(
-                channel=channel_id,
-                text=BOT_MESSAGES["feedback_thanks"],
-                thread_ts=thread_root,
-            )
-        except Exception as e:
-            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
-        return
-
-    if cleaned.lower().startswith(constants.PULL_REQUEST_PREFIX):
-        try:
-            pull_request_id, extracted_message = _extract_pull_request_id(cleaned)
-            pull_request_lambda_arn = trigger_pull_request_processing(pull_request_id)
-            logger.debug(
-                f"Handling message for pull request {pull_request_id}",
-                extra={"pull_request_id": pull_request_id, "pull_request_lambda_arn": pull_request_lambda_arn},
-            )
-            client.chat_postMessage(
-                channel=channel_id,
-                text=f"Handling message for pull request {pull_request_id} by calling {pull_request_lambda_arn}",
-                thread_ts=thread_root,
-            )
-        except Exception as e:
-            logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
-        return
-
-    # Normal mention -> async processing
-    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    message_text = _strip_mentions(original_message_text)
+    _common_message_handler(
+        message_text=message_text,
+        conversation_key=conversation_key,
+        user_id=user_id,
+        channel_id=channel_id,
+        thread_root=thread_root,
+        client=client,
+        event=event,
+        event_id=event_id,
+        bot_token=bot_token,
+    )
 
 
 def dm_message_handler(event, event_id, client):
@@ -174,40 +140,21 @@ def dm_message_handler(event, event_id, client):
     if event.get("channel_type") != constants.CHANNEL_TYPE_IM:
         return  # not a DM; the channel handler will evaluate it
     bot_token = get_bot_token()
-    text = (event.get("text") or "").strip()
+    message_text = (event.get("text") or "").strip()
     channel_id = event["channel"]
-    conversation_key, thread_root = _conversation_key_and_root(event)
     user_id = event.get("user", "unknown")
-
-    if text.lower().startswith(constants.FEEDBACK_PREFIX):
-        feedback_text = text.split(":", 1)[1].strip() if ":" in text else ""
-        try:
-            store_feedback(
-                conversation_key=conversation_key,
-                feedback_type="additional",
-                user_id=user_id,
-                channel_id=channel_id,
-                thread_ts=thread_root,
-                message_ts=None,
-                feedback_text=feedback_text,
-                client=client,
-            )
-        except Exception as e:
-            logger.error(f"Failed to store DM additional feedback: {e}", extra={"error": traceback.format_exc()})
-        BOT_MESSAGES = get_bot_messages()
-
-        try:
-            # DMs don't use threads - post directly to channel
-            client.chat_postMessage(
-                channel=channel_id,
-                text=BOT_MESSAGES["feedback_thanks"],
-            )
-        except Exception as e:
-            logger.error(f"Failed to post DM feedback ack: {e}", extra={"error": traceback.format_exc()})
-        return
-
-    # Normal DM -> async processing
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    conversation_key, thread_root = _conversation_key_and_root(event)
+    _common_message_handler(
+        message_text=message_text,
+        conversation_key=conversation_key,
+        user_id=user_id,
+        channel_id=channel_id,
+        thread_root=thread_root,
+        client=client,
+        event=event,
+        event_id=event_id,
+        bot_token=bot_token,
+    )
 
 
 def thread_message_handler(event, event_id, client):
@@ -376,3 +323,62 @@ def _is_latest_message(conversation_key, message_ts):
     except Exception as e:
         logger.error(f"Error checking latest message: {e}", extra={"error": traceback.format_exc()})
         return False
+
+
+def _common_message_handler(
+    message_text: str,
+    conversation_key: str,
+    user_id: str,
+    channel_id: str,
+    thread_root: str,
+    client,
+    event,
+    event_id,
+    bot_token,
+):
+    if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
+        feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
+        try:
+            store_feedback(
+                conversation_key=conversation_key,
+                feedback_type="additional",
+                user_id=user_id,
+                channel_id=channel_id,
+                thread_ts=thread_root,
+                message_ts=None,
+                feedback_text=feedback_text,
+                client=client,
+            )
+        except Exception as e:
+            logger.error(f"Failed to store channel feedback via mention: {e}", extra={"error": traceback.format_exc()})
+        BOT_MESSAGES = get_bot_messages()
+        try:
+            client.chat_postMessage(
+                channel=channel_id,
+                text=BOT_MESSAGES["feedback_thanks"],
+                thread_ts=thread_root,
+            )
+        except Exception as e:
+            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
+        return
+
+    if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
+        try:
+            pull_request_id, extracted_message = _extract_pull_request_id(message_text)
+            pull_request_lambda_arn = trigger_pull_request_processing(pull_request_id)
+            logger.debug(
+                f"Handling message for pull request {pull_request_id}",
+                extra={"pull_request_id": pull_request_id, "pull_request_lambda_arn": pull_request_lambda_arn},
+            )
+            client.chat_postMessage(
+                channel=channel_id,
+                text=f"Handling message for pull request {pull_request_id} by calling {pull_request_lambda_arn}",
+                thread_ts=thread_root,
+            )
+        except Exception as e:
+            logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
+        return
+
+    # Normal mention -> async processing
+    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
+    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
