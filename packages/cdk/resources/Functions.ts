@@ -89,7 +89,7 @@ export class Functions extends Construct {
         statements: [
           new PolicyStatement({
             actions: [
-              "lambda.invokeFunction"
+              "lambda:invokeFunction"
             ],
             resources: [
               slackBotLambda.function.functionArn
