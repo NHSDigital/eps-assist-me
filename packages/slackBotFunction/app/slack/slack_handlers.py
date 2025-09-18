@@ -109,28 +109,25 @@ def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], clien
     - Otherwise, forward to the async processing pipeline (Q&A).
     """
     bot_token = get_bot_token()
-    logger.debug("Sending ack response")
+    logger.debug("Sending ack response in mention_handler")
     ack()
     respond_with_eyes(bot_token, event)
     event_id = _gate_common(event, body)
     if not event_id:
         return
     original_message_text = (event.get("text") or "").strip()
-    channel_id = event["channel"]
     user_id = event.get("user", "unknown")
     conversation_key, thread_root = _conversation_key_and_root(event)
 
     message_text = _strip_mentions(original_message_text)
+    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
     _common_message_handler(
         message_text=message_text,
         conversation_key=conversation_key,
-        user_id=user_id,
-        channel_id=channel_id,
         thread_root=thread_root,
         client=client,
         event=event,
         event_id=event_id,
-        bot_token=bot_token,
         post_to_thread=True,
     )
 
@@ -143,21 +140,17 @@ def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient):
     """
     if event.get("channel_type") != constants.CHANNEL_TYPE_IM:
         return  # not a DM; the channel handler will evaluate it
-    bot_token = get_bot_token()
     message_text = (event.get("text") or "").strip()
-    channel_id = event["channel"]
     user_id = event.get("user", "unknown")
     conversation_key, thread_root = _conversation_key_and_root(event)
+    logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
     _common_message_handler(
         message_text=message_text,
         conversation_key=conversation_key,
-        user_id=user_id,
-        channel_id=channel_id,
         thread_root=thread_root,
         client=client,
         event=event,
         event_id=event_id,
-        bot_token=bot_token,
         post_to_thread=False,
     )
 
@@ -173,9 +166,10 @@ def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient):
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         return  # handled in the DM handler
 
-    text = (event.get("text") or "").strip()
+    message_text = (event.get("text") or "").strip()
     channel_id = event["channel"]
     thread_root = event.get("thread_ts")
+    user_id = event.get("user", "unknown")
     if not thread_root:
         return  # top-level message; require @mention to start
 
@@ -190,36 +184,16 @@ def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient):
         logger.error(f"Error checking thread session: {e}", extra={"error": traceback.format_exc()})
         return
 
-    if text.lower().startswith(constants.FEEDBACK_PREFIX):
-        feedback_text = text.split(":", 1)[1].strip() if ":" in text else ""
-        user_id = event.get("user", "unknown")
-        try:
-            store_feedback(
-                conversation_key=conversation_key,
-                feedback_type="additional",
-                user_id=user_id,
-                channel_id=channel_id,
-                thread_ts=thread_root,
-                message_ts=None,
-                feedback_text=feedback_text,
-                client=client,
-            )
-        except Exception as e:
-            logger.error(f"Failed to store channel additional feedback: {e}", extra={"error": traceback.format_exc()})
-
-        try:
-            client.chat_postMessage(
-                channel=channel_id,
-                text=BOT_MESSAGES["feedback_thanks"],
-                thread_ts=thread_root,
-            )
-        except Exception as e:
-            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
-        return
-
-    # Follow-up in a bot-owned thread (no re-mention required)
-    bot_token = get_bot_token()
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    logger.info(f"Processing thread message from user {user_id}", extra={"event_id": event_id})
+    _common_message_handler(
+        message_text=message_text,
+        conversation_key=conversation_key,
+        thread_root=thread_root,
+        client=client,
+        event=event,
+        event_id=event_id,
+        post_to_thread=True,
+    )
 
 
 def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient):
@@ -330,15 +304,15 @@ def _is_latest_message(conversation_key, message_ts):
 def _common_message_handler(
     message_text: str,
     conversation_key: str,
-    user_id: str,
-    channel_id: str,
     thread_root: str,
     client: WebClient,
     event: Dict[str, Any],
     event_id,
-    bot_token,
     post_to_thread: bool,
 ):
+    channel_id = event["channel"]
+    user_id = event.get("user", "unknown")
+    bot_token = get_bot_token()
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
         try:
@@ -376,6 +350,4 @@ def _common_message_handler(
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
         return
 
-    # Normal mention -> async processing
-    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})

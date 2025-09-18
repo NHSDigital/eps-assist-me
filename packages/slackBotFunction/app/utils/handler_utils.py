@@ -87,5 +87,5 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any])
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
     except Exception as e:
-        logger.error("Failed to get cloudformation output", extra={"error": traceback.format_exc()})
+        logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
         raise e
