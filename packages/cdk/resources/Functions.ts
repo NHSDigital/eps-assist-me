@@ -40,7 +40,8 @@ export interface FunctionsProps {
 }
 
 export class Functions extends Construct {
-  public readonly functions: {[key: string]: LambdaFunction}
+  public readonly slackBotLambda: LambdaFunction
+  public readonly syncKnowledgeBaseFunction: LambdaFunction
 
   constructor(scope: Construct, id: string, props: FunctionsProps) {
     super(scope, id)
@@ -115,9 +116,7 @@ export class Functions extends Construct {
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
     })
 
-    this.functions = {
-      slackBot: slackBotLambda,
-      syncKnowledgeBase: syncKnowledgeBaseFunction
-    }
+    this.slackBotLambda = slackBotLambda
+    this.syncKnowledgeBaseFunction = syncKnowledgeBaseFunction
   }
 }
