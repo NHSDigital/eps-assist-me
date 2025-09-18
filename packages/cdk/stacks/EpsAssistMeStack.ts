@@ -147,7 +147,7 @@ export class EpsAssistMeStack extends Stack {
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
       bucket: storage.kbDocsBucket.bucket,
-      lambdaFunction: functions.functions.syncKnowledgeBase.function
+      lambdaFunction: functions.syncKnowledgeBaseFunction.function
     })
 
     // Create Apis and pass the Lambda function
@@ -156,7 +156,7 @@ export class EpsAssistMeStack extends Stack {
       logRetentionInDays,
       enableMutalTls: false,
       functions: {
-        slackBot: functions.functions.slackBot
+        slackBot: functions.slackBotLambda
       }
     })
 
