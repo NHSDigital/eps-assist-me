@@ -72,7 +72,7 @@ def respond_with_eyes(bot_token: str, event: Dict[str, Any]):
         logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})
 
 
-def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any]):
+def trigger_pull_request_processing(pull_request_id: str, body: Dict[str, Any]):
     cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
@@ -82,7 +82,7 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any])
 
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
         logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
-        lambda_payload = {"body": json.dumps(event)}
+        lambda_payload = {"body": json.dumps(body)}
         response = lambda_client.invoke(
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )

@@ -354,9 +354,9 @@ def test_dm_message_handler_feedback_error_handling(
 
     mock_client = Mock()
     mock_event = {"text": "feedback: DM feedback", "user": "U456", "channel": "D789", "ts": "123", "channel_type": "im"}
-
+    mock_body = {}
     mock_store_feedback.side_effect = Exception("Storage failed")
-    dm_message_handler(mock_event, "evt123", mock_client)
+    dm_message_handler(mock_event, "evt123", mock_client, mock_body)
     mock_client.chat_postMessage.assert_called_once()
 
 
@@ -369,10 +369,11 @@ def test_thread_message_handler_session_check_error(mock_get_state_information, 
 
     mock_client = Mock()
     mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
+    mock_body = {}
 
     mock_get_state_information.side_effect = Exception("DB error")
     # Should return early due to error
-    thread_message_handler(mock_event, "evt123", mock_client)
+    thread_message_handler(mock_event, "evt123", mock_client, mock_body)
 
 
 def test_feedback_handler_unknown_action(mock_env):
@@ -413,9 +414,10 @@ def test_thread_message_handler_no_session(mock_get_state_information, mock_env)
 
     mock_client = Mock()
     mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
+    mock_body = {}
 
     mock_get_state_information.return_value = {}  # No session
-    thread_message_handler(mock_event, "evt123", mock_client)
+    thread_message_handler(mock_event, "evt123", mock_client, mock_body)
 
 
 @patch("app.services.dynamo.get_state_information")
@@ -427,10 +429,11 @@ def test_thread_message_handler_feedback_path(mock_get_state_information, mock_e
 
     mock_client = Mock()
     mock_event = {"text": "feedback: channel feedback", "channel": "C789", "thread_ts": "123", "user": "U456"}
+    mock_body = {}
 
     mock_get_state_information.return_value = {"Item": {"session_id": "session123"}}
     # Just test that the function runs without error
-    thread_message_handler(mock_event, "evt123", mock_client)
+    thread_message_handler(mock_event, "evt123", mock_client, mock_body)
 
 
 @patch("app.utils.handler_utils.trigger_async_processing")
@@ -445,8 +448,8 @@ def test_dm_message_handler_normal_message(
 
     mock_client = Mock()
     mock_event = {"text": "normal message", "user": "U456", "channel": "D789", "ts": "123", "channel_type": "im"}
-
-    dm_message_handler(mock_event, "evt123", mock_client)
+    mock_body = {}
+    dm_message_handler(mock_event, "evt123", mock_client, mock_body)
     mock_trigger_async_processing.assert_called_once()
 
 

@@ -129,10 +129,11 @@ def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], clien
         event=event,
         event_id=event_id,
         post_to_thread=True,
+        body=body,
     )
 
 
-def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient):
+def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient, body: Dict[str, Any]):
     """
     Direct messages:
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
@@ -152,10 +153,11 @@ def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient):
         event=event,
         event_id=event_id,
         post_to_thread=False,
+        body=body,
     )
 
 
-def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient):
+def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient, body: Dict[str, Any]):
     """
     Thread messages:
     - Ignore top-level messages (policy: require @mention to start).
@@ -193,6 +195,7 @@ def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient):
         event=event,
         event_id=event_id,
         post_to_thread=True,
+        body=body,
     )
 
 
@@ -209,10 +212,10 @@ def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any
     # Route to appropriate handler based on message type
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         # DM handling
-        dm_message_handler(event, event_id, client)
+        dm_message_handler(event=event, event_id=event_id, client=client, body=body)
     else:
         # Channel message handling
-        thread_message_handler(event, event_id, client)
+        thread_message_handler(event=event, event_id=event_id, client=client, body=body)
 
 
 def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient):
@@ -309,6 +312,7 @@ def _common_message_handler(
     event: Dict[str, Any],
     event_id,
     post_to_thread: bool,
+    body: Dict[str, Any],
 ):
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
@@ -345,7 +349,7 @@ def _common_message_handler(
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
             pull_request_id, extracted_message = _extract_pull_request_id(message_text)
-            trigger_pull_request_processing(pull_request_id=pull_request_id, event=event)
+            trigger_pull_request_processing(pull_request_id=pull_request_id, body=body)
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
         return
