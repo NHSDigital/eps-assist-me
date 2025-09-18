@@ -8,6 +8,7 @@ from functools import lru_cache
 import os
 import json
 import traceback
+from typing import Tuple
 import boto3
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
@@ -30,7 +31,7 @@ def get_slack_bot_state_table() -> Table:
 
 
 @lru_cache()
-def get_ssm_params():
+def get_ssm_params() -> Tuple[str, str]:
     bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
     signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
     try:
@@ -98,7 +99,7 @@ constants = Constants(
 
 
 @lru_cache
-def get_bot_token():
+def get_bot_token() -> str:
     bot_token, _ = get_ssm_params()
     return bot_token
 
@@ -119,7 +120,7 @@ BOT_MESSAGES = {
 
 
 @lru_cache
-def get_guardrail_config():
+def get_guardrail_config() -> Tuple[str, str, str, str, str]:
     # Bedrock configuration from environment
     KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
     RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]

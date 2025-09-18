@@ -7,6 +7,7 @@ import re
 import time
 import traceback
 import json
+from typing import Any, Dict
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
@@ -96,7 +97,7 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
 # ================================================================
 
 
-def _extract_conversation_context(event):
+def _extract_conversation_context(event: Dict[str, Any]):
     """Extract conversation key and thread context from event"""
     channel = event["channel"]
     # Determine conversation context: DM vs channel thread
@@ -165,7 +166,7 @@ def _create_feedback_blocks(response_text, conversation_key, channel, message_ts
 # ================================================================
 
 
-def process_async_slack_event(slack_event_data):
+def process_async_slack_event(slack_event_data: Dict[str, Any]):
     """
     Process Slack events asynchronously after initial acknowledgment
 
@@ -254,7 +255,7 @@ def process_async_slack_event(slack_event_data):
             logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
 
 
-def log_query_stats(user_query, event, channel, client, thread_ts):
+def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str):
     query_length = len(user_query)
     start_time = float(event["event_ts"])
     end_time = time.time()

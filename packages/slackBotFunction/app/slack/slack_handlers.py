@@ -11,7 +11,10 @@ import json
 import re
 from functools import lru_cache
 import traceback
+from typing import Any, Dict
 from botocore.exceptions import ClientError
+from slack_bolt import Ack
+from slack_sdk import WebClient
 from app.core.config import (
     BOT_MESSAGES,
     get_bot_token,
@@ -34,7 +37,7 @@ logger = get_logger()
 # ================================================================
 
 
-def _gate_common(event, body):
+def _gate_common(event: Dict[str, Any], body: Dict[str, Any]):
     """
     Apply common early checks that are shared across handlers.
 
@@ -76,7 +79,7 @@ def _extract_pull_request_id(text: str) -> str:
     return pr_number, rest_text
 
 
-def _conversation_key_and_root(event):
+def _conversation_key_and_root(event: Dict[str, Any]):
     """
     Build a stable conversation scope and its root timestamp.
 
@@ -99,7 +102,7 @@ def _conversation_key_and_root(event):
 # ================================================================
 
 
-def mention_handler(event, ack, body, client):
+def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient):
     """
     Channel interactions that mention the bot.
     - If text after the mention starts with 'feedback:', store it as additional feedback.
@@ -132,7 +135,7 @@ def mention_handler(event, ack, body, client):
     )
 
 
-def dm_message_handler(event, event_id, client):
+def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient):
     """
     Direct messages:
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
@@ -159,7 +162,7 @@ def dm_message_handler(event, event_id, client):
     )
 
 
-def thread_message_handler(event, event_id, client):
+def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient):
     """
     Thread messages:
     - Ignore top-level messages (policy: require @mention to start).
@@ -219,7 +222,7 @@ def thread_message_handler(event, event_id, client):
     trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
 
 
-def unified_message_handler(event, ack, body, client):
+def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient):
     """Handle all message events - DMs and channel messages"""
     logger.debug("Sending ack response")
     ack()
@@ -238,7 +241,7 @@ def unified_message_handler(event, ack, body, client):
         thread_message_handler(event, event_id, client)
 
 
-def feedback_handler(ack, body, client):
+def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient):
     """Handle feedback button clicks (both positive and negative)."""
     logger.debug("Sending ack response")
     ack()
@@ -330,8 +333,8 @@ def _common_message_handler(
     user_id: str,
     channel_id: str,
     thread_root: str,
-    client,
-    event,
+    client: WebClient,
+    event: Dict[str, Any],
     event_id,
     bot_token,
     post_to_thread: bool,
