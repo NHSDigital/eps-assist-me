@@ -2,7 +2,8 @@ import {
   App,
   Stack,
   StackProps,
-  CfnOutput
+  CfnOutput,
+  Fn
 } from "aws-cdk-lib"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
@@ -29,6 +30,9 @@ export interface EpsAssistMeStackProps extends StackProps {
 export class EpsAssistMeStack extends Stack {
   public constructor(scope: App, id: string, props: EpsAssistMeStackProps) {
     super(scope, id, props)
+
+    // imports
+    const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
 
     // Get variables from context
     const region = Stack.of(this).region
@@ -131,7 +135,9 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
-      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      isPullRequest: isPullRequest,
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
     })
 
     // Create vector index after Functions are created

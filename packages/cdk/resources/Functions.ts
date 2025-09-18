@@ -35,6 +35,8 @@ export interface FunctionsProps {
   readonly slackBotSigningSecret: Secret
   readonly slackBotStateTable: TableV2
   readonly promptName: string
+  readonly isPullRequest: boolean
+  readonly mainSlackBotLambdaExecutionRoleArn : string
 }
 
 export class Functions extends Construct {
