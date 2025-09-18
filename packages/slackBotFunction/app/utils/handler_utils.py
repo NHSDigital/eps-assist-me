@@ -5,11 +5,14 @@ Slack event handlers - handles @mentions and direct messages to the bot
 import time
 import json
 import traceback
+from typing import Any, Dict
 import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import get_logger
 import os
+from mypy_boto3_cloudformation.client import CloudFormationClient
+from mypy_boto3_lambda.client import LambdaClient
 
 from app.services.dynamo import store_state_information
 
@@ -47,7 +50,7 @@ def trigger_async_processing(event_data):
     """
     # incase we fail to re-invoke the lambda we should log an error
     try:
-        lambda_client = boto3.client("lambda")
+        lambda_client: LambdaClient = boto3.client("lambda")
         lambda_client.invoke(
             FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
             InvocationType="Event",
@@ -58,7 +61,7 @@ def trigger_async_processing(event_data):
         logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
 
 
-def respond_with_eyes(bot_token, event):
+def respond_with_eyes(bot_token: str, event: Dict[str, Any]):
     client = WebClient(token=bot_token)
     channel = event["channel"]
     ts = event["ts"]
@@ -69,15 +72,20 @@ def respond_with_eyes(bot_token, event):
         logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})
 
 
-def trigger_pull_request_processing(pull_request_id: str):
-    cf = boto3.client("cloudformation")
-    # lambda_client = boto3.client("lambda")
+def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any]):
+    cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
+    lambda_client: LambdaClient = boto3.client("lambda")
     try:
-        response = cf.describe_stacks(StackName=f"epsam-pr-{pull_request_id}")
+        logger.debug("Getting arn for pull request", extra={"pull_request_id": pull_request_id})
+        response = cloudformation_client.describe_stacks(StackName=f"epsam-pr-{pull_request_id}")
         outputs = {o["OutputKey"]: o["OutputValue"] for o in response["Stacks"][0]["Outputs"]}
 
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
-        return pull_request_lambda_arn
+        logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
+        response = lambda_client.invoke(
+            FunctionName=pull_request_lambda_arn, InvocationType="RequestResponse", Payload=event
+        )
+        logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
     except Exception as e:
         logger.error("Failed to get cloudformation output", extra={"error": traceback.format_exc()})
         raise e

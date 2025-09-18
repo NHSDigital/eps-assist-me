@@ -371,16 +371,7 @@ def _common_message_handler(
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
             pull_request_id, extracted_message = _extract_pull_request_id(message_text)
-            pull_request_lambda_arn = trigger_pull_request_processing(pull_request_id)
-            logger.debug(
-                f"Handling message for pull request {pull_request_id}",
-                extra={"pull_request_id": pull_request_id, "pull_request_lambda_arn": pull_request_lambda_arn},
-            )
-            client.chat_postMessage(
-                channel=channel_id,
-                text=f"Handling message for pull request {pull_request_id} by calling {pull_request_lambda_arn}",
-                thread_ts=thread_root,
-            )
+            trigger_pull_request_processing(pull_request_id=pull_request_id, event=event)
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
         return
