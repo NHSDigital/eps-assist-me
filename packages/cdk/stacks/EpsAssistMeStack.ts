@@ -180,6 +180,12 @@ export class EpsAssistMeStack extends Stack {
       value: storage.kbDocsBucket.bucket.bucketName,
       exportName: `${props.stackName}:kbDocsBucket:Name`
     })
+
+    new CfnOutput(this, "SlackBotLambdaRoleArn", {
+      value: functions.slackBotLambda.executionRole.roleArn,
+      exportName: `${props.stackName}:lambda:SlackBot:ExecutionRole:Arn`
+    })
+
     if (isPullRequest) {
       new CfnOutput(this, "VERSION_NUMBER", {
         value: props.version,
