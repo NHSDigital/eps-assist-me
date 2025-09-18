@@ -83,7 +83,7 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any])
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
         logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
         response = lambda_client.invoke(
-            FunctionName=pull_request_lambda_arn, InvocationType="RequestResponse", Payload=event
+            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(event)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
     except Exception as e:
