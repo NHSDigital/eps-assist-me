@@ -1,6 +1,6 @@
 import {Construct} from "constructs"
 import {LambdaFunction} from "../constructs/LambdaFunction"
-import {ManagedPolicy} from "aws-cdk-lib/aws-iam"
+import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 import {TableV2} from "aws-cdk-lib/aws-dynamodb"
@@ -74,6 +74,30 @@ export class Functions extends Construct {
     // Grant secrets access to SlackBot Lambda
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
+
+    if (props.isPullRequest) {
+      const mainSlackBotLambdaExecutionRole = Role.fromRoleArn(
+        this,
+        "mainRoleArn",
+        props.mainSlackBotLambdaExecutionRoleArn, {
+          mutable: true
+        })
+
+      const executeSlackBotPolicy = new ManagedPolicy(this, "ExecuteSlackBotPolicy", {
+        description: "foo",
+        statements: [
+          new PolicyStatement({
+            actions: [
+              "lambda.invokeFunction"
+            ],
+            resources: [
+              slackBotLambda.function.functionArn
+            ]
+          })
+        ]
+      })
+      mainSlackBotLambdaExecutionRole.addManagedPolicy(executeSlackBotPolicy)
+    }
 
     // Lambda function to sync knowledge base on S3 events
     const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {
