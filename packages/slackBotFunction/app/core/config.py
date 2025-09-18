@@ -74,6 +74,7 @@ class Constants:
     TTL_EVENT_DEDUP: int
     TTL_FEEDBACK: int
     TTL_SESSION: int
+    PULL_REQUEST_PREFIX: str
 
 
 constants = Constants(
@@ -92,6 +93,7 @@ constants = Constants(
     TTL_EVENT_DEDUP=3600,  # 1 hour
     TTL_FEEDBACK=7776000,  # 90 days
     TTL_SESSION=2592000,  # 30 days
+    PULL_REQUEST_PREFIX="#pr",
 )
 
 
