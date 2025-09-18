@@ -103,24 +103,19 @@ def get_bot_token():
     return bot_token
 
 
-@lru_cache()
-def get_bot_messages():
-
-    # Bot response messages
-    BOT_MESSAGES = {
-        "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
-        "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
-        "feedback_positive_thanks": "Thank you for your feedback.",
-        "feedback_negative_thanks": (
-            'Please let us know how the answer could be improved. Start your message with "feedback:"'
-        ),
-        "feedback_thanks": "Thank you for your feedback.",
-        "feedback_prompt": "Was this helpful?",
-        "feedback_yes": "Yes",
-        "feedback_no": "No",
-    }
-
-    return BOT_MESSAGES
+# Bot response messages
+BOT_MESSAGES = {
+    "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+    "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
+    "feedback_positive_thanks": "Thank you for your feedback.",
+    "feedback_negative_thanks": (
+        'Please let us know how the answer could be improved. Start your message with "feedback:"'
+    ),
+    "feedback_thanks": "Thank you for your feedback.",
+    "feedback_prompt": "Was this helpful?",
+    "feedback_yes": "Yes",
+    "feedback_no": "No",
+}
 
 
 @lru_cache

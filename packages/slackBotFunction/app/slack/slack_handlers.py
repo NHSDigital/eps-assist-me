@@ -13,7 +13,7 @@ from functools import lru_cache
 import traceback
 from botocore.exceptions import ClientError
 from app.core.config import (
-    get_bot_messages,
+    BOT_MESSAGES,
     get_bot_token,
     get_logger,
     constants,
@@ -205,8 +205,6 @@ def thread_message_handler(event, event_id, client):
             logger.error(f"Failed to store channel additional feedback: {e}", extra={"error": traceback.format_exc()})
 
         try:
-            BOT_MESSAGES = get_bot_messages()
-
             client.chat_postMessage(
                 channel=channel_id,
                 text=BOT_MESSAGES["feedback_thanks"],
@@ -255,7 +253,6 @@ def feedback_handler(ack, body, client):
         if message_ts and not _is_latest_message(conversation_key, message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
             return
-        BOT_MESSAGES = get_bot_messages()
 
         # Determine feedback type and response message based on action_id
         if action_id == "feedback_yes":
@@ -354,7 +351,6 @@ def _common_message_handler(
             )
         except Exception as e:
             logger.error(f"Failed to store channel feedback via mention: {e}", extra={"error": traceback.format_exc()})
-        BOT_MESSAGES = get_bot_messages()
         try:
             params = {
                 "channel": channel_id,

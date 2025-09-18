@@ -10,8 +10,8 @@ import json
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
+    BOT_MESSAGES,
     constants,
-    get_bot_messages,
     get_logger,
 )
 from app.services.bedrock import query_bedrock
@@ -136,7 +136,6 @@ def _create_feedback_blocks(response_text, conversation_key, channel, message_ts
     if thread_ts:  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = thread_ts
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-    BOT_MESSAGES = get_bot_messages()
     return [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
         {"type": "section", "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]}},
@@ -176,7 +175,6 @@ def process_async_slack_event(slack_event_data):
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
     token = slack_event_data["bot_token"]
-    BOT_MESSAGES = get_bot_messages()
 
     client = WebClient(token=token)
 
