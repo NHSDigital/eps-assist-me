@@ -27,7 +27,7 @@ jinja2 = "^3.1.6"
 pip-licenses = "^5.0.0"
 click = "^8.2.1"
 rich = "^14.1.0"
-pytest-mock = "^3.15.0"
+pytest-mock = "^3.15.1"
 pytest-cov = "^7.0.0"
 moto = {extras = ["ssm"], version = "^5.1.12"}
 
@@ -35,16 +35,16 @@ moto = {extras = ["ssm"], version = "^5.1.12"}
 [tool.poetry.group.slackBotFunction.dependencies]
 slack-bolt = "^1.25.0"
 slack-sdk = "^3.36.0"
-boto3 = "^1.40.29"
+boto3 = "^1.40.33"
 requests = "^2.32.5"
 opensearch-py = "^3.0.0"
 urllib3 = "^2.5.0"
 aws-lambda-powertools = "^3.20.0"
-boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runtime", "dynamodb"], version = "^1.40.31"}
+boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runtime", "dynamodb"], version = "^1.40.33"}
 
 
 [tool.poetry.group.syncKnowledgeBaseFunction.dependencies]
-boto3 = "^1.40.29"
+boto3 = "^1.40.33"
 aws-lambda-powertools = "^3.20.0"
 
 [tool.black]
