@@ -19,7 +19,12 @@ from app.core.config import (
     constants,
 )
 from app.services.dynamo import get_state_information
-from app.utils.handler_utils import is_duplicate_event, trigger_async_processing, respond_with_eyes
+from app.utils.handler_utils import (
+    is_duplicate_event,
+    trigger_async_processing,
+    respond_with_eyes,
+    trigger_pull_request_processing,
+)
 from app.slack.slack_events import store_feedback
 
 logger = get_logger()
@@ -139,16 +144,20 @@ def mention_handler(event, ack, body, client):
         return
 
     if cleaned.lower().startswith(constants.PULL_REQUEST_PREFIX):
-        pull_request_id, extracted_message = _extract_pull_request_id(cleaned)
-        logger.debug(f"Handling message for pull request {pull_request_id}", extra={"pull_request_id": pull_request_id})
         try:
+            pull_request_id, extracted_message = _extract_pull_request_id(cleaned)
+            pull_request_lambda_arn = trigger_pull_request_processing(pull_request_id)
+            logger.debug(
+                f"Handling message for pull request {pull_request_id}",
+                extra={"pull_request_id": pull_request_id, "pull_request_lambda_arn": pull_request_lambda_arn},
+            )
             client.chat_postMessage(
                 channel=channel_id,
-                text=f"Handling message for pull request {pull_request_id}",
+                text=f"Handling message for pull request {pull_request_id} by calling {pull_request_lambda_arn}",
                 thread_ts=thread_root,
             )
         except Exception as e:
-            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
+            logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
         return
 
     # Normal mention -> async processing

@@ -67,3 +67,17 @@ def respond_with_eyes(bot_token, event):
         client.reactions_add(channel=channel, timestamp=ts, name="eyes")
     except Exception:
         logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})
+
+
+def trigger_pull_request_processing(pull_request_id: str):
+    cf = boto3.client("cloudformation")
+    # lambda_client = boto3.client("lambda")
+    try:
+        response = cf.describe_stacks(StackName=f"epsam-pr-{pull_request_id}")
+        outputs = {o["OutputKey"]: o["OutputValue"] for o in response["Stacks"][0]["Outputs"]}
+
+        pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
+        return pull_request_lambda_arn
+    except Exception as e:
+        logger.error("Failed to get cloudformation output", extra={"error": traceback.format_exc()})
+        raise e
