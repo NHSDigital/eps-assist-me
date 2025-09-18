@@ -60,6 +60,17 @@ def _strip_mentions(text: str) -> str:
     return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", text or "").strip()
 
 
+def _extract_pull_request_id(text: str) -> str:
+    # Regex: '#pr' + optional space + number + space + rest of text
+    pattern = r"#pr\s*(\d+)\s+(.+)"
+    match = re.match(pattern, text)
+    if not match:
+        raise ValueError("Text does not match expected format (#pr <number> <text>)")
+    pr_number = int(match.group(1))
+    rest_text = match.group(2)
+    return pr_number, rest_text
+
+
 def _conversation_key_and_root(event):
     """
     Build a stable conversation scope and its root timestamp.
@@ -121,6 +132,19 @@ def mention_handler(event, ack, body, client):
             client.chat_postMessage(
                 channel=channel_id,
                 text=BOT_MESSAGES["feedback_thanks"],
+                thread_ts=thread_root,
+            )
+        except Exception as e:
+            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
+        return
+
+    if cleaned.lower().startswith(constants.PULL_REQUEST_PREFIX):
+        pull_request_id, extracted_message = _extract_pull_request_id(cleaned)
+        logger.debug(f"Handling message for pull request {pull_request_id}", extra={"pull_request_id": pull_request_id})
+        try:
+            client.chat_postMessage(
+                channel=channel_id,
+                text=f"Handling message for pull request {pull_request_id}",
                 thread_ts=thread_root,
             )
         except Exception as e:
