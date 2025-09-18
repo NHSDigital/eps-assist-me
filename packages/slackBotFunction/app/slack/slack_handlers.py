@@ -128,6 +128,7 @@ def mention_handler(event, ack, body, client):
         event=event,
         event_id=event_id,
         bot_token=bot_token,
+        post_to_thread=True,
     )
 
 
@@ -154,6 +155,7 @@ def dm_message_handler(event, event_id, client):
         event=event,
         event_id=event_id,
         bot_token=bot_token,
+        post_to_thread=False,
     )
 
 
@@ -335,6 +337,7 @@ def _common_message_handler(
     event,
     event_id,
     bot_token,
+    post_to_thread: bool,
 ):
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
@@ -353,11 +356,15 @@ def _common_message_handler(
             logger.error(f"Failed to store channel feedback via mention: {e}", extra={"error": traceback.format_exc()})
         BOT_MESSAGES = get_bot_messages()
         try:
-            client.chat_postMessage(
-                channel=channel_id,
-                text=BOT_MESSAGES["feedback_thanks"],
-                thread_ts=thread_root,
-            )
+            params = {
+                "channel": channel_id,
+                "text": BOT_MESSAGES["feedback_thanks"],
+            }
+
+            if post_to_thread:
+                params["thread_ts"] = thread_root
+
+            client.chat_postMessage(**params)
         except Exception as e:
             logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
         return
