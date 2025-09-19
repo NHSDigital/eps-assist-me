@@ -34,7 +34,9 @@ logger = get_logger()
 # ================================================================
 
 
-def cleanup_previous_unfeedback_qa(conversation_key: str, current_message_ts: str, session_data: Dict[str, Any]):
+def cleanup_previous_unfeedback_qa(
+    conversation_key: str, current_message_ts: str, session_data: Dict[str, Any]
+) -> None:
     """Delete previous Q&A pair if no feedback received using atomic operation"""
     try:
         previous_message_ts = session_data.get("latest_message_ts")
@@ -59,7 +61,7 @@ def cleanup_previous_unfeedback_qa(conversation_key: str, current_message_ts: st
 
 def store_qa_pair(
     conversation_key: str, user_query: str, bot_response: str, message_ts: str, session_id: str, user_id: str
-):
+) -> None:
     """
     Store Q&A pair for feedback correlation
     """
@@ -81,7 +83,7 @@ def store_qa_pair(
         logger.error("Failed to store Q&A pair", extra={"error": traceback.format_exc()})
 
 
-def _mark_qa_feedback_received(conversation_key: str, message_ts: str):
+def _mark_qa_feedback_received(conversation_key: str, message_ts: str) -> None:
     """
     Mark Q&A record as having received feedback to prevent deletion
     """
@@ -121,7 +123,7 @@ def _handle_session_management(
     thread_ts: str,
     context_type: str,
     message_ts: str,
-):
+) -> None:
     """Handle Bedrock session creation and cleanup"""
     # Handle conversation session management
     if not session_id and "sessionId" in kb_response:
@@ -179,7 +181,7 @@ def _create_feedback_blocks(
 # ================================================================
 
 
-def process_async_slack_event(slack_event_data: Dict[str, Any]):
+def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
@@ -268,7 +270,7 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]):
             logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
 
 
-def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str):
+def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
     query_length = len(user_query)
     start_time = float(event["event_ts"])
     end_time = time.time()
@@ -301,7 +303,7 @@ def store_feedback(
     thread_ts: str = None,
     message_ts: str = None,
     feedback_text: str = None,
-):
+) -> None:
     """
     Store user feedback with reference to Q&A record
     """
@@ -429,7 +431,7 @@ def store_conversation_session(
     channel_id: str,
     thread_ts: str = None,
     latest_message_ts: str = None,
-):
+) -> None:
     """
     Store new Bedrock session for conversation memory
     """
@@ -457,7 +459,7 @@ def store_conversation_session(
         logger.error("Error storing session", extra={"error": traceback.format_exc()})
 
 
-def update_session_latest_message(conversation_key: str, message_ts: str):
+def update_session_latest_message(conversation_key: str, message_ts: str) -> None:
     """
     Update session with latest message timestamp
     """

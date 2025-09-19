@@ -29,7 +29,7 @@ def get_state_information(key: str) -> GetItemOutputTableTypeDef:
     return results
 
 
-def store_state_information(item: dict[str, Any], condition: str = None):
+def store_state_information(item: dict[str, Any], condition: str = None) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True
@@ -54,7 +54,7 @@ def store_state_information(item: dict[str, Any], condition: str = None):
         )
 
 
-def update_state_information(key: str, update_expression: str, expression_attribute_values: dict[str, Any]):
+def update_state_information(key: str, update_expression: str, expression_attribute_values: dict[str, Any]) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True
@@ -78,7 +78,7 @@ def update_state_information(key: str, update_expression: str, expression_attrib
         )
 
 
-def delete_state_information(pk: str, sk: str, condition: str):
+def delete_state_information(pk: str, sk: str, condition: str) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True

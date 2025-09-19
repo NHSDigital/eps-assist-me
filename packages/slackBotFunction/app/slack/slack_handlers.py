@@ -40,7 +40,7 @@ logger = get_logger()
 
 
 @lru_cache
-def setup_handlers(app: App):
+def setup_handlers(app: App) -> None:
     """Register handlers. Intentionally minimal—no branching here."""
     app.event("app_mention")(mention_handler)
     app.event("message")(unified_message_handler)
@@ -53,7 +53,7 @@ def setup_handlers(app: App):
 # ================================================================
 
 
-def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient):
+def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
     """
     Channel interactions that mention the bot.
     - If text after the mention starts with 'feedback:', store it as additional feedback.
@@ -84,7 +84,7 @@ def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], clien
     )
 
 
-def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient, body: Dict[str, Any]):
+def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, body: Dict[str, Any]) -> None:
     """
     Direct messages:
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
@@ -108,7 +108,7 @@ def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient, body:
     )
 
 
-def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient, body: Dict[str, Any]):
+def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, body: Dict[str, Any]) -> None:
     """
     Thread messages:
     - Ignore top-level messages (policy: require @mention to start).
@@ -150,7 +150,7 @@ def thread_message_handler(event: Dict[str, Any], event_id, client: WebClient, b
     )
 
 
-def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient):
+def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
     """Handle all message events - DMs and channel messages"""
     logger.debug("Sending ack response")
     ack()
@@ -169,7 +169,7 @@ def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any
         thread_message_handler(event=event, event_id=event_id, client=client, body=body)
 
 
-def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient):
+def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
     """Handle feedback button clicks (both positive and negative)."""
     logger.debug("Sending ack response")
     ack()
@@ -234,10 +234,10 @@ def _common_message_handler(
     thread_root: str,
     client: WebClient,
     event: Dict[str, Any],
-    event_id,
+    event_id: str,
     post_to_thread: bool,
     body: Dict[str, Any],
-):
+) -> None:
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):

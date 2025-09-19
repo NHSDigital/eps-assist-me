@@ -1,4 +1,5 @@
 import json
+from typing import Any
 import boto3
 from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
 from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
@@ -55,7 +56,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     return response
 
 
-def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient):
+def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient) -> dict[str, Any]:
     response = client.invoke_model(
         modelId=model_id,
         body=json.dumps(

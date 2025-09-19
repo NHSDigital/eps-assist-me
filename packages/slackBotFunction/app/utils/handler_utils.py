@@ -44,7 +44,7 @@ def is_duplicate_event(event_id: str) -> bool:
         return False
 
 
-def trigger_async_processing(event: Dict[str, Any], event_id: str):
+def trigger_async_processing(event: Dict[str, Any], event_id: str) -> None:
     """
     Trigger asynchronous Lambda invocation to process Slack events
 
@@ -67,7 +67,7 @@ def trigger_async_processing(event: Dict[str, Any], event_id: str):
         logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
 
 
-def respond_with_eyes(bot_token: str, event: Dict[str, Any]):
+def respond_with_eyes(bot_token: str, event: Dict[str, Any]) -> None:
     client = WebClient(token=bot_token)
     channel = event["channel"]
     ts = event["ts"]
@@ -78,7 +78,7 @@ def respond_with_eyes(bot_token: str, event: Dict[str, Any]):
         logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})
 
 
-def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any], event_id: str):
+def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any], event_id: str) -> None:
     cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
