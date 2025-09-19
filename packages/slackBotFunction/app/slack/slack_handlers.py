@@ -8,7 +8,6 @@ Design goals:
 """
 
 import json
-import re
 from functools import lru_cache
 import traceback
 from typing import Any, Dict
@@ -23,7 +22,10 @@ from app.core.config import (
 )
 from app.services.dynamo import get_state_information
 from app.utils.handler_utils import (
-    is_duplicate_event,
+    conversation_key_and_root,
+    gate_common,
+    is_latest_message,
+    strip_mentions,
     trigger_async_processing,
     respond_with_eyes,
     trigger_pull_request_processing,
@@ -33,68 +35,17 @@ from app.slack.slack_events import store_feedback
 logger = get_logger()
 
 # ================================================================
-# Common handler helpers
+# Registration
 # ================================================================
 
 
-def _gate_common(event: Dict[str, Any], body: Dict[str, Any]):
-    """
-    Apply common early checks that are shared across handlers.
-
-    Returns:
-        str | None: event_id if processing should continue; None to skip.
-
-    Gates:
-    - Missing or duplicate event_id (Slack retry dedupe)
-    - Bot/self messages or non-standard subtypes (edits, deletes, etc.)
-    """
-    event_id = body.get("event_id")
-    if not event_id:
-        logger.info("Skipping event without event_id")
-        return None
-
-    if event.get("bot_id") or event.get("subtype"):
-        return None
-
-    if is_duplicate_event(event_id):
-        logger.info(f"Skipping duplicate event: {event_id}")
-        return None
-
-    return event_id
-
-
-def _strip_mentions(text: str) -> str:
-    """Remove Slack user mentions like <@U123> or <@U123|alias> from text."""
-    return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", text or "").strip()
-
-
-def _extract_pull_request_id(text: str) -> str:
-    # Regex: '#pr' + optional space + number + space + rest of text
-    pattern = r"#pr\s*(\d+)\s+(.+)"
-    match = re.match(pattern, text)
-    if not match:
-        raise ValueError("Text does not match expected format (#pr <number> <text>)")
-    pr_number = int(match.group(1))
-    rest_text = match.group(2)
-    return pr_number, rest_text
-
-
-def _conversation_key_and_root(event: Dict[str, Any]):
-    """
-    Build a stable conversation scope and its root timestamp.
-
-    DM:
-        key = dm#<channel_id>
-        root = event.thread_ts or event.ts
-    Channel thread:
-        key = thread#<channel_id>#<root_ts>
-        root = event.thread_ts (or event.ts if thread root is the user’s top-level message)
-    """
-    channel_id = event["channel"]
-    root = event.get("thread_ts") or event.get("ts")
-    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        return f"{constants.DM_PREFIX}{channel_id}", root
-    return f"{constants.THREAD_PREFIX}{channel_id}#{root}", root
+@lru_cache
+def setup_handlers(app):
+    """Register handlers. Intentionally minimal—no branching here."""
+    app.event("app_mention")(mention_handler)
+    app.event("message")(unified_message_handler)
+    app.action("feedback_yes")(feedback_handler)
+    app.action("feedback_no")(feedback_handler)
 
 
 # ================================================================
@@ -112,14 +63,14 @@ def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], clien
     logger.debug("Sending ack response in mention_handler")
     ack()
     respond_with_eyes(bot_token, event)
-    event_id = _gate_common(event, body)
+    event_id = gate_common(event, body)
     if not event_id:
         return
     original_message_text = (event.get("text") or "").strip()
     user_id = event.get("user", "unknown")
-    conversation_key, thread_root = _conversation_key_and_root(event)
+    conversation_key, thread_root = conversation_key_and_root(event)
 
-    message_text = _strip_mentions(original_message_text)
+    message_text = strip_mentions(original_message_text)
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
     _common_message_handler(
         message_text=message_text,
@@ -143,7 +94,7 @@ def dm_message_handler(event: Dict[str, Any], event_id, client: WebClient, body:
         return  # not a DM; the channel handler will evaluate it
     message_text = (event.get("text") or "").strip()
     user_id = event.get("user", "unknown")
-    conversation_key, thread_root = _conversation_key_and_root(event)
+    conversation_key, thread_root = conversation_key_and_root(event)
     logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
     _common_message_handler(
         message_text=message_text,
@@ -205,7 +156,7 @@ def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any
     ack()
     bot_token = get_bot_token()
     respond_with_eyes(bot_token, event)
-    event_id = _gate_common(event, body)
+    event_id = gate_common(event, body)
     if not event_id:
         return
 
@@ -230,7 +181,7 @@ def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient):
         conversation_key = feedback_data["ck"]
         message_ts = feedback_data.get("mt")
 
-        if message_ts and not _is_latest_message(conversation_key, message_ts):
+        if message_ts and not is_latest_message(conversation_key, message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
             return
 
@@ -273,35 +224,8 @@ def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient):
 
 
 # ================================================================
-# Registration
+# Common processing for message handlers
 # ================================================================
-
-
-@lru_cache
-def setup_handlers(app):
-    """Register handlers. Intentionally minimal—no branching here."""
-    app.event("app_mention")(mention_handler)
-    app.event("message")(unified_message_handler)
-    app.action("feedback_yes")(feedback_handler)
-    app.action("feedback_no")(feedback_handler)
-
-
-# ================================================================
-# AWS/Slack infrastructure helpers
-# ================================================================
-
-
-def _is_latest_message(conversation_key, message_ts):
-    """Check if message_ts is the latest bot message using session data"""
-    try:
-        response = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
-        if "Item" in response:
-            latest_message_ts = response["Item"].get("latest_message_ts")
-            return latest_message_ts == message_ts
-        return False
-    except Exception as e:
-        logger.error(f"Error checking latest message: {e}", extra={"error": traceback.format_exc()})
-        return False
 
 
 def _common_message_handler(

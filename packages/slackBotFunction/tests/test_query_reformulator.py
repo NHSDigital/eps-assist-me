@@ -1,6 +1,6 @@
 import sys
 import pytest
-from unittest.mock import ANY, patch, MagicMock
+from unittest.mock import ANY, Mock, patch, MagicMock
 from botocore.exceptions import ClientError
 
 
@@ -11,7 +11,9 @@ def mock_logger():
 
 @patch("app.services.prompt_loader.load_prompt")
 @patch("app.services.bedrock.invoke_model")
-def test_reformulate_query_returns_string(mock_invoke_model, mock_load_prompt, mock_logger, mock_env):
+def test_reformulate_query_returns_string(
+    mock_invoke_model: Mock, mock_load_prompt: Mock, mock_logger: Mock, mock_env: Mock
+):
     """Test that reformulate_query returns a string without crashing"""
     # set up mocks
     mock_load_prompt.return_value = "Test reformat. {{user_query}}"
@@ -37,7 +39,7 @@ def test_reformulate_query_returns_string(mock_invoke_model, mock_load_prompt, m
 
 
 @patch("app.services.prompt_loader.load_prompt")
-def test_reformulate_query_prompt_load_error(mock_load_prompt, mock_logger, mock_env):
+def test_reformulate_query_prompt_load_error(mock_load_prompt: Mock, mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_load_prompt.side_effect = Exception("Prompt not found")
 
@@ -56,7 +58,9 @@ def test_reformulate_query_prompt_load_error(mock_load_prompt, mock_logger, mock
 
 @patch("app.services.prompt_loader.load_prompt")
 @patch("app.services.bedrock.invoke_model")
-def test_reformulate_query_bedrock_error(mock_invoke_model, mock_load_prompt, mock_logger, mock_env):
+def test_reformulate_query_bedrock_error(
+    mock_invoke_model: Mock, mock_load_prompt: Mock, mock_logger: Mock, mock_env: Mock
+):
     """Test query reformulation with Bedrock API error"""
     # set up mocks
     mock_load_prompt.return_value = "Reformulate this query: {{user_query}}"

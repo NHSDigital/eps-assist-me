@@ -1,6 +1,6 @@
 import sys
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock
 from botocore.exceptions import ClientError
 
 
@@ -10,7 +10,7 @@ def mock_logger():
 
 
 @patch("boto3.client")
-def test_load_prompt_success_draft(mock_boto_client, mock_logger, mock_env):
+def test_load_prompt_success_draft(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -38,7 +38,7 @@ def test_load_prompt_success_draft(mock_boto_client, mock_logger, mock_env):
 
 
 @patch("boto3.client")
-def test_load_prompt_success_versioned(mock_boto_client, mock_logger, mock_env):
+def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -64,7 +64,7 @@ def test_load_prompt_success_versioned(mock_boto_client, mock_logger, mock_env):
 
 
 @patch("boto3.client")
-def test_load_prompt_not_found(mock_boto_client, mock_logger, mock_env):
+def test_load_prompt_not_found(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -82,7 +82,7 @@ def test_load_prompt_not_found(mock_boto_client, mock_logger, mock_env):
 
 
 @patch("boto3.client")
-def test_load_prompt_client_error(mock_boto_client, mock_logger, mock_env):
+def test_load_prompt_client_error(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -102,7 +102,7 @@ def test_load_prompt_client_error(mock_boto_client, mock_logger, mock_env):
         load_prompt(mock_logger, "test-prompt")
 
 
-def test_get_prompt_id_from_name_success(mock_logger, mock_env):
+def test_get_prompt_id_from_name_success(mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_client.list_prompts.return_value = {"promptSummaries": [{"name": "test-prompt", "id": "ABC1234567"}]}
@@ -119,7 +119,7 @@ def test_get_prompt_id_from_name_success(mock_logger, mock_env):
     assert result == "ABC1234567"
 
 
-def test_get_prompt_id_from_name_not_found(mock_logger, mock_env):
+def test_get_prompt_id_from_name_not_found(mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_client.list_prompts.return_value = {"promptSummaries": []}
@@ -136,7 +136,7 @@ def test_get_prompt_id_from_name_not_found(mock_logger, mock_env):
     assert result is None
 
 
-def test_get_prompt_id_client_error(mock_logger, mock_env):
+def test_get_prompt_id_client_error(mock_logger: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     error = ClientError({"Error": {"Code": "AccessDenied"}}, "ListPrompts")

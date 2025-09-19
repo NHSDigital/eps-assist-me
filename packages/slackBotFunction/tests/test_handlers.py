@@ -3,7 +3,9 @@ from unittest.mock import Mock, patch
 
 
 @patch("slack_bolt.adapter.aws_lambda.SlackRequestHandler")
-def test_handler_normal_event(mock_handler_class, mock_slack_app, mock_env, mock_get_parameter, lambda_context):
+def test_handler_normal_event(
+    mock_handler_class: Mock, mock_slack_app: Mock, mock_env: Mock, mock_get_parameter: Mock, lambda_context: Mock
+):
     """Test Lambda handler function for normal Slack events"""
     # set up mocks
     mock_handler = Mock()
@@ -26,7 +28,11 @@ def test_handler_normal_event(mock_handler_class, mock_slack_app, mock_env, mock
 
 @patch("app.slack.slack_events.process_async_slack_event")
 def test_handler_async_processing(
-    mock_process_async_slack_event, mock_get_parameter, mock_slack_app, mock_env, lambda_context
+    mock_process_async_slack_event: Mock,
+    mock_get_parameter: Mock,
+    mock_slack_app: Mock,
+    mock_env: Mock,
+    lambda_context: Mock,
 ):
     """Test Lambda handler function for async processing"""
     # set up mocks
@@ -46,7 +52,9 @@ def test_handler_async_processing(
     assert result["statusCode"] == 200
 
 
-def test_handler_async_processing_missing_slack_event(mock_slack_app, mock_env, mock_get_parameter, lambda_context):
+def test_handler_async_processing_missing_slack_event(
+    mock_slack_app: Mock, mock_env: Mock, mock_get_parameter: Mock, lambda_context: Mock
+):
     """Test Lambda handler function for async processing without slack_event data"""
     # set up mocks
 

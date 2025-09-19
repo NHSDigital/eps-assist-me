@@ -2,6 +2,7 @@
 Slack event handlers - handles @mentions and direct messages to the bot
 """
 
+import re
 import time
 import json
 import traceback
@@ -9,12 +10,15 @@ from typing import Any, Dict
 import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
-from app.core.config import get_logger
 import os
 from mypy_boto3_cloudformation.client import CloudFormationClient
 from mypy_boto3_lambda.client import LambdaClient
 
-from app.services.dynamo import store_state_information
+from app.services.dynamo import get_state_information, store_state_information
+from app.core.config import (
+    get_logger,
+    constants,
+)
 
 logger = get_logger()
 
@@ -92,3 +96,76 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
     except Exception as e:
         logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
         raise e
+
+
+def is_latest_message(conversation_key, message_ts):
+    """Check if message_ts is the latest bot message using session data"""
+    try:
+        response = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
+        if "Item" in response:
+            latest_message_ts = response["Item"].get("latest_message_ts")
+            return latest_message_ts == message_ts
+        return False
+    except Exception as e:
+        logger.error(f"Error checking latest message: {e}", extra={"error": traceback.format_exc()})
+        return False
+
+
+def gate_common(event: Dict[str, Any], body: Dict[str, Any]):
+    """
+    Apply common early checks that are shared across handlers.
+
+    Returns:
+        str | None: event_id if processing should continue; None to skip.
+
+    Gates:
+    - Missing or duplicate event_id (Slack retry dedupe)
+    - Bot/self messages or non-standard subtypes (edits, deletes, etc.)
+    """
+    event_id = body.get("event_id")
+    if not event_id:
+        logger.info("Skipping event without event_id")
+        return None
+
+    if event.get("bot_id") or event.get("subtype"):
+        return None
+
+    if is_duplicate_event(event_id):
+        logger.info(f"Skipping duplicate event: {event_id}")
+        return None
+
+    return event_id
+
+
+def strip_mentions(text: str) -> str:
+    """Remove Slack user mentions like <@U123> or <@U123|alias> from text."""
+    return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", text or "").strip()
+
+
+def extract_pull_request_id(text: str) -> str:
+    # Regex: '#pr' + optional space + number + space + rest of text
+    pattern = re.escape(constants.PULL_REQUEST_PREFIX) + r"\s*(\d+)\s+(.+)"
+    match = re.match(pattern, text)
+    if not match:
+        raise ValueError("Text does not match expected format (#pr <number> <text>)")
+    pr_number = int(match.group(1))
+    rest_text = match.group(2)
+    return pr_number, rest_text
+
+
+def conversation_key_and_root(event: Dict[str, Any]):
+    """
+    Build a stable conversation scope and its root timestamp.
+
+    DM:
+        key = dm#<channel_id>
+        root = event.thread_ts or event.ts
+    Channel thread:
+        key = thread#<channel_id>#<root_ts>
+        root = event.thread_ts (or event.ts if thread root is the user’s top-level message)
+    """
+    channel_id = event["channel"]
+    root = event.get("thread_ts") or event.get("ts")
+    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
+        return f"{constants.DM_PREFIX}{channel_id}", root
+    return f"{constants.THREAD_PREFIX}{channel_id}#{root}", root

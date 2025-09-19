@@ -94,7 +94,7 @@ constants = Constants(
     TTL_EVENT_DEDUP=3600,  # 1 hour
     TTL_FEEDBACK=7776000,  # 90 days
     TTL_SESSION=2592000,  # 30 days
-    PULL_REQUEST_PREFIX="#pr",
+    PULL_REQUEST_PREFIX="pr:",
 )
 
 
