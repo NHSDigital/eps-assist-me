@@ -16,7 +16,6 @@ from slack_bolt import Ack, App
 from slack_sdk import WebClient
 from app.core.config import (
     BOT_MESSAGES,
-    get_bot_token,
     get_logger,
     constants,
 )
@@ -60,18 +59,17 @@ def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], clien
     - If text after the mention starts with 'feedback:', store it as additional feedback.
     - Otherwise, forward to the async processing pipeline (Q&A).
     """
-    bot_token = get_bot_token()
     logger.debug("Sending ack response in mention_handler")
     ack()
-    respond_with_eyes(bot_token, event)
-    event_id = gate_common(event, body)
+    respond_with_eyes(event=event)
+    event_id = gate_common(event=event, body=body)
     if not event_id:
         return
     original_message_text = (event.get("text") or "").strip()
     user_id = event.get("user", "unknown")
-    conversation_key, thread_root = conversation_key_and_root(event)
+    conversation_key, thread_root = conversation_key_and_root(event=event)
 
-    message_text = strip_mentions(original_message_text)
+    message_text = strip_mentions(message_text=original_message_text)
     logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
     _common_message_handler(
         message_text=message_text,
@@ -81,7 +79,6 @@ def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], clien
         event=event,
         event_id=event_id,
         post_to_thread=True,
-        body=body,
     )
 
 
@@ -95,7 +92,7 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, 
         return  # not a DM; the channel handler will evaluate it
     message_text = (event.get("text") or "").strip()
     user_id = event.get("user", "unknown")
-    conversation_key, thread_root = conversation_key_and_root(event)
+    conversation_key, thread_root = conversation_key_and_root(event=event)
     logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
     _common_message_handler(
         message_text=message_text,
@@ -105,7 +102,6 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, 
         event=event,
         event_id=event_id,
         post_to_thread=False,
-        body=body,
     )
 
 
@@ -129,7 +125,7 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
 
     conversation_key = f"{constants.THREAD_PREFIX}{channel_id}#{thread_root}"
     try:
-        resp = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
+        resp = get_state_information(key={"pk": conversation_key, "sk": constants.SESSION_SK})
         if "Item" not in resp:
             logger.info(f"No session found for thread: {conversation_key}")
             return  # not a bot-owned thread; ignore
@@ -147,7 +143,6 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
         event=event,
         event_id=event_id,
         post_to_thread=True,
-        body=body,
     )
 
 
@@ -155,9 +150,8 @@ def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any
     """Handle all message events - DMs and channel messages"""
     logger.debug("Sending ack response")
     ack()
-    bot_token = get_bot_token()
-    respond_with_eyes(bot_token, event)
-    event_id = gate_common(event, body)
+    respond_with_eyes(event=event)
+    event_id = gate_common(event=event, body=body)
     if not event_id:
         return
 
@@ -182,7 +176,7 @@ def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
         conversation_key = feedback_data["ck"]
         message_ts = feedback_data.get("mt")
 
-        if message_ts and not is_latest_message(conversation_key, message_ts):
+        if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
             return
 
@@ -237,7 +231,6 @@ def _common_message_handler(
     event: Dict[str, Any],
     event_id: str,
     post_to_thread: bool,
-    body: Dict[str, Any],
 ) -> None:
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
