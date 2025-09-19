@@ -81,7 +81,6 @@ def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], clien
         event=event,
         event_id=event_id,
         post_to_thread=True,
-        body=body,
     )
 
 
@@ -105,7 +104,6 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, 
         event=event,
         event_id=event_id,
         post_to_thread=False,
-        body=body,
     )
 
 
@@ -147,7 +145,6 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
         event=event,
         event_id=event_id,
         post_to_thread=True,
-        body=body,
     )
 
 
@@ -237,7 +234,6 @@ def _common_message_handler(
     event: Dict[str, Any],
     event_id: str,
     post_to_thread: bool,
-    body: Dict[str, Any],
 ) -> None:
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")

@@ -6,7 +6,7 @@ from mypy_boto3_dynamodb.type_defs import GetItemOutputTableTypeDef
 logger = get_logger()
 
 
-def get_state_information(key: str) -> GetItemOutputTableTypeDef:
+def get_state_information(key: dict[str, Any]) -> GetItemOutputTableTypeDef:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True

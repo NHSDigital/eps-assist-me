@@ -312,9 +312,9 @@ def store_feedback(
     user_id: str,
     channel_id: str,
     client: WebClient,
-    thread_ts: str = None,
-    message_ts: str = None,
-    feedback_text: str = None,
+    thread_ts: str | None = None,
+    message_ts: str | None = None,
+    feedback_text: str | None = None,
 ) -> None:
     """
     Store user feedback with reference to Q&A record
