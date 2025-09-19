@@ -164,7 +164,7 @@ def test_process_async_slack_event_with_thread_ts(
         "event_id": "evt123",
         "bot_token": "bot-token",
     }
-    process_async_slack_event(slack_event_data)
+    process_async_slack_event(slack_event_data=slack_event_data)
 
     # assertions
     # Should be called at least once with the correct thread_ts

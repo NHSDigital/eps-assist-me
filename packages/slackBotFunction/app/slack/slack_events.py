@@ -422,7 +422,7 @@ def get_conversation_session_data(conversation_key: str) -> Dict[str, Any]:
         return None
 
 
-def get_latest_message_ts(conversation_key: str) -> str:
+def get_latest_message_ts(conversation_key: str) -> str | None:
     """
     Get latest message timestamp from session
     """

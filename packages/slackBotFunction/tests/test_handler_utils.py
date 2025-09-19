@@ -1,5 +1,7 @@
 import sys
 from unittest.mock import Mock, patch
+from slack_sdk.errors import SlackApiError
+from botocore.exceptions import ClientError
 
 
 @patch("app.services.dynamo.get_state_information")
@@ -211,3 +213,109 @@ def test_extract_key_and_root(mock_env: Mock):
     # assertions
     assert key == "dm#D123"
     assert root == "456"
+
+
+@patch("slack_sdk.WebClient")
+def test_respond_with_eyes_on_success(mock_webclient: Mock, mock_env: Mock):
+    """Test that respond with eyes"""
+    # set up mocks
+    mock_client = Mock()
+    mock_client.reactions_add.return_value = {"success"}
+    mock_webclient.return_value = mock_client
+
+    # delete and import module to test
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.slack.slack_handlers import respond_with_eyes
+
+    # perform operation
+    event = {"channel": "D123", "ts": "456", "channel_type": "im"}
+    respond_with_eyes("dummy_token", event)
+
+    # assertions
+    # just need to make sure it does not error
+
+
+@patch("slack_sdk.WebClient")
+def test_respond_with_eyes_on_failure(mock_webclient: Mock, mock_env: Mock):
+    """Test that respond with eyes"""
+    # set up mocks
+    mock_client = Mock()
+    mock_client.reactions_add.side_effect = SlackApiError("There was a problem", 500)
+    mock_webclient.return_value = mock_client
+
+    # delete and import module to test
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.slack.slack_handlers import respond_with_eyes
+
+    # perform operation
+    event = {"channel": "D123", "ts": "456", "channel_type": "im"}
+    respond_with_eyes("dummy_token", event)
+
+    # assertions
+    # just need to make sure it does not error
+
+
+@patch("app.services.dynamo.store_state_information")
+def test_is_duplicate_event_returns_true_when_conditional_check_fails(
+    mock_store_state_information: Mock,
+    mock_env: Mock,
+):
+    """Test duplicate event detection with conditional put"""
+    # set up mocks
+    error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
+    mock_store_state_information.side_effect = error
+
+    # delete and import module to test
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import is_duplicate_event
+
+    # perform operation
+    result = is_duplicate_event("test-event")
+
+    # assertions
+    assert result is True
+
+
+@patch("app.services.dynamo.store_state_information")
+def test_is_duplicate_event_client_error(
+    mock_store_state_information: Mock,
+    mock_env: Mock,
+):
+    """Test is_duplicate_event handles other ClientError"""
+    # set up mocks
+    error = ClientError(error_response={"Error": {"Code": "SomeOtherError"}}, operation_name="PutItem")
+    mock_store_state_information.side_effect = error
+
+    # delete and import module to test
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import is_duplicate_event
+
+    # perform operation
+    result = is_duplicate_event("test-event")
+
+    # assertions
+    assert result is False
+
+
+@patch("app.services.dynamo.store_state_information")
+def test_is_duplicate_event_no_item(
+    mock_store_state_information: Mock,
+    mock_env: Mock,
+):
+    """Test is_duplicate_event when no item exists (successful put)"""
+    # set up mocks
+
+    # delete and import module to test
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import is_duplicate_event
+
+    # perform operation
+    result = is_duplicate_event("test-event")
+
+    # assertions
+    assert result is False

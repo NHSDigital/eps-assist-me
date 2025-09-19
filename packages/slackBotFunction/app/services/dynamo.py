@@ -54,7 +54,9 @@ def store_state_information(item: dict[str, Any], condition: str = None) -> None
         )
 
 
-def update_state_information(key: str, update_expression: str, expression_attribute_values: dict[str, Any]) -> None:
+def update_state_information(
+    key: dict[str, Any], update_expression: str, expression_attribute_values: dict[str, Any]
+) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True
