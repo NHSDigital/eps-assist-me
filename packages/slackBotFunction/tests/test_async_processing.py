@@ -80,24 +80,22 @@ def test_process_async_slack_event_empty_query(mock_webclient: Mock, mock_get_pa
     )
 
 
-@patch("slack_sdk.WebClient")
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
+@patch("app.services.slack.post_error_message")
 def test_process_async_slack_event_error(
+    mock_post_error_message: Mock,
     mock_get_session: Mock,
     mock_reformulate_query: Mock,
     mock_query_bedrock: Mock,
     mock_get_state_information: Mock,
-    mock_webclient: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
     """Test async event processing with error"""
     # set up mocks
-    mock_client = Mock()
-    mock_webclient.return_value = mock_client
     mock_query_bedrock.side_effect = Exception("Bedrock error")
     mock_reformulate_query.return_value = "test question"
     mock_get_session.return_value = None  # No existing session
@@ -116,9 +114,8 @@ def test_process_async_slack_event_error(
     process_async_slack_event(slack_event_data)
 
     # assertions
-    mock_client.chat_postMessage.assert_called_once_with(
+    mock_post_error_message.assert_called_once_with(
         channel="C789",
-        text="Sorry, an error occurred while processing your request. Please try again later.",
         thread_ts="1234567890.123",
     )
 

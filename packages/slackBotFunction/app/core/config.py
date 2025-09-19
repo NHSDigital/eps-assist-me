@@ -14,12 +14,15 @@ from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
 from mypy_boto3_dynamodb.service_resource import Table
 
+# we use lru_cache for lots of configs so they are cached
+
 
 @lru_cache()
 def get_logger() -> Logger:
     return Logger(service="slackBotFunction")
 
 
+# set up logger as its used in other functions
 logger = get_logger()
 
 
@@ -56,6 +59,27 @@ def get_ssm_params() -> Tuple[str, str]:
         logger.error("Configuration error", extra={"error": traceback.format_exc()})
         raise
     return bot_token, signing_secret
+
+
+@lru_cache
+def get_bot_token() -> str:
+    bot_token, _ = get_ssm_params()
+    return bot_token
+
+
+@lru_cache
+def get_guardrail_config() -> Tuple[str, str, str, str, str]:
+    # Bedrock configuration from environment
+    KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
+    RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
+    AWS_REGION = os.environ["AWS_REGION"]
+    GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
+    GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
+
+    logger.info(
+        "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
+    )
+    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
 
 
 @dataclass
@@ -98,37 +122,28 @@ constants = Constants(
 )
 
 
-@lru_cache
-def get_bot_token() -> str:
-    bot_token, _ = get_ssm_params()
-    return bot_token
+@dataclass
+class BotMessages:
+    EMPTY_QUERY: str
+    ERROR_RESPONSE: str
+    FEEDBACK_POSITIVE_THANKS: str
+    FEEDBACK_NEGATIVE_THANKS: str
+    FEEDBACK_THANKS: str
+    FEEDBACK_PROMPT: str
+    FEEDBACK_YES: str
+    FEEDBACK_NO: str
 
 
 # Bot response messages
-BOT_MESSAGES = {
-    "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
-    "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
-    "feedback_positive_thanks": "Thank you for your feedback.",
-    "feedback_negative_thanks": (
+bot_messages = BotMessages(
+    EMPTY_QUERY="Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+    ERROR_RESPONSE="Sorry, an error occurred while processing your request. Please try again later.",
+    FEEDBACK_POSITIVE_THANKS="Thank you for your feedback.",
+    FEEDBACK_NEGATIVE_THANKS=(
         'Please let us know how the answer could be improved. Start your message with "feedback:"'
     ),
-    "feedback_thanks": "Thank you for your feedback.",
-    "feedback_prompt": "Was this helpful?",
-    "feedback_yes": "Yes",
-    "feedback_no": "No",
-}
-
-
-@lru_cache
-def get_guardrail_config() -> Tuple[str, str, str, str, str]:
-    # Bedrock configuration from environment
-    KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
-    RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
-    AWS_REGION = os.environ["AWS_REGION"]
-    GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
-    GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
-
-    logger.info(
-        "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
-    )
-    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
+    FEEDBACK_THANKS="Thank you for your feedback.",
+    FEEDBACK_PROMPT="Was this helpful?",
+    FEEDBACK_YES="Yes",
+    FEEDBACK_NO="No",
+)

@@ -15,7 +15,7 @@ from botocore.exceptions import ClientError
 from slack_bolt import Ack, App
 from slack_sdk import WebClient
 from app.core.config import (
-    BOT_MESSAGES,
+    bot_messages,
     get_logger,
     constants,
 )
@@ -183,10 +183,10 @@ def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
         # Determine feedback type and response message based on action_id
         if action_id == "feedback_yes":
             feedback_type = "positive"
-            response_message = BOT_MESSAGES["feedback_positive_thanks"]
+            response_message = bot_messages.FEEDBACK_POSITIVE_THANKS
         elif action_id == "feedback_no":
             feedback_type = "negative"
-            response_message = BOT_MESSAGES["feedback_negative_thanks"]
+            response_message = bot_messages.FEEDBACK_NEGATIVE_THANKS
         else:
             logger.error(f"Unknown feedback action: {action_id}")
             return
@@ -252,7 +252,7 @@ def _common_message_handler(
         try:
             params = {
                 "channel": channel_id,
-                "text": BOT_MESSAGES["feedback_thanks"],
+                "text": bot_messages.FEEDBACK_THANKS,
             }
 
             if post_to_thread:
