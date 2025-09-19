@@ -132,16 +132,16 @@ export class RuntimePolicies extends Construct {
         "kms:GenerateDataKey*",
         "kms:DescribeKey"
       ],
-      resources: [
-        `arn:aws:cloudformation:eu-west-2:${props.account}:stack/epsam-pr-*`
-      ]
+      resources: [props.slackBotStateTableKmsKeyArn]
     })
 
     const slackBotDescribeCfStacks = new PolicyStatement({
       actions: [
         "cloudformation:DescribeStacks"
       ],
-      resources: [props.slackBotStateTableKmsKeyArn]
+      resources: [
+        `arn:aws:cloudformation:eu-west-2:${props.account}:stack/epsam-pr-*`
+      ]
     })
 
     this.slackBotPolicy = new ManagedPolicy(this, "SlackBotPolicy", {

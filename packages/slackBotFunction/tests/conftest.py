@@ -42,7 +42,7 @@ def lambda_context():
 
 @pytest.fixture
 def mock_get_parameter():
-    def fake_get_parameter(name, *args, **kwargs):
+    def fake_get_parameter(name: str, *args, **kwargs):
         return {
             "/test/bot-token": json.dumps({"token": "test-token"}),
             "/test/signing-secret": json.dumps({"secret": "test-secret"}),

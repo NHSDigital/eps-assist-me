@@ -1,11 +1,12 @@
 import sys
+from unittest.mock import Mock
 
 
 def test_correct_handlers_registered(
-    mock_slack_app,
-    mock_env,
-    mock_get_parameter,
-    lambda_context,
+    mock_slack_app: Mock,
+    mock_env: Mock,
+    mock_get_parameter: Mock,
+    lambda_context: Mock,
 ):
     """Test app mention handler execution by simulating the handler registration process"""
     # set up mocks

@@ -8,6 +8,7 @@ from functools import lru_cache
 import os
 import json
 import traceback
+from typing import Tuple
 import boto3
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
@@ -30,7 +31,7 @@ def get_slack_bot_state_table() -> Table:
 
 
 @lru_cache()
-def get_ssm_params():
+def get_ssm_params() -> Tuple[str, str]:
     bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
     signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
     try:
@@ -93,38 +94,33 @@ constants = Constants(
     TTL_EVENT_DEDUP=3600,  # 1 hour
     TTL_FEEDBACK=7776000,  # 90 days
     TTL_SESSION=2592000,  # 30 days
-    PULL_REQUEST_PREFIX="#pr",
+    PULL_REQUEST_PREFIX="pr:",
 )
 
 
 @lru_cache
-def get_bot_token():
+def get_bot_token() -> str:
     bot_token, _ = get_ssm_params()
     return bot_token
 
 
-@lru_cache()
-def get_bot_messages():
-
-    # Bot response messages
-    BOT_MESSAGES = {
-        "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
-        "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
-        "feedback_positive_thanks": "Thank you for your feedback.",
-        "feedback_negative_thanks": (
-            'Please let us know how the answer could be improved. Start your message with "feedback:"'
-        ),
-        "feedback_thanks": "Thank you for your feedback.",
-        "feedback_prompt": "Was this helpful?",
-        "feedback_yes": "Yes",
-        "feedback_no": "No",
-    }
-
-    return BOT_MESSAGES
+# Bot response messages
+BOT_MESSAGES = {
+    "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+    "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
+    "feedback_positive_thanks": "Thank you for your feedback.",
+    "feedback_negative_thanks": (
+        'Please let us know how the answer could be improved. Start your message with "feedback:"'
+    ),
+    "feedback_thanks": "Thank you for your feedback.",
+    "feedback_prompt": "Was this helpful?",
+    "feedback_yes": "Yes",
+    "feedback_no": "No",
+}
 
 
 @lru_cache
-def get_guardrail_config():
+def get_guardrail_config() -> Tuple[str, str, str, str, str]:
     # Bedrock configuration from environment
     KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
     RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]

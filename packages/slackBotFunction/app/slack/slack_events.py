@@ -7,11 +7,13 @@ import re
 import time
 import traceback
 import json
+from typing import Any, Dict, Tuple
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
+    BOT_MESSAGES,
     constants,
-    get_bot_messages,
+    get_bot_token,
     get_logger,
 )
 from app.services.bedrock import query_bedrock
@@ -23,6 +25,7 @@ from app.services.dynamo import (
 )
 from app.services.query_reformulator import reformulate_query
 from app.services.slack import get_friendly_channel_name
+from app.utils.handler_utils import is_duplicate_event
 
 logger = get_logger()
 
@@ -32,7 +35,9 @@ logger = get_logger()
 # ================================================================
 
 
-def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data):
+def cleanup_previous_unfeedback_qa(
+    conversation_key: str, current_message_ts: str, session_data: Dict[str, Any]
+) -> None:
     """Delete previous Q&A pair if no feedback received using atomic operation"""
     try:
         previous_message_ts = session_data.get("latest_message_ts")
@@ -55,7 +60,9 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
         logger.error("Error cleaning up unfeedback Q&A", extra={"error": traceback.format_exc()})
 
 
-def store_qa_pair(conversation_key, user_query, bot_response, message_ts, session_id, user_id):
+def store_qa_pair(
+    conversation_key: str, user_query: str, bot_response: str, message_ts: str, session_id: str, user_id: str
+) -> None:
     """
     Store Q&A pair for feedback correlation
     """
@@ -77,7 +84,7 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
         logger.error("Failed to store Q&A pair", extra={"error": traceback.format_exc()})
 
 
-def _mark_qa_feedback_received(conversation_key, message_ts):
+def _mark_qa_feedback_received(conversation_key: str, message_ts: str) -> None:
     """
     Mark Q&A record as having received feedback to prevent deletion
     """
@@ -96,7 +103,7 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
 # ================================================================
 
 
-def _extract_conversation_context(event):
+def _extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str | None]:
     """Extract conversation key and thread context from event"""
     channel = event["channel"]
     # Determine conversation context: DM vs channel thread
@@ -108,8 +115,16 @@ def _extract_conversation_context(event):
 
 
 def _handle_session_management(
-    conversation_key, session_data, session_id, kb_response, user_id, channel, thread_ts, context_type, message_ts
-):
+    conversation_key: str,
+    session_data: Dict[str, Any],
+    session_id: str,
+    kb_response: Dict[str, Any],
+    user_id: str,
+    channel: str,
+    thread_ts: str,
+    context_type: str,
+    message_ts: str,
+) -> None:
     """Handle Bedrock session creation and cleanup"""
     # Handle conversation session management
     if not session_id and "sessionId" in kb_response:
@@ -129,14 +144,15 @@ def _handle_session_management(
         update_session_latest_message(conversation_key, message_ts)
 
 
-def _create_feedback_blocks(response_text, conversation_key, channel, message_ts, thread_ts):
+def _create_feedback_blocks(
+    response_text: str, conversation_key: str, channel: str, message_ts: str, thread_ts: str
+) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
     # Create compact feedback payload for button actions
     feedback_data = {"ck": conversation_key, "ch": channel, "mt": message_ts}
     if thread_ts:  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = thread_ts
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-    BOT_MESSAGES = get_bot_messages()
     return [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
         {"type": "section", "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]}},
@@ -166,7 +182,7 @@ def _create_feedback_blocks(response_text, conversation_key, channel, message_ts
 # ================================================================
 
 
-def process_async_slack_event(slack_event_data):
+def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
@@ -175,8 +191,7 @@ def process_async_slack_event(slack_event_data):
     """
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
-    token = slack_event_data["bot_token"]
-    BOT_MESSAGES = get_bot_messages()
+    token = get_bot_token()
 
     client = WebClient(token=token)
 
@@ -202,7 +217,7 @@ def process_async_slack_event(slack_event_data):
             return
 
         # Reformulate query for better RAG retrieval
-        reformulated_query = reformulate_query(logger, user_query)
+        reformulated_query = reformulate_query(user_query)
 
         # Check if we have an existing Bedrock conversation session
         session_data = get_conversation_session_data(conversation_key)
@@ -256,7 +271,15 @@ def process_async_slack_event(slack_event_data):
             logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
 
 
-def log_query_stats(user_query, event, channel, client, thread_ts):
+def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    event_id = slack_event_data["event_id"]
+    if is_duplicate_event(event_id=event_id):
+        return
+    process_async_slack_event(slack_event_data=slack_event_data)
+
+
+def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
     query_length = len(user_query)
     start_time = float(event["event_ts"])
     end_time = time.time()
@@ -281,15 +304,15 @@ def log_query_stats(user_query, event, channel, client, thread_ts):
 
 
 def store_feedback(
-    conversation_key,
-    feedback_type,
-    user_id,
-    channel_id,
+    conversation_key: str,
+    feedback_type: str,
+    user_id: str,
+    channel_id: str,
     client: WebClient,
-    thread_ts=None,
-    message_ts=None,
-    feedback_text=None,
-):
+    thread_ts: str = None,
+    message_ts: str = None,
+    feedback_text: str = None,
+) -> None:
     """
     Store user feedback with reference to Q&A record
     """
@@ -373,7 +396,7 @@ def store_feedback(
 # ================================================================
 
 
-def get_conversation_session(conversation_key):
+def get_conversation_session(conversation_key: str) -> str | None:
     """
     Get existing Bedrock session for this conversation
     """
@@ -381,7 +404,7 @@ def get_conversation_session(conversation_key):
     return session_data.get("session_id") if session_data else None
 
 
-def get_conversation_session_data(conversation_key):
+def get_conversation_session_data(conversation_key: str) -> Dict[str, Any]:
     """
     Get full session data for this conversation
     """
@@ -396,7 +419,7 @@ def get_conversation_session_data(conversation_key):
         return None
 
 
-def get_latest_message_ts(conversation_key):
+def get_latest_message_ts(conversation_key: str) -> str:
     """
     Get latest message timestamp from session
     """
@@ -411,8 +434,13 @@ def get_latest_message_ts(conversation_key):
 
 
 def store_conversation_session(
-    conversation_key, session_id, user_id, channel_id, thread_ts=None, latest_message_ts=None
-):
+    conversation_key: str,
+    session_id: str,
+    user_id: str,
+    channel_id: str,
+    thread_ts: str = None,
+    latest_message_ts: str = None,
+) -> None:
     """
     Store new Bedrock session for conversation memory
     """
@@ -440,7 +468,7 @@ def store_conversation_session(
         logger.error("Error storing session", extra={"error": traceback.format_exc()})
 
 
-def update_session_latest_message(conversation_key, message_ts):
+def update_session_latest_message(conversation_key: str, message_ts: str) -> None:
     """
     Update session with latest message timestamp
     """

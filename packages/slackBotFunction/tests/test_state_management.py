@@ -5,8 +5,8 @@ from botocore.exceptions import ClientError
 
 @patch("app.services.dynamo.store_state_information")
 def test_is_duplicate_event(
-    mock_store_state_information,
-    mock_env,
+    mock_store_state_information: Mock,
+    mock_env: Mock,
 ):
     """Test duplicate event detection with conditional put"""
     # Mock ConditionalCheckFailedException
@@ -25,8 +25,8 @@ def test_is_duplicate_event(
 
 @patch("app.services.dynamo.store_state_information")
 def test_is_duplicate_event_client_error(
-    mock_store_state_information,
-    mock_env,
+    mock_store_state_information: Mock,
+    mock_env: Mock,
 ):
     """Test is_duplicate_event handles other ClientError"""
 
@@ -44,8 +44,8 @@ def test_is_duplicate_event_client_error(
 
 @patch("app.services.dynamo.store_state_information")
 def test_is_duplicate_event_no_item(
-    mock_store_state_information,
-    mock_env,
+    mock_store_state_information: Mock,
+    mock_env: Mock,
 ):
     """Test is_duplicate_event when no item exists (successful put)"""
     # put_item succeeds (no exception)
@@ -60,7 +60,7 @@ def test_is_duplicate_event_no_item(
 
 
 @patch("boto3.client")
-def test_trigger_async_processing_error(mock_boto_client, mock_env):
+def test_trigger_async_processing_error(mock_boto_client: Mock, mock_env: Mock):
     """Test trigger_async_processing handles Lambda invoke errors"""
     mock_lambda_client = Mock()
     mock_lambda_client.invoke.side_effect = Exception("Lambda invoke error")
@@ -73,7 +73,7 @@ def test_trigger_async_processing_error(mock_boto_client, mock_env):
 
     event_data = {"test": "data"}
     # Should not raise exception even if Lambda invoke fails
-    trigger_async_processing(event_data)
+    trigger_async_processing(event=event_data, event_id="evt123")
 
     mock_boto_client.assert_called_once_with("lambda")
     mock_lambda_client.invoke.assert_called_once()
@@ -81,8 +81,8 @@ def test_trigger_async_processing_error(mock_boto_client, mock_env):
 
 @patch("boto3.client")
 def test_trigger_async_processing(
-    mock_boto_client,
-    mock_env,
+    mock_boto_client: Mock,
+    mock_env: Mock,
 ):
     """Test triggering async processing"""
     mock_lambda_client = Mock()
@@ -93,7 +93,7 @@ def test_trigger_async_processing(
     from app.utils.handler_utils import trigger_async_processing
 
     event_data = {"test": "data"}
-    trigger_async_processing(event_data)
+    trigger_async_processing(event=event_data, event_id="evt123")
 
     mock_boto_client.assert_called_once_with("lambda")
     mock_lambda_client.invoke.assert_called_once()

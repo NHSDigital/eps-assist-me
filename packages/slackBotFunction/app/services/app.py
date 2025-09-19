@@ -9,7 +9,7 @@ logger = get_logger()
 
 
 @lru_cache()
-def get_app():
+def get_app() -> App:
     bot_token, signing_secret = get_ssm_params()
 
     # initialise the Slack app

@@ -8,7 +8,13 @@ from unittest.mock import Mock, patch
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_async_slack_event_success(
-    mock_get_session, mock_reformulate_query, mock_query_bedrock, mock_get_state_information, mock_webclient, mock_env
+    mock_get_session: Mock,
+    mock_reformulate_query: Mock,
+    mock_query_bedrock: Mock,
+    mock_get_state_information: Mock,
+    mock_webclient: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
 ):
     """Test successful async event processing"""
     # set up mocks
@@ -42,7 +48,7 @@ def test_process_async_slack_event_success(
 
 
 @patch("slack_sdk.WebClient")
-def test_process_async_slack_event_empty_query(mock_webclient, mock_env):
+def test_process_async_slack_event_empty_query(mock_webclient: Mock, mock_get_parameter: Mock, mock_env: Mock):
     """Test async event processing with empty query"""
     # set up mocks
     mock_client = Mock()
@@ -80,7 +86,13 @@ def test_process_async_slack_event_empty_query(mock_webclient, mock_env):
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_async_slack_event_error(
-    mock_get_session, mock_reformulate_query, mock_query_bedrock, mock_get_state_information, mock_webclient, mock_env
+    mock_get_session: Mock,
+    mock_reformulate_query: Mock,
+    mock_query_bedrock: Mock,
+    mock_get_state_information: Mock,
+    mock_webclient: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
 ):
     """Test async event processing with error"""
     # set up mocks
@@ -117,7 +129,13 @@ def test_process_async_slack_event_error(
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_async_slack_event_with_thread_ts(
-    mock_get_session, mock_reformulate_query, mock_query_bedrock, mock_get_state_information, mock_webclient, mock_env
+    mock_get_session: Mock,
+    mock_reformulate_query: Mock,
+    mock_query_bedrock: Mock,
+    mock_get_state_information: Mock,
+    mock_webclient: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
 ):
     """Test async event processing with existing thread_ts"""
     # set up mocks
@@ -162,7 +180,13 @@ def test_process_async_slack_event_with_thread_ts(
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_regex_text_processing(
-    mock_get_session, mock_reformulate_query, mock_query_bedrock, mock_get_state_information, mock_webclient, mock_env
+    mock_get_session: Mock,
+    mock_reformulate_query: Mock,
+    mock_query_bedrock: Mock,
+    mock_get_state_information: Mock,
+    mock_webclient: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
 ):
     """Test regex text processing functionality within process_async_slack_event"""
     # set up mocks
@@ -199,12 +223,13 @@ def test_regex_text_processing(
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
 def test_process_async_slack_event_with_session_storage(
-    mock_reformulate_query,
-    mock_query_bedrock,
-    mock_store_state_information,
-    mock_get_state_information,
-    mock_webclient,
-    mock_env,
+    mock_reformulate_query: Mock,
+    mock_query_bedrock: Mock,
+    mock_store_state_information: Mock,
+    mock_get_state_information: Mock,
+    mock_webclient: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
 ):
     """Test async event processing that stores a new session"""
     # set up mocks
@@ -242,7 +267,13 @@ def test_process_async_slack_event_with_session_storage(
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_async_slack_event_chat_update_error(
-    mock_get_session, mock_reformulate_query, mock_query_bedrock, mock_get_state_information, mock_webclient, mock_env
+    mock_get_session: Mock,
+    mock_reformulate_query: Mock,
+    mock_query_bedrock: Mock,
+    mock_get_state_information: Mock,
+    mock_webclient: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
 ):
     """Test process_async_slack_event with chat_update error"""
     # set up mocks
@@ -277,7 +308,13 @@ def test_process_async_slack_event_chat_update_error(
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_async_slack_event_dm_context(
-    mock_get_session, mock_reformulate_query, mock_query_bedrock, mock_get_state_information, mock_webclient, mock_env
+    mock_get_session: Mock,
+    mock_reformulate_query: Mock,
+    mock_query_bedrock: Mock,
+    mock_get_state_information: Mock,
+    mock_webclient: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
 ):
     """Test process_async_slack_event with DM context"""
     # set up mocks
