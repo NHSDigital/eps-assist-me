@@ -53,9 +53,7 @@ def test_app_mention_handler(
 
     # assertions
     mock_ack.assert_called_once()
-    mock_trigger_async_processing.assert_called_once_with(
-        {"event": mock_event, "event_id": "evt123", "bot_token": "test-token"}
-    )
+    mock_trigger_async_processing.assert_called_once_with(event=mock_event, event_id="evt123")
     mock_respond_with_eyes.assert_called_once()
 
 

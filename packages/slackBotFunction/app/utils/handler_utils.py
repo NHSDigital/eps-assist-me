@@ -40,7 +40,7 @@ def is_duplicate_event(event_id):
         return False
 
 
-def trigger_async_processing(event_data):
+def trigger_async_processing(event: Dict[str, Any], event_id: str):
     """
     Trigger asynchronous Lambda invocation to process Slack events
 
@@ -49,14 +49,16 @@ def trigger_async_processing(event_data):
     actual AI processing without blocking the initial Slack response.
     """
     # incase we fail to re-invoke the lambda we should log an error
+    lambda_client: LambdaClient = boto3.client("lambda")
     try:
-        lambda_client: LambdaClient = boto3.client("lambda")
+        logger.debug("Triggering async lambda processing")
+        lambda_payload = {"async_processing": True, "slack_event": {"event": event, "event_id": event_id}}
         lambda_client.invoke(
             FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
             InvocationType="Event",
-            Payload=json.dumps({"async_processing": True, "slack_event": event_data}),
+            Payload=json.dumps(lambda_payload),
         )
-        logger.info("Async processing triggered successfully")
+        logger.debug("Async processing triggered successfully")
     except Exception:
         logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
 
@@ -72,7 +74,7 @@ def respond_with_eyes(bot_token: str, event: Dict[str, Any]):
         logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})
 
 
-def trigger_pull_request_processing(pull_request_id: str, body: Dict[str, Any]):
+def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any], event_id: str):
     cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
@@ -82,7 +84,7 @@ def trigger_pull_request_processing(pull_request_id: str, body: Dict[str, Any]):
 
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
         logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
-        lambda_payload = {"body": json.dumps(body)}
+        lambda_payload = {"async_processing": True, "slack_event": {"event": event, "event_id": event_id}}
         response = lambda_client.invoke(
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )

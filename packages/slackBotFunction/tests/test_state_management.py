@@ -73,7 +73,7 @@ def test_trigger_async_processing_error(mock_boto_client, mock_env):
 
     event_data = {"test": "data"}
     # Should not raise exception even if Lambda invoke fails
-    trigger_async_processing(event_data)
+    trigger_async_processing(event=event_data, event_id="evt123")
 
     mock_boto_client.assert_called_once_with("lambda")
     mock_lambda_client.invoke.assert_called_once()
@@ -93,7 +93,7 @@ def test_trigger_async_processing(
     from app.utils.handler_utils import trigger_async_processing
 
     event_data = {"test": "data"}
-    trigger_async_processing(event_data)
+    trigger_async_processing(event=event_data, event_id="evt123")
 
     mock_boto_client.assert_called_once_with("lambda")
     mock_lambda_client.invoke.assert_called_once()

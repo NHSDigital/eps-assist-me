@@ -316,7 +316,6 @@ def _common_message_handler(
 ):
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
-    bot_token = get_bot_token()
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
         try:
@@ -349,9 +348,9 @@ def _common_message_handler(
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
             pull_request_id, extracted_message = _extract_pull_request_id(message_text)
-            trigger_pull_request_processing(pull_request_id=pull_request_id, body=body)
+            trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
         return
 
-    trigger_async_processing({"event": event, "event_id": event_id, "bot_token": bot_token})
+    trigger_async_processing(event=event, event_id=event_id)

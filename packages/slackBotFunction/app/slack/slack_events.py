@@ -13,6 +13,7 @@ from slack_sdk import WebClient
 from app.core.config import (
     BOT_MESSAGES,
     constants,
+    get_bot_token,
     get_logger,
 )
 from app.services.bedrock import query_bedrock
@@ -175,7 +176,7 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]):
     """
     event = slack_event_data["event"]
     event_id = slack_event_data["event_id"]
-    token = slack_event_data["bot_token"]
+    token = get_bot_token()
 
     client = WebClient(token=token)
 
