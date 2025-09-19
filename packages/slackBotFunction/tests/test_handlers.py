@@ -22,7 +22,7 @@ def test_handler_normal_event(
     result = handler(event, lambda_context)
 
     # assertions
-    mock_handler.handle.assert_called_once_with(event, lambda_context)
+    mock_handler.handle.assert_called_once_with(event=event, context=lambda_context)
     assert result["statusCode"] == 200
 
 

@@ -16,6 +16,7 @@ from mypy_boto3_lambda.client import LambdaClient
 
 from app.services.dynamo import get_state_information, store_state_information
 from app.core.config import (
+    get_bot_token,
     get_logger,
     constants,
 )
@@ -67,7 +68,8 @@ def trigger_async_processing(event: Dict[str, Any], event_id: str) -> None:
         logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
 
 
-def respond_with_eyes(bot_token: str, event: Dict[str, Any]) -> None:
+def respond_with_eyes(event: Dict[str, Any]) -> None:
+    bot_token = get_bot_token()
     client = WebClient(token=bot_token)
     channel = event["channel"]
     ts = event["ts"]
@@ -137,9 +139,9 @@ def gate_common(event: Dict[str, Any], body: Dict[str, Any]) -> str | None:
     return event_id
 
 
-def strip_mentions(text: str) -> str:
+def strip_mentions(message_text: str) -> str:
     """Remove Slack user mentions like <@U123> or <@U123|alias> from text."""
-    return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", text or "").strip()
+    return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", message_text or "").strip()
 
 
 def extract_pull_request_id(text: str) -> str:

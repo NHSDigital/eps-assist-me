@@ -230,7 +230,7 @@ def test_respond_with_eyes_on_success(mock_webclient: Mock, mock_env: Mock):
 
     # perform operation
     event = {"channel": "D123", "ts": "456", "channel_type": "im"}
-    respond_with_eyes("dummy_token", event)
+    respond_with_eyes(event)
 
     # assertions
     # just need to make sure it does not error
@@ -251,7 +251,7 @@ def test_respond_with_eyes_on_failure(mock_webclient: Mock, mock_env: Mock):
 
     # perform operation
     event = {"channel": "D123", "ts": "456", "channel_type": "im"}
-    respond_with_eyes("dummy_token", event)
+    respond_with_eyes(event)
 
     # assertions
     # just need to make sure it does not error

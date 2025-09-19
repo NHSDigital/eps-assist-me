@@ -35,7 +35,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
             logger.error("Async processing requested but no slack_event provided")
             return {"statusCode": 400}
 
-        process_async_slack_event(slack_event_data)
+        process_async_slack_event(slack_event_data=slack_event_data)
         return {"statusCode": 200}
 
     # handle async processing requests
@@ -45,9 +45,9 @@ def handler(event: dict, context: LambdaContext) -> dict:
             logger.error("Async processing requested but no slack_event provided")
             return {"statusCode": 400}
 
-        process_pull_request_slack_event(slack_event_data)
+        process_pull_request_slack_event(slack_event_data=slack_event_data)
         return {"statusCode": 200}
 
     # handle Slack webhook requests
     slack_handler = SlackRequestHandler(app=app)
-    return slack_handler.handle(event, context)
+    return slack_handler.handle(event=event, context=context)

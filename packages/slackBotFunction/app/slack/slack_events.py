@@ -333,7 +333,7 @@ def store_feedback(
 
         # Get latest bot message timestamp for feedback linking
         if not message_ts:
-            message_ts = get_latest_message_ts(conversation_key)
+            message_ts = get_latest_message_ts(conversation_key=conversation_key)
 
         if message_ts and feedback_type in ["positive", "negative"]:
             # Per-message feedback with deduplication for button votes only
@@ -375,7 +375,7 @@ def store_feedback(
 
         # Mark Q&A as having received feedback to prevent deletion
         if message_ts:
-            _mark_qa_feedback_received(conversation_key, message_ts)
+            _mark_qa_feedback_received(conversation_key=conversation_key, message_ts=message_ts)
 
         logger.info(
             "Stored feedback",
@@ -403,7 +403,7 @@ def get_conversation_session(conversation_key: str) -> str | None:
     """
     Get existing Bedrock session for this conversation
     """
-    session_data = get_conversation_session_data(conversation_key)
+    session_data = get_conversation_session_data(conversation_key=conversation_key)
     return session_data.get("session_id") if session_data else None
 
 
@@ -412,7 +412,7 @@ def get_conversation_session_data(conversation_key: str) -> Dict[str, Any]:
     Get full session data for this conversation
     """
     try:
-        response = get_state_information({"pk": conversation_key, "sk": "session"})
+        response = get_state_information(key={"pk": conversation_key, "sk": "session"})
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]
@@ -427,7 +427,7 @@ def get_latest_message_ts(conversation_key: str) -> str | None:
     Get latest message timestamp from session
     """
     try:
-        response = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
+        response = get_state_information(key={"pk": conversation_key, "sk": constants.SESSION_SK})
         if "Item" in response:
             return response["Item"].get("latest_message_ts")
         return None
@@ -477,9 +477,9 @@ def update_session_latest_message(conversation_key: str, message_ts: str) -> Non
     """
     try:
         update_state_information(
-            {"pk": conversation_key, "sk": constants.SESSION_SK},
-            "SET latest_message_ts = :ts",
-            {":ts": message_ts},
+            key={"pk": conversation_key, "sk": constants.SESSION_SK},
+            update_expression="SET latest_message_ts = :ts",
+            expression_attribute_values={":ts": message_ts},
         )
     except Exception:
         logger.error("Error updating session latest message", extra={"error": traceback.format_exc()})
