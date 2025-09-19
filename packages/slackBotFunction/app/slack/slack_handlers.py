@@ -23,6 +23,7 @@ from app.core.config import (
 from app.services.dynamo import get_state_information
 from app.utils.handler_utils import (
     conversation_key_and_root,
+    extract_pull_request_id,
     gate_common,
     is_latest_message,
     strip_mentions,
@@ -271,7 +272,7 @@ def _common_message_handler(
 
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
-            pull_request_id, extracted_message = _extract_pull_request_id(message_text)
+            pull_request_id, _ = extract_pull_request_id(message_text)
             trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
