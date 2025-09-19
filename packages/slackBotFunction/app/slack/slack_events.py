@@ -267,13 +267,17 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
 
 def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
     # separate function to process pull requests so that we can ensure we store session information
-    event_id = slack_event_data["event_id"]
-    if is_duplicate_event(event_id=event_id):
-        return
-    message_text = slack_event_data["event"]["text"]
-    _, extracted_message = extract_pull_request_id(message_text)
-    slack_event_data["event"]["text"] = extracted_message
-    process_async_slack_event(slack_event_data=slack_event_data)
+    try:
+        event_id = slack_event_data["event_id"]
+        if is_duplicate_event(event_id=event_id):
+            return
+        message_text = slack_event_data["event"]["text"]
+        _, extracted_message = extract_pull_request_id(message_text)
+        slack_event_data["event"]["text"] = extracted_message
+        process_async_slack_event(slack_event_data=slack_event_data)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
 
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:

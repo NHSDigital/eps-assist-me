@@ -145,7 +145,7 @@ def strip_mentions(message_text: str) -> str:
 
 
 def extract_pull_request_id(text: str) -> Tuple[str, str]:
-    # Regex: '#pr' + optional space + number + space + rest of text
+    # Regex: PULL_REQUEST_PREFIX + optional space + number + space + rest of text
     pattern = re.escape(constants.PULL_REQUEST_PREFIX) + r"\s*(\d+)\s+(.+)"
     match = re.match(pattern, text)
     if not match:
