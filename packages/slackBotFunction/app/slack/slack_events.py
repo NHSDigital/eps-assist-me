@@ -25,7 +25,7 @@ from app.services.dynamo import (
 )
 from app.services.query_reformulator import reformulate_query
 from app.services.slack import get_friendly_channel_name
-from app.utils.handler_utils import extract_pull_request_id, is_duplicate_event
+from app.utils.handler_utils import extract_pull_request_id, is_duplicate_event, strip_mentions
 
 logger = get_logger()
 
@@ -277,7 +277,8 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
     if is_duplicate_event(event_id=event_id):
         return
     message_text = slack_event_data["event"]["text"]
-    _, extracted_message = extract_pull_request_id(message_text)
+    stripped_message = strip_mentions(message_text)
+    _, extracted_message = extract_pull_request_id(stripped_message)
     slack_event_data["event"]["text"] = extracted_message
     process_async_slack_event(slack_event_data=slack_event_data)
 
