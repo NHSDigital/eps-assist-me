@@ -25,6 +25,7 @@ from app.services.dynamo import (
 )
 from app.services.query_reformulator import reformulate_query
 from app.services.slack import get_friendly_channel_name
+from app.utils.handler_utils import is_duplicate_event
 
 logger = get_logger()
 
@@ -268,6 +269,14 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
             client.chat_postMessage(**post_params)
         except Exception:
             logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
+
+
+def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    event_id = slack_event_data["event_id"]
+    if is_duplicate_event(event_id=event_id):
+        return
+    process_async_slack_event(slack_event_data=slack_event_data)
 
 
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:

@@ -88,7 +88,7 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
 
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
         logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
-        lambda_payload = {"async_processing": True, "slack_event": {"event": event, "event_id": event_id}}
+        lambda_payload = {"pull_request_processing": True, "slack_event": {"event": event, "event_id": event_id}}
         response = lambda_client.invoke(
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
