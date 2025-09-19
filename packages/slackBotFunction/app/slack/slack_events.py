@@ -202,7 +202,7 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]):
             return
 
         # Reformulate query for better RAG retrieval
-        reformulated_query = reformulate_query(logger, user_query)
+        reformulated_query = reformulate_query(user_query)
 
         # Check if we have an existing Bedrock conversation session
         session_data = get_conversation_session_data(conversation_key)

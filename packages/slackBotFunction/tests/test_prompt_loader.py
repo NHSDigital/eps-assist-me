@@ -10,7 +10,7 @@ def mock_logger():
 
 
 @patch("boto3.client")
-def test_load_prompt_success_draft(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
+def test_load_prompt_success_draft(mock_boto_client: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -30,7 +30,7 @@ def test_load_prompt_success_draft(mock_boto_client: Mock, mock_logger: Mock, mo
     from app.services.prompt_loader import load_prompt
 
     # perform operation
-    result = load_prompt(mock_logger, "test-prompt")
+    result = load_prompt("test-prompt")
 
     # assertions
     assert result == "Test prompt"
@@ -38,7 +38,7 @@ def test_load_prompt_success_draft(mock_boto_client: Mock, mock_logger: Mock, mo
 
 
 @patch("boto3.client")
-def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
+def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -56,7 +56,7 @@ def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_logger: Mock
     from app.services.prompt_loader import load_prompt
 
     # perform operation
-    result = load_prompt(mock_logger, "test-prompt", "1")
+    result = load_prompt("test-prompt", "1")
 
     # assertions
     assert result == "Versioned prompt"
@@ -64,7 +64,7 @@ def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_logger: Mock
 
 
 @patch("boto3.client")
-def test_load_prompt_not_found(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
+def test_load_prompt_not_found(mock_boto_client: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -78,11 +78,11 @@ def test_load_prompt_not_found(mock_boto_client: Mock, mock_logger: Mock, mock_e
 
     # perform operation
     with pytest.raises(Exception, match="Could not find prompt ID"):
-        load_prompt(mock_logger, "nonexistent-prompt")
+        load_prompt("nonexistent-prompt")
 
 
 @patch("boto3.client")
-def test_load_prompt_client_error(mock_boto_client: Mock, mock_logger: Mock, mock_env: Mock):
+def test_load_prompt_client_error(mock_boto_client: Mock, mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_boto_client.return_value = mock_client
@@ -99,10 +99,10 @@ def test_load_prompt_client_error(mock_boto_client: Mock, mock_logger: Mock, moc
 
     # perform operation
     with pytest.raises(Exception, match="ValidationException - Invalid prompt"):
-        load_prompt(mock_logger, "test-prompt")
+        load_prompt("test-prompt")
 
 
-def test_get_prompt_id_from_name_success(mock_logger: Mock, mock_env: Mock):
+def test_get_prompt_id_from_name_success(mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_client.list_prompts.return_value = {"promptSummaries": [{"name": "test-prompt", "id": "ABC1234567"}]}
@@ -113,13 +113,13 @@ def test_get_prompt_id_from_name_success(mock_logger: Mock, mock_env: Mock):
     from app.services.prompt_loader import get_prompt_id_from_name
 
     # perform operation
-    result = get_prompt_id_from_name(mock_logger, mock_client, "test-prompt")
+    result = get_prompt_id_from_name(mock_client, "test-prompt")
 
     # assertions
     assert result == "ABC1234567"
 
 
-def test_get_prompt_id_from_name_not_found(mock_logger: Mock, mock_env: Mock):
+def test_get_prompt_id_from_name_not_found(mock_env: Mock):
     # set up mocks
     mock_client = MagicMock()
     mock_client.list_prompts.return_value = {"promptSummaries": []}
@@ -130,7 +130,7 @@ def test_get_prompt_id_from_name_not_found(mock_logger: Mock, mock_env: Mock):
     from app.services.prompt_loader import get_prompt_id_from_name
 
     # perform operation
-    result = get_prompt_id_from_name(mock_logger, mock_client, "nonexistent")
+    result = get_prompt_id_from_name(mock_client, "nonexistent")
 
     # assertions
     assert result is None
@@ -147,7 +147,7 @@ def test_get_prompt_id_client_error(mock_logger: Mock, mock_env: Mock):
         del sys.modules["app.services.prompt_loader"]
     from app.services.prompt_loader import get_prompt_id_from_name
 
-    result = get_prompt_id_from_name(mock_logger, mock_client, "test-prompt")
+    result = get_prompt_id_from_name(mock_client, "test-prompt")
 
     # assertions
     assert result is None
