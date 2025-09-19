@@ -30,7 +30,7 @@ def test_reformulate_query_returns_string(mock_invoke_model: Mock, mock_load_pro
     assert isinstance(result, str)
     assert len(result) > 0
     assert result == "foo"
-    mock_load_prompt.assert_called_once_with(ANY, "test-prompt", "DRAFT")
+    mock_load_prompt.assert_called_once_with("test-prompt", "DRAFT")
     mock_invoke_model.assert_called_once_with(
         prompt="Test reformat. How do I use EPS?", model_id="test-model", client=ANY
     )

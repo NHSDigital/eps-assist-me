@@ -6,7 +6,7 @@ import re
 import time
 import json
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
@@ -23,7 +23,7 @@ from app.core.config import (
 logger = get_logger()
 
 
-def is_duplicate_event(event_id):
+def is_duplicate_event(event_id: str) -> bool:
     """
     Check if we've already processed this event using DynamoDB conditional writes
 
@@ -98,7 +98,7 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
         raise e
 
 
-def is_latest_message(conversation_key, message_ts):
+def is_latest_message(conversation_key: str, message_ts: str) -> bool:
     """Check if message_ts is the latest bot message using session data"""
     try:
         response = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
@@ -111,7 +111,7 @@ def is_latest_message(conversation_key, message_ts):
         return False
 
 
-def gate_common(event: Dict[str, Any], body: Dict[str, Any]):
+def gate_common(event: Dict[str, Any], body: Dict[str, Any]) -> str | None:
     """
     Apply common early checks that are shared across handlers.
 
@@ -153,7 +153,7 @@ def extract_pull_request_id(text: str) -> str:
     return pr_number, rest_text
 
 
-def conversation_key_and_root(event: Dict[str, Any]):
+def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
     """
     Build a stable conversation scope and its root timestamp.
 

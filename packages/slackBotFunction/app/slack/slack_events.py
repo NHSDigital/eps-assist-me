@@ -7,7 +7,7 @@ import re
 import time
 import traceback
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
@@ -34,7 +34,7 @@ logger = get_logger()
 # ================================================================
 
 
-def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data):
+def cleanup_previous_unfeedback_qa(conversation_key: str, current_message_ts: str, session_data: Dict[str, Any]):
     """Delete previous Q&A pair if no feedback received using atomic operation"""
     try:
         previous_message_ts = session_data.get("latest_message_ts")
@@ -57,7 +57,9 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
         logger.error("Error cleaning up unfeedback Q&A", extra={"error": traceback.format_exc()})
 
 
-def store_qa_pair(conversation_key, user_query, bot_response, message_ts, session_id, user_id):
+def store_qa_pair(
+    conversation_key: str, user_query: str, bot_response: str, message_ts: str, session_id: str, user_id: str
+):
     """
     Store Q&A pair for feedback correlation
     """
@@ -79,7 +81,7 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
         logger.error("Failed to store Q&A pair", extra={"error": traceback.format_exc()})
 
 
-def _mark_qa_feedback_received(conversation_key, message_ts):
+def _mark_qa_feedback_received(conversation_key: str, message_ts: str):
     """
     Mark Q&A record as having received feedback to prevent deletion
     """
@@ -98,7 +100,7 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
 # ================================================================
 
 
-def _extract_conversation_context(event: Dict[str, Any]):
+def _extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str | None]:
     """Extract conversation key and thread context from event"""
     channel = event["channel"]
     # Determine conversation context: DM vs channel thread
@@ -110,7 +112,15 @@ def _extract_conversation_context(event: Dict[str, Any]):
 
 
 def _handle_session_management(
-    conversation_key, session_data, session_id, kb_response, user_id, channel, thread_ts, context_type, message_ts
+    conversation_key: str,
+    session_data: Dict[str, Any],
+    session_id: str,
+    kb_response: Dict[str, Any],
+    user_id: str,
+    channel: str,
+    thread_ts: str,
+    context_type: str,
+    message_ts: str,
 ):
     """Handle Bedrock session creation and cleanup"""
     # Handle conversation session management
@@ -131,7 +141,9 @@ def _handle_session_management(
         update_session_latest_message(conversation_key, message_ts)
 
 
-def _create_feedback_blocks(response_text, conversation_key, channel, message_ts, thread_ts):
+def _create_feedback_blocks(
+    response_text: str, conversation_key: str, channel: str, message_ts: str, thread_ts: str
+) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
     # Create compact feedback payload for button actions
     feedback_data = {"ck": conversation_key, "ch": channel, "mt": message_ts}
@@ -281,14 +293,14 @@ def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client
 
 
 def store_feedback(
-    conversation_key,
-    feedback_type,
-    user_id,
-    channel_id,
+    conversation_key: str,
+    feedback_type: str,
+    user_id: str,
+    channel_id: str,
     client: WebClient,
-    thread_ts=None,
-    message_ts=None,
-    feedback_text=None,
+    thread_ts: str = None,
+    message_ts: str = None,
+    feedback_text: str = None,
 ):
     """
     Store user feedback with reference to Q&A record
@@ -373,7 +385,7 @@ def store_feedback(
 # ================================================================
 
 
-def get_conversation_session(conversation_key):
+def get_conversation_session(conversation_key: str) -> str | None:
     """
     Get existing Bedrock session for this conversation
     """
@@ -381,7 +393,7 @@ def get_conversation_session(conversation_key):
     return session_data.get("session_id") if session_data else None
 
 
-def get_conversation_session_data(conversation_key):
+def get_conversation_session_data(conversation_key: str) -> Dict[str, Any]:
     """
     Get full session data for this conversation
     """
@@ -396,7 +408,7 @@ def get_conversation_session_data(conversation_key):
         return None
 
 
-def get_latest_message_ts(conversation_key):
+def get_latest_message_ts(conversation_key: str) -> str:
     """
     Get latest message timestamp from session
     """
@@ -411,7 +423,12 @@ def get_latest_message_ts(conversation_key):
 
 
 def store_conversation_session(
-    conversation_key, session_id, user_id, channel_id, thread_ts=None, latest_message_ts=None
+    conversation_key: str,
+    session_id: str,
+    user_id: str,
+    channel_id: str,
+    thread_ts: str = None,
+    latest_message_ts: str = None,
 ):
     """
     Store new Bedrock session for conversation memory
@@ -440,7 +457,7 @@ def store_conversation_session(
         logger.error("Error storing session", extra={"error": traceback.format_exc()})
 
 
-def update_session_latest_message(conversation_key, message_ts):
+def update_session_latest_message(conversation_key: str, message_ts: str):
     """
     Update session with latest message timestamp
     """

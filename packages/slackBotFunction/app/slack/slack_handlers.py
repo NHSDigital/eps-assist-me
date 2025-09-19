@@ -12,7 +12,7 @@ from functools import lru_cache
 import traceback
 from typing import Any, Dict
 from botocore.exceptions import ClientError
-from slack_bolt import Ack
+from slack_bolt import Ack, App
 from slack_sdk import WebClient
 from app.core.config import (
     BOT_MESSAGES,
@@ -40,7 +40,7 @@ logger = get_logger()
 
 
 @lru_cache
-def setup_handlers(app):
+def setup_handlers(app: App):
     """Register handlers. Intentionally minimal—no branching here."""
     app.event("app_mention")(mention_handler)
     app.event("message")(unified_message_handler)
