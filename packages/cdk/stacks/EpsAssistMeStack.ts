@@ -147,16 +147,15 @@ export class EpsAssistMeStack extends Stack {
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
       bucket: storage.kbDocsBucket.bucket,
-      lambdaFunction: functions.functions.syncKnowledgeBase.function
+      lambdaFunction: functions.syncKnowledgeBaseFunction.function
     })
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
       stackName: props.stackName,
       logRetentionInDays,
-      enableMutalTls: false,
       functions: {
-        slackBot: functions.functions.slackBot
+        slackBot: functions.slackBotLambda
       }
     })
 
@@ -180,6 +179,12 @@ export class EpsAssistMeStack extends Stack {
       value: storage.kbDocsBucket.bucket.bucketName,
       exportName: `${props.stackName}:kbDocsBucket:Name`
     })
+
+    new CfnOutput(this, "SlackBotLambdaRoleArn", {
+      value: functions.slackBotLambda.executionRole.roleArn,
+      exportName: `${props.stackName}:lambda:SlackBot:ExecutionRole:Arn`
+    })
+
     if (isPullRequest) {
       new CfnOutput(this, "VERSION_NUMBER", {
         value: props.version,
