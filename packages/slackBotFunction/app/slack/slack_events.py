@@ -11,7 +11,7 @@ from typing import Any, Dict, Tuple
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
-    BOT_MESSAGES,
+    bot_messages,
     constants,
     get_bot_token,
     get_logger,
@@ -24,7 +24,7 @@ from app.services.dynamo import (
     update_state_information,
 )
 from app.services.query_reformulator import reformulate_query
-from app.services.slack import get_friendly_channel_name
+from app.services.slack import get_friendly_channel_name, post_error_message
 from app.utils.handler_utils import extract_pull_request_id, is_duplicate_event
 
 logger = get_logger()
@@ -155,20 +155,20 @@ def _create_feedback_blocks(
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
     return [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
-        {"type": "section", "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]}},
+        {"type": "section", "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_PROMPT}},
         {
             "type": "actions",
             "block_id": "feedback_block",
             "elements": [
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_yes"]},
+                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_YES},
                     "action_id": "feedback_yes",
                     "value": feedback_value,
                 },
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_no"]},
+                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_NO},
                     "action_id": "feedback_no",
                     "value": feedback_value,
                 },
@@ -210,7 +210,7 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
 
         # handles empty messages
         if not user_query:
-            post_params = {"channel": channel, "text": BOT_MESSAGES["empty_query"]}
+            post_params = {"channel": channel, "text": bot_messages.EMPTY_QUERY}
             if thread_ts:  # Only add thread_ts for channel threads, not DMs
                 post_params["thread_ts"] = thread_ts
             client.chat_postMessage(**post_params)
@@ -262,24 +262,22 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
         # Try to notify user of error via Slack
-        try:
-            post_params = {"channel": channel, "text": BOT_MESSAGES["error_response"]}
-            if thread_ts:  # Only add thread_ts for channel threads, not DMs
-                post_params["thread_ts"] = thread_ts
-            client.chat_postMessage(**post_params)
-        except Exception:
-            logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
+        post_error_message(channel=channel, thread_ts=thread_ts)
 
 
 def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
     # separate function to process pull requests so that we can ensure we store session information
-    event_id = slack_event_data["event_id"]
-    if is_duplicate_event(event_id=event_id):
-        return
-    message_text = slack_event_data["event"]["text"]
-    _, extracted_message = extract_pull_request_id(message_text)
-    slack_event_data["event"]["text"] = extracted_message
-    process_async_slack_event(slack_event_data=slack_event_data)
+    try:
+        event_id = slack_event_data["event_id"]
+        if is_duplicate_event(event_id=event_id):
+            return
+        message_text = slack_event_data["event"]["text"]
+        _, extracted_message = extract_pull_request_id(message_text)
+        slack_event_data["event"]["text"] = extracted_message
+        process_async_slack_event(slack_event_data=slack_event_data)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
 
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
