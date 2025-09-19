@@ -1,6 +1,6 @@
 import {Construct} from "constructs"
 import {LambdaFunction} from "../constructs/LambdaFunction"
-import {ManagedPolicy} from "aws-cdk-lib/aws-iam"
+import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 import {TableV2} from "aws-cdk-lib/aws-dynamodb"
@@ -35,10 +35,13 @@ export interface FunctionsProps {
   readonly slackBotSigningSecret: Secret
   readonly slackBotStateTable: TableV2
   readonly promptName: string
+  readonly isPullRequest: boolean
+  readonly mainSlackBotLambdaExecutionRoleArn : string
 }
 
 export class Functions extends Construct {
-  public readonly functions: {[key: string]: LambdaFunction}
+  public readonly slackBotLambda: LambdaFunction
+  public readonly syncKnowledgeBaseFunction: LambdaFunction
 
   constructor(scope: Construct, id: string, props: FunctionsProps) {
     super(scope, id)
@@ -73,6 +76,30 @@ export class Functions extends Construct {
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 
+    if (props.isPullRequest) {
+      const mainSlackBotLambdaExecutionRole = Role.fromRoleArn(
+        this,
+        "mainRoleArn",
+        props.mainSlackBotLambdaExecutionRoleArn, {
+          mutable: true
+        })
+
+      const executeSlackBotPolicy = new ManagedPolicy(this, "ExecuteSlackBotPolicy", {
+        description: "foo",
+        statements: [
+          new PolicyStatement({
+            actions: [
+              "lambda:invokeFunction"
+            ],
+            resources: [
+              slackBotLambda.function.functionArn
+            ]
+          })
+        ]
+      })
+      mainSlackBotLambdaExecutionRole.addManagedPolicy(executeSlackBotPolicy)
+    }
+
     // Lambda function to sync knowledge base on S3 events
     const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {
       stackName: props.stackName,
@@ -89,9 +116,7 @@ export class Functions extends Construct {
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
     })
 
-    this.functions = {
-      slackBot: slackBotLambda,
-      syncKnowledgeBase: syncKnowledgeBaseFunction
-    }
+    this.slackBotLambda = slackBotLambda
+    this.syncKnowledgeBaseFunction = syncKnowledgeBaseFunction
   }
 }

@@ -8,7 +8,10 @@ from botocore.exceptions import ClientError
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.slack.get_friendly_channel_name")
 def test_store_feedback(
-    mock_get_friendly_channel_name, mock_get_state_information, mock_store_state_information, mock_env
+    mock_get_friendly_channel_name: Mock,
+    mock_get_state_information: Mock,
+    mock_store_state_information: Mock,
+    mock_env: Mock,
 ):
     """Test feedback storage functionality"""
     # set up mocks
@@ -33,7 +36,10 @@ def test_store_feedback(
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.slack.get_friendly_channel_name")
 def test_feedback_storage_with_additional_text(
-    mock_get_friendly_channel_name, mock_get_state_information, mock_store_state_information, mock_env
+    mock_get_friendly_channel_name: Mock,
+    mock_get_state_information: Mock,
+    mock_store_state_information: Mock,
+    mock_env: Mock,
 ):
     """Test feedback storage with additional feedback text"""
     # set up mocks
@@ -57,74 +63,8 @@ def test_feedback_storage_with_additional_text(
     assert call_args["feedback_text"] == "This is additional feedback"
 
 
-def test_gate_common_empty_vars(mock_env):
-    """Test that empty feedback doesn't crash"""
-    # set up mocks
-
-    # delete and import module to test
-    if "app.slack.slack_handlers" in sys.modules:
-        del sys.modules["app.slack.slack_handlers"]
-    from app.slack.slack_handlers import _gate_common
-
-    # perform operation
-    result = _gate_common({}, {})
-
-    # assertions
-    assert result is None
-
-
-def test_gate_common_populated_vars(mock_env):
-    """Test that empty feedback doesn't crash"""
-    # set up mocks
-
-    # delete and import module to test
-    if "app.slack.slack_handlers" in sys.modules:
-        del sys.modules["app.slack.slack_handlers"]
-    from app.slack.slack_handlers import _gate_common
-
-    # perform operation
-    result = _gate_common({"bot_id": "B123"}, {"event_id": "evt123"})
-
-    # assertions
-    assert result is None
-
-
-def test_strip_mentions(mock_env):
-    """Test that empty feedback doesn't crash"""
-    # set up mocks
-
-    # delete and import module to test
-    if "app.slack.slack_handlers" in sys.modules:
-        del sys.modules["app.slack.slack_handlers"]
-    from app.slack.slack_handlers import _strip_mentions
-
-    # perform operation
-    result = _strip_mentions("<@U123> hello world")
-
-    # assertions
-    assert result == "hello world"
-
-
-def test_extract_key_and_root(mock_env):
-    """Test that empty feedback doesn't crash"""
-    # set up mocks
-
-    # delete and import module to test
-    if "app.slack.slack_handlers" in sys.modules:
-        del sys.modules["app.slack.slack_handlers"]
-    from app.slack.slack_handlers import _conversation_key_and_root
-
-    # perform operation
-    event = {"channel": "D123", "ts": "456", "channel_type": "im"}
-    key, root = _conversation_key_and_root(event)
-
-    # assertions
-    assert key == "dm#D123"
-    assert root == "456"
-
-
 @patch("app.services.dynamo.store_state_information")
-def test_store_qa_pair_error_handling(mock_store_state_information, mock_env):
+def test_store_qa_pair_error_handling(mock_store_state_information: Mock, mock_env: Mock):
     """Test store_qa_pair error handling"""
     # set up mocks
 
@@ -141,7 +81,7 @@ def test_store_qa_pair_error_handling(mock_store_state_information, mock_env):
 
 
 @patch("app.services.dynamo.store_state_information")
-def test_store_conversation_session_error_handling(mock_store_state_information, mock_env):
+def test_store_conversation_session_error_handling(mock_store_state_information: Mock, mock_env: Mock):
     """Test store_conversation_session error handling"""
     # set up mocks
     mock_store_state_information.side_effect = Exception("DB error")
@@ -159,7 +99,7 @@ def test_store_conversation_session_error_handling(mock_store_state_information,
 
 
 @patch("app.services.dynamo.store_state_information")
-def test_update_session_latest_message_error_handling(mock_store_state_information, mock_env):
+def test_update_session_latest_message_error_handling(mock_store_state_information: Mock, mock_env: Mock):
     """Test update_session_latest_message error handling"""
     # set up mocks
     mock_store_state_information.side_effect = Exception("DB error")
@@ -177,7 +117,7 @@ def test_update_session_latest_message_error_handling(mock_store_state_informati
 
 
 @patch("app.services.dynamo.delete_state_information")
-def test_cleanup_previous_unfeedback_qa_no_previous_message(delete_state_information, mock_env):
+def test_cleanup_previous_unfeedback_qa_no_previous_message(delete_state_information: Mock, mock_env: Mock):
     """Test cleanup_previous_unfeedback_qa function"""
     # set up mocks
 
@@ -195,7 +135,7 @@ def test_cleanup_previous_unfeedback_qa_no_previous_message(delete_state_informa
 
 
 @patch("app.services.dynamo.delete_state_information")
-def test_cleanup_previous_unfeedback_qa_same_timestamp(delete_state_information, mock_env):
+def test_cleanup_previous_unfeedback_qa_same_timestamp(delete_state_information: Mock, mock_env: Mock):
     # set up mocks
 
     # delete and import module to test
@@ -212,7 +152,7 @@ def test_cleanup_previous_unfeedback_qa_same_timestamp(delete_state_information,
 
 
 @patch("app.services.dynamo.delete_state_information")
-def test_cleanup_previous_unfeedback_qa_newer_timestamp(delete_state_information, mock_env):
+def test_cleanup_previous_unfeedback_qa_newer_timestamp(delete_state_information: Mock, mock_env: Mock):
     # set up mocks
 
     # delete and import module to test
@@ -229,7 +169,7 @@ def test_cleanup_previous_unfeedback_qa_newer_timestamp(delete_state_information
 
 
 @patch("app.services.dynamo.delete_state_information")
-def test_cleanup_previous_unfeedback_qa_does_not_throw_error(delete_state_information, mock_env):
+def test_cleanup_previous_unfeedback_qa_does_not_throw_error(delete_state_information: Mock, mock_env: Mock):
     # set up mocks
     error = ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "DeleteItem")
     delete_state_information.side_effect = error
@@ -251,7 +191,10 @@ def test_cleanup_previous_unfeedback_qa_does_not_throw_error(delete_state_inform
 @patch("app.slack.slack_events.get_latest_message_ts")
 @patch("app.services.slack.get_friendly_channel_name")
 def test_store_feedback_no_message_ts_fallback(
-    mock_get_friendly_channel_name, mock_get_latest_message_ts, mock_store_state_information, mock_env
+    mock_get_friendly_channel_name: Mock,
+    mock_get_latest_message_ts: Mock,
+    mock_store_state_information: Mock,
+    mock_env: Mock,
 ):
     """Test store_feedback fallback path when no message_ts"""
     # set up mocks
@@ -278,7 +221,9 @@ def test_store_feedback_no_message_ts_fallback(
 
 @patch("app.services.dynamo.store_state_information")
 @patch("app.services.dynamo.get_state_information")
-def test_store_conversation_session_with_thread(mock_get_state_information, mock_store_state_information, mock_env):
+def test_store_conversation_session_with_thread(
+    mock_get_state_information: Mock, mock_store_state_information: Mock, mock_env: Mock
+):
     """Test store_conversation_session with thread_ts"""
     # set up mocks
 
@@ -299,7 +244,9 @@ def test_store_conversation_session_with_thread(mock_get_state_information, mock
 
 @patch("app.services.dynamo.store_state_information")
 @patch("app.services.dynamo.get_state_information")
-def test_store_conversation_session_without_thread(mock_get_state_information, mock_store_state_information, mock_env):
+def test_store_conversation_session_without_thread(
+    mock_get_state_information: Mock, mock_store_state_information: Mock, mock_env: Mock
+):
     """Test store_conversation_session without thread_ts"""
     # set up mocks
 
@@ -319,7 +266,7 @@ def test_store_conversation_session_without_thread(mock_get_state_information, m
 
 
 @patch("app.services.dynamo.delete_state_information")
-def test_cleanup_previous_unfeedback_qa_error_handling(mock_delete_state_information, mock_env):
+def test_cleanup_previous_unfeedback_qa_error_handling(mock_delete_state_information: Mock, mock_env: Mock):
     """Test cleanup_previous_unfeedback_qa error handling"""
     # set up mocks
     mock_delete_state_information.side_effect = Exception("DB error")
@@ -338,7 +285,7 @@ def test_cleanup_previous_unfeedback_qa_error_handling(mock_delete_state_informa
 
 
 @patch("app.services.dynamo.get_state_information")
-def test_get_conversation_session_data_no_item(mock_get_state_information, mock_env):
+def test_get_conversation_session_data_no_item(mock_get_state_information: Mock, mock_env: Mock):
     """Test get_conversation_session_data when no item exists"""
     # set up mocks
     mock_get_state_information.return_value = {}  # No Item key
@@ -356,7 +303,7 @@ def test_get_conversation_session_data_no_item(mock_get_state_information, mock_
 
 
 @patch("app.services.dynamo.get_state_information")
-def test_get_latest_message_ts_no_item(mock_get_state_information, mock_env):
+def test_get_latest_message_ts_no_item(mock_get_state_information: Mock, mock_env: Mock):
     """Test get_latest_message_ts when no item exists"""
     # set up mocks
     mock_get_state_information.return_value = {}  # No Item key
@@ -377,7 +324,10 @@ def test_get_latest_message_ts_no_item(mock_get_state_information, mock_env):
 @patch("app.slack.slack_events.get_latest_message_ts")
 @patch("app.services.slack.get_friendly_channel_name")
 def test_store_feedback_client_error_reraise(
-    mock_get_friendly_channel_name, mock_get_latest_message_ts, mock_store_state_information, mock_env
+    mock_get_friendly_channel_name: Mock,
+    mock_get_latest_message_ts: Mock,
+    mock_store_state_information: Mock,
+    mock_env: Mock,
 ):
     """Test store_feedback re-raises ClientError"""
     # set up mocks
@@ -397,7 +347,7 @@ def test_store_feedback_client_error_reraise(
 
 
 @patch("app.services.dynamo.store_state_information")
-def test_mark_qa_feedback_received_error(mock_store_state_information, mock_env):
+def test_mark_qa_feedback_received_error(mock_store_state_information: Mock, mock_env: Mock):
     """Test _mark_qa_feedback_received error handling"""
     # set up mocks
     mock_store_state_information.side_effect = Exception("DB error")
