@@ -20,6 +20,7 @@ from app.core.config import (
     constants,
 )
 from app.services.dynamo import get_state_information
+from app.services.slack import post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_pull_request_id,
@@ -30,7 +31,7 @@ from app.utils.handler_utils import (
     respond_with_eyes,
     trigger_pull_request_processing,
 )
-from app.slack.slack_events import store_feedback
+from app.slack.slack_events import _extract_conversation_context, store_feedback
 
 logger = get_logger()
 
@@ -269,6 +270,13 @@ def _common_message_handler(
             trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
+            _, _, thread_ts = _extract_conversation_context(event)
+            post_error_message(channel=channel_id, thread_ts=thread_ts)
         return
 
-    trigger_async_processing(event=event, event_id=event_id)
+    try:
+        trigger_async_processing(event=event, event_id=event_id)
+    except Exception:
+        logger.error("Error triggering async processing", extra={"error": traceback.format_exc()})
+        _, _, thread_ts = _extract_conversation_context(event)
+        post_error_message(channel=channel_id, thread_ts=thread_ts)

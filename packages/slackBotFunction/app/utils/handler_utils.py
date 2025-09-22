@@ -64,8 +64,9 @@ def trigger_async_processing(event: Dict[str, Any], event_id: str) -> None:
             Payload=json.dumps(lambda_payload),
         )
         logger.debug("Async processing triggered successfully")
-    except Exception:
+    except Exception as e:
         logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
+        raise e
 
 
 def respond_with_eyes(event: Dict[str, Any]) -> None:
