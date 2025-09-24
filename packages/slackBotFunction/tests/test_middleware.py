@@ -50,10 +50,10 @@ def test_correct_handlers_registered(
     assert "feedback_yes" in registered_action_handlers
     assert "feedback_no" in registered_action_handlers
 
-    assert registered_ack_handlers["app_mention"].__name__ == "respond_to_slack_within_3_seconds"
-    assert registered_ack_handlers["message"].__name__ == "respond_to_slack_within_3_seconds"
-    assert registered_ack_handlers["feedback_yes"].__name__ == "respond_to_slack_within_3_seconds"
-    assert registered_ack_handlers["feedback_no"].__name__ == "respond_to_slack_within_3_seconds"
+    assert registered_ack_handlers["app_mention"].__name__ == "respond_to_events"
+    assert registered_ack_handlers["message"].__name__ == "respond_to_events"
+    assert registered_ack_handlers["feedback_yes"].__name__ == "respond_to_action"
+    assert registered_ack_handlers["feedback_no"].__name__ == "respond_to_action"
 
     assert registered_event_handlers["app_mention"].__name__ == "mention_handler"
     assert registered_event_handlers["message"].__name__ == "unified_message_handler"
