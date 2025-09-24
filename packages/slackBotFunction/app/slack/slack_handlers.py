@@ -43,10 +43,10 @@ logger = get_logger()
 @lru_cache
 def setup_handlers(app: App) -> None:
     """Register handlers. Intentionally minimal—no branching here."""
-    app.event("app_mention")(ack=respond_to_slack_within_3_seconds, lazy=[mention_handler])
-    app.event("message")(ack=respond_to_slack_within_3_seconds, lazy=[unified_message_handler])
-    app.action("feedback_yes")(ack=respond_to_slack_within_3_seconds, lazy=[feedback_handler])
-    app.action("feedback_no")(ack=respond_to_slack_within_3_seconds, lazy=[feedback_handler])
+    app.event("app_mention")(ack=respond_to_events, lazy=[mention_handler])
+    app.event("message")(ack=respond_to_events, lazy=[unified_message_handler])
+    app.action("feedback_yes")(ack=respond_to_action, lazy=[feedback_handler])
+    app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
 
 
 # ================================================================
@@ -54,8 +54,13 @@ def setup_handlers(app: App) -> None:
 # ================================================================
 
 
-def respond_to_slack_within_3_seconds(event: Dict[str, Any], ack: Ack):
+def respond_to_events(event: Dict[str, Any], ack: Ack):
     respond_with_eyes(event=event)
+    logger.debug("Sending ack response")
+    ack()
+
+
+def respond_to_action(ack: Ack):
     logger.debug("Sending ack response")
     ack()
 
@@ -167,10 +172,10 @@ def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client:
         thread_message_handler(event=event, event_id=event_id, client=client)
 
 
-def feedback_handler(body: Dict[str, Any], client: WebClient, event: Dict[str, Any]) -> None:
+def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
     """Handle feedback button clicks (both positive and negative)."""
     try:
-        channel_id = event["channel"]
+        channel_id = body["channel"]["id"]
         action_id = body["actions"][0]["action_id"]
         feedback_data = json.loads(body["actions"][0]["value"])
 
@@ -220,8 +225,6 @@ def feedback_handler(body: Dict[str, Any], client: WebClient, event: Dict[str, A
             post_error_message(channel=channel_id, thread_ts=thread_ts)
     except Exception as e:
         logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
-        _, _, thread_ts = extract_conversation_context(event)
-        post_error_message(channel=channel_id, thread_ts=thread_ts)
 
 
 # ================================================================

@@ -601,7 +601,6 @@ def test_feedback_action_handler_positive_success(
         "message": {"ts": "123"},
     }
     mock_client = Mock()
-    mock_event = {"channel": "foo"}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -609,7 +608,7 @@ def test_feedback_action_handler_positive_success(
     from app.slack.slack_handlers import feedback_handler
 
     # perform operation
-    feedback_handler(body=mock_body, event=mock_event, client=mock_client)
+    feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
     mock_store_feedback.assert_called_once_with(
@@ -649,7 +648,6 @@ def test_feedback_action_handler_negative_success(
         "message": {"ts": "123"},
     }
     mock_client = Mock()
-    mock_event = {"channel": "foo"}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -657,7 +655,7 @@ def test_feedback_action_handler_negative_success(
     from app.slack.slack_handlers import feedback_handler
 
     # perform operation
-    feedback_handler(body=mock_body, event=mock_event, client=mock_client)
+    feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
     mock_store_feedback.assert_called_once_with(
@@ -692,7 +690,6 @@ def test_feedback_handler_unknown_action(
     }
     mock_client = Mock()
     mock_is_latest_message.return_value = True
-    mock_event = {"channel": "foo"}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -700,7 +697,7 @@ def test_feedback_handler_unknown_action(
     from app.slack.slack_handlers import feedback_handler
 
     # perform operation
-    feedback_handler(body=mock_body, client=mock_client, event=mock_event)
+    feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
     mock_store_feedback.assert_not_called()
@@ -709,16 +706,12 @@ def test_feedback_handler_unknown_action(
 
 @patch("app.utils.handler_utils.is_latest_message")
 @patch("app.slack.slack_events.store_feedback")
-@patch("app.services.slack.post_error_message")
-def test_feedback_handler_not_latest_message(
-    mock_post_error_message: Mock, mock_store_feedback: Mock, mock_is_latest_message: Mock, mock_env: Mock
-):
+def test_feedback_handler_not_latest_message(mock_store_feedback: Mock, mock_is_latest_message: Mock, mock_env: Mock):
     """Test feedback_handler when not latest message"""
     # setup mocks
     mock_body = {"actions": [{"action_id": "feedback_yes", "value": '{"ck": "conv-key", "mt": "123"}'}]}
     mock_client = Mock()
     mock_is_latest_message.return_value = False
-    mock_event = {"channel": "foo"}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -726,11 +719,10 @@ def test_feedback_handler_not_latest_message(
     from app.slack.slack_handlers import feedback_handler
 
     # perform operation
-    feedback_handler(body=mock_body, client=mock_client, event=mock_event)
+    feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
     mock_store_feedback.assert_not_called()
-    mock_post_error_message.assert_not_called()
 
 
 @patch("app.slack.slack_events.store_feedback")
@@ -758,7 +750,6 @@ def test_feedback_handler_conditional_check_failed(
 
     error = ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "PutItem")
     mock_store_feedback.side_effect = error
-    mock_event = {"channel": "foo"}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -766,7 +757,7 @@ def test_feedback_handler_conditional_check_failed(
     from app.slack.slack_handlers import feedback_handler
 
     # perform operation
-    feedback_handler(body=mock_body, client=mock_client, event=mock_event)
+    feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
     mock_post_error_message.assert_not_called()
@@ -795,7 +786,6 @@ def test_feedback_handler_storage_error(
     }
     mock_client = Mock()
     mock_store_feedback.side_effect = Exception("Storage error")
-    mock_event = {"channel": "C789"}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -803,10 +793,10 @@ def test_feedback_handler_storage_error(
     from app.slack.slack_handlers import feedback_handler
 
     # perform operation
-    feedback_handler(body=mock_body, client=mock_client, event=mock_event)
+    feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
-    mock_post_error_message.assert_called_once_with(channel="C789", thread_ts="123")
+    mock_post_error_message.assert_called_once_with(channel="C123", thread_ts="123")
 
 
 @patch("app.utils.handler_utils.is_latest_message")
@@ -826,7 +816,6 @@ def test_feedback_handler_general_error(
         "message": {"ts": "123"},
     }
     mock_client = Mock()
-    mock_event = {"channel": "C789", "ts": "123"}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -834,10 +823,10 @@ def test_feedback_handler_general_error(
     from app.slack.slack_handlers import feedback_handler
 
     # perform operation
-    feedback_handler(body=mock_body, client=mock_client, event=mock_event)
+    feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
-    mock_post_error_message.assert_called_once_with(channel="C789", thread_ts="123")
+    mock_post_error_message.assert_not_called()
 
 
 # dm_message_handler
