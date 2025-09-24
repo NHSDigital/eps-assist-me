@@ -180,7 +180,7 @@ def test_unified_message_handler_handles_dm_messages(
 
         # assertions
         mock_thread_message_handler.assert_not_called()
-        mock_dm_message_handler.assert_called_with(event=mock_event, event_id="evt123", client=ANY, body=mock_body)
+        mock_dm_message_handler.assert_called_with(event=mock_event, event_id="evt123", client=ANY)
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
@@ -208,7 +208,7 @@ def test_unified_message_handler_handles_threadable_messages(
 
         # assertions
         mock_dm_message_handler.assert_not_called()
-        mock_thread_message_handler.assert_called_with(event=mock_event, event_id="evt123", client=ANY, body=mock_body)
+        mock_thread_message_handler.assert_called_with(event=mock_event, event_id="evt123", client=ANY)
 
 
 # _common_message_handler
@@ -504,7 +504,6 @@ def test_thread_message_handler_session_check_error(
         "ts": "evt_ts",
         "user": "U456",
     }
-    mock_body = {}
 
     mock_get_state_information.side_effect = Exception("DB error")
 
@@ -516,7 +515,7 @@ def test_thread_message_handler_session_check_error(
     # perform operation
     # Should return early due to error
     with patch("app.slack.slack_handlers._common_message_handler") as mock_common_message_handler:
-        thread_message_handler(mock_event, "evt123", mock_client, mock_body)
+        thread_message_handler(event=mock_event, event_id="evt123", client=mock_client)
 
         # assertions
         mock_common_message_handler.assert_not_called()
@@ -532,7 +531,6 @@ def test_thread_message_handler_no_session(
     # setup mocks
     mock_client = Mock()
     mock_event = {"text": "follow up", "channel": "C789", "thread_ts": "123", "user": "U456"}
-    mock_body = {}
 
     mock_get_state_information.return_value = {}  # No session
 
@@ -543,7 +541,7 @@ def test_thread_message_handler_no_session(
 
     # perform operation
     with patch("app.slack.slack_handlers._common_message_handler") as mock_common_message_handler:
-        thread_message_handler(mock_event, "evt123", mock_client, mock_body)
+        thread_message_handler(event=mock_event, event_id="evt123", client=mock_client)
 
         # assertions
         mock_common_message_handler.assert_not_called()
@@ -556,7 +554,6 @@ def test_thread_message_handler_success(mock_get_state_information: Mock, mock_e
     # setup mocks
     mock_client = Mock()
     mock_event = {"text": "feedback: channel feedback", "channel": "C789", "thread_ts": "123", "user": "U456"}
-    mock_body = {}
 
     mock_get_state_information.return_value = {"Item": {"session_id": "session123"}}
 
@@ -567,7 +564,7 @@ def test_thread_message_handler_success(mock_get_state_information: Mock, mock_e
 
     # perform operation
     with patch("app.slack.slack_handlers._common_message_handler") as mock_common_message_handler:
-        thread_message_handler(mock_event, "evt123", mock_client, mock_body)
+        thread_message_handler(event=mock_event, event_id="evt123", client=mock_client)
         # assertions
         mock_common_message_handler.assert_called_once_with(
             message_text="feedback: channel feedback",
@@ -849,7 +846,6 @@ def test_dm_message_handler_success(mock_get_parameter: Mock, mock_env: Mock):
     # setup mocks
     mock_client = Mock()
     mock_event = {"text": "dm message", "user": "U456", "channel": "D789", "ts": "123", "channel_type": "im"}
-    mock_body = {}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -858,7 +854,7 @@ def test_dm_message_handler_success(mock_get_parameter: Mock, mock_env: Mock):
 
     # perform operation
     with patch("app.slack.slack_handlers._common_message_handler") as mock_common_message_handler:
-        dm_message_handler(event=mock_event, event_id="evt123", client=mock_client, body=mock_body)
+        dm_message_handler(event=mock_event, event_id="evt123", client=mock_client)
 
         # assertions
         mock_common_message_handler.assert_called_once_with(
@@ -877,7 +873,6 @@ def test_dm_message_handler_not_a_dm(mock_get_parameter: Mock, mock_env: Mock):
     # setup mocks
     mock_client = Mock()
     mock_event = {"text": "dm message", "user": "U456", "channel": "im", "ts": "123", "channel_type": "not_im"}
-    mock_body = {}
 
     # delete and import module to test
     if "app.slack.slack_handlers" in sys.modules:
@@ -886,7 +881,7 @@ def test_dm_message_handler_not_a_dm(mock_get_parameter: Mock, mock_env: Mock):
 
     # perform operation
     with patch("app.slack.slack_handlers._common_message_handler") as mock_common_message_handler:
-        dm_message_handler(event=mock_event, event_id="evt123", client=mock_client, body=mock_body)
+        dm_message_handler(event=mock_event, event_id="evt123", client=mock_client)
 
         # assertions
         mock_common_message_handler.assert_not_called()

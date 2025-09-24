@@ -86,7 +86,7 @@ def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClie
     )
 
 
-def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, body: Dict[str, Any]) -> None:
+def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Direct messages:
     - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
@@ -109,7 +109,7 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, 
     )
 
 
-def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, body: Dict[str, Any]) -> None:
+def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Thread messages:
     - Ignore top-level messages (policy: require @mention to start).
@@ -161,10 +161,10 @@ def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client:
     # Route to appropriate handler based on message type
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         # DM handling
-        dm_message_handler(event=event, event_id=event_id, client=client, body=body)
+        dm_message_handler(event=event, event_id=event_id, client=client)
     else:
         # Channel message handling
-        thread_message_handler(event=event, event_id=event_id, client=client, body=body)
+        thread_message_handler(event=event, event_id=event_id, client=client)
 
 
 def feedback_handler(body: Dict[str, Any], client: WebClient, event: Dict[str, Any]) -> None:
