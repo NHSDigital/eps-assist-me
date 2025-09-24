@@ -32,12 +32,8 @@ def test_process_async_slack_event_success(
     from app.slack.slack_events import process_async_slack_event
 
     # perform operation
-    slack_event_data = {
-        "event": {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
-        "event_id": "evt123",
-        "bot_token": "bot-token",
-    }
-    process_async_slack_event(slack_event_data)
+    slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     # Should be called at least once - first for AI response
@@ -61,16 +57,12 @@ def test_process_async_slack_event_empty_query(mock_webclient: Mock, mock_get_pa
 
     # perform operation
     slack_event_data = {
-        "event": {
-            "text": "<@U123>",  # Only mention, no actual query
-            "user": "U456",
-            "channel": "C789",
-            "ts": "1234567890.123",
-        },
-        "event_id": "evt123",
-        "bot_token": "bot-token",
+        "text": "<@U123>",  # Only mention, no actual query
+        "user": "U456",
+        "channel": "C789",
+        "ts": "1234567890.123",
     }
-    process_async_slack_event(slack_event_data)
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     mock_client.chat_postMessage.assert_called_once_with(
@@ -106,12 +98,8 @@ def test_process_async_slack_event_error(
     from app.slack.slack_events import process_async_slack_event
 
     # perform operation
-    slack_event_data = {
-        "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
-        "event_id": "evt123",
-        "bot_token": "bot-token",
-    }
-    process_async_slack_event(slack_event_data)
+    slack_event_data = {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     mock_post_error_message.assert_called_once_with(
@@ -151,17 +139,13 @@ def test_process_async_slack_event_with_thread_ts(
 
     # perform operation
     slack_event_data = {
-        "event": {
-            "text": "<@U123> test question",
-            "user": "U456",
-            "channel": "C789",
-            "ts": "1234567890.123",
-            "thread_ts": "1234567888.111",  # Existing thread
-        },
-        "event_id": "evt123",
-        "bot_token": "bot-token",
+        "text": "<@U123> test question",
+        "user": "U456",
+        "channel": "C789",
+        "ts": "1234567890.123",
+        "thread_ts": "1234567888.111",  # Existing thread
     }
-    process_async_slack_event(slack_event_data=slack_event_data)
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     # Should be called at least once with the correct thread_ts
@@ -199,13 +183,9 @@ def test_regex_text_processing(
     from app.slack.slack_events import process_async_slack_event
 
     # perform operation
-    slack_event_data = {
-        "event": {"text": "<@U123456> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
-        "event_id": "evt123",
-        "bot_token": "bot-token",
-    }
+    slack_event_data = {"text": "<@U123456> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
 
-    process_async_slack_event(slack_event_data)
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     # Verify that the message was processed (query_bedrock was called)
@@ -246,12 +226,9 @@ def test_process_async_slack_event_with_session_storage(
     from app.slack.slack_events import process_async_slack_event
 
     # perform operation
-    slack_event_data = {
-        "event": {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
-        "event_id": "evt123",
-        "bot_token": "bot-token",
-    }
-    process_async_slack_event(slack_event_data)
+    slack_event_data = {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     # Verify session was stored - should be called twice (Q&A pair + session)
@@ -288,12 +265,8 @@ def test_process_async_slack_event_chat_update_error(
     from app.slack.slack_events import process_async_slack_event
 
     # perform operation
-    slack_event_data = {
-        "event": {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"},
-        "event_id": "evt123",
-        "bot_token": "bot-token",
-    }
-    process_async_slack_event(slack_event_data)
+    slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     # no assertions as we are just checking it does not throw an error
@@ -328,17 +301,13 @@ def test_process_async_slack_event_dm_context(
 
     # perform operation
     slack_event_data = {
-        "event": {
-            "text": "test question",
-            "user": "U456",
-            "channel": "D789",
-            "ts": "123",
-            "channel_type": "im",  # DM context
-        },
-        "event_id": "evt123",
-        "bot_token": "bot-token",
+        "text": "test question",
+        "user": "U456",
+        "channel": "D789",
+        "ts": "123",
+        "channel_type": "im",  # DM context
     }
-    process_async_slack_event(slack_event_data)
+    process_async_slack_event(event=slack_event_data, event_id="evt123")
 
     # assertions
     # no assertions as we are just checking it does not throw an error

@@ -23,15 +23,15 @@ from app.services.dynamo import get_state_information
 from app.services.slack import post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
+    extract_conversation_context,
     extract_pull_request_id,
     gate_common,
     is_latest_message,
     strip_mentions,
-    trigger_async_processing,
     respond_with_eyes,
     trigger_pull_request_processing,
 )
-from app.slack.slack_events import _extract_conversation_context, store_feedback
+from app.slack.slack_events import process_async_slack_event, store_feedback
 
 logger = get_logger()
 
@@ -43,10 +43,10 @@ logger = get_logger()
 @lru_cache
 def setup_handlers(app: App) -> None:
     """Register handlers. Intentionally minimal—no branching here."""
-    app.event("app_mention")(mention_handler)
-    app.event("message")(unified_message_handler)
-    app.action("feedback_yes")(feedback_handler)
-    app.action("feedback_no")(feedback_handler)
+    app.event("app_mention")(ack=respond_to_slack_within_3_seconds, lazy=[mention_handler])
+    app.event("message")(ack=respond_to_slack_within_3_seconds, lazy=[unified_message_handler])
+    app.action("feedback_yes")(ack=respond_to_slack_within_3_seconds, lazy=[feedback_handler])
+    app.action("feedback_no")(ack=respond_to_slack_within_3_seconds, lazy=[feedback_handler])
 
 
 # ================================================================
@@ -54,15 +54,18 @@ def setup_handlers(app: App) -> None:
 # ================================================================
 
 
-def mention_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
+def respond_to_slack_within_3_seconds(event: Dict[str, Any], ack: Ack):
+    respond_with_eyes(event=event)
+    logger.debug("Sending ack response")
+    ack()
+
+
+def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient) -> None:
     """
     Channel interactions that mention the bot.
     - If text after the mention starts with 'feedback:', store it as additional feedback.
     - Otherwise, forward to the async processing pipeline (Q&A).
     """
-    logger.debug("Sending ack response in mention_handler")
-    ack()
-    respond_with_eyes(event=event)
     event_id = gate_common(event=event, body=body)
     if not event_id:
         return
@@ -133,6 +136,8 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
         logger.info(f"Found session for thread: {conversation_key}")
     except Exception as e:
         logger.error(f"Error checking thread session: {e}", extra={"error": traceback.format_exc()})
+        _, _, thread_ts = extract_conversation_context(event)
+        post_error_message(channel=channel_id, thread_ts=thread_ts)
         return
 
     logger.info(f"Processing thread message from user {user_id}", extra={"event_id": event_id})
@@ -147,11 +152,8 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
     )
 
 
-def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
+def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient) -> None:
     """Handle all message events - DMs and channel messages"""
-    logger.debug("Sending ack response")
-    ack()
-    respond_with_eyes(event=event)
     event_id = gate_common(event=event, body=body)
     if not event_id:
         return
@@ -165,11 +167,10 @@ def unified_message_handler(event: Dict[str, Any], ack: Ack, body: Dict[str, Any
         thread_message_handler(event=event, event_id=event_id, client=client, body=body)
 
 
-def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
+def feedback_handler(body: Dict[str, Any], client: WebClient, event: Dict[str, Any]) -> None:
     """Handle feedback button clicks (both positive and negative)."""
-    logger.debug("Sending ack response")
-    ack()
     try:
+        channel_id = event["channel"]
         action_id = body["actions"][0]["action_id"]
         feedback_data = json.loads(body["actions"][0]["value"])
 
@@ -215,8 +216,12 @@ def feedback_handler(ack: Ack, body: Dict[str, Any], client: WebClient) -> None:
             logger.error(f"Feedback storage error: {e}", extra={"error": traceback.format_exc()})
         except Exception as e:
             logger.error(f"Unexpected feedback error: {e}", extra={"error": traceback.format_exc()})
+            thread_ts = feedback_data.get("tt")
+            post_error_message(channel=channel_id, thread_ts=thread_ts)
     except Exception as e:
         logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
+        _, _, thread_ts = extract_conversation_context(event)
+        post_error_message(channel=channel_id, thread_ts=thread_ts)
 
 
 # ================================================================
@@ -262,6 +267,8 @@ def _common_message_handler(
             client.chat_postMessage(**params)
         except Exception as e:
             logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
+            _, _, thread_ts = extract_conversation_context(event)
+            post_error_message(channel=channel_id, thread_ts=thread_ts)
         return
 
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
@@ -270,13 +277,12 @@ def _common_message_handler(
             trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
-            _, _, thread_ts = _extract_conversation_context(event)
+            _, _, thread_ts = extract_conversation_context(event)
             post_error_message(channel=channel_id, thread_ts=thread_ts)
         return
 
+    # note - we dont do post an error message if this fails as its handled by process_async_slack_event
     try:
-        trigger_async_processing(event=event, event_id=event_id)
+        process_async_slack_event(event=event, event_id=event_id)
     except Exception:
         logger.error("Error triggering async processing", extra={"error": traceback.format_exc()})
-        _, _, thread_ts = _extract_conversation_context(event)
-        post_error_message(channel=channel_id, thread_ts=thread_ts)

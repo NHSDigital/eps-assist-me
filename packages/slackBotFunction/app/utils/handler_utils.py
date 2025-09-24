@@ -10,7 +10,6 @@ from typing import Any, Dict, Tuple
 import boto3
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
-import os
 from mypy_boto3_cloudformation.client import CloudFormationClient
 from mypy_boto3_lambda.client import LambdaClient
 
@@ -43,30 +42,6 @@ def is_duplicate_event(event_id: str) -> bool:
             return True  # Duplicate
         logger.error("Error checking event duplication", extra={"error": traceback.format_exc()})
         return False
-
-
-def trigger_async_processing(event: Dict[str, Any], event_id: str) -> None:
-    """
-    Trigger asynchronous Lambda invocation to process Slack events
-
-    Slack requires responses within 3 seconds, but Bedrock queries can take longer.
-    This function invokes the same Lambda function asynchronously to handle the
-    actual AI processing without blocking the initial Slack response.
-    """
-    # incase we fail to re-invoke the lambda we should log an error
-    lambda_client: LambdaClient = boto3.client("lambda")
-    try:
-        logger.debug("Triggering async lambda processing")
-        lambda_payload = {"async_processing": True, "slack_event": {"event": event, "event_id": event_id}}
-        lambda_client.invoke(
-            FunctionName=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
-            InvocationType="Event",
-            Payload=json.dumps(lambda_payload),
-        )
-        logger.debug("Async processing triggered successfully")
-    except Exception as e:
-        logger.error("Failed to trigger async processing", extra={"error": traceback.format_exc()})
-        raise e
 
 
 def respond_with_eyes(event: Dict[str, Any]) -> None:
@@ -172,3 +147,14 @@ def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         return f"{constants.DM_PREFIX}{channel_id}", root
     return f"{constants.THREAD_PREFIX}{channel_id}#{root}", root
+
+
+def extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str | None]:
+    """Extract conversation key and thread context from event"""
+    channel = event["channel"]
+    # Determine conversation context: DM vs channel thread
+    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
+        return f"{constants.DM_PREFIX}{channel}", constants.CONTEXT_TYPE_DM, None  # DMs don't use threads
+    else:
+        thread_root = event.get("thread_ts", event["ts"])
+        return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
