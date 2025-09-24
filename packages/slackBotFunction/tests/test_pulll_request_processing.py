@@ -31,16 +31,13 @@ def test_process_pull_request_event(mock_extract_pull_request_id: Mock, mock_is_
 
         # assertions
         expected_slack_event_data = {
-            "event": {
-                "text": "test question",
-                "user": "U456",
-                "channel": "C789",
-                "ts": "1234567890.123",
-                "thread_ts": "1234567888.111",  # Existing thread
-            },
-            "event_id": "evt123",
+            "text": "test question",
+            "user": "U456",
+            "channel": "C789",
+            "ts": "1234567890.123",
+            "thread_ts": "1234567888.111",  # Existing thread
         }
-        mock_process_async_slack_event.assert_called_once_with(slack_event_data=expected_slack_event_data)
+        mock_process_async_slack_event.assert_called_once_with(event=expected_slack_event_data, event_id="evt123")
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
