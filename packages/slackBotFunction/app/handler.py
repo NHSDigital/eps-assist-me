@@ -11,10 +11,9 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from app.core.config import get_logger
 from app.services.app import get_app
-from app.slack.slack_events import process_async_slack_event, process_pull_request_slack_event
+from app.slack.slack_events import process_pull_request_slack_event
 
 logger = get_logger()
-app = get_app()
 
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)
@@ -27,18 +26,8 @@ def handler(event: dict, context: LambdaContext) -> dict:
     2. Lambda acknowledges immediately and triggers async self-invocation
     3. Async invocation processes Bedrock query and responds to Slack
     """
-
-    # handle async processing requests
-    if event.get("async_processing"):
-        slack_event_data = event.get("slack_event")
-        if not slack_event_data:
-            logger.error("Async processing requested but no slack_event provided")
-            return {"statusCode": 400}
-
-        process_async_slack_event(slack_event_data=slack_event_data)
-        return {"statusCode": 200}
-
-    # handle async processing requests
+    app = get_app(logger=logger)
+    # handle pull request processing requests
     if event.get("pull_request_processing"):
         slack_event_data = event.get("slack_event")
         if not slack_event_data:

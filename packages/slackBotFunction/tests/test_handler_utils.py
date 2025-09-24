@@ -216,7 +216,11 @@ def test_extract_key_and_root(mock_env: Mock):
 
 
 @patch("slack_sdk.WebClient")
-def test_respond_with_eyes_on_success(mock_webclient: Mock, mock_env: Mock):
+def test_respond_with_eyes_on_success(
+    mock_webclient: Mock,
+    mock_env: Mock,
+    mock_get_parameter: Mock,
+):
     """Test that respond with eyes"""
     # set up mocks
     mock_client = Mock()
@@ -237,7 +241,11 @@ def test_respond_with_eyes_on_success(mock_webclient: Mock, mock_env: Mock):
 
 
 @patch("slack_sdk.WebClient")
-def test_respond_with_eyes_on_failure(mock_webclient: Mock, mock_env: Mock):
+def test_respond_with_eyes_on_failure(
+    mock_webclient: Mock,
+    mock_env: Mock,
+    mock_get_parameter: Mock,
+):
     """Test that respond with eyes"""
     # set up mocks
     mock_client = Mock()

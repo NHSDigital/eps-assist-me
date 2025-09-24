@@ -7,7 +7,7 @@ import re
 import time
 import traceback
 import json
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
@@ -25,7 +25,7 @@ from app.services.dynamo import (
 )
 from app.services.query_reformulator import reformulate_query
 from app.services.slack import get_friendly_channel_name, post_error_message
-from app.utils.handler_utils import extract_pull_request_id, is_duplicate_event
+from app.utils.handler_utils import extract_conversation_context, extract_pull_request_id, is_duplicate_event
 
 logger = get_logger()
 
@@ -103,17 +103,6 @@ def _mark_qa_feedback_received(conversation_key: str, message_ts: str) -> None:
 # ================================================================
 
 
-def _extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str | None]:
-    """Extract conversation key and thread context from event"""
-    channel = event["channel"]
-    # Determine conversation context: DM vs channel thread
-    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        return f"{constants.DM_PREFIX}{channel}", constants.CONTEXT_TYPE_DM, None  # DMs don't use threads
-    else:
-        thread_root = event.get("thread_ts", event["ts"])
-        return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
-
-
 def _handle_session_management(
     conversation_key: str,
     session_data: Dict[str, Any],
@@ -182,15 +171,13 @@ def _create_feedback_blocks(
 # ================================================================
 
 
-def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
+def process_async_slack_event(event: Dict[str, Any], event_id: str) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
     This function handles the actual AI processing that takes longer than Slack's
     3-second timeout. It extracts the user query, calls Bedrock, and posts the response.
     """
-    event = slack_event_data["event"]
-    event_id = slack_event_data["event_id"]
     token = get_bot_token()
 
     client = WebClient(token=token)
@@ -198,7 +185,7 @@ def process_async_slack_event(slack_event_data: Dict[str, Any]) -> None:
     try:
         user_id = event["user"]
         channel = event["channel"]
-        conversation_key, context_type, thread_ts = _extract_conversation_context(event)
+        conversation_key, context_type, thread_ts = extract_conversation_context(event)
 
         # Remove Slack user mentions from message text
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()

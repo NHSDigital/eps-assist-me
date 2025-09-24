@@ -11,6 +11,7 @@ import traceback
 from typing import Tuple
 import boto3
 from aws_lambda_powertools import Logger
+from aws_lambda_powertools.logging import utils
 from aws_lambda_powertools.utilities.parameters import get_parameter
 from mypy_boto3_dynamodb.service_resource import Table
 
@@ -19,7 +20,9 @@ from mypy_boto3_dynamodb.service_resource import Table
 
 @lru_cache()
 def get_logger() -> Logger:
-    return Logger(service="slackBotFunction")
+    powertools_logger = Logger(service="slackBotFunction")
+    utils.copy_config_to_registered_loggers(source_logger=powertools_logger, ignore_log_level=True)
+    return powertools_logger
 
 
 # set up logger as its used in other functions
