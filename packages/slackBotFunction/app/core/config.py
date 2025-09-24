@@ -8,17 +8,24 @@ from functools import lru_cache
 import os
 import json
 import traceback
+from typing import Tuple
 import boto3
 from aws_lambda_powertools import Logger
+from aws_lambda_powertools.logging import utils
 from aws_lambda_powertools.utilities.parameters import get_parameter
 from mypy_boto3_dynamodb.service_resource import Table
+
+# we use lru_cache for lots of configs so they are cached
 
 
 @lru_cache()
 def get_logger() -> Logger:
-    return Logger(service="slackBotFunction")
+    powertools_logger = Logger(service="slackBotFunction")
+    utils.copy_config_to_registered_loggers(source_logger=powertools_logger, ignore_log_level=True)
+    return powertools_logger
 
 
+# set up logger as its used in other functions
 logger = get_logger()
 
 
@@ -30,7 +37,7 @@ def get_slack_bot_state_table() -> Table:
 
 
 @lru_cache()
-def get_ssm_params():
+def get_ssm_params() -> Tuple[str, str]:
     bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
     signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
     try:
@@ -57,6 +64,27 @@ def get_ssm_params():
     return bot_token, signing_secret
 
 
+@lru_cache
+def get_bot_token() -> str:
+    bot_token, _ = get_ssm_params()
+    return bot_token
+
+
+@lru_cache
+def get_guardrail_config() -> Tuple[str, str, str, str, str]:
+    # Bedrock configuration from environment
+    KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
+    RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
+    AWS_REGION = os.environ["AWS_REGION"]
+    GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
+    GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
+
+    logger.info(
+        "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
+    )
+    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
+
+
 @dataclass
 class Constants:
     FEEDBACK_PREFIX: str
@@ -74,6 +102,7 @@ class Constants:
     TTL_EVENT_DEDUP: int
     TTL_FEEDBACK: int
     TTL_SESSION: int
+    PULL_REQUEST_PREFIX: str
 
 
 constants = Constants(
@@ -92,45 +121,32 @@ constants = Constants(
     TTL_EVENT_DEDUP=3600,  # 1 hour
     TTL_FEEDBACK=7776000,  # 90 days
     TTL_SESSION=2592000,  # 30 days
+    PULL_REQUEST_PREFIX="pr:",
 )
 
 
-@lru_cache
-def get_bot_token():
-    bot_token, _ = get_ssm_params()
-    return bot_token
+@dataclass
+class BotMessages:
+    EMPTY_QUERY: str
+    ERROR_RESPONSE: str
+    FEEDBACK_POSITIVE_THANKS: str
+    FEEDBACK_NEGATIVE_THANKS: str
+    FEEDBACK_THANKS: str
+    FEEDBACK_PROMPT: str
+    FEEDBACK_YES: str
+    FEEDBACK_NO: str
 
 
-@lru_cache()
-def get_bot_messages():
-
-    # Bot response messages
-    BOT_MESSAGES = {
-        "empty_query": "Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
-        "error_response": "Sorry, an error occurred while processing your request. Please try again later.",
-        "feedback_positive_thanks": "Thank you for your feedback.",
-        "feedback_negative_thanks": (
-            'Please let us know how the answer could be improved. Start your message with "feedback:"'
-        ),
-        "feedback_thanks": "Thank you for your feedback.",
-        "feedback_prompt": "Was this helpful?",
-        "feedback_yes": "Yes",
-        "feedback_no": "No",
-    }
-
-    return BOT_MESSAGES
-
-
-@lru_cache
-def get_guardrail_config():
-    # Bedrock configuration from environment
-    KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
-    RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
-    AWS_REGION = os.environ["AWS_REGION"]
-    GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
-    GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
-
-    logger.info(
-        "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
-    )
-    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
+# Bot response messages
+bot_messages = BotMessages(
+    EMPTY_QUERY="Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
+    ERROR_RESPONSE="Sorry, an error occurred while processing your request. Please try again later.",
+    FEEDBACK_POSITIVE_THANKS="Thank you for your feedback.",
+    FEEDBACK_NEGATIVE_THANKS=(
+        'Please let us know how the answer could be improved. Start your message with "feedback:"'
+    ),
+    FEEDBACK_THANKS="Thank you for your feedback.",
+    FEEDBACK_PROMPT="Was this helpful?",
+    FEEDBACK_YES="Yes",
+    FEEDBACK_NO="No",
+)

@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 
 @patch("boto3.client")
-def test_get_bedrock_knowledgebase_response(mock_boto_client, mock_env):
+def test_get_bedrock_knowledgebase_response(mock_boto_client: Mock, mock_env: Mock):
     """Test Bedrock knowledge base integration"""
     # set up mocks
     mock_client = Mock()
@@ -25,7 +25,7 @@ def test_get_bedrock_knowledgebase_response(mock_boto_client, mock_env):
 
 
 @patch("boto3.client")
-def test_query_bedrock_with_session(mock_boto_client, mock_env):
+def test_query_bedrock_with_session(mock_boto_client: Mock, mock_env: Mock):
     """Test query_bedrock with existing session"""
     # set up mocks
     mock_client = Mock()
@@ -48,7 +48,7 @@ def test_query_bedrock_with_session(mock_boto_client, mock_env):
 
 
 @patch("boto3.client")
-def test_query_bedrock_without_session(mock_boto_client, mock_env):
+def test_query_bedrock_without_session(mock_boto_client: Mock, mock_env: Mock):
     """Test query_bedrock without session"""
     # set up mocks
     mock_client = Mock()

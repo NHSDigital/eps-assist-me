@@ -2,11 +2,14 @@ import os
 import traceback
 import boto3
 from botocore.exceptions import ClientError
+from app.core.config import get_logger
 from app.services.exceptions import PromptNotFoundError, PromptLoadError
 from mypy_boto3_bedrock_agent import AgentsforBedrockClient
 
+logger = get_logger()
 
-def load_prompt(logger, prompt_name: str, prompt_version: str = None) -> str:
+
+def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
     """
     Load a prompt template from Amazon Bedrock Prompt Management.
 
@@ -17,7 +20,7 @@ def load_prompt(logger, prompt_name: str, prompt_version: str = None) -> str:
         client: AgentsforBedrockClient = boto3.client("bedrock-agent", region_name=os.environ["AWS_REGION"])
 
         # Get the prompt ID from the name
-        prompt_id = get_prompt_id_from_name(logger, client, prompt_name)
+        prompt_id = get_prompt_id_from_name(client, prompt_name)
         if not prompt_id:
             raise PromptNotFoundError(f"Could not find prompt ID for name '{prompt_name}'")
 
@@ -73,7 +76,7 @@ def load_prompt(logger, prompt_name: str, prompt_version: str = None) -> str:
         raise PromptLoadError(f"Unexpected error loading prompt '{prompt_name}': {e}")
 
 
-def get_prompt_id_from_name(logger, client: AgentsforBedrockClient, prompt_name: str) -> str | None:
+def get_prompt_id_from_name(client: AgentsforBedrockClient, prompt_name: str) -> str | None:
     """
     Get the 10-character prompt ID from the prompt name using ListPrompts.
     """

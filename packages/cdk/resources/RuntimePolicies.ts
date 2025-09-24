@@ -135,6 +135,15 @@ export class RuntimePolicies extends Construct {
       resources: [props.slackBotStateTableKmsKeyArn]
     })
 
+    const slackBotDescribeCfStacks = new PolicyStatement({
+      actions: [
+        "cloudformation:DescribeStacks"
+      ],
+      resources: [
+        `arn:aws:cloudformation:eu-west-2:${props.account}:stack/epsam-pr-*`
+      ]
+    })
+
     this.slackBotPolicy = new ManagedPolicy(this, "SlackBotPolicy", {
       description: "Policy for SlackBot Lambda to access Bedrock, SSM, Lambda, DynamoDB, and KMS",
       statements: [
@@ -145,7 +154,8 @@ export class RuntimePolicies extends Construct {
         slackBotLambdaPolicy,
         slackBotGuardrailPolicy,
         slackBotDynamoDbPolicy,
-        slackBotKmsPolicy
+        slackBotKmsPolicy,
+        slackBotDescribeCfStacks
       ]
     })
 

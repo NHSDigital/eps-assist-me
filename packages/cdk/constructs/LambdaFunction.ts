@@ -37,6 +37,7 @@ const insightsLayerArn = "arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsi
 export class LambdaFunction extends Construct {
   public readonly executionPolicy: ManagedPolicy
   public readonly function: LambdaFunctionResource
+  public readonly executionRole: Role
 
   public constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
     super(scope, id)
@@ -169,5 +170,6 @@ export class LambdaFunction extends Construct {
     // Export Lambda function and execution policy for use by other constructs
     this.function = lambdaFunction
     this.executionPolicy = executionManagedPolicy
+    this.executionRole = role
   }
 }
