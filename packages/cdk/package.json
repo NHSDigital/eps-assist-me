@@ -13,7 +13,7 @@
     "@aws-cdk/aws-lambda-python-alpha": "^2.205.0-alpha.0",
     "@cdklabs/generative-ai-cdk-constructs": "^0.1.309",
     "aws-cdk-lib": "^2.217.0",
-    "cdk-nag": "^2.37.31",
+    "cdk-nag": "^2.37.38",
     "constructs": "^10.4.2",
     "source-map-support": "^0.5.21"
   },
