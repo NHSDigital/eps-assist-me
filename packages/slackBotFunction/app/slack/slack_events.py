@@ -13,7 +13,6 @@ from slack_sdk import WebClient
 from app.core.config import (
     bot_messages,
     constants,
-    get_bot_token,
     get_logger,
 )
 from app.services.bedrock import query_bedrock
@@ -171,17 +170,13 @@ def _create_feedback_blocks(
 # ================================================================
 
 
-def process_async_slack_event(event: Dict[str, Any], event_id: str) -> None:
+def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
     This function handles the actual AI processing that takes longer than Slack's
     3-second timeout. It extracts the user query, calls Bedrock, and posts the response.
     """
-    token = get_bot_token()
-
-    client = WebClient(token=token)
-
     try:
         user_id = event["user"]
         channel = event["channel"]
@@ -249,7 +244,7 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str) -> None:
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
         # Try to notify user of error via Slack
-        post_error_message(channel=channel, thread_ts=thread_ts)
+        post_error_message(channel=channel, thread_ts=thread_ts, client=client)
 
 
 def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:

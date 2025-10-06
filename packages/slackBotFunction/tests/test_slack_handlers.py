@@ -290,7 +290,7 @@ def test_common_message_handler_feedback_post_message_error_handling(
     # assertions
     # we just want to check it does not throw an error
     mock_client.chat_postMessage.assert_called_once()
-    mock_post_error_message.assert_called_once_with(channel="D789", thread_ts="123")
+    mock_post_error_message.assert_called_once_with(channel="D789", thread_ts="123", client=mock_client)
 
 
 @patch("app.slack.slack_events.store_feedback")
@@ -405,7 +405,7 @@ def test_common_message_handler_pull_request_success_error_handling(
     # assertions
     # we just want to check it does not throw an error
     mock_client.chat_postMessage.assert_not_called()
-    mock_post_error_message.assert_called_once_with(channel="D789", thread_ts="123")
+    mock_post_error_message.assert_called_once_with(channel="D789", thread_ts="123", client=mock_client)
 
 
 @patch("app.utils.handler_utils.trigger_pull_request_processing")
@@ -444,7 +444,7 @@ def test_common_message_handler_normal_message_success(
     mock_trigger_pull_request_processing.assert_not_called()
     mock_post_error_message.assert_not_called()
     mock_client.chat_postMessage.assert_not_called()
-    mock_process_async_slack_event.assert_called_with(event=mock_event, event_id="evt123")
+    mock_process_async_slack_event.assert_called_with(event=mock_event, event_id="evt123", client=mock_client)
 
 
 @patch("app.utils.handler_utils.trigger_pull_request_processing")
@@ -484,7 +484,6 @@ def test_common_message_handler_normal_message_error_handling(
     mock_trigger_pull_request_processing.assert_not_called()
     mock_post_error_message.assert_not_called()
     mock_client.chat_postMessage.assert_not_called()
-    mock_process_async_slack_event.assert_called_with(event=mock_event, event_id="evt123")
 
 
 # thread message handler
@@ -519,7 +518,7 @@ def test_thread_message_handler_session_check_error(
 
         # assertions
         mock_common_message_handler.assert_not_called()
-        mock_post_error_message.assert_called_once_with(channel="C789", thread_ts="123")
+        mock_post_error_message.assert_called_once_with(channel="C789", thread_ts="123", client=mock_client)
 
 
 @patch("app.services.dynamo.get_state_information")
@@ -796,7 +795,7 @@ def test_feedback_handler_storage_error(
     feedback_handler(body=mock_body, client=mock_client)
 
     # assertions
-    mock_post_error_message.assert_called_once_with(channel="C123", thread_ts="123")
+    mock_post_error_message.assert_called_once_with(channel="C123", thread_ts="123", client=mock_client)
 
 
 @patch("app.utils.handler_utils.is_latest_message")

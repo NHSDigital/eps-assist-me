@@ -15,7 +15,6 @@ from mypy_boto3_lambda.client import LambdaClient
 
 from app.services.dynamo import get_state_information, store_state_information
 from app.core.config import (
-    get_bot_token,
     get_logger,
     constants,
 )
@@ -44,9 +43,7 @@ def is_duplicate_event(event_id: str) -> bool:
         return False
 
 
-def respond_with_eyes(event: Dict[str, Any]) -> None:
-    bot_token = get_bot_token()
-    client = WebClient(token=bot_token)
+def respond_with_eyes(event: Dict[str, Any], client: WebClient) -> None:
     channel = event["channel"]
     ts = event["ts"]
     try:

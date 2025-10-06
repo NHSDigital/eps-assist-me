@@ -54,12 +54,14 @@ def setup_handlers(app: App) -> None:
 # ================================================================
 
 
-def respond_to_events(event: Dict[str, Any], ack: Ack):
-    respond_with_eyes(event=event)
+# ack function for events where we respond with eyes
+def respond_to_events(event: Dict[str, Any], ack: Ack, client: WebClient):
+    respond_with_eyes(event=event, client=client)
     logger.debug("Sending ack response")
     ack()
 
 
+# ack function for actions where we just send an ack response back
 def respond_to_action(ack: Ack):
     logger.debug("Sending ack response")
     ack()
@@ -68,8 +70,8 @@ def respond_to_action(ack: Ack):
 def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient) -> None:
     """
     Channel interactions that mention the bot.
-    - If text after the mention starts with 'feedback:', store it as additional feedback.
-    - Otherwise, forward to the async processing pipeline (Q&A).
+    Pulls some details unique to mentions and removes slack user name
+    And then forwards to _common_message_handler
     """
     event_id = gate_common(event=event, body=body)
     if not event_id:
@@ -94,8 +96,8 @@ def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClie
 def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Direct messages:
-    - 'feedback:' prefix -> store as conversation-scoped additional feedback (no model call).
-    - otherwise -> forward to async processing (Q&A).
+    Pulls some details unique to direct messages
+    And then forwards to _common_message_handler
     """
     if event.get("channel_type") != constants.CHANNEL_TYPE_IM:
         return  # not a DM; the channel handler will evaluate it
@@ -117,10 +119,8 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) 
 def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Thread messages:
-    - Ignore top-level messages (policy: require @mention to start).
-    - For replies inside a thread the bot owns (session exists):
-        * 'feedback:' prefix -> store additional feedback.
-        * otherwise -> treat as follow-up question (no re-mention needed) and forward to async.
+    Pulls some details unique to threads
+    And then forwards to _common_message_handler
     """
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         return  # handled in the DM handler
@@ -142,7 +142,7 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
     except Exception as e:
         logger.error(f"Error checking thread session: {e}", extra={"error": traceback.format_exc()})
         _, _, thread_ts = extract_conversation_context(event)
-        post_error_message(channel=channel_id, thread_ts=thread_ts)
+        post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
 
     logger.info(f"Processing thread message from user {user_id}", extra={"event_id": event_id})
@@ -158,7 +158,7 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
 
 
 def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient) -> None:
-    """Handle all message events - DMs and channel messages"""
+    """Handle message events (but not app mentions) - DMs and channel messages"""
     event_id = gate_common(event=event, body=body)
     if not event_id:
         return
@@ -222,7 +222,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
         except Exception as e:
             logger.error(f"Unexpected feedback error: {e}", extra={"error": traceback.format_exc()})
             thread_ts = feedback_data.get("tt")
-            post_error_message(channel=channel_id, thread_ts=thread_ts)
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
     except Exception as e:
         logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
 
@@ -241,6 +241,13 @@ def _common_message_handler(
     event_id: str,
     post_to_thread: bool,
 ) -> None:
+    """
+    All messages get processed by this code
+    If message starts with FEEDBACK_PREFIX then handle feedback message and return
+    If message starts with PULL_REQUEST_PREFIX then trigger lambda in pull request and return
+    Otherwise, call process_async_slack_event to process the event
+
+    """
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
@@ -271,7 +278,7 @@ def _common_message_handler(
         except Exception as e:
             logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
             _, _, thread_ts = extract_conversation_context(event)
-            post_error_message(channel=channel_id, thread_ts=thread_ts)
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
 
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
@@ -281,11 +288,11 @@ def _common_message_handler(
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
             _, _, thread_ts = extract_conversation_context(event)
-            post_error_message(channel=channel_id, thread_ts=thread_ts)
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
 
     # note - we dont do post an error message if this fails as its handled by process_async_slack_event
     try:
-        process_async_slack_event(event=event, event_id=event_id)
+        process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
         logger.error("Error triggering async processing", extra={"error": traceback.format_exc()})

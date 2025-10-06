@@ -19,19 +19,23 @@ logger = get_logger()
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event: dict, context: LambdaContext) -> dict:
     """
-    Main Lambda entry point - routes between Slack webhook and async processing
+    Main Lambda entry point - routes between Slack webhook and pull request processing
 
     Flow:
     1. Slack sends webhook -> API Gateway -> Lambda (sync, 3s timeout)
-    2. Lambda acknowledges immediately and triggers async self-invocation
-    3. Async invocation processes Bedrock query and responds to Slack
+    2. Slack handlers have an ack function which acknowledges immediately and triggers lazy async self-invocation
+    3. Lazy Async invocation processes Bedrock query and responds to Slack
+
+    If message starts with pr: then pull request id is extracted from message and it invokes lambda in pull request
+    This message has a pull_request_processing property so when it is received by the lambda in the pull request
+    It triggers function process_pull_request_slack_event
     """
     app = get_app(logger=logger)
     # handle pull request processing requests
     if event.get("pull_request_processing"):
         slack_event_data = event.get("slack_event")
         if not slack_event_data:
-            logger.error("Async processing requested but no slack_event provided")
+            logger.error("Pull request processing requested but no slack_event provided")
             return {"statusCode": 400}
 
         process_pull_request_slack_event(slack_event_data=slack_event_data)

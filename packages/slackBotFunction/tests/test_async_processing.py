@@ -2,7 +2,6 @@ import sys
 from unittest.mock import Mock, patch
 
 
-@patch("slack_sdk.WebClient")
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
@@ -12,7 +11,6 @@ def test_process_async_slack_event_success(
     mock_reformulate_query: Mock,
     mock_query_bedrock: Mock,
     mock_get_state_information: Mock,
-    mock_webclient: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -21,7 +19,6 @@ def test_process_async_slack_event_success(
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.return_value = {"ok": True}
-    mock_webclient.return_value = mock_client
     mock_query_bedrock.return_value = {"output": {"text": "AI response"}}
     mock_reformulate_query.return_value = "test question"
     mock_get_session.return_value = None  # No existing session
@@ -33,7 +30,7 @@ def test_process_async_slack_event_success(
 
     # perform operation
     slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
     # Should be called at least once - first for AI response
@@ -43,12 +40,10 @@ def test_process_async_slack_event_success(
     assert first_call[1]["channel"] == "C789"
 
 
-@patch("slack_sdk.WebClient")
-def test_process_async_slack_event_empty_query(mock_webclient: Mock, mock_get_parameter: Mock, mock_env: Mock):
+def test_process_async_slack_event_empty_query(mock_get_parameter: Mock, mock_env: Mock):
     """Test async event processing with empty query"""
     # set up mocks
     mock_client = Mock()
-    mock_webclient.return_value = mock_client
 
     # delete and import module to test
     if "app.slack.slack_events" in sys.modules:
@@ -62,7 +57,7 @@ def test_process_async_slack_event_empty_query(mock_webclient: Mock, mock_get_pa
         "channel": "C789",
         "ts": "1234567890.123",
     }
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.assert_called_once_with(
@@ -91,6 +86,7 @@ def test_process_async_slack_event_error(
     mock_query_bedrock.side_effect = Exception("Bedrock error")
     mock_reformulate_query.return_value = "test question"
     mock_get_session.return_value = None  # No existing session
+    mock_client = Mock()
 
     # delete and import module to test
     if "app.slack.slack_events" in sys.modules:
@@ -99,16 +95,12 @@ def test_process_async_slack_event_error(
 
     # perform operation
     slack_event_data = {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
-    mock_post_error_message.assert_called_once_with(
-        channel="C789",
-        thread_ts="1234567890.123",
-    )
+    mock_post_error_message.assert_called_once_with(channel="C789", thread_ts="1234567890.123", client=mock_client)
 
 
-@patch("slack_sdk.WebClient")
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
@@ -118,7 +110,6 @@ def test_process_async_slack_event_with_thread_ts(
     mock_reformulate_query: Mock,
     mock_query_bedrock: Mock,
     mock_get_state_information: Mock,
-    mock_webclient: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -127,7 +118,6 @@ def test_process_async_slack_event_with_thread_ts(
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.return_value = {"ok": True}
-    mock_webclient.return_value = mock_client
     mock_query_bedrock.return_value = {"output": {"text": "AI response"}}
     mock_reformulate_query.return_value = "test question"
     mock_get_session.return_value = None  # No existing session
@@ -145,7 +135,7 @@ def test_process_async_slack_event_with_thread_ts(
         "ts": "1234567890.123",
         "thread_ts": "1234567888.111",  # Existing thread
     }
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
     # Should be called at least once with the correct thread_ts
@@ -155,7 +145,6 @@ def test_process_async_slack_event_with_thread_ts(
     assert first_call[1]["text"] == "AI response"
 
 
-@patch("slack_sdk.WebClient")
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
@@ -165,14 +154,12 @@ def test_regex_text_processing(
     mock_reformulate_query: Mock,
     mock_query_bedrock: Mock,
     mock_get_state_information: Mock,
-    mock_webclient: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
     """Test regex text processing functionality within process_async_slack_event"""
     # set up mocks
     mock_client = Mock()
-    mock_webclient.return_value = mock_client
     mock_query_bedrock.return_value = {"output": {"text": "AI response"}}
     mock_reformulate_query.return_value = "test question"
     mock_get_session.return_value = None  # No existing session
@@ -185,7 +172,7 @@ def test_regex_text_processing(
     # perform operation
     slack_event_data = {"text": "<@U123456> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
 
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
     # Verify that the message was processed (query_bedrock was called)
@@ -194,7 +181,6 @@ def test_regex_text_processing(
     assert mock_client.chat_postMessage.called
 
 
-@patch("slack_sdk.WebClient")
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.dynamo.store_state_information")
 @patch("app.services.bedrock.query_bedrock")
@@ -204,7 +190,6 @@ def test_process_async_slack_event_with_session_storage(
     mock_query_bedrock: Mock,
     mock_store_state_information: Mock,
     mock_get_state_information: Mock,
-    mock_webclient: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -213,7 +198,6 @@ def test_process_async_slack_event_with_session_storage(
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.return_value = {"ok": True}
-    mock_webclient.return_value = mock_client
     mock_query_bedrock.return_value = {
         "output": {"text": "AI response"},
         "sessionId": "new-session-123",
@@ -228,14 +212,13 @@ def test_process_async_slack_event_with_session_storage(
     # perform operation
     slack_event_data = {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
 
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
     # Verify session was stored - should be called twice (Q&A pair + session)
     assert mock_store_state_information.call_count >= 1
 
 
-@patch("slack_sdk.WebClient")
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
@@ -245,7 +228,6 @@ def test_process_async_slack_event_chat_update_error(
     mock_reformulate_query: Mock,
     mock_query_bedrock: Mock,
     mock_get_state_information: Mock,
-    mock_webclient: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -254,7 +236,6 @@ def test_process_async_slack_event_chat_update_error(
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.side_effect = Exception("Update failed")
-    mock_webclient.return_value = mock_client
     mock_query_bedrock.return_value = {"output": {"text": "AI response"}}
     mock_reformulate_query.return_value = "test question"
     mock_get_session.return_value = None  # No existing session
@@ -266,13 +247,12 @@ def test_process_async_slack_event_chat_update_error(
 
     # perform operation
     slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
     # no assertions as we are just checking it does not throw an error
 
 
-@patch("slack_sdk.WebClient")
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
@@ -282,7 +262,6 @@ def test_process_async_slack_event_dm_context(
     mock_reformulate_query: Mock,
     mock_query_bedrock: Mock,
     mock_get_state_information: Mock,
-    mock_webclient: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -290,7 +269,6 @@ def test_process_async_slack_event_dm_context(
     # set up mocks
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "123"}
-    mock_webclient.return_value = mock_client
     mock_query_bedrock.return_value = {"output": {"text": "AI response"}, "sessionId": "new-session"}
     mock_get_session.return_value = None
 
@@ -307,7 +285,7 @@ def test_process_async_slack_event_dm_context(
         "ts": "123",
         "channel_type": "im",  # DM context
     }
-    process_async_slack_event(event=slack_event_data, event_id="evt123")
+    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
     # no assertions as we are just checking it does not throw an error
