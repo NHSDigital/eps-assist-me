@@ -15,7 +15,6 @@ from mypy_boto3_lambda.client import LambdaClient
 
 from app.services.dynamo import get_state_information, store_state_information
 from app.core.config import (
-    get_bot_token,
     get_logger,
     constants,
 )
@@ -44,9 +43,7 @@ def is_duplicate_event(event_id: str) -> bool:
         return False
 
 
-def respond_with_eyes(event: Dict[str, Any]) -> None:
-    bot_token = get_bot_token()
-    client = WebClient(token=bot_token)
+def respond_with_eyes(event: Dict[str, Any], client: WebClient) -> None:
     channel = event["channel"]
     ts = event["ts"]
     try:
@@ -71,6 +68,11 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
+
+        conversation_key, _, _ = extract_conversation_context(event)
+        item = {"pk": conversation_key, "sk": constants.PULL_REQUEST_SK, "pull_request_id": pull_request_id}
+
+        store_state_information(item=item)
     except Exception as e:
         logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
         raise e
@@ -154,7 +156,8 @@ def extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str |
     channel = event["channel"]
     # Determine conversation context: DM vs channel thread
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        return f"{constants.DM_PREFIX}{channel}", constants.CONTEXT_TYPE_DM, None  # DMs don't use threads
+        thread_root = event.get("thread_ts", event["ts"])
+        return f"{constants.DM_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
     else:
         thread_root = event.get("thread_ts", event["ts"])
         return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root

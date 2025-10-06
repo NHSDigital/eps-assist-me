@@ -1,7 +1,7 @@
 import traceback
 
 from slack_sdk import WebClient
-from app.core.config import bot_messages, get_bot_token, get_logger
+from app.core.config import bot_messages, get_logger
 
 
 logger = get_logger()
@@ -23,10 +23,8 @@ def get_friendly_channel_name(channel_id: str, client: WebClient) -> str:
     return friendly_channel_name
 
 
-def post_error_message(channel: str, thread_ts: str | None) -> None:
+def post_error_message(channel: str, thread_ts: str | None, client: WebClient) -> None:
     try:
-        token = get_bot_token()
-        client = WebClient(token=token)
         post_params = {"channel": channel, "text": bot_messages.ERROR_RESPONSE}
         if thread_ts:  # Only add thread_ts for channel threads, not DMs
             post_params["thread_ts"] = thread_ts

@@ -215,17 +215,13 @@ def test_extract_key_and_root(mock_env: Mock):
     assert root == "456"
 
 
-@patch("slack_sdk.WebClient")
 def test_respond_with_eyes_on_success(
-    mock_webclient: Mock,
     mock_env: Mock,
     mock_get_parameter: Mock,
 ):
     """Test that respond with eyes"""
     # set up mocks
     mock_client = Mock()
-    mock_client.reactions_add.return_value = {"success"}
-    mock_webclient.return_value = mock_client
 
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
@@ -234,15 +230,13 @@ def test_respond_with_eyes_on_success(
 
     # perform operation
     event = {"channel": "D123", "ts": "456", "channel_type": "im"}
-    respond_with_eyes(event)
+    respond_with_eyes(event=event, client=mock_client)
 
     # assertions
     # just need to make sure it does not error
 
 
-@patch("slack_sdk.WebClient")
 def test_respond_with_eyes_on_failure(
-    mock_webclient: Mock,
     mock_env: Mock,
     mock_get_parameter: Mock,
 ):
@@ -250,7 +244,6 @@ def test_respond_with_eyes_on_failure(
     # set up mocks
     mock_client = Mock()
     mock_client.reactions_add.side_effect = SlackApiError("There was a problem", 500)
-    mock_webclient.return_value = mock_client
 
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
@@ -259,7 +252,7 @@ def test_respond_with_eyes_on_failure(
 
     # perform operation
     event = {"channel": "D123", "ts": "456", "channel_type": "im"}
-    respond_with_eyes(event)
+    respond_with_eyes(event=event, client=mock_client)
 
     # assertions
     # just need to make sure it does not error
