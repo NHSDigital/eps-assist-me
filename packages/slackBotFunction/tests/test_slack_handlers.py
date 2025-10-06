@@ -244,11 +244,7 @@ def test_common_message_handler_store_feedback_error_handling(
     )
 
     # assertions
-    # Should still try to post message
-    mock_client.chat_postMessage.assert_called_once_with(
-        channel="C789", text=bot_messages.FEEDBACK_THANKS, thread_ts="bar"
-    )
-    mock_post_error_message.assert_not_called()
+    mock_post_error_message.assert_called()
 
 
 @patch("app.slack.slack_events.store_feedback")

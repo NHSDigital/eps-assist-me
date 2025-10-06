@@ -25,6 +25,7 @@ from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_conversation_context,
     extract_pull_request_id,
+    extract_session_pull_request_id,
     gate_common,
     is_latest_message,
     strip_mentions,
@@ -182,6 +183,12 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
         # Check if this is the latest message in the conversation
         conversation_key = feedback_data["ck"]
         message_ts = feedback_data.get("mt")
+        session_pull_request_id = extract_session_pull_request_id(conversation_key)
+        if session_pull_request_id:
+            logger.info(
+                f"Feedback in pull request session {session_pull_request_id}",
+                extra={"session_pull_request_id": session_pull_request_id},
+            )
 
         if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
@@ -251,6 +258,12 @@ def _common_message_handler(
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
     conversation_key, _, thread_ts = extract_conversation_context(event)
+    session_pull_request_id = extract_session_pull_request_id(conversation_key)
+    if session_pull_request_id:
+        logger.info(
+            f"Message in pull request session {session_pull_request_id} from user {user_id}",
+            extra={"session_pull_request_id": session_pull_request_id},
+        )
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
         try:
@@ -264,9 +277,7 @@ def _common_message_handler(
                 feedback_text=feedback_text,
                 client=client,
             )
-        except Exception as e:
-            logger.error(f"Failed to store channel feedback via mention: {e}", extra={"error": traceback.format_exc()})
-        try:
+
             params = {
                 "channel": channel_id,
                 "text": bot_messages.FEEDBACK_THANKS,
