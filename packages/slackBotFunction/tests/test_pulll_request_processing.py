@@ -1,10 +1,12 @@
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")
 @patch("app.utils.handler_utils.extract_pull_request_id")
-def test_process_pull_request_event(mock_extract_pull_request_id: Mock, mock_is_duplicate_event: Mock, mock_env: Mock):
+def test_process_pull_request_event(
+    mock_extract_pull_request_id: Mock, mock_is_duplicate_event: Mock, mock_env: Mock, mock_get_parameter: Mock
+):
     # set up mocks
     mock_is_duplicate_event.return_value = False
     mock_extract_pull_request_id.return_value = None, "test question"
@@ -37,7 +39,9 @@ def test_process_pull_request_event(mock_extract_pull_request_id: Mock, mock_is_
             "ts": "1234567890.123",
             "thread_ts": "1234567888.111",  # Existing thread
         }
-        mock_process_async_slack_event.assert_called_once_with(event=expected_slack_event_data, event_id="evt123")
+        mock_process_async_slack_event.assert_called_once_with(
+            event=expected_slack_event_data, event_id="evt123", client=ANY
+        )
 
 
 @patch("app.utils.handler_utils.is_duplicate_event")

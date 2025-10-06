@@ -13,6 +13,7 @@ from slack_sdk import WebClient
 from app.core.config import (
     bot_messages,
     constants,
+    get_bot_token,
     get_logger,
 )
 from app.services.bedrock import query_bedrock
@@ -252,12 +253,14 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
     try:
         event_id = slack_event_data["event_id"]
         event = slack_event_data["event"]
+        token = get_bot_token()
+        client = WebClient(token=token)
         if is_duplicate_event(event_id=event_id):
             return
         message_text = event["text"]
         _, extracted_message = extract_pull_request_id(message_text)
         event["text"] = extracted_message
-        process_async_slack_event(event=event, event_id=event_id)
+        process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
