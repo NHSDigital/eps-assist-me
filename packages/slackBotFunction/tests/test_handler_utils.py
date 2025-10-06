@@ -211,7 +211,7 @@ def test_extract_key_and_root(mock_env: Mock):
     key, root = conversation_key_and_root(event)
 
     # assertions
-    assert key == "dm#D123"
+    assert key == "dm#D123#456"
     assert root == "456"
 
 
