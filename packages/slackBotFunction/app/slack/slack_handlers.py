@@ -112,7 +112,7 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) 
         client=client,
         event=event,
         event_id=event_id,
-        post_to_thread=False,
+        post_to_thread=True,
     )
 
 
@@ -250,6 +250,7 @@ def _common_message_handler(
     """
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
+    _, _, thread_ts = extract_conversation_context(event)
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
         try:
@@ -287,7 +288,6 @@ def _common_message_handler(
             trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
-            _, _, thread_ts = extract_conversation_context(event)
             post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
 

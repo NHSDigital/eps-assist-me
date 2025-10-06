@@ -852,7 +852,7 @@ def test_dm_message_handler_success(mock_get_parameter: Mock, mock_env: Mock):
             client=ANY,
             event=mock_event,
             event_id="evt123",
-            post_to_thread=False,
+            post_to_thread=True,
         )
 
 

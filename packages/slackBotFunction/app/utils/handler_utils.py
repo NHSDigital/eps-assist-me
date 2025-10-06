@@ -151,7 +151,8 @@ def extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str |
     channel = event["channel"]
     # Determine conversation context: DM vs channel thread
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        return f"{constants.DM_PREFIX}{channel}", constants.CONTEXT_TYPE_DM, None  # DMs don't use threads
+        thread_root = event.get("thread_ts", event["ts"])
+        return f"{constants.DM_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
     else:
         thread_root = event.get("thread_ts", event["ts"])
         return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
