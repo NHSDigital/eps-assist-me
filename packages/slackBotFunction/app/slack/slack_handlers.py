@@ -250,7 +250,7 @@ def _common_message_handler(
     """
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
-    _, _, thread_ts = extract_conversation_context(event)
+    conversation_key, _, thread_ts = extract_conversation_context(event)
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
         try:

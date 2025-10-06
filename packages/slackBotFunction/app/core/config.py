@@ -92,6 +92,7 @@ class Constants:
     CONTEXT_TYPE_THREAD: str
     CHANNEL_TYPE_IM: str
     SESSION_SK: str
+    PULL_REQUEST_SK: str
     DEDUP_SK: str
     EVENT_PREFIX: str
     FEEDBACK_PREFIX_KEY: str
@@ -111,6 +112,7 @@ constants = Constants(
     CONTEXT_TYPE_THREAD="thread",
     CHANNEL_TYPE_IM="im",
     SESSION_SK="session",
+    PULL_REQUEST_SK="pull_request",
     DEDUP_SK="dedup",
     EVENT_PREFIX="event#",
     FEEDBACK_PREFIX_KEY="feedback#",

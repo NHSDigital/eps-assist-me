@@ -68,6 +68,11 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
+
+        conversation_key, _, _ = extract_conversation_context(event)
+        item = {"pk": conversation_key, "sk": constants.PULL_REQUEST_SK, "pull_request_id": pull_request_id}
+
+        store_state_information(item=item)
     except Exception as e:
         logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
         raise e
