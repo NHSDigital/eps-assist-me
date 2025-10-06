@@ -65,7 +65,7 @@ repos:
         entry: bash
         args:
           - -c
-          - 'docker run -v "$(pwd):/src" git-secrets --pre_commit_hook'
+          - 'docker run -v "$LOCAL_WORKSPACE_FOLDER:/src" git-secrets --pre_commit_hook'
         language: system
 
 fail_fast: true
