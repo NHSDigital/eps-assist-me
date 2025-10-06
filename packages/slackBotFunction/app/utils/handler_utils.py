@@ -7,8 +7,10 @@ import time
 import json
 import traceback
 from typing import Any, Dict, Tuple
+import urllib.parse
 import boto3
 from botocore.exceptions import ClientError
+from slack_bolt import BoltRequest
 from slack_sdk import WebClient
 from mypy_boto3_cloudformation.client import CloudFormationClient
 from mypy_boto3_lambda.client import LambdaClient
@@ -75,6 +77,43 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
         store_state_information(item=item)
     except Exception as e:
         logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
+        raise e
+
+
+def forward_event_to_pull_request_lambda(req: BoltRequest, pull_request_id: str, forward_type: str) -> None:
+    cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
+    lambda_client: LambdaClient = boto3.client("lambda")
+    try:
+        logger.debug("Getting arn for pull request", extra={"pull_request_id": pull_request_id})
+        response = cloudformation_client.describe_stacks(StackName=f"epsam-pr-{pull_request_id}")
+        outputs = {o["OutputKey"]: o["OutputValue"] for o in response["Stacks"][0]["Outputs"]}
+
+        pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
+        if forward_type == "feedback":
+            forwarded_body = f"payload={urllib.parse.quote_plus(json.dumps(req.body, separators=(',', ':')))}"
+        else:
+            forwarded_body = json.dumps(req.body)
+        forward_req = {
+            "body": forwarded_body,
+            "headers": req.headers,
+            "httpMethod": "POST",
+            "isBase64Encoded": False,
+            "method": "NONE",
+            "path": "/slack/events",
+            "resource": "/slack/events",
+            "stageVariables": None,
+        }
+        logger.debug(
+            "Forwarding request to pull request lambda",
+            extra={"lambda_arn": pull_request_lambda_arn, "forward_req": forward_req},
+        )
+        response = lambda_client.invoke(
+            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(forward_req)
+        )
+        logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
+
+    except Exception as e:
+        logger.error("Failed to forward request to pull request lambda", extra={"error": traceback.format_exc()})
         raise e
 
 
@@ -147,7 +186,7 @@ def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
     channel_id = event["channel"]
     root = event.get("thread_ts") or event.get("ts")
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        return f"{constants.DM_PREFIX}{channel_id}", root
+        return f"{constants.DM_PREFIX}{channel_id}#{root}", root
     return f"{constants.THREAD_PREFIX}{channel_id}#{root}", root
 
 
@@ -165,10 +204,12 @@ def extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str |
 
 def extract_session_pull_request_id(conversation_key: str) -> str | None:
     """Check if the conversation is associated with a pull request"""
+    logger.debug("Checking for existing pull request session", extra={"conversation_key": conversation_key})
     try:
         response = get_state_information({"pk": conversation_key, "sk": constants.PULL_REQUEST_SK})
         if "Item" in response:
             logger.info("Found existing pull request session", extra={"conversation_key": conversation_key})
+            logger.debug("response", extra={"response": response})
             return response["Item"]["pull_request_id"]
         return None
     except Exception as e:

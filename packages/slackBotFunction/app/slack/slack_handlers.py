@@ -12,7 +12,7 @@ from functools import lru_cache
 import traceback
 from typing import Any, Dict
 from botocore.exceptions import ClientError
-from slack_bolt import Ack, App
+from slack_bolt import Ack, App, BoltRequest
 from slack_sdk import WebClient
 from app.core.config import (
     bot_messages,
@@ -26,6 +26,7 @@ from app.utils.handler_utils import (
     extract_conversation_context,
     extract_pull_request_id,
     extract_session_pull_request_id,
+    forward_event_to_pull_request_lambda,
     gate_common,
     is_latest_message,
     strip_mentions,
@@ -68,7 +69,7 @@ def respond_to_action(ack: Ack):
     ack()
 
 
-def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient) -> None:
+def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient, req: BoltRequest) -> None:
     """
     Channel interactions that mention the bot.
     Pulls some details unique to mentions and removes slack user name
@@ -91,10 +92,11 @@ def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClie
         event=event,
         event_id=event_id,
         post_to_thread=True,
+        req=req,
     )
 
 
-def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, req: BoltRequest) -> None:
     """
     Direct messages:
     Pulls some details unique to direct messages
@@ -105,7 +107,10 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) 
     message_text = (event.get("text") or "").strip()
     user_id = event.get("user", "unknown")
     conversation_key, thread_root = conversation_key_and_root(event=event)
-    logger.info(f"Processing DM from user {user_id}", extra={"event_id": event_id})
+    logger.info(
+        f"Processing DM from user {user_id}",
+        extra={"event_id": event_id, "conversation_key": conversation_key, "thread_root": thread_root},
+    )
     _common_message_handler(
         message_text=message_text,
         conversation_key=conversation_key,
@@ -114,10 +119,11 @@ def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) 
         event=event,
         event_id=event_id,
         post_to_thread=True,
+        req=req,
     )
 
 
-def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, req: BoltRequest) -> None:
     """
     Thread messages:
     Pulls some details unique to threads
@@ -155,10 +161,11 @@ def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClie
         event=event,
         event_id=event_id,
         post_to_thread=True,
+        req=req,
     )
 
 
-def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient) -> None:
+def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient, req: BoltRequest) -> None:
     """Handle message events (but not app mentions) - DMs and channel messages"""
     event_id = gate_common(event=event, body=body)
     if not event_id:
@@ -167,13 +174,13 @@ def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client:
     # Route to appropriate handler based on message type
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         # DM handling
-        dm_message_handler(event=event, event_id=event_id, client=client)
+        dm_message_handler(event=event, event_id=event_id, client=client, req=req)
     else:
         # Channel message handling
-        thread_message_handler(event=event, event_id=event_id, client=client)
+        thread_message_handler(event=event, event_id=event_id, client=client, req=req)
 
 
-def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
+def feedback_handler(body: Dict[str, Any], client: WebClient, req: BoltRequest) -> None:
     """Handle feedback button clicks (both positive and negative)."""
     try:
         channel_id = body["channel"]["id"]
@@ -189,6 +196,10 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
                 f"Feedback in pull request session {session_pull_request_id}",
                 extra={"session_pull_request_id": session_pull_request_id},
             )
+            forward_event_to_pull_request_lambda(
+                req=req, pull_request_id=session_pull_request_id, forward_type="feedback"
+            )
+            return
 
         if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
@@ -247,6 +258,7 @@ def _common_message_handler(
     event: Dict[str, Any],
     event_id: str,
     post_to_thread: bool,
+    req: BoltRequest,
 ) -> None:
     """
     All messages get processed by this code
@@ -264,6 +276,8 @@ def _common_message_handler(
             f"Message in pull request session {session_pull_request_id} from user {user_id}",
             extra={"session_pull_request_id": session_pull_request_id},
         )
+        forward_event_to_pull_request_lambda(req=req, pull_request_id=session_pull_request_id, forward_type="event")
+        return
     if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
         feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
         try:
