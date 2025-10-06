@@ -161,3 +161,16 @@ def extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str |
     else:
         thread_root = event.get("thread_ts", event["ts"])
         return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
+
+
+def extract_session_pull_request_id(conversation_key: str) -> str | None:
+    """Check if the conversation is associated with a pull request"""
+    try:
+        response = get_state_information({"pk": conversation_key, "sk": constants.PULL_REQUEST_SK})
+        if "Item" in response:
+            logger.info("Found existing pull request session", extra={"conversation_key": conversation_key})
+            return response["Item"]["pull_request_id"]
+        return None
+    except Exception as e:
+        logger.error(f"Error checking pull request session: {e}", extra={"error": traceback.format_exc()})
+        return None

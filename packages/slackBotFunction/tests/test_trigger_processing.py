@@ -6,7 +6,9 @@ import pytest
 
 
 @patch("boto3.client")
+@patch("app.services.dynamo.store_state_information")
 def test_trigger_pull_request_processing(
+    mock_store_state_information: Mock,
     mock_boto_client: Mock,
     mock_env: Mock,
 ):
@@ -41,17 +43,20 @@ def test_trigger_pull_request_processing(
     from app.utils.handler_utils import trigger_pull_request_processing
 
     # perform operation
-    event_data = {"test": "data"}
+    event_data = {"test": "data", "channel": "C123", "ts": "12345.6789"}
     trigger_pull_request_processing(pull_request_id="123", event=event_data, event_id="evt123")
 
     # assertions
     expected_lambda_payload = {
         "pull_request_processing": True,
-        "slack_event": {"event": {"test": "data"}, "event_id": "evt123"},
+        "slack_event": {"event": {"test": "data", "channel": "C123", "ts": "12345.6789"}, "event_id": "evt123"},
     }
 
     mock_lambda_client.invoke.assert_called_once_with(
         FunctionName="output_SlackBotLambdaArn", InvocationType="Event", Payload=json.dumps(expected_lambda_payload)
+    )
+    mock_store_state_information.assert_called_once_with(
+        item={"pk": "thread#C123#12345.6789", "sk": "pull_request", "pull_request_id": "123"}
     )
 
 
