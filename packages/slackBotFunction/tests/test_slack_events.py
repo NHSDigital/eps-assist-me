@@ -393,7 +393,7 @@ def test_process_slack_message_dm_context(
 
 
 @patch("app.utils.handler_utils.is_latest_message")
-def test_process_async_slack_action(
+def test_process_async_slack_action_positive(
     mock_is_latest_message: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
@@ -435,3 +435,185 @@ def test_process_async_slack_action(
             text="Thank you for your feedback.",
             thread_ts="1759845114.407989",
         )
+
+
+@patch("app.utils.handler_utils.is_latest_message")
+def test_process_async_slack_action_negative(
+    mock_is_latest_message: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test successful async action processing"""
+    # set up mocks
+    mock_client = Mock()
+    mock_is_latest_message.return_value = True
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_async_slack_action
+
+    feedback_value = '{"ck":"thread#C123#123","ch":"C123","mt":"1759845126.972219","tt":"1759845114.407989"}'
+
+    # perform operation
+    slack_action_data = {
+        "type": "block_actions",
+        "user": {"id": "U123"},
+        "channel": {"id": "C123"},
+        "actions": [{"action_id": "feedback_no", "value": feedback_value}],
+    }
+    with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:
+        process_async_slack_action(body=slack_action_data, client=mock_client)
+
+        # assertions
+        mock_store_feedback.assert_called_once_with(
+            conversation_key="thread#C123#123",
+            feedback_type="negative",
+            user_id="U123",
+            channel_id="C123",
+            thread_ts="1759845114.407989",
+            message_ts="1759845126.972219",
+            client=mock_client,
+        )
+        mock_client.chat_postMessage.assert_called_once_with(
+            channel="C123",
+            text='Please let us know how the answer could be improved. Start your message with "feedback:"',
+            thread_ts="1759845114.407989",
+        )
+
+
+@patch("app.utils.handler_utils.is_latest_message")
+def test_process_async_slack_action_not_latest(
+    mock_is_latest_message: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test successful async action processing"""
+    # set up mocks
+    mock_client = Mock()
+    mock_is_latest_message.return_value = False
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_async_slack_action
+
+    feedback_value = '{"ck":"thread#C123#123","ch":"C123","mt":"1759845126.972219","tt":"1759845114.407989"}'
+
+    # perform operation
+    slack_action_data = {
+        "type": "block_actions",
+        "user": {"id": "U123"},
+        "channel": {"id": "C123"},
+        "actions": [{"action_id": "feedback_no", "value": feedback_value}],
+    }
+    with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:
+        process_async_slack_action(body=slack_action_data, client=mock_client)
+
+        # assertions
+        mock_store_feedback.assert_not_called()
+        mock_client.chat_postMessage.assert_not_called()
+
+
+@patch("app.utils.handler_utils.is_latest_message")
+def test_process_async_slack_action_unknown_action(
+    mock_is_latest_message: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test successful async action processing"""
+    # set up mocks
+    mock_client = Mock()
+    mock_is_latest_message.return_value = True
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_async_slack_action
+
+    feedback_value = '{"ck":"thread#C123#123","ch":"C123","mt":"1759845126.972219","tt":"1759845114.407989"}'
+
+    # perform operation
+    slack_action_data = {
+        "type": "block_actions",
+        "user": {"id": "U123"},
+        "channel": {"id": "C123"},
+        "actions": [{"action_id": "I_Do_Not_Know_This_Action", "value": feedback_value}],
+    }
+    with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:
+        process_async_slack_action(body=slack_action_data, client=mock_client)
+
+        # assertions
+        mock_store_feedback.assert_not_called()
+        mock_client.chat_postMessage.assert_not_called()
+
+
+def test_process_feedback_event():
+    # set up mocks
+    mock_client = Mock()
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_feedback_event
+
+    # perform operation
+    mock_event = {}
+    with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:
+        process_feedback_event(
+            message_text="feedback: this is some feedback",
+            conversation_key="thread#C123#123",
+            user_id="U123",
+            channel_id="C123",
+            thread_root="1759845114.407989",
+            event=mock_event,
+            client=mock_client,
+        )
+
+        # assertions
+        mock_store_feedback.assert_called_once_with(
+            conversation_key="thread#C123#123",
+            feedback_type="additional",
+            user_id="U123",
+            channel_id="C123",
+            thread_ts="1759845114.407989",
+            message_ts=None,
+            feedback_text="this is some feedback",
+            client=mock_client,
+        )
+        mock_client.chat_postMessage.assert_called_once_with(
+            channel="C123", text="Thank you for your feedback.", thread_ts="1759845114.407989"
+        )
+
+
+@patch("app.services.slack.post_error_message")
+def test_process_feedback_event_error(
+    mock_post_error_message: Mock,
+):
+    # set up mocks
+    mock_client = Mock()
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_feedback_event
+
+    # perform operation
+    mock_event = {
+        "channel": "C123",
+        "thread_ts": "123",
+    }
+    with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:
+        mock_store_feedback.side_effect = Exception("There was an error")
+        process_feedback_event(
+            message_text="feedback: this is some feedback",
+            conversation_key="thread#C123#123",
+            user_id="U123",
+            channel_id="C123",
+            thread_root="1759845114.407989",
+            event=mock_event,
+            client=mock_client,
+        )
+
+        # assertions
+        mock_post_error_message.assert_called_once_with(channel="C123", thread_ts="123", client=mock_client)
