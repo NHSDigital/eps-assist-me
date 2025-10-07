@@ -320,3 +320,42 @@ def test_is_duplicate_event_no_item(
 
     # assertions
     assert result is False
+
+
+def test_extract_pull_request_id_extracts_when_no_mention():
+    # setup mocks
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import extract_pull_request_id
+
+    # perform operation
+    pr_id, text = extract_pull_request_id("pr:12345 some question")
+    # assertions
+    assert pr_id == "12345"
+    assert text == "some question"
+
+
+def test_extract_pull_request_id_extracts_when_no_pull_request():
+    # setup mocks
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import extract_pull_request_id
+
+    # perform operation
+    pr_id, text = extract_pull_request_id("some question")
+    # assertions
+    assert pr_id is None
+    assert text == "some question"
+
+
+def test_extract_pull_request_id_extracts_when_there_is_a_mention():
+    # setup mocks
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import extract_pull_request_id
+
+    # perform operation
+    pr_id, text = extract_pull_request_id("<@U123> pr:12345 some question")
+    # assertions
+    assert pr_id == "12345"
+    assert text == "<@U123> some question"

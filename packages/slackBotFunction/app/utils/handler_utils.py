@@ -162,15 +162,20 @@ def strip_mentions(message_text: str) -> str:
 
 
 def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
-    # Regex: PULL_REQUEST_PREFIX + optional space + number + space + rest of text
-    pattern = re.escape(constants.PULL_REQUEST_PREFIX) + r"\s*(\d+)\s+(.+)"
-    match = re.match(pattern, text)
-    if not match:
-        logger.warning("Can not extract pull request id from text", extra={"text": text})
-        return None, text
-    pr_number = int(match.group(1))
-    rest_text = match.group(2)
-    return pr_number, rest_text
+    prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
+    pattern = rf"^(<[^>]+>\s*)?{prefix}\s*(\d+)\b"
+
+    match = re.match(pattern, text, flags=re.IGNORECASE)
+    if match:
+        mention = match.group(1) or ""
+        pr_number = match.group(2)
+
+        # Remove the matched part (mention + prefix + number)
+        remaining_text = text[match.end() :].strip()
+        cleaned_text = f"{mention}{remaining_text}".strip()
+        return pr_number, cleaned_text
+
+    return None, text.strip()
 
 
 def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
