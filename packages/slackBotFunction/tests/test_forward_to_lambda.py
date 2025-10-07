@@ -122,7 +122,9 @@ def test_forward_event_to_pull_request_lambda_processing_error(
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn") as mock_get_pull_request_lambda_arn:
         mock_get_pull_request_lambda_arn.side_effect = Exception("Error getting lambda arn")
         with pytest.raises(Exception):
-            forward_event_to_pull_request_lambda(pull_request_id="123", event=event_data, event_id="evt123")
+            forward_event_to_pull_request_lambda(
+                pull_request_id="123", event=event_data, event_id="evt123", store_pull_request_id=False
+            )
 
         # assertions
 
