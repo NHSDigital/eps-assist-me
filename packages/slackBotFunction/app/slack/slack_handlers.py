@@ -11,7 +11,7 @@ import json
 from functools import lru_cache
 import traceback
 from typing import Any, Dict
-from slack_bolt import Ack, App, BoltRequest
+from slack_bolt import Ack, App
 from slack_sdk import WebClient
 from app.core.config import (
     get_logger,
@@ -85,7 +85,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
 # ================================================================
 
 
-def unified_message_handler(client: WebClient, event: Dict[str, Any], req: BoltRequest, body: Dict[str, Any]) -> None:
+def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict[str, Any]) -> None:
     """
     All messages get processed by this code
     If message starts with FEEDBACK_PREFIX then handle feedback message and return
