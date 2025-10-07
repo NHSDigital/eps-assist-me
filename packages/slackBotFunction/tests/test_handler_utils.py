@@ -188,7 +188,7 @@ def test_strip_mentions(mock_env: Mock):
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
-    from app.slack.slack_handlers import strip_mentions
+    from app.utils.handler_utils import strip_mentions
 
     # perform operation
     result = strip_mentions("<@U123> hello world")

@@ -90,8 +90,8 @@ def forward_event_to_pull_request_lambda(
         if store_pull_request_id:
             conversation_key, _ = conversation_key_and_root(event)
             item = {"pk": conversation_key, "sk": constants.PULL_REQUEST_SK, "pull_request_id": pull_request_id}
+            store_state_information(item=item)
 
-        store_state_information(item=item)
     except Exception as e:
         logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
         raise e
