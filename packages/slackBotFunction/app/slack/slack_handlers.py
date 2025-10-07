@@ -18,7 +18,6 @@ from app.core.config import (
 )
 from app.utils.handler_utils import (
     conversation_key_and_root,
-    extract_conversation_context,
     extract_session_pull_request_id,
     forward_action_to_pull_request_lambda,
     forward_event_to_pull_request_lambda,
@@ -99,7 +98,6 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], req: BoltR
         return
     user_id = event.get("user", "unknown")
     conversation_key, _ = conversation_key_and_root(event=event)
-    conversation_key, _, _ = extract_conversation_context(event)
     session_pull_request_id = extract_session_pull_request_id(conversation_key)
     if session_pull_request_id:
         logger.info(

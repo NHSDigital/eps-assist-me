@@ -75,7 +75,7 @@ def forward_event_to_pull_request_lambda(
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
 
         if store_pull_request_id:
-            conversation_key, _, _ = extract_conversation_context(event)
+            conversation_key, _ = conversation_key_and_root(event)
             item = {"pk": conversation_key, "sk": constants.PULL_REQUEST_SK, "pull_request_id": pull_request_id}
 
         store_state_information(item=item)
@@ -180,18 +180,6 @@ def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
         return f"{constants.DM_PREFIX}{channel_id}#{root}", root
     return f"{constants.THREAD_PREFIX}{channel_id}#{root}", root
-
-
-def extract_conversation_context(event: Dict[str, Any]) -> Tuple[str, str, str | None]:
-    """Extract conversation key and thread context from event"""
-    channel = event["channel"]
-    # Determine conversation context: DM vs channel thread
-    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        thread_root = event.get("thread_ts", event["ts"])
-        return f"{constants.DM_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
-    else:
-        thread_root = event.get("thread_ts", event["ts"])
-        return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
 
 
 def extract_session_pull_request_id(conversation_key: str) -> str | None:

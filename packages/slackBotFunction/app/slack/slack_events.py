@@ -27,7 +27,6 @@ from app.services.query_reformulator import reformulate_query
 from app.services.slack import get_friendly_channel_name, post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
-    extract_conversation_context,
     extract_pull_request_id,
     forward_event_to_pull_request_lambda,
     is_duplicate_event,
@@ -119,7 +118,6 @@ def _handle_session_management(
     user_id: str,
     channel: str,
     thread_ts: str,
-    context_type: str,
     message_ts: str,
 ) -> None:
     """Handle Bedrock session creation and cleanup"""
@@ -131,7 +129,7 @@ def _handle_session_management(
             kb_response["sessionId"],
             user_id,
             channel,
-            thread_ts if context_type == constants.CONTEXT_TYPE_THREAD else None,
+            thread_ts,
             message_ts,
         )
     elif session_id:
@@ -206,7 +204,7 @@ def process_feedback_event(
         client.chat_postMessage(**params)
     except Exception as e:
         logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
-        _, _, thread_ts = extract_conversation_context(event)
+        _, thread_ts = conversation_key_and_root(event)
         post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
 
 
@@ -267,7 +265,7 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
 def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     original_message_text = (event.get("text") or "").strip()
     message_text = strip_mentions(message_text=original_message_text)
-    conversation_key, _, thread_ts = extract_conversation_context(event)
+    conversation_key, thread_ts = conversation_key_and_root(event)
     user_id = event.get("user", "unknown")
     channel_id = event["channel"]
     conversation_key, thread_root = conversation_key_and_root(event=event)
@@ -305,13 +303,13 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
     try:
         user_id = event["user"]
         channel = event["channel"]
-        conversation_key, context_type, thread_ts = extract_conversation_context(event)
+        conversation_key, thread_ts = conversation_key_and_root(event)
 
         # Remove Slack user mentions from message text
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()
 
         logger.info(
-            f"Processing {context_type} message from user {user_id}",
+            f"Processing message from user {user_id}",
             extra={"user_query": user_query, "conversation_key": conversation_key, "event_id": event_id},
         )
 
@@ -342,15 +340,14 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         message_ts = post["ts"]
 
         _handle_session_management(
-            conversation_key,
-            session_data,
-            session_id,
-            kb_response,
-            user_id,
-            channel,
-            thread_ts,
-            context_type,
-            message_ts,
+            conversation_key=conversation_key,
+            session_data=session_data,
+            session_id=session_id,
+            kb_response=kb_response,
+            user_id=user_id,
+            channel=channel,
+            thread_ts=thread_ts,
+            message_ts=message_ts,
         )
 
         # Store Q&A pair for feedback correlation
