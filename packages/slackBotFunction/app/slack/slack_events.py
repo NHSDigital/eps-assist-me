@@ -381,9 +381,6 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
         client = WebClient(token=token)
         if is_duplicate_event(event_id=event_id):
             return
-        message_text = event["text"]
-        _, extracted_message = extract_pull_request_id(message_text)
-        event["text"] = extracted_message
         process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
