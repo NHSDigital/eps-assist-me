@@ -330,7 +330,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
 
         # Query Bedrock Knowledge Base with conversation context
         kb_response = query_bedrock(reformulated_query, session_id)
-        response_text = kb_response["output"]["text"]
+        response_text = f"THIS IS FROM PULL REQUEST 60: {kb_response["output"]["text"]}"
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
