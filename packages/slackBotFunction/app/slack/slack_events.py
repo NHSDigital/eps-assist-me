@@ -30,6 +30,7 @@ from app.utils.handler_utils import (
     extract_conversation_context,
     extract_pull_request_id,
     is_duplicate_event,
+    is_latest_message,
     strip_mentions,
     trigger_pull_request_processing,
 )
@@ -207,6 +208,60 @@ def process_feedback_event(
         logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
         _, _, thread_ts = extract_conversation_context(event)
         post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+
+
+def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
+    try:
+        channel_id = body["channel"]["id"]
+        action_id = body["actions"][0]["action_id"]
+        feedback_data = json.loads(body["actions"][0]["value"])
+
+        # Check if this is the latest message in the conversation
+        conversation_key = feedback_data["ck"]
+        message_ts = feedback_data.get("mt")
+
+        if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
+            logger.info(f"Feedback ignored - not latest message: {message_ts}")
+            return
+
+        # Determine feedback type and response message based on action_id
+        if action_id == "feedback_yes":
+            feedback_type = "positive"
+            response_message = bot_messages.FEEDBACK_POSITIVE_THANKS
+        elif action_id == "feedback_no":
+            feedback_type = "negative"
+            response_message = bot_messages.FEEDBACK_NEGATIVE_THANKS
+        else:
+            logger.error(f"Unknown feedback action: {action_id}")
+            return
+
+        try:
+            store_feedback(
+                conversation_key=feedback_data["ck"],
+                feedback_type=feedback_type,
+                user_id=body["user"]["id"],
+                channel_id=feedback_data["ch"],
+                thread_ts=feedback_data.get("tt"),
+                message_ts=feedback_data.get("mt"),
+                client=client,
+            )
+            # Only post message if storage succeeded
+            post_params = {"channel": feedback_data["ch"], "text": response_message}
+            if feedback_data.get("tt"):  # Only add thread_ts if it exists (not for DMs)
+                post_params["thread_ts"] = feedback_data["tt"]
+            client.chat_postMessage(**post_params)
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                # Silently ignore duplicate votes - user already voted on this message
+                logger.info(f"Duplicate vote ignored for user {body['user']['id']}")
+                return
+            logger.error(f"Feedback storage error: {e}", extra={"error": traceback.format_exc()})
+        except Exception as e:
+            logger.error(f"Unexpected feedback error: {e}", extra={"error": traceback.format_exc()})
+            thread_ts = feedback_data.get("tt")
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+    except Exception as e:
+        logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
 
 
 def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
