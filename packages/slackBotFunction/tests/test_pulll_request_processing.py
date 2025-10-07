@@ -21,7 +21,7 @@ def test_process_pull_request_event(
     with patch("app.slack.slack_events.process_async_slack_event") as mock_process_async_slack_event:
         slack_event_data = {
             "event": {
-                "text": "pr: 60 test question",
+                "text": "test question",
                 "user": "U456",
                 "channel": "C789",
                 "ts": "1234567890.123",
