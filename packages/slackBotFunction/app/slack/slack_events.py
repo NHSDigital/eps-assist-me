@@ -271,7 +271,7 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     conversation_key, thread_root = conversation_key_and_root(event=event)
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
-            pull_request_id, _ = extract_pull_request_id(message_text)
+            pull_request_id, _ = extract_pull_request_id(text=message_text)
             forward_event_to_pull_request_lambda(
                 pull_request_id=pull_request_id, event=event, event_id=event_id, store_pull_request_id=True
             )

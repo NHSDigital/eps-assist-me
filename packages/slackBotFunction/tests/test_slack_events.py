@@ -57,7 +57,7 @@ def test_process_async_slack_event_pull_request_with_mention(
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
         mock_forward_event_to_pull_request_lambda.assert_called_once_with(
-            pull_request_id=123,
+            pull_request_id="123",
             event=slack_event_data,
             event_id="evt123",
             store_pull_request_id=True,
@@ -93,7 +93,7 @@ def test_process_async_slack_event_pull_request_with_no_mention(
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
         mock_forward_event_to_pull_request_lambda.assert_called_once_with(
-            pull_request_id=123,
+            pull_request_id="123",
             event=slack_event_data,
             event_id="evt123",
             store_pull_request_id=True,
