@@ -55,7 +55,7 @@ def test_correct_handlers_registered(
     assert registered_ack_handlers["feedback_yes"].__name__ == "respond_to_action"
     assert registered_ack_handlers["feedback_no"].__name__ == "respond_to_action"
 
-    assert registered_event_handlers["app_mention"].__name__ == "mention_handler"
+    assert registered_event_handlers["app_mention"].__name__ == "unified_message_handler"
     assert registered_event_handlers["message"].__name__ == "unified_message_handler"
     assert registered_action_handlers["feedback_yes"].__name__ == "feedback_handler"
     assert registered_action_handlers["feedback_no"].__name__ == "feedback_handler"
