@@ -38,6 +38,7 @@ def is_duplicate_event(event_id: str) -> bool:
         return False  # Not a duplicate
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            logger.info(f"Duplicate event detected: {event_id}")
             return True  # Duplicate
         logger.error("Error checking event duplication", extra={"error": traceback.format_exc()})
         return False
@@ -203,3 +204,17 @@ def extract_session_pull_request_id(conversation_key: str) -> str | None:
     except Exception as e:
         logger.error(f"Error checking pull request session: {e}", extra={"error": traceback.format_exc()})
         return None
+
+
+def should_reply_to_message(event: Dict[str, Any]) -> bool:
+    """
+    Determine if the bot should reply to the message.
+
+    Conditions:
+    should not reply if:
+    - Message is in a group chat (channel_type == 'group') but not in a thread
+    """
+
+    if event.get("channel_type") == "group" and event.get("type") == "message" and event.get("thread_ts") is None:
+        return False
+    return True

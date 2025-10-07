@@ -27,8 +27,11 @@ def handler(event: dict, context: LambdaContext) -> dict:
     3. Lazy Async invocation processes Bedrock query and responds to Slack
 
     If message starts with pr: then pull request id is extracted from message and it invokes lambda in pull request
-    This message has a pull_request_processing property so when it is received by the lambda in the pull request
+    This message has a pull_request_event property so when it is received by the lambda in the pull request
     It triggers function process_pull_request_slack_event
+    When a session is started with a pr: prefix, the pull request is stored in dynamo
+    When subsequent actions or events are processed, this is looked up, and if it exists, then the pull request lambda
+    is triggered with either pull_request_event or pull_request_action
     """
     app = get_app(logger=logger)
     # handle pull request processing requests

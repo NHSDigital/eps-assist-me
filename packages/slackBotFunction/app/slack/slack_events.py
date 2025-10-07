@@ -262,6 +262,7 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
 
 
 def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+    logger.debug("Processing async Slack event", extra={"event_id": event_id, "event": event})
     original_message_text = (event.get("text") or "").strip()
     message_text = strip_mentions(message_text=original_message_text)
     conversation_key, thread_ts = conversation_key_and_root(event)
