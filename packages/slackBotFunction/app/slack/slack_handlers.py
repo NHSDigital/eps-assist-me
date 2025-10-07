@@ -17,20 +17,16 @@ from slack_sdk import WebClient
 from app.core.config import (
     bot_messages,
     get_logger,
-    constants,
 )
 from app.services.slack import post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_conversation_context,
-    extract_pull_request_id,
     extract_session_pull_request_id,
     forward_event_to_pull_request_lambda,
     gate_common,
     is_latest_message,
-    strip_mentions,
     respond_with_eyes,
-    trigger_pull_request_processing,
 )
 from app.slack.slack_events import process_async_slack_event, store_feedback
 
@@ -149,50 +145,16 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], req: BoltR
     event_id = gate_common(event=event, body=body)
     if not event_id:
         return
-    channel_id = event["channel"]
     user_id = event.get("user", "unknown")
-    conversation_key, thread_root = conversation_key_and_root(event=event)
-    conversation_key, _, thread_ts = extract_conversation_context(event)
+    conversation_key, _ = conversation_key_and_root(event=event)
+    conversation_key, _, _ = extract_conversation_context(event)
     session_pull_request_id = extract_session_pull_request_id(conversation_key)
-    original_message_text = (event.get("text") or "").strip()
-    message_text = strip_mentions(message_text=original_message_text)
     if session_pull_request_id:
         logger.info(
             f"Message in pull request session {session_pull_request_id} from user {user_id}",
             extra={"session_pull_request_id": session_pull_request_id},
         )
         forward_event_to_pull_request_lambda(req=req, pull_request_id=session_pull_request_id, forward_type="event")
-        return
-    if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
-        feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
-        try:
-            store_feedback(
-                conversation_key=conversation_key,
-                feedback_type="additional",
-                user_id=user_id,
-                channel_id=channel_id,
-                thread_ts=thread_root,
-                message_ts=None,
-                feedback_text=feedback_text,
-                client=client,
-            )
-
-            params = {"channel": channel_id, "text": bot_messages.FEEDBACK_THANKS, "thread_ts": thread_root}
-
-            client.chat_postMessage(**params)
-        except Exception as e:
-            logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
-            _, _, thread_ts = extract_conversation_context(event)
-            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
-        return
-
-    if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
-        try:
-            pull_request_id, _ = extract_pull_request_id(message_text)
-            trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
-        except Exception as e:
-            logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
-            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
 
     # note - we dont do post an error message if this fails as its handled by process_async_slack_event

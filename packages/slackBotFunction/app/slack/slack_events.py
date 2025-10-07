@@ -25,7 +25,14 @@ from app.services.dynamo import (
 )
 from app.services.query_reformulator import reformulate_query
 from app.services.slack import get_friendly_channel_name, post_error_message
-from app.utils.handler_utils import extract_conversation_context, extract_pull_request_id, is_duplicate_event
+from app.utils.handler_utils import (
+    conversation_key_and_root,
+    extract_conversation_context,
+    extract_pull_request_id,
+    is_duplicate_event,
+    strip_mentions,
+    trigger_pull_request_processing,
+)
 
 logger = get_logger()
 
@@ -171,7 +178,67 @@ def _create_feedback_blocks(
 # ================================================================
 
 
+def process_feedback_event(
+    message_text: str,
+    conversation_key: str,
+    user_id: str,
+    channel_id: str,
+    thread_root: str,
+    client: WebClient,
+    event: Dict[str, Any],
+) -> None:
+    feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
+    try:
+        store_feedback(
+            conversation_key=conversation_key,
+            feedback_type="additional",
+            user_id=user_id,
+            channel_id=channel_id,
+            thread_ts=thread_root,
+            message_ts=None,
+            feedback_text=feedback_text,
+            client=client,
+        )
+
+        params = {"channel": channel_id, "text": bot_messages.FEEDBACK_THANKS, "thread_ts": thread_root}
+
+        client.chat_postMessage(**params)
+    except Exception as e:
+        logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
+        _, _, thread_ts = extract_conversation_context(event)
+        post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+
+
 def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+    original_message_text = (event.get("text") or "").strip()
+    message_text = strip_mentions(message_text=original_message_text)
+    conversation_key, _, thread_ts = extract_conversation_context(event)
+    user_id = event.get("user", "unknown")
+    channel_id = event["channel"]
+    conversation_key, thread_root = conversation_key_and_root(event=event)
+    if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
+        try:
+            pull_request_id, _ = extract_pull_request_id(message_text)
+            trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
+        except Exception as e:
+            logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+        return
+    if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
+        process_feedback_event(
+            message_text=message_text,
+            conversation_key=conversation_key,
+            user_id=user_id,
+            channel_id=channel_id,
+            thread_root=thread_root,
+            client=client,
+            event=event,
+        )
+        return
+    process_slack_message(event=event, event_id=event_id, client=client)
+
+
+def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
