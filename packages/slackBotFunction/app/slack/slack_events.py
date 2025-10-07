@@ -244,10 +244,9 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
                 client=client,
             )
             # Only post message if storage succeeded
-            post_params = {"channel": feedback_data["ch"], "text": response_message}
-            if feedback_data.get("tt"):  # Only add thread_ts if it exists (not for DMs)
-                post_params["thread_ts"] = feedback_data["tt"]
-            client.chat_postMessage(**post_params)
+            client.chat_postMessage(
+                channel=feedback_data["ch"], text=response_message, thread_ts=feedback_data.get("tt")
+            )
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
                 # Silently ignore duplicate votes - user already voted on this message
