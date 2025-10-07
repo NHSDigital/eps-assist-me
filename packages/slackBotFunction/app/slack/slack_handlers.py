@@ -23,6 +23,7 @@ from app.utils.handler_utils import (
     forward_event_to_pull_request_lambda,
     gate_common,
     respond_with_eyes,
+    should_reply_to_message,
 )
 from app.slack.slack_events import process_async_slack_action, process_async_slack_event
 
@@ -49,7 +50,8 @@ def setup_handlers(app: App) -> None:
 
 # ack function for events where we respond with eyes
 def respond_to_events(event: Dict[str, Any], ack: Ack, client: WebClient):
-    respond_with_eyes(event=event, client=client)
+    if should_reply_to_message(event):
+        respond_with_eyes(event=event, client=client)
     logger.debug("Sending ack response")
     ack()
 
@@ -94,7 +96,16 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
 
     """
     event_id = gate_common(event=event, body=body)
+    logger.debug("logging result of gate_common", extra={"event_id": event_id, "body": body})
     if not event_id:
+        return
+    # if its in a group chat
+    # and its a message
+    # and its not in a thread
+    # then ignore it as it will be handled as an app_mention event
+    if not should_reply_to_message(event):
+        logger.debug("Ignoring message in group chat not in a thread", extra={"event": event})
+        # ignore messages in group chats
         return
     user_id = event.get("user", "unknown")
     conversation_key, _ = conversation_key_and_root(event=event)

@@ -10,6 +10,7 @@ from aws_lambda_powertools import Logger
 @lru_cache
 def get_app(logger: Logger) -> App:
     bot_token, signing_secret = get_ssm_params()
+    # pass the correct logger to slack bolt so it can be pickled correctly
     powertools_logger = logging.getLogger(name=logger.name)
 
     # initialise the Slack app
