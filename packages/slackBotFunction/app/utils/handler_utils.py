@@ -53,23 +53,36 @@ def respond_with_eyes(event: Dict[str, Any], client: WebClient) -> None:
         logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})
 
 
-def forward_event_to_pull_request_lambda(
-    pull_request_id: str, event: Dict[str, Any], event_id: str, store_pull_request_id: bool
-) -> None:
+def get_pull_request_lambda_arn(pull_request_id: str) -> str:
     cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
-    lambda_client: LambdaClient = boto3.client("lambda")
     try:
         logger.debug("Getting arn for pull request", extra={"pull_request_id": pull_request_id})
         response = cloudformation_client.describe_stacks(StackName=f"epsam-pr-{pull_request_id}")
         outputs = {o["OutputKey"]: o["OutputValue"] for o in response["Stacks"][0]["Outputs"]}
-
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
-        logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
+        return pull_request_lambda_arn
+    except Exception as e:
+        logger.error("Failed to get pull request lambda arn", extra={"error": traceback.format_exc()})
+        raise e
+
+
+def forward_event_to_pull_request_lambda(
+    pull_request_id: str, event: Dict[str, Any], event_id: str, store_pull_request_id: bool
+) -> None:
+    lambda_client: LambdaClient = boto3.client("lambda")
+    try:
+        pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
+        # strip pull request prefix and id from message text
         message_text = event["text"]
         _, extracted_message = extract_pull_request_id(message_text)
         event["text"] = extracted_message
+
         lambda_payload = {"pull_request_event": True, "slack_event": {"event": event, "event_id": event_id}}
-        response = lambda_client.invoke(
+        logger.debug(
+            "Forwarding event to pull request lambda",
+            extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
+        )
+        lambda_client.invoke(
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
@@ -85,20 +98,15 @@ def forward_event_to_pull_request_lambda(
 
 
 def forward_action_to_pull_request_lambda(body: Dict[str, Any], pull_request_id: str) -> None:
-    cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
-        logger.debug("Getting arn for pull request", extra={"pull_request_id": pull_request_id})
-        response = cloudformation_client.describe_stacks(StackName=f"epsam-pr-{pull_request_id}")
-        outputs = {o["OutputKey"]: o["OutputValue"] for o in response["Stacks"][0]["Outputs"]}
-
-        pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
+        pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
         lambda_payload = {"pull_request_action": True, "slack_body": body}
         logger.debug(
             "Forwarding action to pull request lambda",
             extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
         )
-        response = lambda_client.invoke(
+        lambda_client.invoke(
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
