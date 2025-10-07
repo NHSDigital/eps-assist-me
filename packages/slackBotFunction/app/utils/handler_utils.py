@@ -152,12 +152,13 @@ def strip_mentions(message_text: str) -> str:
     return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", message_text or "").strip()
 
 
-def extract_pull_request_id(text: str) -> Tuple[str, str]:
+def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
     # Regex: PULL_REQUEST_PREFIX + optional space + number + space + rest of text
     pattern = re.escape(constants.PULL_REQUEST_PREFIX) + r"\s*(\d+)\s+(.+)"
     match = re.match(pattern, text)
     if not match:
-        raise ValueError("Text does not match expected format (#pr <number> <text>)")
+        logger.warning("Can not extract pull request id from text", extra={"text": text})
+        return None, text
     pr_number = int(match.group(1))
     rest_text = match.group(2)
     return pr_number, rest_text
