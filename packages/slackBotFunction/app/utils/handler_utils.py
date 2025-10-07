@@ -95,7 +95,7 @@ def forward_event_to_pull_request_lambda(req: BoltRequest, pull_request_id: str,
             forwarded_body = json.dumps(req.body)
         forward_req = {
             "body": forwarded_body,
-            "headers": req.headers,
+            "multiValueHeaders": req.headers,
             "httpMethod": "POST",
             "isBase64Encoded": False,
             "method": "NONE",

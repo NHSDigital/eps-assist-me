@@ -19,7 +19,6 @@ from app.core.config import (
     get_logger,
     constants,
 )
-from app.services.dynamo import get_state_information
 from app.services.slack import post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
@@ -45,7 +44,7 @@ logger = get_logger()
 @lru_cache
 def setup_handlers(app: App) -> None:
     """Register handlers. Intentionally minimal—no branching here."""
-    app.event("app_mention")(ack=respond_to_events, lazy=[mention_handler])
+    app.event("app_mention")(ack=respond_to_events, lazy=[unified_message_handler])
     app.event("message")(ack=respond_to_events, lazy=[unified_message_handler])
     app.action("feedback_yes")(ack=respond_to_action, lazy=[feedback_handler])
     app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
@@ -67,117 +66,6 @@ def respond_to_events(event: Dict[str, Any], ack: Ack, client: WebClient):
 def respond_to_action(ack: Ack):
     logger.debug("Sending ack response")
     ack()
-
-
-def mention_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient, req: BoltRequest) -> None:
-    """
-    Channel interactions that mention the bot.
-    Pulls some details unique to mentions and removes slack user name
-    And then forwards to _common_message_handler
-    """
-    event_id = gate_common(event=event, body=body)
-    if not event_id:
-        return
-    original_message_text = (event.get("text") or "").strip()
-    user_id = event.get("user", "unknown")
-    conversation_key, thread_root = conversation_key_and_root(event=event)
-
-    message_text = strip_mentions(message_text=original_message_text)
-    logger.info(f"Processing @mention from user {user_id}", extra={"event_id": event_id})
-    _common_message_handler(
-        message_text=message_text,
-        conversation_key=conversation_key,
-        thread_root=thread_root,
-        client=client,
-        event=event,
-        event_id=event_id,
-        post_to_thread=True,
-        req=req,
-    )
-
-
-def dm_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, req: BoltRequest) -> None:
-    """
-    Direct messages:
-    Pulls some details unique to direct messages
-    And then forwards to _common_message_handler
-    """
-    if event.get("channel_type") != constants.CHANNEL_TYPE_IM:
-        return  # not a DM; the channel handler will evaluate it
-    message_text = (event.get("text") or "").strip()
-    user_id = event.get("user", "unknown")
-    conversation_key, thread_root = conversation_key_and_root(event=event)
-    logger.info(
-        f"Processing DM from user {user_id}",
-        extra={"event_id": event_id, "conversation_key": conversation_key, "thread_root": thread_root},
-    )
-    _common_message_handler(
-        message_text=message_text,
-        conversation_key=conversation_key,
-        thread_root=thread_root,
-        client=client,
-        event=event,
-        event_id=event_id,
-        post_to_thread=True,
-        req=req,
-    )
-
-
-def thread_message_handler(event: Dict[str, Any], event_id: str, client: WebClient, req: BoltRequest) -> None:
-    """
-    Thread messages:
-    Pulls some details unique to threads
-    And then forwards to _common_message_handler
-    """
-    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        return  # handled in the DM handler
-
-    message_text = (event.get("text") or "").strip()
-    channel_id = event["channel"]
-    thread_root = event.get("thread_ts")
-    user_id = event.get("user", "unknown")
-    if not thread_root:
-        return  # top-level message; require @mention to start
-
-    conversation_key = f"{constants.THREAD_PREFIX}{channel_id}#{thread_root}"
-    try:
-        resp = get_state_information(key={"pk": conversation_key, "sk": constants.SESSION_SK})
-        if "Item" not in resp:
-            logger.info(f"No session found for thread: {conversation_key}")
-            return  # not a bot-owned thread; ignore
-        logger.info(f"Found session for thread: {conversation_key}")
-    except Exception as e:
-        logger.error(f"Error checking thread session: {e}", extra={"error": traceback.format_exc()})
-        _, _, thread_ts = extract_conversation_context(event)
-        post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
-        return
-
-    logger.info(f"Processing thread message from user {user_id}", extra={"event_id": event_id})
-    _common_message_handler(
-        message_text=message_text,
-        conversation_key=conversation_key,
-        thread_root=thread_root,
-        client=client,
-        event=event,
-        event_id=event_id,
-        post_to_thread=True,
-        req=req,
-    )
-
-
-def unified_message_handler(event: Dict[str, Any], body: Dict[str, Any], client: WebClient, req: BoltRequest) -> None:
-    """Handle message events (but not app mentions) - DMs and channel messages"""
-    event_id = gate_common(event=event, body=body)
-    if not event_id:
-        return
-
-    # Route to appropriate handler based on message type
-    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        # DM handling
-        dm_message_handler(event=event, event_id=event_id, client=client, req=req)
-    else:
-        # Channel message handling
-        thread_message_handler(event=event, event_id=event_id, client=client, req=req)
 
 
 def feedback_handler(body: Dict[str, Any], client: WebClient, req: BoltRequest) -> None:
@@ -250,16 +138,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient, req: BoltRequest) 
 # ================================================================
 
 
-def _common_message_handler(
-    message_text: str,
-    conversation_key: str,
-    thread_root: str,
-    client: WebClient,
-    event: Dict[str, Any],
-    event_id: str,
-    post_to_thread: bool,
-    req: BoltRequest,
-) -> None:
+def unified_message_handler(client: WebClient, event: Dict[str, Any], req: BoltRequest, body: Dict[str, Any]) -> None:
     """
     All messages get processed by this code
     If message starts with FEEDBACK_PREFIX then handle feedback message and return
@@ -267,10 +146,16 @@ def _common_message_handler(
     Otherwise, call process_async_slack_event to process the event
 
     """
+    event_id = gate_common(event=event, body=body)
+    if not event_id:
+        return
     channel_id = event["channel"]
     user_id = event.get("user", "unknown")
+    conversation_key, thread_root = conversation_key_and_root(event=event)
     conversation_key, _, thread_ts = extract_conversation_context(event)
     session_pull_request_id = extract_session_pull_request_id(conversation_key)
+    original_message_text = (event.get("text") or "").strip()
+    message_text = strip_mentions(message_text=original_message_text)
     if session_pull_request_id:
         logger.info(
             f"Message in pull request session {session_pull_request_id} from user {user_id}",
@@ -292,13 +177,7 @@ def _common_message_handler(
                 client=client,
             )
 
-            params = {
-                "channel": channel_id,
-                "text": bot_messages.FEEDBACK_THANKS,
-            }
-
-            if post_to_thread:
-                params["thread_ts"] = thread_root
+            params = {"channel": channel_id, "text": bot_messages.FEEDBACK_THANKS, "thread_ts": thread_root}
 
             client.chat_postMessage(**params)
         except Exception as e:
