@@ -7,10 +7,8 @@ import time
 import json
 import traceback
 from typing import Any, Dict, Tuple
-import urllib.parse
 import boto3
 from botocore.exceptions import ClientError
-from slack_bolt import BoltRequest
 from slack_sdk import WebClient
 from mypy_boto3_cloudformation.client import CloudFormationClient
 from mypy_boto3_lambda.client import LambdaClient
@@ -55,7 +53,9 @@ def respond_with_eyes(event: Dict[str, Any], client: WebClient) -> None:
         logger.warning("Failed to respond with eyes", extra={"error": traceback.format_exc()})
 
 
-def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any], event_id: str) -> None:
+def forward_event_to_pull_request_lambda(
+    pull_request_id: str, event: Dict[str, Any], event_id: str, store_pull_request_id: bool
+) -> None:
     cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
@@ -65,14 +65,15 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
 
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
         logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
-        lambda_payload = {"pull_request_processing": True, "slack_event": {"event": event, "event_id": event_id}}
+        lambda_payload = {"pull_request_event": True, "slack_event": {"event": event, "event_id": event_id}}
         response = lambda_client.invoke(
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
 
-        conversation_key, _, _ = extract_conversation_context(event)
-        item = {"pk": conversation_key, "sk": constants.PULL_REQUEST_SK, "pull_request_id": pull_request_id}
+        if store_pull_request_id:
+            conversation_key, _, _ = extract_conversation_context(event)
+            item = {"pk": conversation_key, "sk": constants.PULL_REQUEST_SK, "pull_request_id": pull_request_id}
 
         store_state_information(item=item)
     except Exception as e:
@@ -80,7 +81,7 @@ def trigger_pull_request_processing(pull_request_id: str, event: Dict[str, Any],
         raise e
 
 
-def forward_event_to_pull_request_lambda(req: BoltRequest, pull_request_id: str, forward_type: str) -> None:
+def forward_action_to_pull_request_lambda(body: Dict[str, Any], pull_request_id: str) -> None:
     cloudformation_client: CloudFormationClient = boto3.client("cloudformation")
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
@@ -89,26 +90,13 @@ def forward_event_to_pull_request_lambda(req: BoltRequest, pull_request_id: str,
         outputs = {o["OutputKey"]: o["OutputValue"] for o in response["Stacks"][0]["Outputs"]}
 
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
-        if forward_type == "feedback":
-            forwarded_body = f"payload={urllib.parse.quote_plus(json.dumps(req.body, separators=(',', ':')))}"
-        else:
-            forwarded_body = json.dumps(req.body)
-        forward_req = {
-            "body": forwarded_body,
-            "headers": req.headers,
-            "httpMethod": "POST",
-            "isBase64Encoded": False,
-            "method": "NONE",
-            "path": "/slack/events",
-            "resource": "/slack/events",
-            "stageVariables": None,
-        }
+        lambda_payload = {"pull_request_action": True, "slack_body": body}
         logger.debug(
-            "Forwarding request to pull request lambda",
-            extra={"lambda_arn": pull_request_lambda_arn, "forward_req": forward_req},
+            "Forwarding action to pull request lambda",
+            extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
         )
         response = lambda_client.invoke(
-            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(forward_req)
+            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
 

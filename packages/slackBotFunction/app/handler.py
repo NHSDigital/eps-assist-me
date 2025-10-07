@@ -11,7 +11,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from app.core.config import get_logger
 from app.services.app import get_app
-from app.slack.slack_events import process_pull_request_slack_event
+from app.slack.slack_events import process_pull_request_slack_action, process_pull_request_slack_event
 
 logger = get_logger()
 
@@ -32,13 +32,21 @@ def handler(event: dict, context: LambdaContext) -> dict:
     """
     app = get_app(logger=logger)
     # handle pull request processing requests
-    if event.get("pull_request_processing"):
+    if event.get("pull_request_event"):
         slack_event_data = event.get("slack_event")
         if not slack_event_data:
             logger.error("Pull request processing requested but no slack_event provided")
             return {"statusCode": 400}
 
         process_pull_request_slack_event(slack_event_data=slack_event_data)
+        return {"statusCode": 200}
+    if event.get("pull_request_action"):
+        slack_body_data = event.get("slack_body")
+        if not slack_body_data:
+            logger.error("Pull request processing requested but no slack_event provided")
+            return {"statusCode": 400}
+
+        process_pull_request_slack_action(slack_body_data=slack_body_data)
         return {"statusCode": 200}
 
     # handle Slack webhook requests

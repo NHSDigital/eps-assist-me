@@ -25,7 +25,15 @@ from app.services.dynamo import (
 )
 from app.services.query_reformulator import reformulate_query
 from app.services.slack import get_friendly_channel_name, post_error_message
-from app.utils.handler_utils import extract_conversation_context, extract_pull_request_id, is_duplicate_event
+from app.utils.handler_utils import (
+    conversation_key_and_root,
+    extract_conversation_context,
+    extract_pull_request_id,
+    forward_event_to_pull_request_lambda,
+    is_duplicate_event,
+    is_latest_message,
+    strip_mentions,
+)
 
 logger = get_logger()
 
@@ -171,7 +179,123 @@ def _create_feedback_blocks(
 # ================================================================
 
 
+def process_feedback_event(
+    message_text: str,
+    conversation_key: str,
+    user_id: str,
+    channel_id: str,
+    thread_root: str,
+    client: WebClient,
+    event: Dict[str, Any],
+) -> None:
+    feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
+    try:
+        store_feedback(
+            conversation_key=conversation_key,
+            feedback_type="additional",
+            user_id=user_id,
+            channel_id=channel_id,
+            thread_ts=thread_root,
+            message_ts=None,
+            feedback_text=feedback_text,
+            client=client,
+        )
+
+        params = {"channel": channel_id, "text": bot_messages.FEEDBACK_THANKS, "thread_ts": thread_root}
+
+        client.chat_postMessage(**params)
+    except Exception as e:
+        logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
+        _, _, thread_ts = extract_conversation_context(event)
+        post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+
+
+def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
+    try:
+        channel_id = body["channel"]["id"]
+        action_id = body["actions"][0]["action_id"]
+        feedback_data = json.loads(body["actions"][0]["value"])
+
+        # Check if this is the latest message in the conversation
+        conversation_key = feedback_data["ck"]
+        message_ts = feedback_data.get("mt")
+
+        if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
+            logger.info(f"Feedback ignored - not latest message: {message_ts}")
+            return
+
+        # Determine feedback type and response message based on action_id
+        if action_id == "feedback_yes":
+            feedback_type = "positive"
+            response_message = bot_messages.FEEDBACK_POSITIVE_THANKS
+        elif action_id == "feedback_no":
+            feedback_type = "negative"
+            response_message = bot_messages.FEEDBACK_NEGATIVE_THANKS
+        else:
+            logger.error(f"Unknown feedback action: {action_id}")
+            return
+
+        try:
+            store_feedback(
+                conversation_key=feedback_data["ck"],
+                feedback_type=feedback_type,
+                user_id=body["user"]["id"],
+                channel_id=feedback_data["ch"],
+                thread_ts=feedback_data.get("tt"),
+                message_ts=feedback_data.get("mt"),
+                client=client,
+            )
+            # Only post message if storage succeeded
+            post_params = {"channel": feedback_data["ch"], "text": response_message}
+            if feedback_data.get("tt"):  # Only add thread_ts if it exists (not for DMs)
+                post_params["thread_ts"] = feedback_data["tt"]
+            client.chat_postMessage(**post_params)
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                # Silently ignore duplicate votes - user already voted on this message
+                logger.info(f"Duplicate vote ignored for user {body['user']['id']}")
+                return
+            logger.error(f"Feedback storage error: {e}", extra={"error": traceback.format_exc()})
+        except Exception as e:
+            logger.error(f"Unexpected feedback error: {e}", extra={"error": traceback.format_exc()})
+            thread_ts = feedback_data.get("tt")
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+    except Exception as e:
+        logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
+
+
 def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+    original_message_text = (event.get("text") or "").strip()
+    message_text = strip_mentions(message_text=original_message_text)
+    conversation_key, _, thread_ts = extract_conversation_context(event)
+    user_id = event.get("user", "unknown")
+    channel_id = event["channel"]
+    conversation_key, thread_root = conversation_key_and_root(event=event)
+    if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
+        try:
+            pull_request_id, _ = extract_pull_request_id(message_text)
+            forward_event_to_pull_request_lambda(
+                pull_request_id=pull_request_id, event=event, event_id=event_id, store_pull_request_id=True
+            )
+        except Exception as e:
+            logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+        return
+    if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
+        process_feedback_event(
+            message_text=message_text,
+            conversation_key=conversation_key,
+            user_id=user_id,
+            channel_id=channel_id,
+            thread_root=thread_root,
+            client=client,
+            event=event,
+        )
+        return
+    process_slack_message(event=event, event_id=event_id, client=client)
+
+
+def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
@@ -264,6 +388,17 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
+
+
+def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_action(body=slack_body_data, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error("Error processing message", extra={"error": traceback.format_exc()})
 
 
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
