@@ -107,7 +107,7 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], req: BoltR
             extra={"session_pull_request_id": session_pull_request_id},
         )
         forward_event_to_pull_request_lambda(
-            req=req, pull_request_id=session_pull_request_id, event_id=event_id, store_pull_request_id=False
+            event=event, pull_request_id=session_pull_request_id, event_id=event_id, store_pull_request_id=False
         )
         return
 

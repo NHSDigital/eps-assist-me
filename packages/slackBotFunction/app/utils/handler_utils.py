@@ -65,6 +65,9 @@ def forward_event_to_pull_request_lambda(
 
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
         logger.debug("Triggering pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
+        message_text = event["text"]
+        _, extracted_message = extract_pull_request_id(message_text)
+        event["text"] = extracted_message
         lambda_payload = {"pull_request_event": True, "slack_event": {"event": event, "event_id": event_id}}
         response = lambda_client.invoke(
             FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
