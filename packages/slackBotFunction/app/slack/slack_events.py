@@ -29,10 +29,10 @@ from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_conversation_context,
     extract_pull_request_id,
+    forward_event_to_pull_request_lambda,
     is_duplicate_event,
     is_latest_message,
     strip_mentions,
-    trigger_pull_request_processing,
 )
 
 logger = get_logger()
@@ -274,7 +274,9 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
             pull_request_id, _ = extract_pull_request_id(message_text)
-            trigger_pull_request_processing(pull_request_id=pull_request_id, event=event, event_id=event_id)
+            forward_event_to_pull_request_lambda(
+                pull_request_id=pull_request_id, event=event, event_id=event_id, store_pull_request_id=True
+            )
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
             post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
@@ -386,6 +388,17 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
+
+
+def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_action(body=slack_body_data, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error("Error processing message", extra={"error": traceback.format_exc()})
 
 
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:

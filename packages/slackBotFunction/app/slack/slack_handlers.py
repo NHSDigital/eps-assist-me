@@ -20,6 +20,7 @@ from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_conversation_context,
     extract_session_pull_request_id,
+    forward_action_to_pull_request_lambda,
     forward_event_to_pull_request_lambda,
     gate_common,
     respond_with_eyes,
@@ -60,7 +61,7 @@ def respond_to_action(ack: Ack):
     ack()
 
 
-def feedback_handler(body: Dict[str, Any], client: WebClient, req: BoltRequest) -> None:
+def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
     """Handle feedback button clicks (both positive and negative)."""
     try:
         feedback_data = json.loads(body["actions"][0]["value"])
@@ -73,9 +74,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient, req: BoltRequest) 
                 f"Feedback in pull request session {session_pull_request_id}",
                 extra={"session_pull_request_id": session_pull_request_id},
             )
-            forward_event_to_pull_request_lambda(
-                req=req, pull_request_id=session_pull_request_id, forward_type="feedback"
-            )
+            forward_action_to_pull_request_lambda(body=body, pull_request_id=session_pull_request_id)
             return
         process_async_slack_action(body=body, client=client)
     except Exception as e:
@@ -107,7 +106,9 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], req: BoltR
             f"Message in pull request session {session_pull_request_id} from user {user_id}",
             extra={"session_pull_request_id": session_pull_request_id},
         )
-        forward_event_to_pull_request_lambda(req=req, pull_request_id=session_pull_request_id, forward_type="event")
+        forward_event_to_pull_request_lambda(
+            req=req, pull_request_id=session_pull_request_id, event_id=event_id, store_pull_request_id=False
+        )
         return
 
     # note - we dont do post an error message if this fails as its handled by process_async_slack_event
