@@ -1,0 +1,49 @@
+{
+    "token": "8DcMGszuA2mIYGc7K56BGvAm",
+    "team_id": "TRK2Y2T1U",
+    "enterprise_id": "E02KFHR77DL",
+    "context_team_id": null,
+    "context_enterprise_id": "E02KFHR77DL",
+    "api_app_id": "A095BR06GSW",
+    "event": {
+        "user": "U04DYVANSLE",
+        "type": "message",
+        "ts": "1758747970.348719",
+        "client_msg_id": "5adc60e6-bd02-4f8d-a44e-23dad5649b00",
+        "text": "how do I integrate with EPS?",
+        "blocks": [
+            {
+                "type": "rich_text",
+                "block_id": "aj4TZ",
+                "elements": [
+                    {
+                        "type": "rich_text_section",
+                        "elements": [
+                            {
+                                "type": "text",
+                                "text": "how do I integrate with EPS?"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "channel": "D09FETL32QM",
+        "event_ts": "1758747970.348719",
+        "channel_type": "im"
+    },
+    "type": "event_callback",
+    "event_id": "Ev09GZBH7LF8",
+    "event_time": 1758747970,
+    "authorizations": [
+        {
+            "enterprise_id": "E02KFHR77DL",
+            "team_id": "TRK2Y2T1U",
+            "user_id": "U09584GPH6F",
+            "is_bot": true,
+            "is_enterprise_install": false
+        }
+    ],
+    "is_ext_shared_channel": false,
+    "event_context": "4-eyJldCI6Im1lc3NhZ2UiLCJ0aWQiOiJUUksyWTJUMVUiLCJhaWQiOiJBMDk1QlIwNkdTVyIsImNpZCI6IkQwOUZFVEwzMlFNIn0"
+}

@@ -2,13 +2,16 @@ import os
 import traceback
 import boto3
 
+from app.core.config import get_logger
 from app.services.bedrock import invoke_model
 from .prompt_loader import load_prompt
 from .exceptions import ConfigurationError
 from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 
+logger = get_logger()
 
-def reformulate_query(logger, user_query: str) -> str:
+
+def reformulate_query(user_query: str) -> str:
     """
     Reformulate user query using Claude Haiku for better RAG retrieval.
 
@@ -27,7 +30,7 @@ def reformulate_query(logger, user_query: str) -> str:
             raise ConfigurationError("QUERY_REFORMULATION_PROMPT_NAME environment variable not set")
 
         # Load prompt with specified version (DRAFT by default)
-        prompt_template = load_prompt(logger, prompt_name, prompt_version)
+        prompt_template = load_prompt(prompt_name, prompt_version)
 
         logger.info(
             "Prompt loaded successfully from Bedrock",

@@ -1,28 +1,34 @@
 import sys
+from unittest.mock import Mock
 
 
 def test_correct_handlers_registered(
-    mock_slack_app,
-    mock_env,
-    mock_get_parameter,
-    lambda_context,
+    mock_slack_app: Mock,
+    mock_env: Mock,
+    mock_get_parameter: Mock,
+    lambda_context: Mock,
 ):
     """Test app mention handler execution by simulating the handler registration process"""
     # set up mocks
     # Create a mock app that captures the registered handlers
     registered_action_handlers = {}
     registered_event_handlers = {}
+    registered_ack_handlers = {}
 
     def mock_event_decorator(event_type):
-        def decorator(func):
+        def decorator(ack, lazy):
+            func = lazy[0]
             registered_event_handlers[event_type] = func
+            registered_ack_handlers[event_type] = ack
             return func
 
         return decorator
 
     def mock_action_decorator(event_type):
-        def decorator(func):
+        def decorator(ack, lazy):
+            func = lazy[0]
             registered_action_handlers[event_type] = func
+            registered_ack_handlers[event_type] = ack
             return func
 
         return decorator
@@ -43,3 +49,13 @@ def test_correct_handlers_registered(
     assert "message" in registered_event_handlers
     assert "feedback_yes" in registered_action_handlers
     assert "feedback_no" in registered_action_handlers
+
+    assert registered_ack_handlers["app_mention"].__name__ == "respond_to_events"
+    assert registered_ack_handlers["message"].__name__ == "respond_to_events"
+    assert registered_ack_handlers["feedback_yes"].__name__ == "respond_to_action"
+    assert registered_ack_handlers["feedback_no"].__name__ == "respond_to_action"
+
+    assert registered_event_handlers["app_mention"].__name__ == "unified_message_handler"
+    assert registered_event_handlers["message"].__name__ == "unified_message_handler"
+    assert registered_action_handlers["feedback_yes"].__name__ == "feedback_handler"
+    assert registered_action_handlers["feedback_no"].__name__ == "feedback_handler"
