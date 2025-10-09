@@ -32,7 +32,7 @@ export class EpsAssistMeStack extends Stack {
     super(scope, id, props)
 
     // imports
-    const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam-pr-59:lambda:SlackBot:ExecutionRole:Arn")
+    const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("lambda:SlackBot:ExecutionRole:Arn")
 
     // Get variables from context
     const region = Stack.of(this).region
