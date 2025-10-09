@@ -1,5 +1,4 @@
 import sys
-from unittest import skip
 from unittest.mock import Mock, patch
 
 
@@ -207,7 +206,6 @@ def test_process_slack_message_event_error(
 @patch("app.services.bedrock.query_bedrock")
 @patch("app.services.query_reformulator.reformulate_query")
 @patch("app.slack.slack_events.get_conversation_session")
-@skip("skipped for demo purposes")
 def test_process_slack_message_with_thread_ts(
     mock_get_session: Mock,
     mock_reformulate_query: Mock,
