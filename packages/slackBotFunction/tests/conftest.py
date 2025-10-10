@@ -21,7 +21,6 @@ def mock_env():
         "AWS_REGION": "eu-west-2",
         "GUARD_RAIL_ID": "test-guard-id",
         "GUARD_RAIL_VERSION": "1",
-        "AWS_LAMBDA_FUNCTION_NAME": "test-function",
         "QUERY_REFORMULATION_MODEL_ID": "test-model",
         "QUERY_REFORMULATION_PROMPT_NAME": "test-prompt",
         "QUERY_REFORMULATION_PROMPT_VERSION": "DRAFT",
@@ -42,7 +41,7 @@ def lambda_context():
 
 @pytest.fixture
 def mock_get_parameter():
-    def fake_get_parameter(name, *args, **kwargs):
+    def fake_get_parameter(name: str, *args, **kwargs):
         return {
             "/test/bot-token": json.dumps({"token": "test-token"}),
             "/test/signing-secret": json.dumps({"secret": "test-secret"}),

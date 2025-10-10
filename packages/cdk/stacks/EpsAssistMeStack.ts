@@ -2,7 +2,8 @@ import {
   App,
   Stack,
   StackProps,
-  CfnOutput
+  CfnOutput,
+  Fn
 } from "aws-cdk-lib"
 import {nagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
@@ -29,6 +30,9 @@ export interface EpsAssistMeStackProps extends StackProps {
 export class EpsAssistMeStack extends Stack {
   public constructor(scope: App, id: string, props: EpsAssistMeStackProps) {
     super(scope, id, props)
+
+    // imports
+    const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
 
     // Get variables from context
     const region = Stack.of(this).region
@@ -131,7 +135,9 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
-      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      isPullRequest: isPullRequest,
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
     })
 
     // Create vector index after Functions are created
@@ -147,16 +153,15 @@ export class EpsAssistMeStack extends Stack {
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
       bucket: storage.kbDocsBucket.bucket,
-      lambdaFunction: functions.functions.syncKnowledgeBase.function
+      lambdaFunction: functions.syncKnowledgeBaseFunction.function
     })
 
     // Create Apis and pass the Lambda function
     const apis = new Apis(this, "Apis", {
       stackName: props.stackName,
       logRetentionInDays,
-      enableMutalTls: false,
       functions: {
-        slackBot: functions.functions.slackBot
+        slackBot: functions.slackBotLambda
       }
     })
 
@@ -180,6 +185,12 @@ export class EpsAssistMeStack extends Stack {
       value: storage.kbDocsBucket.bucket.bucketName,
       exportName: `${props.stackName}:kbDocsBucket:Name`
     })
+
+    new CfnOutput(this, "SlackBotLambdaRoleArn", {
+      value: functions.slackBotLambda.executionRole.roleArn,
+      exportName: `${props.stackName}:lambda:SlackBot:ExecutionRole:Arn`
+    })
+
     if (isPullRequest) {
       new CfnOutput(this, "VERSION_NUMBER", {
         value: props.version,

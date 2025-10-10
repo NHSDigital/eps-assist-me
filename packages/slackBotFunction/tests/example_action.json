@@ -1,0 +1,114 @@
+        {
+            "type": "block_actions",
+            "user": {
+                "id": "U04DYVANSLE",
+                "username": "anthony.brown8",
+                "name": "anthony.brown8",
+                "team_id": "TRK2Y2T1U"
+            },
+            "api_app_id": "A095BR06GSW",
+            "token": "8DcMGszuA2mIYGc7K56BGvAm",
+            "container": {
+                "type": "message",
+                "message_ts": "1758747988.333089",
+                "channel_id": "D09FETL32QM",
+                "is_ephemeral": false
+            },
+            "trigger_id": "9577392241702.869100095062.70cc5077b8383ef7104fbdac95929d13",
+            "team": {
+                "id": "TRK2Y2T1U",
+                "domain": "nhsdigital-platforms",
+                "enterprise_id": "E02KFHR77DL",
+                "enterprise_name": "NHS England"
+            },
+            "enterprise": {
+                "id": "E02KFHR77DL",
+                "name": "NHS England"
+            },
+            "is_enterprise_install": false,
+            "channel": {
+                "id": "D09FETL32QM",
+                "name": "directmessage"
+            },
+            "message": {
+                "user": "U09584GPH6F",
+                "type": "message",
+                "ts": "1758747988.333089",
+                "edited": {
+                    "user": "B09584GLAHH",
+                    "ts": "1758747988.000000"
+                },
+                "bot_id": "B09584GLAHH",
+                "app_id": "A095BR06GSW",
+                "text": "To integrate with the Electronic Prescription Service (EPS) in England, you need to follow these steps:  1. Ensure your service falls within the approved care settings that can use EPS, such as GP practices, hospitals, community services, etc. EPS is currently approved for use with FP10 prescriptions dispensed by community pharmacies, but not for FP10HP prescriptions, dentistry, optometry, or private prescriptions.  2. Use an approved prescribing system for your care setting, such as TPP SystmOne, EMIS Web, Vision, Microtest Evolution, Adastra, Cleo, or Solo.  3. Follow the guidance on the NHS Digital website for onboarding and assurance for IT suppliers integrating with EPS. This includes using the Digital Medicines Implementation Guide (FHIR specification) to assist with your integration. 4. Refer to the EPS prescribing developer guide for further guidance on prescribing workflows.  5. Be aware that the immediate priority for EPS development is to support the rollout of the next-gen FHIR APIs for primary care and secondary care prescribing and dispensing. The prescribing API is currently in production, while the dispensing API for community pharmacies is still in development.",
+                "team": "TRK2Y2T1U",
+                "blocks": [
+                    {
+                        "type": "section",
+                        "block_id": "lGXX1",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "To integrate with the Electronic Prescription Service (EPS) in England, you need to follow these steps:\n\n1. Ensure your service falls within the approved care settings that can use EPS, such as GP practices, hospitals, community services, etc. EPS is currently approved for use with FP10 prescriptions dispensed by community pharmacies, but not for FP10HP prescriptions, dentistry, optometry, or private prescriptions.\n\n2. Use an approved prescribing system for your care setting, such as TPP SystmOne, EMIS Web, Vision, Microtest Evolution, Adastra, Cleo, or Solo.\n\n3. Follow the guidance on the NHS Digital website for onboarding and assurance for IT suppliers integrating with EPS. This includes using the Digital Medicines Implementation Guide (FHIR specification) to assist with your integration. 4. Refer to the EPS prescribing developer guide for further guidance on prescribing workflows.\n\n5. Be aware that the immediate priority for EPS development is to support the rollout of the next-gen FHIR APIs for primary care and secondary care prescribing and dispensing. The prescribing API is currently in production, while the dispensing API for community pharmacies is still in development.",
+                            "verbatim": false
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "block_id": "0SjAH",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Was this helpful?",
+                            "emoji": true
+                        }
+                    },
+                    {
+                        "type": "actions",
+                        "block_id": "feedback_block",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "action_id": "feedback_yes",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "Yes",
+                                    "emoji": true
+                                },
+                                "value": "{\"ck\":\"dm#D09FETL32QM\",\"ch\":\"D09FETL32QM\",\"mt\":\"1758747988.333089\"}"
+                            },
+                            {
+                                "type": "button",
+                                "action_id": "feedback_no",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "No",
+                                    "emoji": true
+                                },
+                                "value": "{\"ck\":\"dm#D09FETL32QM\",\"ch\":\"D09FETL32QM\",\"mt\":\"1758747988.333089\"}"
+                            }
+                        ]
+                    }
+                ],
+                "language": {
+                    "locale": "en",
+                    "is_reliable": true
+                }
+            },
+            "state": {
+                "values": {}
+            },
+            "response_url": "https://hooks.slack.com/actions/TRK2Y2T1U/9577392158230/2X54BWHFhgnhsSIs8AMtA395",
+            "actions": [
+                {
+                    "action_id": "feedback_yes",
+                    "block_id": "feedback_block",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Yes",
+                        "emoji": true
+                    },
+                    "value": "{\"ck\":\"dm#D09FETL32QM\",\"ch\":\"D09FETL32QM\",\"mt\":\"1758747988.333089\"}",
+                    "type": "button",
+                    "action_ts": "1758747990.912990"
+                }
+            ]
+        }

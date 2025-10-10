@@ -1,10 +1,12 @@
+from typing import Any
 from app.core.config import get_logger, get_slack_bot_state_table
 from time import time
+from mypy_boto3_dynamodb.type_defs import GetItemOutputTableTypeDef
 
 logger = get_logger()
 
 
-def get_state_information(key):
+def get_state_information(key: dict[str, Any]) -> GetItemOutputTableTypeDef:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True
@@ -27,7 +29,7 @@ def get_state_information(key):
     return results
 
 
-def store_state_information(item, condition=None):
+def store_state_information(item: dict[str, Any], condition: str = None) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True
@@ -52,7 +54,9 @@ def store_state_information(item, condition=None):
         )
 
 
-def update_state_information(key, update_expression, expression_attribute_values):
+def update_state_information(
+    key: dict[str, Any], update_expression: str, expression_attribute_values: dict[str, Any]
+) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True
@@ -76,7 +80,7 @@ def update_state_information(key, update_expression, expression_attribute_values
         )
 
 
-def delete_state_information(pk, sk, condition):
+def delete_state_information(pk: str, sk: str, condition: str) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
     is_success = True

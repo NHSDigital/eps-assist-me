@@ -7,11 +7,13 @@ import re
 import time
 import traceback
 import json
+from typing import Any, Dict
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
 from app.core.config import (
+    bot_messages,
     constants,
-    get_bot_messages,
+    get_bot_token,
     get_logger,
 )
 from app.services.bedrock import query_bedrock
@@ -22,7 +24,15 @@ from app.services.dynamo import (
     update_state_information,
 )
 from app.services.query_reformulator import reformulate_query
-from app.services.slack import get_friendly_channel_name
+from app.services.slack import get_friendly_channel_name, post_error_message
+from app.utils.handler_utils import (
+    conversation_key_and_root,
+    extract_pull_request_id,
+    forward_event_to_pull_request_lambda,
+    is_duplicate_event,
+    is_latest_message,
+    strip_mentions,
+)
 
 logger = get_logger()
 
@@ -32,7 +42,9 @@ logger = get_logger()
 # ================================================================
 
 
-def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data):
+def cleanup_previous_unfeedback_qa(
+    conversation_key: str, current_message_ts: str, session_data: Dict[str, Any]
+) -> None:
     """Delete previous Q&A pair if no feedback received using atomic operation"""
     try:
         previous_message_ts = session_data.get("latest_message_ts")
@@ -55,7 +67,9 @@ def cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session
         logger.error("Error cleaning up unfeedback Q&A", extra={"error": traceback.format_exc()})
 
 
-def store_qa_pair(conversation_key, user_query, bot_response, message_ts, session_id, user_id):
+def store_qa_pair(
+    conversation_key: str, user_query: str, bot_response: str, message_ts: str, session_id: str, user_id: str
+) -> None:
     """
     Store Q&A pair for feedback correlation
     """
@@ -77,7 +91,7 @@ def store_qa_pair(conversation_key, user_query, bot_response, message_ts, sessio
         logger.error("Failed to store Q&A pair", extra={"error": traceback.format_exc()})
 
 
-def _mark_qa_feedback_received(conversation_key, message_ts):
+def _mark_qa_feedback_received(conversation_key: str, message_ts: str) -> None:
     """
     Mark Q&A record as having received feedback to prevent deletion
     """
@@ -96,20 +110,16 @@ def _mark_qa_feedback_received(conversation_key, message_ts):
 # ================================================================
 
 
-def _extract_conversation_context(event):
-    """Extract conversation key and thread context from event"""
-    channel = event["channel"]
-    # Determine conversation context: DM vs channel thread
-    if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
-        return f"{constants.DM_PREFIX}{channel}", constants.CONTEXT_TYPE_DM, None  # DMs don't use threads
-    else:
-        thread_root = event.get("thread_ts", event["ts"])
-        return f"{constants.THREAD_PREFIX}{channel}#{thread_root}", constants.CONTEXT_TYPE_THREAD, thread_root
-
-
 def _handle_session_management(
-    conversation_key, session_data, session_id, kb_response, user_id, channel, thread_ts, context_type, message_ts
-):
+    conversation_key: str,
+    session_data: Dict[str, Any],
+    session_id: str,
+    kb_response: Dict[str, Any],
+    user_id: str,
+    channel: str,
+    thread_ts: str,
+    message_ts: str,
+) -> None:
     """Handle Bedrock session creation and cleanup"""
     # Handle conversation session management
     if not session_id and "sessionId" in kb_response:
@@ -119,7 +129,7 @@ def _handle_session_management(
             kb_response["sessionId"],
             user_id,
             channel,
-            thread_ts if context_type == constants.CONTEXT_TYPE_THREAD else None,
+            thread_ts,
             message_ts,
         )
     elif session_id:
@@ -129,30 +139,31 @@ def _handle_session_management(
         update_session_latest_message(conversation_key, message_ts)
 
 
-def _create_feedback_blocks(response_text, conversation_key, channel, message_ts, thread_ts):
+def _create_feedback_blocks(
+    response_text: str, conversation_key: str, channel: str, message_ts: str, thread_ts: str
+) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
     # Create compact feedback payload for button actions
     feedback_data = {"ck": conversation_key, "ch": channel, "mt": message_ts}
     if thread_ts:  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = thread_ts
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-    BOT_MESSAGES = get_bot_messages()
     return [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
-        {"type": "section", "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_prompt"]}},
+        {"type": "section", "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_PROMPT}},
         {
             "type": "actions",
             "block_id": "feedback_block",
             "elements": [
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_yes"]},
+                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_YES},
                     "action_id": "feedback_yes",
                     "value": feedback_value,
                 },
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": BOT_MESSAGES["feedback_no"]},
+                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_NO},
                     "action_id": "feedback_no",
                     "value": feedback_value,
                 },
@@ -166,43 +177,152 @@ def _create_feedback_blocks(response_text, conversation_key, channel, message_ts
 # ================================================================
 
 
-def process_async_slack_event(slack_event_data):
+def process_feedback_event(
+    message_text: str,
+    conversation_key: str,
+    user_id: str,
+    channel_id: str,
+    thread_root: str,
+    client: WebClient,
+    event: Dict[str, Any],
+) -> None:
+    feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
+    try:
+        store_feedback(
+            conversation_key=conversation_key,
+            feedback_type="additional",
+            user_id=user_id,
+            channel_id=channel_id,
+            thread_ts=thread_root,
+            message_ts=None,
+            feedback_text=feedback_text,
+            client=client,
+        )
+
+        params = {"channel": channel_id, "text": bot_messages.FEEDBACK_THANKS, "thread_ts": thread_root}
+
+        client.chat_postMessage(**params)
+    except Exception as e:
+        logger.error(f"Failed to post channel feedback ack: {e}", extra={"error": traceback.format_exc()})
+        _, thread_ts = conversation_key_and_root(event)
+        post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+
+
+def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
+    try:
+        channel_id = body["channel"]["id"]
+        action_id = body["actions"][0]["action_id"]
+        feedback_data = json.loads(body["actions"][0]["value"])
+
+        # Check if this is the latest message in the conversation
+        conversation_key = feedback_data["ck"]
+        message_ts = feedback_data.get("mt")
+
+        if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
+            logger.info(f"Feedback ignored - not latest message: {message_ts}")
+            return
+
+        # Determine feedback type and response message based on action_id
+        if action_id == "feedback_yes":
+            feedback_type = "positive"
+            response_message = bot_messages.FEEDBACK_POSITIVE_THANKS
+        elif action_id == "feedback_no":
+            feedback_type = "negative"
+            response_message = bot_messages.FEEDBACK_NEGATIVE_THANKS
+        else:
+            logger.error(f"Unknown feedback action: {action_id}")
+            return
+
+        try:
+            store_feedback(
+                conversation_key=feedback_data["ck"],
+                feedback_type=feedback_type,
+                user_id=body["user"]["id"],
+                channel_id=feedback_data["ch"],
+                thread_ts=feedback_data.get("tt"),
+                message_ts=feedback_data.get("mt"),
+                client=client,
+            )
+            # Only post message if storage succeeded
+            client.chat_postMessage(
+                channel=feedback_data["ch"], text=response_message, thread_ts=feedback_data.get("tt")
+            )
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                # Silently ignore duplicate votes - user already voted on this message
+                logger.info(f"Duplicate vote ignored for user {body['user']['id']}")
+                return
+            logger.error(f"Feedback storage error: {e}", extra={"error": traceback.format_exc()})
+        except Exception as e:
+            logger.error(f"Unexpected feedback error: {e}", extra={"error": traceback.format_exc()})
+            thread_ts = feedback_data.get("tt")
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+    except Exception as e:
+        logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
+
+
+def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+    logger.debug("Processing async Slack event", extra={"event_id": event_id, "event": event})
+    original_message_text = (event.get("text") or "").strip()
+    message_text = strip_mentions(message_text=original_message_text)
+    conversation_key, thread_ts = conversation_key_and_root(event)
+    user_id = event.get("user", "unknown")
+    channel_id = event["channel"]
+    conversation_key, thread_root = conversation_key_and_root(event=event)
+    if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
+        try:
+            pull_request_id, _ = extract_pull_request_id(text=message_text)
+            forward_event_to_pull_request_lambda(
+                pull_request_id=pull_request_id, event=event, event_id=event_id, store_pull_request_id=True
+            )
+        except Exception as e:
+            logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
+            post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
+        return
+    if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
+        process_feedback_event(
+            message_text=message_text,
+            conversation_key=conversation_key,
+            user_id=user_id,
+            channel_id=channel_id,
+            thread_root=thread_root,
+            client=client,
+            event=event,
+        )
+        return
+    process_slack_message(event=event, event_id=event_id, client=client)
+
+
+def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
     This function handles the actual AI processing that takes longer than Slack's
     3-second timeout. It extracts the user query, calls Bedrock, and posts the response.
     """
-    event = slack_event_data["event"]
-    event_id = slack_event_data["event_id"]
-    token = slack_event_data["bot_token"]
-    BOT_MESSAGES = get_bot_messages()
-
-    client = WebClient(token=token)
-
     try:
         user_id = event["user"]
         channel = event["channel"]
-        conversation_key, context_type, thread_ts = _extract_conversation_context(event)
+        conversation_key, thread_ts = conversation_key_and_root(event)
 
         # Remove Slack user mentions from message text
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()
 
         logger.info(
-            f"Processing {context_type} message from user {user_id}",
+            f"Processing message from user {user_id}",
             extra={"user_query": user_query, "conversation_key": conversation_key, "event_id": event_id},
         )
 
         # handles empty messages
         if not user_query:
-            post_params = {"channel": channel, "text": BOT_MESSAGES["empty_query"]}
+            post_params = {"channel": channel, "text": bot_messages.EMPTY_QUERY}
             if thread_ts:  # Only add thread_ts for channel threads, not DMs
                 post_params["thread_ts"] = thread_ts
             client.chat_postMessage(**post_params)
             return
 
         # Reformulate query for better RAG retrieval
-        reformulated_query = reformulate_query(logger, user_query)
+        reformulated_query = reformulate_query(user_query)
 
         # Check if we have an existing Bedrock conversation session
         session_data = get_conversation_session_data(conversation_key)
@@ -220,15 +340,14 @@ def process_async_slack_event(slack_event_data):
         message_ts = post["ts"]
 
         _handle_session_management(
-            conversation_key,
-            session_data,
-            session_id,
-            kb_response,
-            user_id,
-            channel,
-            thread_ts,
-            context_type,
-            message_ts,
+            conversation_key=conversation_key,
+            session_data=session_data,
+            session_id=session_id,
+            kb_response=kb_response,
+            user_id=user_id,
+            channel=channel,
+            thread_ts=thread_ts,
+            message_ts=message_ts,
         )
 
         # Store Q&A pair for feedback correlation
@@ -247,16 +366,36 @@ def process_async_slack_event(slack_event_data):
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
         # Try to notify user of error via Slack
-        try:
-            post_params = {"channel": channel, "text": BOT_MESSAGES["error_response"]}
-            if thread_ts:  # Only add thread_ts for channel threads, not DMs
-                post_params["thread_ts"] = thread_ts
-            client.chat_postMessage(**post_params)
-        except Exception:
-            logger.error("Failed to post error message", extra={"error": traceback.format_exc()})
+        post_error_message(channel=channel, thread_ts=thread_ts, client=client)
 
 
-def log_query_stats(user_query, event, channel, client, thread_ts):
+def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        event_id = slack_event_data["event_id"]
+        event = slack_event_data["event"]
+        token = get_bot_token()
+        client = WebClient(token=token)
+        if is_duplicate_event(event_id=event_id):
+            return
+        process_async_slack_event(event=event, event_id=event_id, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
+
+
+def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_action(body=slack_body_data, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error("Error processing message", extra={"error": traceback.format_exc()})
+
+
+def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
     query_length = len(user_query)
     start_time = float(event["event_ts"])
     end_time = time.time()
@@ -281,15 +420,15 @@ def log_query_stats(user_query, event, channel, client, thread_ts):
 
 
 def store_feedback(
-    conversation_key,
-    feedback_type,
-    user_id,
-    channel_id,
+    conversation_key: str,
+    feedback_type: str,
+    user_id: str,
+    channel_id: str,
     client: WebClient,
-    thread_ts=None,
-    message_ts=None,
-    feedback_text=None,
-):
+    thread_ts: str | None = None,
+    message_ts: str | None = None,
+    feedback_text: str | None = None,
+) -> None:
     """
     Store user feedback with reference to Q&A record
     """
@@ -307,7 +446,7 @@ def store_feedback(
 
         # Get latest bot message timestamp for feedback linking
         if not message_ts:
-            message_ts = get_latest_message_ts(conversation_key)
+            message_ts = get_latest_message_ts(conversation_key=conversation_key)
 
         if message_ts and feedback_type in ["positive", "negative"]:
             # Per-message feedback with deduplication for button votes only
@@ -349,7 +488,7 @@ def store_feedback(
 
         # Mark Q&A as having received feedback to prevent deletion
         if message_ts:
-            _mark_qa_feedback_received(conversation_key, message_ts)
+            _mark_qa_feedback_received(conversation_key=conversation_key, message_ts=message_ts)
 
         logger.info(
             "Stored feedback",
@@ -373,20 +512,20 @@ def store_feedback(
 # ================================================================
 
 
-def get_conversation_session(conversation_key):
+def get_conversation_session(conversation_key: str) -> str | None:
     """
     Get existing Bedrock session for this conversation
     """
-    session_data = get_conversation_session_data(conversation_key)
+    session_data = get_conversation_session_data(conversation_key=conversation_key)
     return session_data.get("session_id") if session_data else None
 
 
-def get_conversation_session_data(conversation_key):
+def get_conversation_session_data(conversation_key: str) -> Dict[str, Any]:
     """
     Get full session data for this conversation
     """
     try:
-        response = get_state_information({"pk": conversation_key, "sk": "session"})
+        response = get_state_information(key={"pk": conversation_key, "sk": "session"})
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]
@@ -396,12 +535,12 @@ def get_conversation_session_data(conversation_key):
         return None
 
 
-def get_latest_message_ts(conversation_key):
+def get_latest_message_ts(conversation_key: str) -> str | None:
     """
     Get latest message timestamp from session
     """
     try:
-        response = get_state_information({"pk": conversation_key, "sk": constants.SESSION_SK})
+        response = get_state_information(key={"pk": conversation_key, "sk": constants.SESSION_SK})
         if "Item" in response:
             return response["Item"].get("latest_message_ts")
         return None
@@ -411,8 +550,13 @@ def get_latest_message_ts(conversation_key):
 
 
 def store_conversation_session(
-    conversation_key, session_id, user_id, channel_id, thread_ts=None, latest_message_ts=None
-):
+    conversation_key: str,
+    session_id: str,
+    user_id: str,
+    channel_id: str,
+    thread_ts: str = None,
+    latest_message_ts: str = None,
+) -> None:
     """
     Store new Bedrock session for conversation memory
     """
@@ -440,15 +584,15 @@ def store_conversation_session(
         logger.error("Error storing session", extra={"error": traceback.format_exc()})
 
 
-def update_session_latest_message(conversation_key, message_ts):
+def update_session_latest_message(conversation_key: str, message_ts: str) -> None:
     """
     Update session with latest message timestamp
     """
     try:
         update_state_information(
-            {"pk": conversation_key, "sk": constants.SESSION_SK},
-            "SET latest_message_ts = :ts",
-            {":ts": message_ts},
+            key={"pk": conversation_key, "sk": constants.SESSION_SK},
+            update_expression="SET latest_message_ts = :ts",
+            expression_attribute_values={":ts": message_ts},
         )
     except Exception:
         logger.error("Error updating session latest message", extra={"error": traceback.format_exc()})

@@ -7,7 +7,6 @@ import {HttpMethod} from "aws-cdk-lib/aws-lambda"
 export interface ApisProps {
   readonly stackName: string
   readonly logRetentionInDays: number
-  readonly enableMutalTls: boolean
   functions: {[key: string]: LambdaFunction}
 }
 
