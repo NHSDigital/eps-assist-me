@@ -188,5 +188,6 @@ jobs:
     with:
       ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
       VERSION_NUMBER: ${{ inputs.VERSION_NUMBER }}
+      REGRESSION_TESTS_APP_ID: ${{ vars.REGRESSION_TESTS_APP_ID }}
     secrets:
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
