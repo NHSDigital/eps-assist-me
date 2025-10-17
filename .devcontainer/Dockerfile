@@ -23,7 +23,7 @@ RUN wget -O /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86
 USER vscode
 
 # Install ASDF
-RUN git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.11.3; \
+RUN git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.1; \
     echo '. $HOME/.asdf/asdf.sh' >> ~/.bashrc; \
     echo '. $HOME/.asdf/completions/asdf.bash' >> ~/.bashrc; \
     echo '# Install Ruby Gems to ~/gems' >> ~/.bashrc; \
