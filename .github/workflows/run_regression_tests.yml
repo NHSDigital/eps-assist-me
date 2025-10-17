@@ -12,9 +12,6 @@ on:
       REGRESSION_TESTS_PEM:
         type: string
         default: "false"
-      REGRESSION_TESTS_APP_ID:
-        required: true
-        type: string
     secrets:
       REGRESSION_TESTS_PEM:
         required: true
@@ -37,7 +34,7 @@ jobs:
         id: generate-token
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ inputs.REGRESSION_TESTS_APP_ID }}
+          app-id: ${{ vars.REGRESSION_TESTS_APP_ID }}
           private-key: ${{ secrets.REGRESSION_TESTS_PEM }}
           owner: "NHSDigital"
           repositories: "electronic-prescription-service-api-regression-tests"
