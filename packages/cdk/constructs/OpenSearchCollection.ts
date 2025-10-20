@@ -27,7 +27,7 @@ export class OpenSearchCollection extends Construct {
 
     // Encryption policy using AWS-managed keys
     const encryptionPolicy = new CfnSecurityPolicy(this, "EncryptionPolicy", {
-      name: `${props.collectionName}-encryption`,
+      name: `${props.collectionName}-enc`.substring(0, 32),
       type: "encryption",
       policy: JSON.stringify({
         Rules: [{ResourceType: "collection", Resource: [`collection/${props.collectionName}`]}],
