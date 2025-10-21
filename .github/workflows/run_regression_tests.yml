@@ -30,6 +30,10 @@ jobs:
           ref: ${{ env.BRANCH_NAME }}
           fetch-depth: 0
 
+      - name: Get asdf version
+        id: asdf-version
+        run: echo "version=$(awk '!/^#/ && NF {print $1; exit}' .tool-versions.asdf)" >> "$GITHUB_OUTPUT"
+
       - name: Generate a token to authenticate regression testing
         id: generate-token
         uses: actions/create-github-app-token@v2
@@ -43,7 +47,7 @@ jobs:
       - name: Install asdf
         uses: asdf-vm/actions/setup@1902764435ca0dd2f3388eea723a4f92a4eb8302
         with:
-          asdf_branch: v0.14.1
+          asdf_version: ${{ steps.asdf-version.outputs.version }}
 
       - name: Cache asdf
         uses: actions/cache@v4
@@ -57,7 +61,7 @@ jobs:
       - name: Install asdf dependencies in .tool-versions
         uses: asdf-vm/actions/install@1902764435ca0dd2f3388eea723a4f92a4eb8302
         with:
-          asdf_branch: v0.14.1
+          asdf_version: ${{ steps.asdf-version.outputs.version }}
         env:
           PYTHON_CONFIGURE_OPTS: --enable-shared
 

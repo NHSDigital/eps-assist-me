@@ -2,7 +2,6 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
   "name": "Ubuntu",
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",
@@ -12,7 +11,8 @@
     "source=${env:HOME}${env:USERPROFILE}/.aws,target=/home/vscode/.aws,type=bind",
     "source=${env:HOME}${env:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind",
     "source=${env:HOME}${env:USERPROFILE}/.gnupg,target=/home/vscode/.gnupg,type=bind",
-    "source=${env:HOME}${env:USERPROFILE}/.npmrc,target=/home/vscode/.npmrc,type=bind"
+    "source=${env:HOME}${env:USERPROFILE}/.npmrc,target=/home/vscode/.npmrc,type=bind",
+    "source=${env:HOME}${env:USERPROFILE}/.gitconfig,target=/home/vscode/.gitconfig,type=bind"
   ],
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
@@ -46,7 +46,7 @@
         "github.vscode-github-actions"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/workspaces/eps-assist-me/.venv/bin/python",
+        "python.defaultInterpreterPath": "/home/vscode/.asdf/shims/python",
         "python.analysis.autoSearchPaths": true,
         "python.analysis.extraPaths": [],
         "python.testing.unittestEnabled": false,

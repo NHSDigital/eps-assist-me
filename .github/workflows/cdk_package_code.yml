@@ -26,12 +26,16 @@ jobs:
         with:
           ref: ${{ env.BRANCH_NAME }}
 
+      - name: Get asdf version
+        id: asdf-version
+        run: echo "version=$(awk '!/^#/ && NF {print $1; exit}' .tool-versions.asdf)" >> "$GITHUB_OUTPUT"
+
       # using git commit sha for version of action to ensure we have stable version
       - name: Install asdf
         uses: asdf-vm/actions/setup@1902764435ca0dd2f3388eea723a4f92a4eb8302
         with:
-          asdf_branch: v0.14.1
-  
+          asdf_version: ${{ steps.asdf-version.outputs.version }}
+
       - name: Cache asdf
         uses: actions/cache@v4
         with:
@@ -44,7 +48,7 @@ jobs:
       - name: Install asdf dependencies in .tool-versions
         uses: asdf-vm/actions/install@1902764435ca0dd2f3388eea723a4f92a4eb8302
         with:
-          asdf_branch: v0.14.1
+          asdf_version: ${{ steps.asdf-version.outputs.version }}
         env:
           PYTHON_CONFIGURE_OPTS: --enable-shared
 
@@ -66,7 +70,7 @@ jobs:
           pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
           pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 
-      - name: 'Tar files'
+      - name: "Tar files"
         run: |
           tar -rf artifact.tar \
             .tool-versions \
