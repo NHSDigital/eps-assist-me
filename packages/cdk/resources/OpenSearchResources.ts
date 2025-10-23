@@ -5,6 +5,7 @@ import {
   VectorCollectionStandbyReplicas
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/opensearchserverless"
 import {RemovalPolicy} from "aws-cdk-lib"
+import {CfnCollection} from "aws-cdk-lib/aws-opensearchserverless"
 
 export interface OpenSearchResourcesProps {
   readonly stackName: string
@@ -28,7 +29,10 @@ export class OpenSearchResources extends Construct {
     // Grant access to the Bedrock execution role
     this.collection.grantDataAccess(props.bedrockExecutionRole)
 
-    this.collection.applyRemovalPolicy(RemovalPolicy.DESTROY)
+    const cfnCollection = this.collection.node.defaultChild as CfnCollection
+    if (cfnCollection) {
+      cfnCollection.applyRemovalPolicy(RemovalPolicy.DESTROY)
+    }
 
   }
 }
