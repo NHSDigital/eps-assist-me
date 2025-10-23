@@ -17,6 +17,7 @@ import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
+import {VectorIndex} from "../resources/VectorIndex"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -82,16 +83,23 @@ export class EpsAssistMeStack extends Stack {
       region
     })
 
+    const vectorIndex = new VectorIndex(this, "VectorIndex", {
+      indexName: "eps-assist-os-index",
+      collection: openSearchResources.collection
+    })
+
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
       docsBucket: storage.kbDocsBucket.bucket,
       bedrockExecutionRole: bedrockExecutionRole.role,
       collectionArn: openSearchResources.collection.collectionArn,
-      vectorIndexName: openSearchResources.vectorIndex.indexName,
+      vectorIndexName: vectorIndex.indexName,
       region,
       account
     })
+
+    vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
 
     // Create runtime policies with resource dependencies
     const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {

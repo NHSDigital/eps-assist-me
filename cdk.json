@@ -21,11 +21,6 @@
   },
   "context": {
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
-    "@aws-cdk/aws-lambda:recognizeVersionProps": true,
-    "aws-cdk:enableDiffNoFail": true,
-    "bundling": {
-      "dockerless": true
-    },
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/core:target-partitions": [
       "aws",
