@@ -9,6 +9,7 @@ export interface OpenSearchResourcesProps {
   readonly stackName: string
   readonly bedrockExecutionRole: Role
   readonly region: string
+  readonly commitId: string
 }
 
 export class OpenSearchResources extends Construct {
@@ -17,9 +18,11 @@ export class OpenSearchResources extends Construct {
   constructor(scope: Construct, id: string, props: OpenSearchResourcesProps) {
     super(scope, id)
 
+    const commitShort = props.commitId.substring(0, 4)
+
     // Create the OpenSearch Serverless collection using L2 construct
     this.collection = new VectorCollection(this, "Collection", {
-      collectionName: `${props.stackName}-vector-db`,
+      collectionName: `${props.stackName}-${commitShort}-vector-db`,
       description: "EPS Assist Vector Store",
       standbyReplicas: VectorCollectionStandbyReplicas.DISABLED
     })
