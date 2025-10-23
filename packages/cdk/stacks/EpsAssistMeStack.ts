@@ -80,7 +80,9 @@ export class EpsAssistMeStack extends Stack {
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
       stackName: props.stackName,
       bedrockExecutionRole: bedrockExecutionRole.role,
-      region
+      region,
+      version: props.version,
+      commitId: props.commitId
     })
 
     const vectorIndex = new VectorIndex(this, "VectorIndex", {

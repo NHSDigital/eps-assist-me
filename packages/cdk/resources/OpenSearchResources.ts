@@ -10,6 +10,8 @@ export interface OpenSearchResourcesProps {
   readonly stackName: string
   readonly bedrockExecutionRole: Role
   readonly region: string
+  readonly version: string
+  readonly commitId: string
 }
 
 export class OpenSearchResources extends Construct {
@@ -29,7 +31,7 @@ export class OpenSearchResources extends Construct {
     this.collection.grantDataAccess(props.bedrockExecutionRole)
 
     // Set static values for commit and version tags to prevent recreation
-    Tags.of(this.collection).add("commit", "static_value")
-    Tags.of(this.collection).add("version", "static_value")
+    Tags.of(this.collection).add("commit", props.commitId)
+    Tags.of(this.collection).add("version", props.version)
   }
 }
