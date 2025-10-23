@@ -14,12 +14,9 @@ import {OpenSearchResources} from "../resources/OpenSearchResources"
 import {VectorKnowledgeBaseResources} from "../resources/VectorKnowledgeBaseResources"
 import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
 import {RuntimePolicies} from "../resources/RuntimePolicies"
-import {VectorIndex} from "../resources/VectorIndex"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
-
-const VECTOR_INDEX_NAME = "eps-assist-os-index"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -82,11 +79,8 @@ export class EpsAssistMeStack extends Stack {
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
       stackName: props.stackName,
       bedrockExecutionRole: bedrockExecutionRole.role,
-      account,
       region
     })
-
-    const endpoint = openSearchResources.collection.endpoint
 
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
@@ -94,7 +88,7 @@ export class EpsAssistMeStack extends Stack {
       docsBucket: storage.kbDocsBucket.bucket,
       bedrockExecutionRole: bedrockExecutionRole.role,
       collectionArn: openSearchResources.collection.collectionArn,
-      vectorIndexName: VECTOR_INDEX_NAME,
+      vectorIndexName: openSearchResources.vectorIndex.indexName,
       region,
       account
     })
@@ -127,7 +121,7 @@ export class EpsAssistMeStack extends Stack {
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: vectorKB.guardrail.guardrailId,
       guardrailVersion: vectorKB.guardrail.guardrailVersion,
-      collectionId: openSearchResources.collection.collection.attrId,
+      collectionId: openSearchResources.collection.collectionId,
       knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
       dataSourceId: vectorKB.dataSource.attrDataSourceId,
       region,
@@ -139,16 +133,6 @@ export class EpsAssistMeStack extends Stack {
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
     })
-
-    // Create vector index after Functions are created
-    const vectorIndex = new VectorIndex(this, "VectorIndex", {
-      indexName: VECTOR_INDEX_NAME,
-      collection: openSearchResources.collection.collection,
-      endpoint
-    })
-
-    // Ensure knowledge base waits for vector index
-    vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
 
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {

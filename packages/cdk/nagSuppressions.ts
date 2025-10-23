@@ -171,6 +171,34 @@ export const nagSuppressions = (stack: Stack) => {
     )
   })
 
+  const logRetentionHandlers = stack.node.findAll().filter(node =>
+    node.node.id.startsWith("LogRetention")
+  )
+
+  logRetentionHandlers.forEach(handler => {
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/ServiceRole/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM4",
+          reason: "Auto-generated CDK log retention role uses AWS managed policy for basic Lambda execution."
+        }
+      ]
+    )
+
+    safeAddNagSuppression(
+      stack,
+      `${handler.node.path}/ServiceRole/DefaultPolicy/Resource`,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Auto-generated CDK log retention role requires wildcard permissions for log management."
+        }
+      ]
+    )
+  })
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
