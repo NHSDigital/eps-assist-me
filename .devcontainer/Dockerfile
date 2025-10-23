@@ -79,4 +79,5 @@ WORKDIR /workspaces/eps-assist-me
 ADD .tool-versions /workspaces/eps-assist-me/.tool-versions
 ADD .tool-versions /home/vscode/.tool-versions
 
-RUN asdf install
+RUN asdf install python; \
+    asdf install
