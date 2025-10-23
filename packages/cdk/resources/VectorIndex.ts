@@ -1,6 +1,7 @@
 import {Construct} from "constructs"
 import {CfnIndex} from "aws-cdk-lib/aws-opensearchserverless"
 import {VectorCollection} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/opensearchserverless"
+import {RemovalPolicy} from "aws-cdk-lib"
 
 export interface VectorIndexProps {
   readonly indexName: string
@@ -64,5 +65,7 @@ export class VectorIndex extends Construct {
     })
 
     this.cfnIndex = cfnIndex
+
+    this.cfnIndex.applyRemovalPolicy(RemovalPolicy.DESTROY)
   }
 }
