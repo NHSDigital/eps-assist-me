@@ -53,7 +53,7 @@ export class VectorIndex extends Construct {
     }
 
     const cfnIndex = new CfnIndex(this, "MyCfnIndex", {
-      collectionEndpoint: props.collection.collectionEndpoint, // Use L2 property
+      collectionEndpoint: props.collection.collectionEndpoint,
       indexName: this.indexName,
       mappings: indexMapping,
       settings: {
