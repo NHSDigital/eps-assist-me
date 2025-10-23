@@ -4,7 +4,7 @@ import {VectorCollection} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-li
 import {RemovalPolicy} from "aws-cdk-lib"
 
 export interface VectorIndexProps {
-  readonly indexName: string
+  readonly stackName: string
   readonly collection: VectorCollection
 }
 
@@ -15,7 +15,7 @@ export class VectorIndex extends Construct {
   constructor(scope: Construct, id: string, props: VectorIndexProps) {
     super(scope, id)
 
-    this.indexName = props.indexName
+    this.indexName = `${props.stackName}-index`
 
     const indexMapping: CfnIndex.MappingsProperty = {
       properties: {
@@ -54,7 +54,7 @@ export class VectorIndex extends Construct {
 
     const cfnIndex = new CfnIndex(this, "MyCfnIndex", {
       collectionEndpoint: props.collection.collectionEndpoint, // Use L2 property
-      indexName: props.indexName,
+      indexName: this.indexName,
       mappings: indexMapping,
       settings: {
         index: {

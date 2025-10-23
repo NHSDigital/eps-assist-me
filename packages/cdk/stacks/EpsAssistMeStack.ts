@@ -84,7 +84,7 @@ export class EpsAssistMeStack extends Stack {
     })
 
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
-      indexName: "eps-assist-os-index",
+      stackName: props.stackName,
       collection: openSearchResources.collection
     })
 
