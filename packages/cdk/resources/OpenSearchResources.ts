@@ -1,5 +1,6 @@
 import {Construct} from "constructs"
 import {Role} from "aws-cdk-lib/aws-iam"
+import {Tags} from "aws-cdk-lib"
 import {
   VectorCollection,
   VectorCollectionStandbyReplicas
@@ -9,6 +10,7 @@ export interface OpenSearchResourcesProps {
   readonly stackName: string
   readonly bedrockExecutionRole: Role
   readonly region: string
+  readonly collectionName?: string
 }
 
 export class OpenSearchResources extends Construct {
@@ -19,10 +21,14 @@ export class OpenSearchResources extends Construct {
 
     // Create the OpenSearch Serverless collection using L2 construct
     this.collection = new VectorCollection(this, "Collection", {
-      collectionName: `${props.stackName}-vector-db`,
+      collectionName: props.collectionName ?? `${props.stackName}-vector-db`,
       description: "EPS Assist Vector Store",
       standbyReplicas: VectorCollectionStandbyReplicas.DISABLED
     })
+
+    // set static values for commit and version tags to stop it being recreated
+    Tags.of(this.collection).add("commit", "static_value")
+    Tags.of(this.collection).add("version", "static_value")
 
     // Grant access to the Bedrock execution role
     this.collection.grantDataAccess(props.bedrockExecutionRole)
