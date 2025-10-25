@@ -1,17 +1,21 @@
 import {Construct} from "constructs"
-import {CfnCollection, CfnIndex} from "aws-cdk-lib/aws-opensearchserverless"
+import {CfnIndex} from "aws-cdk-lib/aws-opensearchserverless"
+import {VectorCollection} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/opensearchserverless"
+import {RemovalPolicy} from "aws-cdk-lib"
 
 export interface VectorIndexProps {
-  readonly indexName: string
-  readonly collection: CfnCollection
-  readonly endpoint: string
+  readonly stackName: string
+  readonly collection: VectorCollection
 }
 
 export class VectorIndex extends Construct {
   public readonly cfnIndex: CfnIndex
+  public readonly indexName: string
 
   constructor(scope: Construct, id: string, props: VectorIndexProps) {
     super(scope, id)
+
+    this.indexName = `${props.stackName}-index`
 
     const indexMapping: CfnIndex.MappingsProperty = {
       properties: {
@@ -49,10 +53,9 @@ export class VectorIndex extends Construct {
     }
 
     const cfnIndex = new CfnIndex(this, "MyCfnIndex", {
-      collectionEndpoint: props.endpoint,
-      indexName: props.indexName,
+      collectionEndpoint: props.collection.collectionEndpoint,
+      indexName: this.indexName,
       mappings: indexMapping,
-      // the properties below are optional
       settings: {
         index: {
           knn: true,
@@ -62,5 +65,7 @@ export class VectorIndex extends Construct {
     })
 
     this.cfnIndex = cfnIndex
+
+    this.cfnIndex.applyRemovalPolicy(RemovalPolicy.DESTROY)
   }
 }
