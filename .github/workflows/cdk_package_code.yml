@@ -31,7 +31,7 @@ jobs:
         uses: asdf-vm/actions/setup@1902764435ca0dd2f3388eea723a4f92a4eb8302
         with:
           asdf_branch: v0.14.1
-  
+
       - name: Cache asdf
         uses: actions/cache@v4
         with:
@@ -63,10 +63,18 @@ jobs:
         run: |
           poetry export --without-hashes --format=requirements.txt --with slackBotFunction > requirements_slackBotFunction
           poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction
+          if [ ! -s requirements_slackBotFunction ]; then \
+            echo "Error: requirements_slackBotFunction is empty or missing"; \
+            exit 1; \
+          fi
+          if [ ! -s requirements_syncKnowledgeBaseFunction ]; then \
+            echo "Error: requirements_syncKnowledgeBaseFunction is empty or missing"; \
+            exit 1; \
+          fi
           pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
           pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 
-      - name: 'Tar files'
+      - name: Tar files
         run: |
           tar -rf artifact.tar \
             .tool-versions \
