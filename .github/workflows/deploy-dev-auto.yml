@@ -1,0 +1,78 @@
+name: Auto Deploy to DEV
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+env:
+  BRANCH_NAME: ${{ github.ref_name }}
+
+jobs:
+  quality_checks:
+    if: github.event.pull_request.merged == true
+    uses: NHSDigital/eps-workflow-quality-checks/.github/workflows/quality-checks.yml@v4.1.3
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  get_commit_id:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-22.04
+    outputs:
+      commit_id: ${{ steps.commit_id.outputs.commit_id }}
+    steps:
+      - name: Get Commit ID
+        id: commit_id
+        run: |
+          echo "commit_id=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+  generate_dev_version:
+    if: github.event.pull_request.merged == true
+    needs: quality_checks
+    runs-on: ubuntu-22.04
+    outputs:
+      dev_version: ${{ steps.version.outputs.dev_version }}
+    steps:
+      - name: Generate DEV version
+        id: version
+        run: |
+          DEV_VERSION="dev-${{ github.run_number }}-$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "dev_version=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "## DEV Version: ${DEV_VERSION}" >> "$GITHUB_STEP_SUMMARY"
+
+  package_code:
+    needs: [get_commit_id, generate_dev_version]
+    uses: ./.github/workflows/cdk_package_code.yml
+    with:
+      STACK_NAME: epsam
+      VERSION_NUMBER: ${{ needs.generate_dev_version.outputs.dev_version }}
+      COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
+
+  deploy_dev:
+    if: github.event.pull_request.merged == true
+    needs: [get_commit_id, generate_dev_version, package_code]
+    uses: ./.github/workflows/release_all_stacks.yml
+    with:
+      STACK_NAME: epsam
+      TARGET_ENVIRONMENT: dev
+      VERSION_NUMBER: ${{ needs.generate_dev_version.outputs.dev_version }}
+      COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
+      CDK_APP_NAME: EpsAssistMeApp
+      DEPLOY_CODE: true
+      LOG_RETENTION_IN_DAYS: 30
+      LOG_LEVEL: "DEBUG"
+      CREATE_INT_RELEASE_NOTES: false
+      CREATE_PROD_RELEASE_NOTES: false
+      MARK_JIRA_RELEASED: false
+      CREATE_INT_RC_RELEASE_NOTES: false
+      IS_PULL_REQUEST: false
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_DEPLOY_ROLE }}
+      CDK_PULL_IMAGE_ROLE: ${{ secrets.DEV_CDK_PULL_IMAGE_ROLE }}
+      DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+      REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
