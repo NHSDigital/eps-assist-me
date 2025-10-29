@@ -10,7 +10,6 @@ export interface OpenSearchResourcesProps {
   readonly stackName: string
   readonly bedrockExecutionRole: Role
   readonly region: string
-  readonly collectionName?: string
 }
 
 export class OpenSearchResources extends Construct {
@@ -21,7 +20,6 @@ export class OpenSearchResources extends Construct {
 
     // Create the OpenSearch Serverless collection using L2 construct
     this.collection = new VectorCollection(this, "Collection", {
-      collectionName: props.collectionName ?? `${props.stackName}-vector-db`,
       description: "EPS Assist Vector Store",
       standbyReplicas: VectorCollectionStandbyReplicas.DISABLED
     })
