@@ -80,7 +80,7 @@ jobs:
 
       - name: create_int_rc_release_notes
         uses: ./.github/actions/update_confluence_jira
-        if: ${{ inputs.CREATE_INT_RC_RELEASE_NOTES == true }}
+        if: ${{ inputs.CREATE_INT_RC_RELEASE_NOTES == true && inputs.TARGET_ENVIRONMENT == 'int' }}
         with:
           TARGET_ENVIRONMENT: int
           RELEASE_TAG: ${{ inputs.VERSION_NUMBER }}
@@ -179,7 +179,7 @@ jobs:
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira
-        if: ${{ inputs.CREATE_INT_RELEASE_NOTES == true && always() && !failure() && !cancelled() }}
+        if: ${{ inputs.CREATE_INT_RELEASE_NOTES == true && inputs.TARGET_ENVIRONMENT == 'int' && always() && !failure() && !cancelled() }}
         with:
           TARGET_ENVIRONMENT: int
           CONFLUENCE_PAGE_ID: "899319595"
@@ -190,7 +190,7 @@ jobs:
 
       - name: create_prod_release_notes
         uses: ./.github/actions/update_confluence_jira
-        if: ${{ inputs.CREATE_PROD_RELEASE_NOTES == true && always() && !failure() && !cancelled() }}
+        if: ${{ inputs.CREATE_PROD_RELEASE_NOTES == true && inputs.TARGET_ENVIRONMENT == 'prod' && always() && !failure() && !cancelled() }}
         with:
           TARGET_ENVIRONMENT: prod
           CONFLUENCE_PAGE_ID: "899319597"
