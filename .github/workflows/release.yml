@@ -1,12 +1,8 @@
 name: deploy to environments
 
 on:
-  workflow_dispatch:
-    inputs:
-      dev_version:
-        description: "DEV version to promote (e.g., dev-123-a1b2c3d)"
-        required: true
-        type: string
+  pull_request:
+    branches: [main]
 
 env:
   BRANCH_NAME: ${{ github.event.ref.BRANCH_NAME }}
@@ -31,92 +27,13 @@ jobs:
     needs: quality_checks
     runs-on: ubuntu-22.04
     outputs:
-      version_tag: ${{ steps.output_version_tag.outputs.VERSION_TAG }}
+      version_tag: PR-${{ github.event.number }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.BRANCH_NAME }}
-          fetch-depth: 0
-
-      # using git commit sha for version of action to ensure we have stable version
-      - name: Install asdf
-        uses: asdf-vm/actions/setup@1902764435ca0dd2f3388eea723a4f92a4eb8302
-        with:
-          asdf_branch: v0.14.1
-
-      - name: Cache asdf
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.asdf
-          key: ${{ runner.os }}-asdf-${{ hashFiles('**/.tool-versions') }}
-          restore-keys: |
-            ${{ runner.os }}-asdf-
-
-      - name: Install asdf dependencies in .tool-versions
-        uses: asdf-vm/actions/install@1902764435ca0dd2f3388eea723a4f92a4eb8302
-        with:
-          asdf_branch: v0.14.1
-        env:
-          PYTHON_CONFIGURE_OPTS: --enable-shared
-
-      - name: Setting up .npmrc
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set PR version for testing
         run: |
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
-          echo "@nhsdigital:registry=https://npm.pkg.github.com" >> ~/.npmrc
-
-      - name: Install dependencies
-        run: |
-          make install
-
-      - name: Set VERSION_TAG to be next tag varsion
-        id: output_version_tag
-        run: |
-          NEXT_VERSION=$(npx semantic-release --dry-run | grep -i 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/')
-          tagFormat=$(node -e "const config=require('./release.config.js'); console.log(config.tagFormat)")
-          if [ "${tagFormat}" = "null" ]
-          then
-            tagFormat="v\${version}"
-          fi
-          # disabling shellcheck as replace does not work
-          # shellcheck disable=SC2001
-          VERSION_TAG=$(echo "$tagFormat" | sed "s/\${version}/$NEXT_VERSION/")
-          echo "## VERSION TAG : ${VERSION_TAG}" >> "$GITHUB_STEP_SUMMARY"
-          echo "VERSION_TAG=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
-          echo "VERSION_TAG=${VERSION_TAG}" >> "$GITHUB_ENV"
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
-      - name: tag release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx semantic-release
-
-      - name: Get release for editing
-        id: get_release
-        # version 1.2.4
-        uses: cardinalby/git-get-release-action@5172c3a026600b1d459b117738c605fabc9e4e44
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          tag: ${{ env.VERSION_TAG }}
-
-      - name: Edit Release
-        # version 1.2.0
-        uses: irongut/EditRelease@ccf529ad26dddf9996e7dd0f24ca5da4ea507cc2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          id: ${{ steps.get_release.outputs.id }}
-          body: |
-            ## Info
-            [See code diff](${{ github.event.compare }})
-            [Release workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-            It was initialized by [${{ github.event.sender.login }}](${{ github.event.sender.html_url }})
+          VERSION="PR-${{ github.event.number }}"
+          echo "VERSION_TAG=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Using PR version for testing: $VERSION"
 
   package_code:
     needs: [get_commit_id, tag_release]
@@ -132,7 +49,7 @@ jobs:
     with:
       STACK_NAME: epsam
       TARGET_ENVIRONMENT: dev
-      VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
+      VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
@@ -154,7 +71,7 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
 
-  # TODO: commented out for testing - uncomment after DEV deployment confirmed working
+  # Commented out for testing - uncomment after DEV deployment confirmed working
   # release_qa:
   #   needs: [get_commit_id, tag_release, package_code, release_dev]
   #   uses: ./.github/workflows/release_all_stacks.yml
