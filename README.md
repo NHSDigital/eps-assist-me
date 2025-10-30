@@ -206,6 +206,7 @@ Scripts are in the `.github/scripts` folder:
 - `call_mark_jira_released.sh` Calls a Lambda function to mark Jira issues as released.
 - `check-sbom-issues-against-ignores.sh` Validates SBOM scan against ignore list and reports unignored critical issues.
 - `create_env_release_notes.sh` Generates release notes for a specific environment using a Lambda function.
+- `create_int_rc_release_notes.sh` Creates release candidate notes for integration environment using a Lambda function.
 - `delete_stacks.sh` Checks and deletes active CloudFormation stacks associated with closed pull requests.
 - `fix_cdk_json.sh` Updates context values in `cdk.json` using environment variables before deployment.
 - `get_current_dev_tag.sh` Retrieves the current development tag and sets it as an environment variable.
