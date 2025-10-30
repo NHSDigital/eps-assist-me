@@ -39,7 +39,7 @@ jobs:
     needs: [get_commit_id, tag_release]
     uses: ./.github/workflows/cdk_package_code.yml
     with:
-      STACK_NAME: epsam
+      STACK_NAME: epsam-test
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
 
@@ -47,7 +47,7 @@ jobs:
     needs: [get_commit_id, tag_release, package_code]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STACK_NAME: epsam-test
       TARGET_ENVIRONMENT: dev
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
