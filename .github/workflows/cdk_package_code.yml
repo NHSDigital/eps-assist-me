@@ -78,7 +78,7 @@ jobs:
             cdk.json \
             .dependencies
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         name: upload build artifact
         with:
           name: build_artifact
