@@ -3,13 +3,15 @@ Slack event processing
 Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
+import json
 import re
 import time
 import traceback
-import json
-from typing import Any, Dict
+from typing import Any, dict
+
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
+
 from app.core.config import (
     bot_messages,
     constants,
@@ -43,7 +45,7 @@ logger = get_logger()
 
 
 def cleanup_previous_unfeedback_qa(
-    conversation_key: str, current_message_ts: str, session_data: Dict[str, Any]
+    conversation_key: str, current_message_ts: str, session_data: dict[str, Any]
 ) -> None:
     """Delete previous Q&A pair if no feedback received using atomic operation"""
     try:
@@ -112,9 +114,9 @@ def _mark_qa_feedback_received(conversation_key: str, message_ts: str) -> None:
 
 def _handle_session_management(
     conversation_key: str,
-    session_data: Dict[str, Any],
+    session_data: dict[str, Any],
     session_id: str,
-    kb_response: Dict[str, Any],
+    kb_response: dict[str, Any],
     user_id: str,
     channel: str,
     thread_ts: str,
@@ -184,7 +186,7 @@ def process_feedback_event(
     channel_id: str,
     thread_root: str,
     client: WebClient,
-    event: Dict[str, Any],
+    event: dict[str, Any],
 ) -> None:
     feedback_text = message_text.split(":", 1)[1].strip() if ":" in message_text else ""
     try:
@@ -208,7 +210,7 @@ def process_feedback_event(
         post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
 
 
-def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
+def process_async_slack_action(body: dict[str, Any], client: WebClient) -> None:
     try:
         channel_id = body["channel"]["id"]
         action_id = body["actions"][0]["action_id"]
@@ -261,7 +263,7 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
 
 
-def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+def process_async_slack_event(event: dict[str, Any], event_id: str, client: WebClient) -> None:
     logger.debug("Processing async Slack event", extra={"event_id": event_id, "event": event})
     original_message_text = (event.get("text") or "").strip()
     message_text = strip_mentions(message_text=original_message_text)
@@ -293,7 +295,7 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     process_slack_message(event=event, event_id=event_id, client=client)
 
 
-def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
+def process_slack_message(event: dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
 
@@ -369,7 +371,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         post_error_message(channel=channel, thread_ts=thread_ts, client=client)
 
 
-def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
+def process_pull_request_slack_event(slack_event_data: dict[str, Any]) -> None:
     # separate function to process pull requests so that we can ensure we store session information
     try:
         event_id = slack_event_data["event_id"]
@@ -384,7 +386,7 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
 
-def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
+def process_pull_request_slack_action(slack_body_data: dict[str, Any]) -> None:
     # separate function to process pull requests so that we can ensure we store session information
     try:
         token = get_bot_token()
@@ -395,7 +397,7 @@ def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
         logger.error("Error processing message", extra={"error": traceback.format_exc()})
 
 
-def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
+def log_query_stats(user_query: str, event: dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
     query_length = len(user_query)
     start_time = float(event["event_ts"])
     end_time = time.time()
@@ -520,7 +522,7 @@ def get_conversation_session(conversation_key: str) -> str | None:
     return session_data.get("session_id") if session_data else None
 
 
-def get_conversation_session_data(conversation_key: str) -> Dict[str, Any]:
+def get_conversation_session_data(conversation_key: str) -> dict[str, Any]:
     """
     Get full session data for this conversation
     """

@@ -77,7 +77,8 @@ select = [
 ]
 
 # Ignore F821 (undefined name) for specific use cases
-ignore = ["F821"]
+# Ignore N806 (variable in function should be lowercase) for environment variable constants
+ignore = ["F821", "N806"]
 
 # Set maximum cyclomatic complexity
 mccabe = { max-complexity = 10 }

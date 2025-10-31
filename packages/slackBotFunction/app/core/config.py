@@ -3,12 +3,13 @@ Core configuration for the Slack bot.
 Sets up all the AWS and Slack connections we need.
 """
 
+import json
+import os
+import traceback
 from dataclasses import dataclass
 from functools import lru_cache
-import os
-import json
-import traceback
-from typing import Tuple
+from typing import tuple
+
 import boto3
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.logging import utils
@@ -18,7 +19,7 @@ from mypy_boto3_dynamodb.service_resource import Table
 # we use lru_cache for lots of configs so they are cached
 
 
-@lru_cache()
+@lru_cache
 def get_logger() -> Logger:
     powertools_logger = Logger(service="slackBotFunction")
     utils.copy_config_to_registered_loggers(source_logger=powertools_logger, ignore_log_level=True)
@@ -29,15 +30,15 @@ def get_logger() -> Logger:
 logger = get_logger()
 
 
-@lru_cache()
+@lru_cache
 def get_slack_bot_state_table() -> Table:
     # DynamoDB table for deduplication and session storage
     dynamodb = boto3.resource("dynamodb")
     return dynamodb.Table(os.environ["SLACK_BOT_STATE_TABLE"])
 
 
-@lru_cache()
-def get_ssm_params() -> Tuple[str, str]:
+@lru_cache
+def get_ssm_params() -> tuple[str, str]:
     bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
     signing_secret_parameter = os.environ["SLACK_SIGNING_SECRET_PARAMETER"]
     try:
@@ -57,7 +58,7 @@ def get_ssm_params() -> Tuple[str, str]:
             raise ValueError("Missing required parameters: token or secret in Parameter Store values")
 
     except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in Parameter Store: {e}")
+        raise ValueError(f"Invalid JSON in Parameter Store: {e}") from e
     except Exception:
         logger.error("Configuration error", extra={"error": traceback.format_exc()})
         raise
@@ -71,7 +72,7 @@ def get_bot_token() -> str:
 
 
 @lru_cache
-def get_guardrail_config() -> Tuple[str, str, str, str, str]:
+def get_guardrail_config() -> tuple[str, str, str, str, str]:
     # Bedrock configuration from environment
     KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
     RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]

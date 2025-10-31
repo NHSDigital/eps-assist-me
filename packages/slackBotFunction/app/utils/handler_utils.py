@@ -2,22 +2,23 @@
 Slack event handlers - handles @mentions and direct messages to the bot
 """
 
+import json
 import re
 import time
-import json
 import traceback
-from typing import Any, Dict, Tuple
+from typing import Any, dict, tuple
+
 import boto3
 from botocore.exceptions import ClientError
-from slack_sdk import WebClient
 from mypy_boto3_cloudformation.client import CloudFormationClient
 from mypy_boto3_lambda.client import LambdaClient
+from slack_sdk import WebClient
 
-from app.services.dynamo import get_state_information, store_state_information
 from app.core.config import (
-    get_logger,
     constants,
+    get_logger,
 )
+from app.services.dynamo import get_state_information, store_state_information
 
 logger = get_logger()
 
@@ -44,7 +45,7 @@ def is_duplicate_event(event_id: str) -> bool:
         return False
 
 
-def respond_with_eyes(event: Dict[str, Any], client: WebClient) -> None:
+def respond_with_eyes(event: dict[str, Any], client: WebClient) -> None:
     channel = event["channel"]
     ts = event["ts"]
     try:
@@ -68,7 +69,7 @@ def get_pull_request_lambda_arn(pull_request_id: str) -> str:
 
 
 def forward_event_to_pull_request_lambda(
-    pull_request_id: str, event: Dict[str, Any], event_id: str, store_pull_request_id: bool
+    pull_request_id: str, event: dict[str, Any], event_id: str, store_pull_request_id: bool
 ) -> None:
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
@@ -98,7 +99,7 @@ def forward_event_to_pull_request_lambda(
         raise e
 
 
-def forward_action_to_pull_request_lambda(body: Dict[str, Any], pull_request_id: str) -> None:
+def forward_action_to_pull_request_lambda(body: dict[str, Any], pull_request_id: str) -> None:
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
         pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
@@ -130,7 +131,7 @@ def is_latest_message(conversation_key: str, message_ts: str) -> bool:
         return False
 
 
-def gate_common(event: Dict[str, Any], body: Dict[str, Any]) -> str | None:
+def gate_common(event: dict[str, Any], body: dict[str, Any]) -> str | None:
     """
     Apply common early checks that are shared across handlers.
 
@@ -161,8 +162,9 @@ def strip_mentions(message_text: str) -> str:
     return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", message_text or "").strip()
 
 
-def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
-    prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
+def extract_pull_request_id(text: str) -> tuple[str | None, str]:
+    # safely escape for regex
+    prefix = re.escape(constants.PULL_REQUEST_PREFIX)
     pattern = rf"^(<[^>]+>\s*)?{prefix}\s*(\d+)\b"
 
     match = re.match(pattern, text, flags=re.IGNORECASE)
@@ -178,7 +180,7 @@ def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
     return None, text.strip()
 
 
-def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
+def conversation_key_and_root(event: dict[str, Any]) -> tuple[str, str]:
     """
     Build a stable conversation scope and its root timestamp.
 
@@ -211,7 +213,7 @@ def extract_session_pull_request_id(conversation_key: str) -> str | None:
         return None
 
 
-def should_reply_to_message(event: Dict[str, Any]) -> bool:
+def should_reply_to_message(event: dict[str, Any]) -> bool:
     """
     Determine if the bot should reply to the message.
 

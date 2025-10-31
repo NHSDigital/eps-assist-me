@@ -1,12 +1,14 @@
 import os
 import traceback
+
 import boto3
+from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 
 from app.core.config import get_logger
 from app.services.bedrock import invoke_model
-from .prompt_loader import load_prompt
+
 from .exceptions import ConfigurationError
-from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
+from .prompt_loader import load_prompt
 
 logger = get_logger()
 

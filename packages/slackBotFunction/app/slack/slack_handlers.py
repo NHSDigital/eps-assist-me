@@ -8,14 +8,17 @@ Design goals:
 """
 
 import json
-from functools import lru_cache
 import traceback
-from typing import Any, Dict
+from functools import lru_cache
+from typing import Any, dict
+
 from slack_bolt import Ack, App
 from slack_sdk import WebClient
+
 from app.core.config import (
     get_logger,
 )
+from app.slack.slack_events import process_async_slack_action, process_async_slack_event
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_session_pull_request_id,
@@ -25,7 +28,6 @@ from app.utils.handler_utils import (
     respond_with_eyes,
     should_reply_to_message,
 )
-from app.slack.slack_events import process_async_slack_action, process_async_slack_event
 
 logger = get_logger()
 
@@ -49,7 +51,7 @@ def setup_handlers(app: App) -> None:
 
 
 # ack function for events where we respond with eyes
-def respond_to_events(event: Dict[str, Any], ack: Ack, client: WebClient):
+def respond_to_events(event: dict[str, Any], ack: Ack, client: WebClient):
     if should_reply_to_message(event):
         respond_with_eyes(event=event, client=client)
     logger.debug("Sending ack response")
@@ -62,7 +64,7 @@ def respond_to_action(ack: Ack):
     ack()
 
 
-def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
+def feedback_handler(body: dict[str, Any], client: WebClient) -> None:
     """Handle feedback button clicks (both positive and negative)."""
     try:
         feedback_data = json.loads(body["actions"][0]["value"])
@@ -87,7 +89,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
 # ================================================================
 
 
-def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict[str, Any]) -> None:
+def unified_message_handler(client: WebClient, event: dict[str, Any], body: dict[str, Any]) -> None:
     """
     All messages get processed by this code
     If message starts with FEEDBACK_PREFIX then handle feedback message and return
