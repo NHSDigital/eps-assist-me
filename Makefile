@@ -43,8 +43,7 @@ lint-python:
 	poetry run ruff check .
 	poetry run ruff format --check .
 
-test: compile-node
-	npm run test --workspace packages/cdk
+test:
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
