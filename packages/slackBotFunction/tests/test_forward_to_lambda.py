@@ -121,7 +121,7 @@ def test_forward_event_to_pull_request_lambda_processing_error(
     event_data = {"test": "data"}
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn") as mock_get_pull_request_lambda_arn:
         mock_get_pull_request_lambda_arn.side_effect = Exception("Error getting lambda arn")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             forward_event_to_pull_request_lambda(
                 pull_request_id="123", event=event_data, event_id="evt123", store_pull_request_id=False
             )
@@ -155,7 +155,7 @@ def test_forward_action_to_pull_request_lambda_processing_error(
     mock_body = {"type": "block_actions", "user": {"id": "U123"}, "actions": []}
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn") as mock_get_pull_request_lambda_arn:
         mock_get_pull_request_lambda_arn.side_effect = Exception("Error getting lambda arn")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             forward_action_to_pull_request_lambda(pull_request_id="123", body=mock_body)
 
         # assertions

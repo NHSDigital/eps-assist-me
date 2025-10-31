@@ -19,9 +19,10 @@ def test_process_async_slack_event_normal_message(
 
     # perform operation
     slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
-    with patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event, patch(
-        "app.slack.slack_events.process_slack_message"
-    ) as mock_process_slack_message:
+    with (
+        patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event,
+        patch("app.slack.slack_events.process_slack_message") as mock_process_slack_message,
+    ):
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
         mock_forward_event_to_pull_request_lambda.assert_not_called()
         mock_process_feedback_event.assert_not_called()
@@ -52,9 +53,10 @@ def test_process_async_slack_event_pull_request_with_mention(
         "channel": "C789",
         "ts": "1234567890.123",
     }
-    with patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event, patch(
-        "app.slack.slack_events.process_slack_message"
-    ) as mock_process_slack_message:
+    with (
+        patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event,
+        patch("app.slack.slack_events.process_slack_message") as mock_process_slack_message,
+    ):
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
         mock_forward_event_to_pull_request_lambda.assert_called_once_with(
             pull_request_id="123",
@@ -88,9 +90,10 @@ def test_process_async_slack_event_pull_request_with_no_mention(
         "channel": "C789",
         "ts": "1234567890.123",
     }
-    with patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event, patch(
-        "app.slack.slack_events.process_slack_message"
-    ) as mock_process_slack_message:
+    with (
+        patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event,
+        patch("app.slack.slack_events.process_slack_message") as mock_process_slack_message,
+    ):
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
         mock_forward_event_to_pull_request_lambda.assert_called_once_with(
             pull_request_id="123",
@@ -124,9 +127,10 @@ def test_process_async_slack_event_feedback(
         "channel": "C789",
         "ts": "1234567890.123",
     }
-    with patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event, patch(
-        "app.slack.slack_events.process_slack_message"
-    ) as mock_process_slack_message:
+    with (
+        patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event,
+        patch("app.slack.slack_events.process_slack_message") as mock_process_slack_message,
+    ):
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
         mock_forward_event_to_pull_request_lambda.assert_not_called()
         mock_process_feedback_event.assert_called_once_with(

@@ -1,7 +1,8 @@
 import sys
 from unittest.mock import Mock, patch
-from slack_sdk.errors import SlackApiError
+
 from botocore.exceptions import ClientError
+from slack_sdk.errors import SlackApiError
 
 
 @patch("app.services.dynamo.get_state_information")

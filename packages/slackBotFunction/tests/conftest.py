@@ -1,9 +1,8 @@
 import json
-import pytest
-
-from unittest.mock import MagicMock, Mock, patch
 import os
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 
 TEST_BOT_TOKEN = "test-bot-token"
 TEST_SIGNING_SECRET = "test-signing-secret"

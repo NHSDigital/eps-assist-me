@@ -8,9 +8,11 @@ has access to the latest documentation for answering user queries.
 
 import time
 import traceback
+
 import boto3
 from botocore.exceptions import ClientError
-from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID, SUPPORTED_FILE_TYPES, logger
+
+from app.config.config import DATA_SOURCE_ID, KNOWLEDGEBASE_ID, SUPPORTED_FILE_TYPES, logger
 
 
 def is_supported_file_type(file_key):

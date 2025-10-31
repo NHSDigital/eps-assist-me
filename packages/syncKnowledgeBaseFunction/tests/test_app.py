@@ -1,6 +1,7 @@
-import pytest
 import os
 from unittest.mock import Mock, patch
+
+import pytest
 from botocore.exceptions import ClientError
 
 

@@ -1,6 +1,7 @@
 import sys
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 from botocore.exceptions import ClientError
 
 

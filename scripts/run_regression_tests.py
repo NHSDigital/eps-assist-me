@@ -4,12 +4,14 @@
 Script to generate user defined unique ID which can be used to
 check the status of the regression test run to be reported to the CI.
 """
+
 import argparse
-from datetime import datetime, timedelta, timezone
 import random
 import string
-import requests
 import time
+from datetime import UTC, datetime, timedelta
+
+import requests
 from requests.auth import HTTPBasicAuth
 
 # This should be set to a known good version of regression test repo
@@ -49,7 +51,7 @@ def generate_unique_run_id(length=15):
 
 def generate_timestamp():
     delta_time = timedelta(minutes=2)
-    date_time = (datetime.now(timezone.utc) - delta_time).strftime("%Y-%m-%dT%H:%M")
+    date_time = (datetime.now(UTC) - delta_time).strftime("%Y-%m-%dT%H:%M")
     print(f"Generated Date as: {date_time}")
     return date_time
 
@@ -75,9 +77,9 @@ def trigger_test_run(env, pr_label, product, auth_header, regression_test_branch
     )
 
     print(f"Dispatch workflow. Unique workflow identifier: {run_id}")
-    assert (
-        response.status_code == 204
-    ), f"Failed to trigger test run. Expected 204, got {response.status_code}. Response: {response.text}"
+    assert response.status_code == 204, (
+        f"Failed to trigger test run. Expected 204, got {response.status_code}. Response: {response.text}"
+    )
 
 
 def get_workflow_runs(auth_header):

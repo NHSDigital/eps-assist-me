@@ -1,10 +1,12 @@
 import os
 import traceback
+
 import boto3
 from botocore.exceptions import ClientError
-from app.core.config import get_logger
-from app.services.exceptions import PromptNotFoundError, PromptLoadError
 from mypy_boto3_bedrock_agent import AgentsforBedrockClient
+
+from app.core.config import get_logger
+from app.services.exceptions import PromptLoadError, PromptNotFoundError
 
 logger = get_logger()
 
@@ -66,14 +68,14 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
         )
         raise PromptLoadError(
             f"Failed to load prompt '{prompt_name}' version '{prompt_version}': {error_code} - {error_message}"
-        )
+        ) from e
 
     except Exception as e:
         logger.error(
             "Unexpected error loading prompt",
             extra={"prompt_name": prompt_name, "error_type": type(e).__name__, "error": traceback.format_exc()},
         )
-        raise PromptLoadError(f"Unexpected error loading prompt '{prompt_name}': {e}")
+        raise PromptLoadError(f"Unexpected error loading prompt '{prompt_name}': {e}") from e
 
 
 def get_prompt_id_from_name(client: AgentsforBedrockClient, prompt_name: str) -> str | None:

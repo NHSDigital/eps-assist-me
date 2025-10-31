@@ -27,7 +27,7 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
-lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8 lint-node
+lint: lint-githubactions lint-githubaction-scripts lint-python lint-node
 
 lint-node:
 	npm run lint --workspace packages/cdk
@@ -39,11 +39,9 @@ lint-githubaction-scripts:
 	shellcheck ./scripts/*.sh
 	shellcheck .github/scripts/*.sh
 
-lint-black:
-	poetry run black .
-
-lint-flake8:
-	poetry run flake8 .
+lint-python:
+	poetry run ruff check .
+	poetry run ruff format --check .
 
 test:
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
@@ -128,5 +126,5 @@ cdk-diff:
 cdk-watch:
 	./scripts/run_sync.sh
 
-sync-docs: 
+sync-docs:
 	./scripts/sync_docs.sh

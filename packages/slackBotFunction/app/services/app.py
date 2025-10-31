@@ -1,10 +1,11 @@
-from functools import lru_cache
 import logging
+from functools import lru_cache
 
+from aws_lambda_powertools import Logger
 from slack_bolt import App
+
 from app.core.config import get_ssm_params
 from app.slack.slack_handlers import setup_handlers
-from aws_lambda_powertools import Logger
 
 
 @lru_cache

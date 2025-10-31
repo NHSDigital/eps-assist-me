@@ -1,12 +1,12 @@
 import json
 from typing import Any
+
 import boto3
 from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
-from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateResponseTypeDef
+from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 
 from app.core.config import get_guardrail_config, get_logger
-
 
 logger = get_logger()
 

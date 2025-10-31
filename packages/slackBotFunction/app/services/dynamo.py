@@ -1,7 +1,9 @@
-from typing import Any
-from app.core.config import get_logger, get_slack_bot_state_table
 from time import time
+from typing import Any
+
 from mypy_boto3_dynamodb.type_defs import GetItemOutputTableTypeDef
+
+from app.core.config import get_logger, get_slack_bot_state_table
 
 logger = get_logger()
 
