@@ -224,5 +224,4 @@ Workflows are in the `.github/workflows` folder:
 - `release_all_stacks.yml` Reusable workflow for deploying to any environment with environment-specific approvals and configurations.
 - `release.yml` Runs on demand to create a release and deploy to INT and PROD environments with manual approval.
 - `cdk_package_code.yml` Packages code into a docker image and uploads to a github artifact for later deployment.
-- `cdk_release_code.yml` Release code built by cdk_package_code.yml to an environment.
 - `ci.yml` Merge to main workflow that automatically deploys to DEV and QA environments after quality checks.
