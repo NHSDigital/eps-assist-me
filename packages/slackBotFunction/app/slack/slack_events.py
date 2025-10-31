@@ -7,7 +7,7 @@ import json
 import re
 import time
 import traceback
-from typing import Any, dict
+from typing import Any
 
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient

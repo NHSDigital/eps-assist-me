@@ -10,7 +10,7 @@ Design goals:
 import json
 import traceback
 from functools import lru_cache
-from typing import Any, dict
+from typing import Any
 
 from slack_bolt import Ack, App
 from slack_sdk import WebClient

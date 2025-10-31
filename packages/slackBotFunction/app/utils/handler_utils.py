@@ -6,7 +6,7 @@ import json
 import re
 import time
 import traceback
-from typing import Any, dict, tuple
+from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError

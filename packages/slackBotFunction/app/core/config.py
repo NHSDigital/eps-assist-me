@@ -8,7 +8,6 @@ import os
 import traceback
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import tuple
 
 import boto3
 from aws_lambda_powertools import Logger
