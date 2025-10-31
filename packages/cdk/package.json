@@ -19,6 +19,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.9.1",
-    "aws-cdk": "^2.1031.0"
+    "aws-cdk": "^2.1031.1"
   }
 }
