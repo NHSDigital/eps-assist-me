@@ -3,8 +3,18 @@ import {App, Aspects, Tags} from "aws-cdk-lib"
 import {AwsSolutionsChecks} from "cdk-nag"
 import {EpsAssistMeStack} from "../stacks/EpsAssistMeStack"
 import {applyCfnGuardSuppressions} from "./utils/appUtils"
+import fs from "fs"
 
-const app = new App()
+// read the config in
+const configFileName = process.env["CONFIG_FILE_NAME"]
+if (configFileName === undefined) {
+  throw new Error("Can not read config file")
+}
+
+const configDetails = JSON.parse(fs.readFileSync(configFileName, "utf-8"))
+
+// create the app using the config details
+const app = new App({context: configDetails})
 
 /* Required Context:
 - accountId
@@ -13,23 +23,22 @@ const app = new App()
 - commit
 */
 
-const accountId = app.node.tryGetContext("accountId")
 const stackName = app.node.tryGetContext("stackName")
 const version = app.node.tryGetContext("versionNumber")
 const commit = app.node.tryGetContext("commitId")
+const cfnDriftDetectionGroup = app.node.tryGetContext("cfnDriftDetectionGroup")
 
 Aspects.of(app).add(new AwsSolutionsChecks({verbose: true}))
 
 Tags.of(app).add("cdkApp", "EpsAssistMe")
-Tags.of(app).add("accountId", accountId)
 Tags.of(app).add("stackName", stackName)
 Tags.of(app).add("version", version)
 Tags.of(app).add("commit", commit)
+Tags.of(app).add("cfnDriftDetectionGroup", cfnDriftDetectionGroup)
 
 const EpsAssistMe = new EpsAssistMeStack(app, "EpsAssistMeStack", {
   env: {
-    region: "eu-west-2",
-    account: accountId
+    region: "eu-west-2"
   },
   stackName: stackName,
   version: version,

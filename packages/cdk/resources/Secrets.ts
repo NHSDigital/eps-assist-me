@@ -4,8 +4,9 @@ import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 import {SecretWithParameter} from "../constructs/SecretWithParameter"
 
 export interface SecretsProps {
-  slackBotToken: string
-  slackSigningSecret: string
+  readonly stackName: string
+  readonly slackBotToken: string
+  readonly slackSigningSecret: string
 }
 
 export class Secrets extends Construct {
@@ -19,16 +20,16 @@ export class Secrets extends Construct {
 
     // Create Slack bot OAuth token secret and parameter
     const slackBotToken = new SecretWithParameter(this, "SlackBotToken", {
-      secretName: "/eps-assist/slack/bot-token",
-      parameterName: "/eps-assist/slack/bot-token/parameter",
+      secretName: `/${props.stackName}/bot-token`,
+      parameterName: `/${props.stackName}/bot-token/parameter`,
       description: "Slack Bot OAuth Token for EPS Assist",
       secretValue: JSON.stringify({token: props.slackBotToken})
     })
 
     // Create Slack signing secret for request verification
     const slackBotSigning = new SecretWithParameter(this, "SlackBotSigning", {
-      secretName: "/eps-assist/slack/signing-secret",
-      parameterName: "/eps-assist/slack/signing-secret/parameter",
+      secretName: `/${props.stackName}/signing-secret`,
+      parameterName: `/${props.stackName}/signing-secret/parameter`,
       description: "Slack Signing Secret",
       secretValue: JSON.stringify({secret: props.slackSigningSecret})
     })

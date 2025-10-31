@@ -1,21 +1,33 @@
 import {Construct} from "constructs"
 import {CfnCollection, CfnSecurityPolicy, CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
+import {Tags} from "aws-cdk-lib"
 
 export interface OpenSearchCollectionProps {
-  collectionName: string
-  principals: Array<string>
+  readonly collectionName: string
+  readonly principals: Array<string>
+  readonly region: string
+  readonly account: string
 }
 
 export class OpenSearchCollection extends Construct {
   public readonly collection: CfnCollection
   public readonly endpoint: string
+  private readonly region: string
+  private readonly account: string
+
+  public get collectionArn(): string {
+    return `arn:aws:aoss:${this.region}:${this.account}:collection/${this.collection.attrId}`
+  }
 
   constructor(scope: Construct, id: string, props: OpenSearchCollectionProps) {
     super(scope, id)
 
+    this.region = props.region
+    this.account = props.account
+
     // Encryption policy using AWS-managed keys
     const encryptionPolicy = new CfnSecurityPolicy(this, "EncryptionPolicy", {
-      name: `${props.collectionName}-encryption`,
+      name: `${props.collectionName}-enc`.substring(0, 32),
       type: "encryption",
       policy: JSON.stringify({
         Rules: [{ResourceType: "collection", Resource: [`collection/${props.collectionName}`]}],
@@ -50,17 +62,24 @@ export class OpenSearchCollection extends Construct {
     })
 
     // Vector search collection for document embeddings
-    this.collection = new CfnCollection(this, "Collection", {
+    // this can not be modified (including tags) so if we modify any properties
+    // we should ensure the name is changed to ensure a new resource is created
+    const collection = new CfnCollection(this, "Collection", {
       name: props.collectionName,
       description: "EPS Assist Vector Store",
       type: "VECTORSEARCH"
     })
 
-    // Ensure collection waits for all policies
-    this.collection.addDependency(encryptionPolicy)
-    this.collection.addDependency(networkPolicy)
-    this.collection.addDependency(accessPolicy)
+    // set static values for commit and version tags to stop it being recreated
+    Tags.of(collection).add("commit", "static_value")
+    Tags.of(collection).add("version", "static_value")
 
-    this.endpoint = `${this.collection.attrId}.${this.collection.stack.region}.aoss.amazonaws.com`
+    // Ensure collection waits for all policies
+    collection.addDependency(encryptionPolicy)
+    collection.addDependency(networkPolicy)
+    collection.addDependency(accessPolicy)
+
+    this.endpoint = `${collection.attrId}.${collection.stack.region}.aoss.amazonaws.com`
+    this.collection = collection
   }
 }

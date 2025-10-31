@@ -31,7 +31,6 @@
         "charliermarsh.ruff",
         "eamodio.gitlens",
         "github.vscode-pull-request-github",
-        "orta.vscode-jest",
         "42crunch.vscode-openapi",
         "mermade.openapi-lint",
         "dbaeumer.vscode-eslint",
@@ -50,7 +49,7 @@
         "python.analysis.autoSearchPaths": true,
         "python.analysis.extraPaths": [],
         "python.testing.unittestEnabled": false,
-        "python.testing.pytestEnabled": true,
+        "python.testing.pytestEnabled": false,
         "python.linting.pylintEnabled": false,
         "python.linting.enabled": false, // Disable old linting since we're using ruff
         "[python]": {
@@ -68,7 +67,7 @@
         "cSpell.words": ["fhir", "Formik", "pino", "serialisation"],
         "eslint.useFlatConfig": true,
         "eslint.format.enable": true
-          }
+      }
     }
   },
   "postCreateCommand": "rm -f ~/.docker/config.json; git config --global --add safe.directory /workspaces/eps-assist-me; make install; direnv allow ."

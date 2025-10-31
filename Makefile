@@ -9,7 +9,7 @@ guard-%:
 install: install-python install-hooks install-node
 
 install-python:
-	poetry install
+	poetry sync --all-groups
 
 install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
@@ -27,7 +27,10 @@ git-secrets-docker-setup:
 	export LOCAL_WORKSPACE_FOLDER=$(pwd)
 	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
-lint: lint-githubaction-scripts lint-python
+lint: lint-githubactions lint-githubaction-scripts lint-python lint-node
+
+lint-node:
+	npm run lint --workspace packages/cdk
 
 lint-githubactions:
 	actionlint
@@ -42,12 +45,22 @@ lint-python:
 
 test: compile-node
 	npm run test --workspace packages/cdk
+	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
+	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib
+	rm -rf packages/slackBotFunction/coverage
+	rm -rf packages/slackBotFunction/.coverage
+	rm -rf packages/slackBotFunction/.dependencies
+	rm -rf packages/syncKnowledgeBaseFunction/coverage
+	rm -rf .dependencies/
 	rm -rf cdk.out
 	rm -rf .build
+	rm -rf .local_config
+	rm -rf cfn_guard_output
+	find . -name '.pytest_cache' -type d -prune -exec rm -rf '{}' +
 
 deep-clean: clean
 	rm -rf .venv
@@ -70,7 +83,7 @@ aws-login:
 cfn-guard:
 	./scripts/run_cfn_guard.sh
 
-cdk-deploy: guard-stack_name
+cdk-deploy: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
@@ -80,48 +93,39 @@ cdk-deploy: guard-stack_name
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
-
 cdk-synth:
-	npx cdk synth \
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .local_config
+	STACK_NAME=epsam \
+	COMMIT_ID=undefined \
+	VERSION_NUMBER=undefined \
+	SLACK_BOT_TOKEN=dummy_token \
+	SLACK_SIGNING_SECRET=dummy_secret \
+	LOG_RETENTION_IN_DAYS=30 \
+	LOG_LEVEL=debug \
+		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
+	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
 		--quiet \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context accountId=undefined \
-		--context stackName=epsam \
-		--context versionNumber=undefined \
-		--context commitId=undefined \
-		--context logRetentionInDays=30 \
-		--context slackBotToken=dummy \
-		--context slackSigningSecret=dummy
+		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
 
 cdk-diff:
 	npx cdk diff \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
+		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \
 		--context commitId=$$COMMIT_ID \
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
 
-cdk-watch: guard-stack_name
-	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
-	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
-	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
-		npx cdk deploy \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--watch \
-		--all \
-		--ci true \
-		--require-approval $${REQUIRE_APPROVAL} \
-		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$stack_name \
-		--context versionNumber=$$VERSION_NUMBER \
-		--context commitId=$$COMMIT_ID \
-		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
-		--context slackBotToken=$$SLACK_BOT_TOKEN \
-		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
+cdk-watch:
+	./scripts/run_sync.sh
+
+sync-docs:
+	./scripts/sync_docs.sh

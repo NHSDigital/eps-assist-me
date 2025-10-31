@@ -9,9 +9,10 @@ The solution consists of:
 
 - **Slack Bot Function**: AWS Lambda function that handles Slack slash commands and integrates with Amazon Bedrock Knowledge Base
 - **Create Index Function**: AWS Lambda function that creates and manages OpenSearch vector indices for the knowledge base
+- **Sync Knowledge Base Function**: AWS Lambda function that automatically triggers knowledge base ingestion when documents are uploaded to S3
 - **OpenSearch Serverless**: Vector database for storing and searching document embeddings
 - **Amazon Bedrock Knowledge Base**: RAG (Retrieval-Augmented Generation) service with guardrails
-- **S3 Storage**: Document storage for the knowledge base
+- **S3 Storage**: Document storage for the knowledge base with automatic sync triggers
 - **AWS CDK**: Infrastructure as Code for deployment
 
 ## Project Structure
@@ -20,13 +21,26 @@ This is a monorepo with the following structure:
 
 ```
 packages/
-├── cdk/                   # AWS CDK infrastructure code
-│   ├── bin/               # CDK app entry point
-│   ├── constructs/        # Reusable CDK constructs
-│   ├── resources/         # AWS resource definitions
-│   └── stacks/            # CDK stack definitions
-├── createIndexFunction/   # Lambda function for OpenSearch index management
-└── slackBotFunction/      # Lambda function for Slack bot integration
+├── cdk/                        # AWS CDK infrastructure code
+│   ├── bin/                    # CDK app entry point
+│   │   └── utils/              # CDK utility functions
+│   ├── constructs/             # Reusable CDK constructs
+│   │   └── RestApiGateway/     # API Gateway specific constructs
+│   ├── resources/              # AWS resource definitions
+│   └── stacks/                 # CDK stack definitions
+├── sample_docs/                # Contains sample docs for testing purposes. These should not be used for real usage
+├── slackBotFunction/           # Lambda function for Slack bot integration
+│   ├── app/                    # Application code
+│   │   ├── config/             # Configuration and environment variables
+│   │   ├── services/           # Business logic services
+│   │   ├── slack/              # Slack-specific logic
+│   │   └── handler.py          # Lambda handler
+│   └── tests/                  # Unit tests
+└── syncKnowledgeBaseFunction/  # Lambda function for automatic knowledge base sync
+    ├── app/                    # Application code
+    │   ├── config/             # Configuration and environment variables
+    │   └── handler.py          # Lambda handler
+    └── tests/                  # Unit tests
 ```
 
 ## Contributing
@@ -103,7 +117,7 @@ When the token expires, you may need to reauthorise using `make aws-login`
 For deployment, the following environment variables are required:
 
 - `ACCOUNT_ID`: AWS Account ID
-- `stack_name`: Name of the CloudFormation stack
+- `STACK_NAME`: Name of the CloudFormation stack
 - `VERSION_NUMBER`: Version number for the deployment
 - `COMMIT_ID`: Git commit ID
 - `LOG_RETENTION_IN_DAYS`: CloudWatch log retention period
@@ -137,10 +151,10 @@ There are `make` commands that are run as part of the CI pipeline and help alias
 #### CDK targets
 These are used to do common commands related to cdk
 
-- `cdk-deploy` Builds and deploys the code to AWS. Requires `stack_name` environment variable.
+- `cdk-deploy` Builds and deploys the code to AWS. Requires `STACK_NAME` environment variable.
 - `cdk-synth` Converts the CDK code to cloudformation templates.
 - `cdk-diff` Runs cdk diff, comparing the deployed stack with the local CDK code to identify differences.
-- `cdk-watch` Syncs the code and CDK templates to AWS. This keeps running and automatically uploads changes to AWS. Requires `stack_name` environment variable.
+- `cdk-watch` Syncs the code and CDK templates to AWS. This keeps running and automatically uploads changes to AWS. Requires `STACK_NAME` environment variable.
 
 #### Clean and deep-clean targets
 
@@ -149,12 +163,16 @@ These are used to do common commands related to cdk
 
 #### Linting and testing
 
-- `lint` Runs lint for GitHub Actions and scripts.
+- `lint` Runs all linting checks
+- `lint-black` Runs black formatter on Python code.
+- `lint-flake8` Runs flake8 linter on Python code.
 - `lint-githubactions` Lints the repository's GitHub Actions workflows.
 - `lint-githubaction-scripts` Lints all shell scripts in `.github/scripts` using ShellCheck.
-- `test` Runs unit tests for CDK code.
 - `cfn-guard` Runs cfn-guard against CDK resources.
+- `git-secrets-docker-setup` Sets up git-secrets Docker container.
 - `pre-commit` Runs pre-commit hooks on all files.
+- `test` Runs unit tests for Lambda functions.
+- `sync-docs` Runs a script to sync sample docs to s3 bucket for a pull request. Useful for setting up a stack for testing
 
 #### Compiling
 
@@ -176,7 +194,7 @@ These are used to do common commands related to cdk
 This .github folder contains workflows and templates related to GitHub, along with actions and scripts pertaining to Jira.
 
 - `dependabot.yml` Dependabot definition file.
-- `pull_request_template.yml` Template for pull requests.
+- `pull_request_template.md` Template for pull requests.
 
 Actions are in the `.github/actions` folder:
 
@@ -196,10 +214,11 @@ Scripts are in the `.github/scripts` folder:
 Workflows are in the `.github/workflows` folder:
 
 - `combine-dependabot-prs.yml` Workflow for combining dependabot pull requests. Runs on demand.
+- `create_release_notes.yml` Generates release notes for deployments and environment updates.
 - `delete_old_cloudformation_stacks.yml` Workflow for deleting old cloud formation stacks. Runs daily.
 - `dependabot_auto_approve_and_merge.yml` Workflow to auto merge dependabot updates.
 - `pr_title_check.yml` Checks PR titles for required prefix and ticket or dependabot reference.
-- `pr-link.yaml` This workflow template links Pull Requests to Jira tickets and runs when a pull request is opened.
+- `pr-link.yml` This workflow template links Pull Requests to Jira tickets and runs when a pull request is opened.
 - `pull_request.yml` Called when pull request is opened or updated. Packages and deploys the code to dev AWS account for testing.
 - `release.yml` Runs on demand to create a release and deploy to all environments.
 - `cdk_package_code.yml` Packages code into a docker image and uploads to a github artifact for later deployment.

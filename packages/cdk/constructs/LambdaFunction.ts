@@ -23,12 +23,12 @@ export interface LambdaFunctionProps {
   readonly stackName: string
   readonly functionName: string
   readonly packageBasePath: string
-  readonly entryPoint: string
-  readonly environmentVariables: {[key: string]: string}
+  readonly handler: string
+  readonly environmentVariables?: {[key: string]: string}
   readonly additionalPolicies?: Array<IManagedPolicy>
-  readonly role?: Role
   readonly logRetentionInDays: number
   readonly logLevel: string
+  readonly dependencyLocation?: string
 }
 
 // Lambda Insights layer for enhanced monitoring
@@ -37,6 +37,7 @@ const insightsLayerArn = "arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsi
 export class LambdaFunction extends Construct {
   public readonly executionPolicy: ManagedPolicy
   public readonly function: LambdaFunctionResource
+  public readonly executionRole: Role
 
   public constructor(scope: Construct, id: string, props: LambdaFunctionProps) {
     super(scope, id)
@@ -111,19 +112,19 @@ export class LambdaFunction extends Construct {
       ...(props.additionalPolicies ?? [])
     ]
 
-    // Use provided role or create new one with required policies
-    let role: Role
-    if (props.role) {
-      role = props.role
-      // Attach any missing managed policies to the provided role
-      for (const policy of requiredPolicies) {
-        role.addManagedPolicy(policy)
-      }
-    } else {
-      role = new Role(this, "LambdaRole", {
-        assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-        managedPolicies: requiredPolicies
+    const role = new Role(this, "LambdaRole", {
+      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
+      managedPolicies: requiredPolicies
+    })
+
+    const layers = [insightsLambdaLayer]
+    if (props.dependencyLocation) {
+      const dependencyLayer = new LayerVersion(this, "DependencyLayer", {
+        removalPolicy: RemovalPolicy.DESTROY,
+        code: Code.fromAsset(props.dependencyLocation),
+        compatibleArchitectures: [Architecture.X86_64]
       })
+      layers.push(dependencyLayer)
     }
 
     // Create Lambda function with Python runtime and monitoring
@@ -132,15 +133,15 @@ export class LambdaFunction extends Construct {
       memorySize: 256,
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
-      handler: "app.handler",
+      handler: props.handler,
       code: Code.fromAsset(props.packageBasePath),
       role,
       environment: {
         ...props.environmentVariables,
-        LOG_LEVEL: props.logLevel
+        POWERTOOLS_LOG_LEVEL: props.logLevel
       },
       logGroup,
-      layers: [insightsLambdaLayer]
+      layers: layers
     })
 
     // Suppress CFN guard rules for Lambda function
@@ -169,5 +170,6 @@ export class LambdaFunction extends Construct {
     // Export Lambda function and execution policy for use by other constructs
     this.function = lambdaFunction
     this.executionPolicy = executionManagedPolicy
+    this.executionRole = role
   }
 }

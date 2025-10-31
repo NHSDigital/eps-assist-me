@@ -187,7 +187,11 @@ if __name__ == "__main__":
         type=lambda x: (str(x).lower() == "true"),
         help="If this is being called from github actions rather than azure",
     )
-    parser.add_argument("--product", required=True, help="Please provide the product to run the tests for.")
+    parser.add_argument(
+        "--product",
+        required=True,
+        help="Please provide the product to run the tests for.",
+    )
     parser.add_argument("--token", required=False, help="Please provide the authentication token.")
     parser.add_argument(
         "--regression_branch",

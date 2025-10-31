@@ -3,46 +3,52 @@ name = "eps-assist-me"
 version = "0.0.1-alpha"
 description = "EPS Assist Me"
 authors = [
-    "Anthony Brown <anthony.brown8@nhs.net>",
-    "Bence Gadanyi <bence.gadanyi1@nhs.net>",
-    "Kris Szlapa <kris.szlapa1@nhs.net>",
-    "Matthew Popat <matthew.popat1@nhs.net>"
+    "EPS Team"
 ]
 readme = "README.md"
 repository = "https://github.com/NHSDigital/eps-assist-me"
-package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.12"
-boto3 = "^1.34.0"
-
-[tool.poetry.dev-dependencies]
-pre-commit = "^4.1.0"
-cfn-lint = "^1.27.0"
-black = "^25.1.0"
-ruff = "^0.12.8"
-jinja2 = "^3.1.5"
-pip-licenses = "^5.0.0"
-click = "^8.1.8"
-rich = "^13.9.4"
+python = "^3.13"
 
 [tool.poetry.scripts]
 
-[[tool.poetry.source]]
-name = "nvidia"
-url = "https://pypi.ngc.nvidia.com"
-priority = "supplemental"
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+pre-commit = "^4.3.0"
+cfn-lint = "^1.39.1"
+ruff = "^0.12.8"
+jinja2 = "^3.1.6"
+pip-licenses = "^5.0.0"
+click = "^8.3.0"
+rich = "^14.1.0"
+pytest-mock = "^3.15.1"
+pytest-cov = "^7.0.0"
+moto = {extras = ["ssm"], version = "^5.1.12"}
 
-[[tool.poetry.source]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "supplemental"
+
+[tool.poetry.group.slackBotFunction.dependencies]
+slack-bolt = "^1.25.0"
+slack-sdk = "^3.36.0"
+boto3 = "^1.40.34"
+requests = "^2.32.5"
+opensearch-py = "^3.0.0"
+urllib3 = "^2.5.0"
+aws-lambda-powertools = "^3.20.0"
+boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runtime", "cloudformation", "dynamodb", "lambda"], version = "^1.40.54"}
+
+
+[tool.poetry.group.syncKnowledgeBaseFunction.dependencies]
+boto3 = "^1.40.34"
+aws-lambda-powertools = "^3.20.0"
+
+
 
 # Ruff configuration
 [tool.ruff]
 # Same line length as your current flake8 config
 line-length = 120
-target-version = "py312"
+target-version = "py313"
 
 # Exclude the same directories as your current flake8 config
 exclude = [
@@ -60,7 +66,7 @@ exclude = [
 # Enable the same rules that flake8 enables by default, plus some additional useful ones
 select = [
     "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings  
+    "W",   # pycodestyle warnings
     "F",   # Pyflakes
     "I",   # isort (import sorting)
     "N",   # pep8-naming
