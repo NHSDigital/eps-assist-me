@@ -7,6 +7,7 @@ authors = [
 ]
 readme = "README.md"
 repository = "https://github.com/NHSDigital/eps-assist-me"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.13"
@@ -46,11 +47,11 @@ aws-lambda-powertools = "^3.20.0"
 
 # Ruff configuration
 [tool.ruff]
-# Same line length as your current flake8 config
+# Set line length to 120 characters
 line-length = 120
 target-version = "py313"
 
-# Exclude the same directories as your current flake8 config
+# Exclude common directories that shouldn't be linted
 exclude = [
     ".git",
     ".venv",
@@ -63,7 +64,7 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-# Enable the same rules that flake8 enables by default, plus some additional useful ones
+# Enable essential linting rules for code quality
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -75,17 +76,17 @@ select = [
     "C4",  # flake8-comprehensions
 ]
 
-# Ignore F821 (undefined name) as per your current flake8 config
+# Ignore F821 (undefined name) for specific use cases
 ignore = ["F821"]
 
-# Set max complexity to match your current flake8 config
+# Set maximum cyclomatic complexity
 mccabe = { max-complexity = 10 }
 
 # Allow autofix for all enabled rules
 fixable = ["ALL"]
 
 [tool.ruff.format]
-# Use double quotes for strings (matches Black)
+# Use double quotes for strings
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
