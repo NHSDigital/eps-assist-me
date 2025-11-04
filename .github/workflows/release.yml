@@ -1,5 +1,4 @@
 name: deploy to environments
-# Trigger workflows test
 
 on:
   workflow_dispatch:
@@ -8,11 +7,9 @@ on:
         description: "DEV version to promote (e.g., dev-123-a1b2c3d)"
         required: true
         type: string
-  pull_request:
-    branches: [main]
 
 env:
-  BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+  BRANCH_NAME: ${{ github.ref_name }}
 
 jobs:
   get_asdf_version:
@@ -53,9 +50,9 @@ jobs:
     needs: [quality_checks, get_commit_id, get_asdf_version]
     uses: NHSDigital/eps-workflow-semantic-release/.github/workflows/tag-release.yml@361957c147279f5f0f68b64fde9927833363d5f7
     with:
-      dry_run: true
+      dry_run: false
       asdfVersion: ${{ needs.get_asdf_version.outputs.asdf_version }}
-      branch_name: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      branch_name: main
       publish_package: false
       tag_format: ${{ needs.get_asdf_version.outputs.tag_format }}
     secrets: inherit
@@ -64,7 +61,7 @@ jobs:
     needs: [tag_release, get_commit_id]
     uses: ./.github/workflows/cdk_package_code.yml
     with:
-      STACK_NAME: epsam-test2
+      STACK_NAME: epsam
       VERSION_NUMBER: ${{needs.tag_release.outputs.version_tag}}
       COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
 
@@ -72,7 +69,7 @@ jobs:
     needs: [tag_release, package_code, get_commit_id]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam-test2
+      STACK_NAME: epsam
       TARGET_ENVIRONMENT: dev
       VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
@@ -96,63 +93,61 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
 
-  # TODO: Temporarily commented out for testing - uncomment when ready
-  # release_qa:
-  #   needs: [get_commit_id, tag_release, package_code, release_dev]
-  #   uses: ./.github/workflows/release_all_stacks.yml
-  #   with:
-  #     STACK_NAME: epsam-test2
-  #     TARGET_ENVIRONMENT: qa
-  #     VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-  #     COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
-  #     CDK_APP_NAME: EpsAssistMeApp
-  #     DEPLOY_CODE: true
-  #     LOG_RETENTION_IN_DAYS: 30
-  #     LOG_LEVEL: "DEBUG"
-  #     CREATE_INT_RELEASE_NOTES: false
-  #     CREATE_PROD_RELEASE_NOTES: false
-  #     MARK_JIRA_RELEASED: false
-  #     CREATE_INT_RC_RELEASE_NOTES: false
-  #     IS_PULL_REQUEST: false
-  #   secrets:
-  #     CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.QA_CLOUD_FORMATION_DEPLOY_ROLE }}
-  #     CDK_PULL_IMAGE_ROLE: ${{ secrets.QA_CDK_PULL_IMAGE_ROLE }}
-  #     DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-  #     REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-  #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  #     SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+  release_qa:
+    needs: [tag_release, package_code, get_commit_id, release_dev]
+    uses: ./.github/workflows/release_all_stacks.yml
+    with:
+      STACK_NAME: epsam
+      TARGET_ENVIRONMENT: qa
+      VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
+      COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
+      CDK_APP_NAME: EpsAssistMeApp
+      DEPLOY_CODE: true
+      LOG_RETENTION_IN_DAYS: 30
+      LOG_LEVEL: "DEBUG"
+      CREATE_INT_RELEASE_NOTES: false
+      CREATE_PROD_RELEASE_NOTES: false
+      MARK_JIRA_RELEASED: false
+      CREATE_INT_RC_RELEASE_NOTES: false
+      IS_PULL_REQUEST: false
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.QA_CLOUD_FORMATION_DEPLOY_ROLE }}
+      CDK_PULL_IMAGE_ROLE: ${{ secrets.QA_CDK_PULL_IMAGE_ROLE }}
+      DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+      REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
 
-  # TODO: Temporarily commented out for testing - uncomment when ready
-  # release_int:
-  #   needs: [get_commit_id, tag_release, package_code, release_qa]
-  #   uses: ./.github/workflows/release_all_stacks.yml
-  #   with:
-  #     STACK_NAME: epsam-test2
-  #     TARGET_ENVIRONMENT: int
-  #     VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-  #     COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
-  #     CDK_APP_NAME: EpsAssistMeApp
-  #     DEPLOY_CODE: true
-  #     LOG_RETENTION_IN_DAYS: 731
-  #     LOG_LEVEL: "INFO"
-  #     CREATE_INT_RELEASE_NOTES: true
-  #     CREATE_PROD_RELEASE_NOTES: true
-  #     MARK_JIRA_RELEASED: false
-  #     CREATE_INT_RC_RELEASE_NOTES: true
-  #     IS_PULL_REQUEST: false
-  #   secrets:
-  #     CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
-  #     CDK_PULL_IMAGE_ROLE: ${{ secrets.INT_CDK_PULL_IMAGE_ROLE }}
-  #     DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-  #     REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-  #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  #     SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+  release_int:
+    needs: [tag_release, package_code, get_commit_id, release_qa]
+    uses: ./.github/workflows/release_all_stacks.yml
+    with:
+      STACK_NAME: epsam
+      TARGET_ENVIRONMENT: int
+      VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
+      COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
+      CDK_APP_NAME: EpsAssistMeApp
+      DEPLOY_CODE: true
+      LOG_RETENTION_IN_DAYS: 731
+      LOG_LEVEL: "INFO"
+      CREATE_INT_RELEASE_NOTES: true
+      CREATE_PROD_RELEASE_NOTES: true
+      MARK_JIRA_RELEASED: false
+      CREATE_INT_RC_RELEASE_NOTES: true
+      IS_PULL_REQUEST: false
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
+      CDK_PULL_IMAGE_ROLE: ${{ secrets.INT_CDK_PULL_IMAGE_ROLE }}
+      DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+      REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
 
   # TODO: uncomment when ready to release to prod
   # release_prod:
