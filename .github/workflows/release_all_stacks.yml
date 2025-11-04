@@ -208,7 +208,7 @@ jobs:
 
   update_github_pages:
     runs-on: ubuntu-22.04
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ inputs.IS_PULL_REQUEST == false && always() && !failure() && !cancelled() }}
     needs: [release_all_code]
     permissions:
       id-token: write
