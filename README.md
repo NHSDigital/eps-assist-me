@@ -206,6 +206,7 @@ Scripts are in the `.github/scripts` folder:
 - `call_mark_jira_released.sh` Calls a Lambda function to mark Jira issues as released.
 - `check-sbom-issues-against-ignores.sh` Validates SBOM scan against ignore list and reports unignored critical issues.
 - `create_env_release_notes.sh` Generates release notes for a specific environment using a Lambda function.
+- `create_int_rc_release_notes.sh` Creates release candidate notes for integration environment using a Lambda function.
 - `delete_stacks.sh` Checks and deletes active CloudFormation stacks associated with closed pull requests.
 - `fix_cdk_json.sh` Updates context values in `cdk.json` using environment variables before deployment.
 - `get_current_dev_tag.sh` Retrieves the current development tag and sets it as an environment variable.
@@ -220,7 +221,7 @@ Workflows are in the `.github/workflows` folder:
 - `pr_title_check.yml` Checks PR titles for required prefix and ticket or dependabot reference.
 - `pr-link.yml` This workflow template links Pull Requests to Jira tickets and runs when a pull request is opened.
 - `pull_request.yml` Called when pull request is opened or updated. Packages and deploys the code to dev AWS account for testing.
-- `release.yml` Runs on demand to create a release and deploy to all environments.
+- `release_all_stacks.yml` Reusable workflow for deploying to any environment with environment-specific approvals and configurations.
+- `release.yml` Runs on demand to create a release and deploy to INT and PROD environments with manual approval.
 - `cdk_package_code.yml` Packages code into a docker image and uploads to a github artifact for later deployment.
-- `cdk_release_code.yml` Release code built by cdk_package_code.yml to an environment.
-- `ci.yml` Continuous integration workflow for quality checks and testing.
+- `ci.yml` Merge to main workflow that automatically deploys to DEV and QA environments after quality checks.

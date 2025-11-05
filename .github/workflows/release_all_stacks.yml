@@ -1,4 +1,4 @@
-name: cdk release code
+name: release all stacks
 
 on:
   workflow_call:
@@ -20,14 +20,26 @@ on:
         type: string
       DEPLOY_CODE:
         type: boolean
-        default: false
+        default: true
       LOG_RETENTION_IN_DAYS:
         required: true
         type: string
       LOG_LEVEL:
         required: true
         type: string
+      CREATE_INT_RELEASE_NOTES:
+        type: boolean
+        default: false
+      CREATE_PROD_RELEASE_NOTES:
+        type: boolean
+        default: false
       MARK_JIRA_RELEASED:
+        type: boolean
+        default: false
+      CREATE_INT_RC_RELEASE_NOTES:
+        type: boolean
+        default: false
+      IS_PULL_REQUEST:
         type: boolean
         default: false
     secrets:
@@ -36,6 +48,10 @@ on:
       CDK_PULL_IMAGE_ROLE:
         required: true
       DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE:
+        required: false
+      INT_CLOUD_FORMATION_CHECK_VERSION_ROLE:
+        required: false
+      PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE:
         required: false
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
         required: false
@@ -47,14 +63,13 @@ on:
         required: false
 
 jobs:
-  release_code:
+  release_all_code:
     runs-on: ubuntu-22.04
     environment: ${{ inputs.TARGET_ENVIRONMENT }}
     name: deploy cdk app ${{ inputs.CDK_APP_NAME }}
     permissions:
       id-token: write
       contents: write
-
     steps:
       - name: Checkout local github actions
         uses: actions/checkout@v5
@@ -64,8 +79,20 @@ jobs:
           sparse-checkout: |
             .github
 
+      - name: create_int_rc_release_notes
+        uses: ./.github/actions/update_confluence_jira
+        if: ${{ inputs.CREATE_INT_RC_RELEASE_NOTES == true && inputs.TARGET_ENVIRONMENT == 'int' }}
+        with:
+          TARGET_ENVIRONMENT: int
+          RELEASE_TAG: ${{ inputs.VERSION_NUMBER }}
+          CONFLUENCE_PAGE_ID: "899319592"
+          CREATE_RC_RELEASE_NOTES: true
+          DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+          TARGET_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+          DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+
       - name: Configure AWS Credentials
-        id: connect-aws-pull-image
+        id: connect_aws_pull_image
         uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: eu-west-2
@@ -76,18 +103,18 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: build_artifact
-  
-      - name: Extract build_artifact
+
+      - name: extract build_artifact
         run: |
           mkdir -p .build
           tar -xf artifact.tar -C .build
 
       - name: Retrieve AWS Account ID
-        id: retrieve-account-id
+        id: retrieve_aws_account_id
         run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_ENV"
 
       - name: Login to Amazon ECR
-        id: login-ecr
+        id: login_ecr
         run: |
           aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com
 
@@ -97,7 +124,7 @@ jobs:
           docker tag "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest" cdk-utils-build-repo:latest
 
       - name: Configure AWS Credentials
-        id: connect-aws
+        id: connect_aws_for_deployment
         uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: eu-west-2
@@ -117,36 +144,61 @@ jobs:
           LOG_LEVEL: "${{ inputs.LOG_LEVEL }}"
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
+          CDK_APP_NAME: ${{ inputs.CDK_APP_NAME }}
+          IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
 
-      - name: Show diff
+      - name: Show diff for stack
         run: |
           docker run \
-            -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-            -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
-            -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
-            -e AWS_REGION="eu-west-2" \
-            -e SHOW_DIFF="true" \
-            -e DEPLOY_CODE="false" \
-            -e CONFIG_FILE_NAME="epsam_app.json" \
-            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-            cdk-utils-build-repo:latest
+          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
+          -e AWS_ACCESS_KEY_ID=${{ steps.connect_aws_for_deployment.outputs.aws-access-key-id }} \
+          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect_aws_for_deployment.outputs.aws-secret-access-key }} \
+          -e AWS_SESSION_TOKEN=${{ steps.connect_aws_for_deployment.outputs.aws-session-token }} \
+          -e AWS_REGION="eu-west-2" \
+          -e SHOW_DIFF="true" \
+          -e DEPLOY_CODE="false" \
+          -e CONFIG_FILE_NAME="epsam_app.json" \
+          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+          cdk-utils-build-repo:latest
+        shell: bash
 
-      - name: Deploy code
+      - name: Deploy code for stack
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
           docker run \
-            -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-            -e AWS_ACCESS_KEY_ID=${{ steps.connect-aws.outputs.aws-access-key-id }} \
-            -e AWS_SECRET_ACCESS_KEY=${{ steps.connect-aws.outputs.aws-secret-access-key }} \
-            -e AWS_SESSION_TOKEN=${{ steps.connect-aws.outputs.aws-session-token }} \
-            -e AWS_REGION="eu-west-2" \
-            -e SHOW_DIFF="false" \
-            -e DEPLOY_CODE="true" \
-            -e CONFIG_FILE_NAME="epsam_app.json" \
-            -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-            cdk-utils-build-repo:latest
+          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
+          -e AWS_ACCESS_KEY_ID=${{ steps.connect_aws_for_deployment.outputs.aws-access-key-id }} \
+          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect_aws_for_deployment.outputs.aws-secret-access-key }} \
+          -e AWS_SESSION_TOKEN=${{ steps.connect_aws_for_deployment.outputs.aws-session-token }} \
+          -e AWS_REGION="eu-west-2" \
+          -e SHOW_DIFF="false" \
+          -e DEPLOY_CODE="true" \
+          -e CONFIG_FILE_NAME="epsam_app.json" \
+          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
+          cdk-utils-build-repo:latest
         shell: bash
+
+      - name: create_int_release_notes
+        uses: ./.github/actions/update_confluence_jira
+        if: ${{ inputs.CREATE_INT_RELEASE_NOTES == true && inputs.TARGET_ENVIRONMENT == 'int' && always() && !failure() && !cancelled() }}
+        with:
+          TARGET_ENVIRONMENT: int
+          CONFLUENCE_PAGE_ID: "899319595"
+          CREATE_RC_RELEASE_NOTES: false
+          DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+          TARGET_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+          DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+
+      - name: create_prod_release_notes
+        uses: ./.github/actions/update_confluence_jira
+        if: ${{ inputs.CREATE_PROD_RELEASE_NOTES == true && inputs.TARGET_ENVIRONMENT == 'prod' && always() && !failure() && !cancelled() }}
+        with:
+          TARGET_ENVIRONMENT: prod
+          CONFLUENCE_PAGE_ID: "899319597"
+          CREATE_RC_RELEASE_NOTES: false
+          DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+          TARGET_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+          DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
 
       - name: mark_released_in_jira
         uses: ./.github/actions/mark_jira_released
@@ -155,15 +207,23 @@ jobs:
           RELEASE_TAG: ${{ inputs.VERSION_NUMBER }}
           DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
 
+  update_github_pages:
+    runs-on: ubuntu-22.04
+    if: ${{ inputs.IS_PULL_REQUEST == false && always() && !failure() && !cancelled() }}
+    needs: [release_all_code]
+    permissions:
+      id-token: write
+      contents: write
+    steps:
       - name: Checkout gh-pages
-        if: ${{ !startsWith(inputs.STACK_NAME, 'epsam-pr-') }}
+        if: ${{ inputs.IS_PULL_REQUEST == false }}
         uses: actions/checkout@v5
         with:
           ref: gh-pages
           path: gh-pages
 
-      - name: Update release tag in github pages
-        if: ${{ !startsWith(inputs.STACK_NAME, 'epsam-pr-') }}
+      - name: update release tag in github pages
+        if: ${{ inputs.IS_PULL_REQUEST == false }}
         run: |
           cd gh-pages
           NOW=$(date +'%Y-%m-%dT%H:%M:%S')
