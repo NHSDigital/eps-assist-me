@@ -100,7 +100,7 @@ jobs:
           role-session-name: eps-assist-me-pull-image
 
       - name: build_artifact download
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: build_artifact
 
