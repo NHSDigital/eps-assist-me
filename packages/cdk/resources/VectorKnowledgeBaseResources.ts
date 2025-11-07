@@ -10,6 +10,7 @@ import {
   ManagedWordFilterType,
   PIIType
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
+import {RemovalPolicy} from "aws-cdk-lib"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -133,6 +134,8 @@ export class VectorKnowledgeBaseResources extends Construct {
         }
       }
     })
+
+    knowledgeBase.applyRemovalPolicy(RemovalPolicy.DESTROY)
 
     // Create S3 data source for knowledge base documents
     const dataSource = new CfnDataSource(this, "S3DataSource", {

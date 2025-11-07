@@ -9,7 +9,7 @@ on:
         type: string
 
 env:
-  BRANCH_NAME: ${{ github.ref_name }}
+  BRANCH_NAME: ${{ github.event.ref.BRANCH_NAME }}
 
 jobs:
   get_asdf_version:
@@ -23,7 +23,7 @@ jobs:
 
       - name: Get asdf version
         id: asdf-version
-        run: echo "version=0.18.0" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(awk '!/^#/ && NF {print $1; exit}' .tool-versions.asdf)" >> "$GITHUB_OUTPUT"
 
       - name: Load config value
         id: load-config
@@ -36,18 +36,8 @@ jobs:
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  get_commit_id:
-    runs-on: ubuntu-22.04
-    outputs:
-      commit_id: ${{ steps.commit_id.outputs.commit_id }}
-    steps:
-      - name: Get Commit ID
-        id: commit_id
-        run: |
-          echo "commit_id=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-
   tag_release:
-    needs: [quality_checks, get_commit_id, get_asdf_version]
+    needs: [quality_checks, get_asdf_version]
     uses: NHSDigital/eps-workflow-semantic-release/.github/workflows/tag-release.yml@361957c147279f5f0f68b64fde9927833363d5f7
     with:
       dry_run: false
@@ -58,21 +48,21 @@ jobs:
     secrets: inherit
 
   package_code:
-    needs: [tag_release, get_commit_id]
+    needs: [tag_release]
     uses: ./.github/workflows/cdk_package_code.yml
     with:
       STACK_NAME: epsam
       VERSION_NUMBER: ${{needs.tag_release.outputs.version_tag}}
-      COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
+      COMMIT_ID: ${{ github.sha }}
 
   release_dev:
-    needs: [tag_release, package_code, get_commit_id]
+    needs: [tag_release, package_code]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
       STACK_NAME: epsam
       TARGET_ENVIRONMENT: dev
       VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-      COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
+      COMMIT_ID: ${{ github.sha }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 30
@@ -82,6 +72,7 @@ jobs:
       MARK_JIRA_RELEASED: false
       CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
+      RUN_REGRESSION_TESTS: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_DEPLOY_ROLE }}
       CDK_PULL_IMAGE_ROLE: ${{ secrets.DEV_CDK_PULL_IMAGE_ROLE }}
@@ -94,13 +85,13 @@ jobs:
       SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
 
   release_qa:
-    needs: [tag_release, package_code, get_commit_id, release_dev]
+    needs: [tag_release, package_code, release_dev]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
       STACK_NAME: epsam
       TARGET_ENVIRONMENT: qa
       VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-      COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
+      COMMIT_ID: ${{ github.sha }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 30
@@ -110,6 +101,7 @@ jobs:
       MARK_JIRA_RELEASED: false
       CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
+      RUN_REGRESSION_TESTS: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.QA_CLOUD_FORMATION_DEPLOY_ROLE }}
       CDK_PULL_IMAGE_ROLE: ${{ secrets.QA_CDK_PULL_IMAGE_ROLE }}
@@ -122,13 +114,13 @@ jobs:
       SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
 
   release_int:
-    needs: [tag_release, package_code, get_commit_id, release_qa]
+    needs: [tag_release, package_code, release_qa]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
       STACK_NAME: epsam
       TARGET_ENVIRONMENT: int
       VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-      COMMIT_ID: ${{needs.get_commit_id.outputs.commit_id}}
+      COMMIT_ID: ${{ github.sha }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 731
@@ -138,6 +130,7 @@ jobs:
       MARK_JIRA_RELEASED: false
       CREATE_INT_RC_RELEASE_NOTES: true
       IS_PULL_REQUEST: false
+      RUN_REGRESSION_TESTS: false
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
       CDK_PULL_IMAGE_ROLE: ${{ secrets.INT_CDK_PULL_IMAGE_ROLE }}

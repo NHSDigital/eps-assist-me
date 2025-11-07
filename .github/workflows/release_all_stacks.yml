@@ -27,6 +27,9 @@ on:
       LOG_LEVEL:
         required: true
         type: string
+      RUN_REGRESSION_TESTS:
+        type: boolean
+        default: true
       CREATE_INT_RELEASE_NOTES:
         type: boolean
         default: false
@@ -236,3 +239,14 @@ jobs:
           git add _data/${{ inputs.TARGET_ENVIRONMENT }}_deployments.csv
           git commit -m 'update releases for ${{ inputs.TARGET_ENVIRONMENT }}'
           parallel --retries 10 --delay 3 ::: "git pull --rebase && git push"
+
+  regression_tests:
+    name: Regression Tests
+    uses: ./.github/workflows/run_regression_tests.yml
+    if: ${{ always() && !failure() && !cancelled() && inputs.RUN_REGRESSION_TESTS == true }}
+    needs: [release_all_code]
+    with:
+      ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+      VERSION_NUMBER: ${{ inputs.VERSION_NUMBER }}
+    secrets:
+      REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}

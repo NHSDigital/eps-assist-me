@@ -19,8 +19,7 @@ jobs:
 
       - name: Get asdf version
         id: asdf-version
-        run: echo "version=0.18.0" >> "$GITHUB_OUTPUT"
-
+        run: echo "version=$(awk '!/^#/ && NF {print $1; exit}' .tool-versions.asdf)" >> "$GITHUB_OUTPUT"
       - name: Load config value
         id: load-config
         run: |
@@ -62,31 +61,22 @@ jobs:
             }
           result-encoding: string
 
-  get_commit_id:
-    runs-on: ubuntu-22.04
-    outputs:
-      commit_id: ${{ steps.commit_id.outputs.commit_id }}
-    steps:
-      - name: Get Commit ID
-        id: commit_id
-        run: |
-          echo "commit_id=${{ github.sha }}" >> "$GITHUB_OUTPUT"
   package_code:
-    needs: [get_issue_number, get_commit_id]
+    needs: [get_issue_number]
     uses: ./.github/workflows/cdk_package_code.yml
     with:
       STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
       VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
-      COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
+      COMMIT_ID: ${{ github.sha }}
 
   release_code:
-    needs: [get_issue_number, package_code, get_commit_id]
+    needs: [get_issue_number, package_code]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
       STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
       TARGET_ENVIRONMENT: dev-pr
       VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
-      COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
+      COMMIT_ID: ${{ github.sha }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 30
@@ -96,6 +86,7 @@ jobs:
       MARK_JIRA_RELEASED: false
       CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: true
+      RUN_REGRESSION_TESTS: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_DEPLOY_ROLE }}
       CDK_PULL_IMAGE_ROLE: ${{ secrets.DEV_CDK_PULL_IMAGE_ROLE }}

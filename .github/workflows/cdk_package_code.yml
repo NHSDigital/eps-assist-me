@@ -26,10 +26,10 @@ jobs:
         with:
           ref: ${{ env.BRANCH_NAME }}
 
-      # using git commit sha for version of action to ensure we have stable version
       - name: Get asdf version
         id: asdf-version
-        run: echo "version=0.18.0" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(awk '!/^#/ && NF {print $1; exit}' .tool-versions.asdf)" >> "$GITHUB_OUTPUT"
+
 
       # using git commit sha for version of action to ensure we have stable version
       - name: Install asdf

@@ -38,7 +38,8 @@ Tags.of(app).add("cfnDriftDetectionGroup", cfnDriftDetectionGroup)
 
 const EpsAssistMe = new EpsAssistMeStack(app, "EpsAssistMeStack", {
   env: {
-    region: "eu-west-2"
+    region: "eu-west-2",
+    account: process.env.CDK_DEFAULT_ACCOUNT || undefined
   },
   stackName: stackName,
   version: version,
