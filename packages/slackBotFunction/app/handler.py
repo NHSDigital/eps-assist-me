@@ -6,6 +6,7 @@ This Lambda function serves two purposes:
 2. Processes async operations when invoked by itself to avoid timeouts
 """
 
+from datetime import datetime
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
@@ -33,6 +34,10 @@ def handler(event: dict, context: LambdaContext) -> dict:
     When subsequent actions or events are processed, this is looked up, and if it exists, then the pull request lambda
     is triggered with either pull_request_event or pull_request_action
     """
+    # direct invocation bypasses slack infrastructure entirely
+    if event.get("invocation_type") == "direct":
+        return handle_direct_invocation(event, context)
+
     app = get_app(logger=logger)
     # handle pull request processing requests
     if event.get("pull_request_event"):
@@ -55,3 +60,40 @@ def handler(event: dict, context: LambdaContext) -> dict:
     # handle Slack webhook requests
     slack_handler = SlackRequestHandler(app=app)
     return slack_handler.handle(event=event, context=context)
+
+
+def handle_direct_invocation(event: dict, context: LambdaContext) -> dict:
+    """direct lambda invocation for ai assistance - bypasses slack entirely"""
+    try:
+        query = event.get("query")
+        session_id = event.get("session_id")
+
+        if not query or not query.strip():
+            return {
+                "statusCode": 400,
+                "response": {
+                    "error": "Missing required field: query",
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                },
+            }
+
+        # shared logic: same AI processing as slack handlers use
+        from app.services.ai_processor import process_ai_query
+
+        ai_response = process_ai_query(query, session_id)
+
+        return {
+            "statusCode": 200,
+            "response": {
+                "text": ai_response["text"],
+                "session_id": ai_response["session_id"],
+                "citations": ai_response["citations"],
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            },
+        }
+    except Exception as e:
+        logger.error(f"Error in direct invocation: {e}")
+        return {
+            "statusCode": 500,
+            "response": {"error": "Internal server error", "timestamp": datetime.utcnow().isoformat() + "Z"},
+        }
