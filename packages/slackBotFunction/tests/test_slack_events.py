@@ -169,23 +169,20 @@ def test_process_slack_message_empty_query(mock_get_parameter: Mock, mock_env: M
 
 
 @patch("app.services.dynamo.get_state_information")
-@patch("app.services.bedrock.query_bedrock")
-@patch("app.services.query_reformulator.reformulate_query")
+@patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.get_conversation_session")
 @patch("app.services.slack.post_error_message")
 def test_process_slack_message_event_error(
     mock_post_error_message: Mock,
     mock_get_session: Mock,
-    mock_reformulate_query: Mock,
-    mock_query_bedrock: Mock,
+    mock_process_ai_query: Mock,
     mock_get_state_information: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
     """Test async event processing with error"""
     # set up mocks
-    mock_query_bedrock.side_effect = Exception("Bedrock error")
-    mock_reformulate_query.return_value = "test question"
+    mock_process_ai_query.side_effect = Exception("AI processing error")
     mock_get_session.return_value = None  # No existing session
     mock_client = Mock()
 
@@ -203,13 +200,11 @@ def test_process_slack_message_event_error(
 
 
 @patch("app.services.dynamo.get_state_information")
-@patch("app.services.bedrock.query_bedrock")
-@patch("app.services.query_reformulator.reformulate_query")
+@patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_slack_message_with_thread_ts(
     mock_get_session: Mock,
-    mock_reformulate_query: Mock,
-    mock_query_bedrock: Mock,
+    mock_process_ai_query: Mock,
     mock_get_state_information: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
@@ -219,8 +214,12 @@ def test_process_slack_message_with_thread_ts(
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.return_value = {"ok": True}
-    mock_query_bedrock.return_value = {"output": {"text": "AI response"}}
-    mock_reformulate_query.return_value = "test question"
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}},
+    }
     mock_get_session.return_value = None  # No existing session
 
     # delete and import module to test
@@ -247,13 +246,11 @@ def test_process_slack_message_with_thread_ts(
 
 
 @patch("app.services.dynamo.get_state_information")
-@patch("app.services.bedrock.query_bedrock")
-@patch("app.services.query_reformulator.reformulate_query")
+@patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_regex_text_processing(
     mock_get_session: Mock,
-    mock_reformulate_query: Mock,
-    mock_query_bedrock: Mock,
+    mock_process_ai_query: Mock,
     mock_get_state_information: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
@@ -261,8 +258,12 @@ def test_regex_text_processing(
     """Test regex text processing functionality within process_async_slack_event"""
     # set up mocks
     mock_client = Mock()
-    mock_query_bedrock.return_value = {"output": {"text": "AI response"}}
-    mock_reformulate_query.return_value = "test question"
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}},
+    }
     mock_get_session.return_value = None  # No existing session
 
     # delete and import module to test
@@ -276,19 +277,17 @@ def test_regex_text_processing(
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
-    # Verify that the message was processed (query_bedrock was called)
-    mock_query_bedrock.assert_called_once()
+    # Verify that the message was processed (process_ai_query was called)
+    mock_process_ai_query.assert_called_once()
     # The actual regex processing happens inside the function
     assert mock_client.chat_postMessage.called
 
 
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.dynamo.store_state_information")
-@patch("app.services.bedrock.query_bedrock")
-@patch("app.services.query_reformulator.reformulate_query")
+@patch("app.services.ai_processor.process_ai_query")
 def test_process_slack_message_with_session_storage(
-    mock_reformulate_query: Mock,
-    mock_query_bedrock: Mock,
+    mock_process_ai_query: Mock,
     mock_store_state_information: Mock,
     mock_get_state_information: Mock,
     mock_get_parameter: Mock,
@@ -299,11 +298,12 @@ def test_process_slack_message_with_session_storage(
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.return_value = {"ok": True}
-    mock_query_bedrock.return_value = {
-        "output": {"text": "AI response"},
-        "sessionId": "new-session-123",
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "new-session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}, "sessionId": "new-session-123"},
     }
-    mock_reformulate_query.return_value = "test question"
 
     # delete and import module to test
     if "app.slack.slack_events" in sys.modules:
@@ -321,13 +321,11 @@ def test_process_slack_message_with_session_storage(
 
 
 @patch("app.services.dynamo.get_state_information")
-@patch("app.services.bedrock.query_bedrock")
-@patch("app.services.query_reformulator.reformulate_query")
+@patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_slack_message_chat_update_error(
     mock_get_session: Mock,
-    mock_reformulate_query: Mock,
-    mock_query_bedrock: Mock,
+    mock_process_ai_query: Mock,
     mock_get_state_information: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
@@ -337,8 +335,12 @@ def test_process_slack_message_chat_update_error(
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.side_effect = Exception("Update failed")
-    mock_query_bedrock.return_value = {"output": {"text": "AI response"}}
-    mock_reformulate_query.return_value = "test question"
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}},
+    }
     mock_get_session.return_value = None  # No existing session
 
     # delete and import module to test
@@ -355,13 +357,11 @@ def test_process_slack_message_chat_update_error(
 
 
 @patch("app.services.dynamo.get_state_information")
-@patch("app.services.bedrock.query_bedrock")
-@patch("app.services.query_reformulator.reformulate_query")
+@patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.get_conversation_session")
 def test_process_slack_message_dm_context(
     mock_get_session: Mock,
-    mock_reformulate_query: Mock,
-    mock_query_bedrock: Mock,
+    mock_process_ai_query: Mock,
     mock_get_state_information: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
@@ -370,7 +370,12 @@ def test_process_slack_message_dm_context(
     # set up mocks
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "123"}
-    mock_query_bedrock.return_value = {"output": {"text": "AI response"}, "sessionId": "new-session"}
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "new-session",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}, "sessionId": "new-session"},
+    }
     mock_get_session.return_value = None
 
     # delete and import module to test
