@@ -16,14 +16,14 @@ from app.core.config import (
     get_bot_token,
     get_logger,
 )
-from app.services.bedrock import query_bedrock
+
 from app.services.dynamo import (
     delete_state_information,
     get_state_information,
     store_state_information,
     update_state_information,
 )
-from app.services.query_reformulator import reformulate_query
+
 from app.services.slack import get_friendly_channel_name, post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
@@ -33,6 +33,9 @@ from app.utils.handler_utils import (
     is_latest_message,
     strip_mentions,
 )
+
+from app.services.ai_processor import process_ai_query
+
 
 logger = get_logger()
 
@@ -321,16 +324,13 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             client.chat_postMessage(**post_params)
             return
 
-        # Reformulate query for better RAG retrieval
-        reformulated_query = reformulate_query(user_query)
-
-        # Check if we have an existing Bedrock conversation session
+        # conversation continuity: reuse bedrock session across slack messages
         session_data = get_conversation_session_data(conversation_key)
         session_id = session_data.get("session_id") if session_data else None
 
-        # Query Bedrock Knowledge Base with conversation context
-        kb_response = query_bedrock(reformulated_query, session_id)
-        response_text = kb_response["output"]["text"]
+        ai_response = process_ai_query(user_query, session_id)
+        kb_response = ai_response["kb_response"]
+        response_text = ai_response["text"]
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
