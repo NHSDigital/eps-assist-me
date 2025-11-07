@@ -6,7 +6,7 @@
     "dockerfile": "Dockerfile",
     "context": "..",
     "args": {
-      "DOCKER_GID": "${env:DOCKER_GID}"
+      "DOCKER_GID": "${env:DOCKER_GID:}"
     }
   },
   "mounts": [
