@@ -2,6 +2,10 @@
 
 from unittest.mock import Mock, patch
 from app.handler import handle_direct_invocation
+from app.core.types import (
+    DirectInvocationRequest,
+    DirectInvocationResponse,
+)
 
 
 class TestDirectInvocation:
@@ -16,9 +20,9 @@ class TestDirectInvocation:
             "kb_response": {"sessionId": "new-session-123"},
         }
 
-        event = {"invocation_type": "direct", "query": "How do I authenticate with EPS API?"}
+        event: DirectInvocationRequest = {"invocation_type": "direct", "query": "How do I authenticate with EPS API?"}
 
-        result = handle_direct_invocation(event, Mock())
+        result: DirectInvocationResponse = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 200
         assert result["response"]["text"] == "AI response about EPS API authentication"
@@ -40,7 +44,7 @@ class TestDirectInvocation:
 
         event = {"invocation_type": "direct", "query": "What about rate limits?", "session_id": "existing-session-456"}
 
-        result = handle_direct_invocation(event, Mock())
+        result: DirectInvocationResponse = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 200
         assert result["response"]["text"] == "Follow-up response"
@@ -149,9 +153,9 @@ class TestDirectInvocation:
 
         timestamp = result["response"]["timestamp"]
         # iso8601 validation: parseable datetime with utc marker
-        assert timestamp.endswith("Z")
+        assert timestamp.endswith("+00:00")
         assert "T" in timestamp
         # format verification: datetime parsing confirms structure
         from datetime import datetime
 
-        datetime.fromisoformat(timestamp.rstrip("Z"))
+        datetime.fromisoformat(timestamp)

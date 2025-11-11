@@ -6,11 +6,18 @@ This Lambda function serves two purposes:
 2. Processes async operations when invoked by itself to avoid timeouts
 """
 
-from datetime import datetime
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+from typing import Any
+
 from app.core.config import get_logger
+from app.core.types import (
+    DirectInvocationResponse,
+    is_valid_direct_request,
+    create_success_response,
+    create_error_response,
+)
 from app.services.app import get_app
 from app.slack.slack_events import process_pull_request_slack_action, process_pull_request_slack_event
 
@@ -62,38 +69,26 @@ def handler(event: dict, context: LambdaContext) -> dict:
     return slack_handler.handle(event=event, context=context)
 
 
-def handle_direct_invocation(event: dict, context: LambdaContext) -> dict:
+def handle_direct_invocation(event: dict[str, Any], context: LambdaContext) -> DirectInvocationResponse:
     """direct lambda invocation for ai assistance - bypasses slack entirely"""
     try:
-        query = event.get("query")
-        session_id = event.get("session_id")
+        # validate request structure using type guard
+        if not is_valid_direct_request(event):
+            return create_error_response(400, "Missing required field: query")
 
-        if not query or not query.strip():
-            return {
-                "statusCode": 400,
-                "response": {
-                    "error": "Missing required field: query",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                },
-            }
+        query = event["query"]
+        session_id = event.get("session_id")
 
         # shared logic: same AI processing as slack handlers use
         from app.services.ai_processor import process_ai_query
 
         ai_response = process_ai_query(query, session_id)
 
-        return {
-            "statusCode": 200,
-            "response": {
-                "text": ai_response["text"],
-                "session_id": ai_response["session_id"],
-                "citations": ai_response["citations"],
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-            },
-        }
+        return create_success_response(
+            text=ai_response["text"],
+            session_id=ai_response["session_id"],
+            citations=ai_response["citations"],
+        )
     except Exception as e:
         logger.error(f"Error in direct invocation: {e}")
-        return {
-            "statusCode": 500,
-            "response": {"error": "Internal server error", "timestamp": datetime.utcnow().isoformat() + "Z"},
-        }
+        return create_error_response(500, "Internal server error")
