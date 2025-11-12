@@ -31,6 +31,8 @@ export class EpsAssistMeStack extends Stack {
 
     // imports
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
+    // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
+    const regressionTestRoleArn = Fn.importValue("regression-test:ExecutionRole:Arn")
 
     // Get variables from context
     const region = Stack.of(this).region
@@ -139,7 +141,8 @@ export class EpsAssistMeStack extends Stack {
       slackBotStateTable: tables.slackBotStateTable.table,
       promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
       isPullRequest: isPullRequest,
-      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
+      regressionTestRoleArn: regressionTestRoleArn
     })
 
     // Add S3 notification to trigger sync Lambda function
