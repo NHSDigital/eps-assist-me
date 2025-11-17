@@ -183,6 +183,11 @@ export class EpsAssistMeStack extends Stack {
       exportName: `${props.stackName}:lambda:SlackBot:ExecutionRole:Arn`
     })
 
+    new CfnOutput(this, "SlackBotLambdaArn", {
+      value: functions.slackBotLambda.function.functionArn,
+      exportName: `${props.stackName}:lambda:SlackBot:Arn`
+    })
+
     if (isPullRequest) {
       new CfnOutput(this, "VERSION_NUMBER", {
         value: props.version,
