@@ -66,53 +66,18 @@ jobs:
 
       - name: Build Python Lambda Functions
         run: |
-          set -e
-
-          # Ensure poetry export plugin is available
-          poetry self show plugins | grep export || poetry self add poetry-plugin-export
-
-          # Create dependency directories
-          mkdir -p .dependencies/slackBotFunction/python
-          mkdir -p .dependencies/syncKnowledgeBaseFunction/python
-
-          # Export and install slackBotFunction dependencies
-          echo "Exporting slackBotFunction dependencies..."
-          poetry export --format=requirements.txt --only=slackBotFunction --output=requirements_slackBotFunction.txt
-
-          if [ ! -s requirements_slackBotFunction.txt ]; then
-            echo "Error: requirements_slackBotFunction.txt is empty, trying alternative method..."
-            poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_slackBotFunction.txt
+          poetry export --without-hashes --format=requirements.txt --with slackBotFunction > requirements_slackBotFunction
+          poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction
+          if [ ! -s requirements_slackBotFunction ]; then \
+            echo "Error: requirements_slackBotFunction is empty or missing"; \
+            exit 1; \
           fi
-
-          echo "Installing slackBotFunction dependencies..."
-          pip3 install --no-deps -r requirements_slackBotFunction.txt -t .dependencies/slackBotFunction/python
-
-          # Export and install syncKnowledgeBaseFunction dependencies
-          echo "Exporting syncKnowledgeBaseFunction dependencies..."
-          poetry export --format=requirements.txt --only=syncKnowledgeBaseFunction --output=requirements_syncKnowledgeBaseFunction.txt
-
-          if [ ! -s requirements_syncKnowledgeBaseFunction.txt ]; then
-            echo "Error: requirements_syncKnowledgeBaseFunction.txt is empty, trying alternative method..."
-            poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_syncKnowledgeBaseFunction.txt
+          if [ ! -s requirements_syncKnowledgeBaseFunction ]; then \
+            echo "Error: requirements_syncKnowledgeBaseFunction is empty or missing"; \
+            exit 1; \
           fi
-
-          echo "Installing syncKnowledgeBaseFunction dependencies..."
-          pip3 install --no-deps -r requirements_syncKnowledgeBaseFunction.txt -t .dependencies/syncKnowledgeBaseFunction/python
-
-          # Verify installations succeeded
-          if [ ! "$(ls -A .dependencies/slackBotFunction/python)" ]; then
-            echo "Error: slackBotFunction dependency directory is empty after installation"
-            exit 1
-          fi
-
-          if [ ! "$(ls -A .dependencies/syncKnowledgeBaseFunction/python)" ]; then
-            echo "Error: syncKnowledgeBaseFunction dependency directory is empty after installation"
-            exit 1
-          fi
-
-          # Show summary
-          echo "Dependencies installed successfully:"
-          du -sh .dependencies/slackBotFunction/python .dependencies/syncKnowledgeBaseFunction/python
+          pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
+          pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 
       - name: "Tar files"
         run: |
