@@ -76,6 +76,8 @@ jobs:
             echo "Error: requirements_syncKnowledgeBaseFunction is empty or missing"; \
             exit 1; \
           fi
+          mkdir -p .dependencies/slackBotFunction/python
+          mkdir -p .dependencies/syncKnowledgeBaseFunction/python
           pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
           pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 
