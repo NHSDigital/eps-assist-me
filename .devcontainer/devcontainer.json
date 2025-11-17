@@ -30,8 +30,7 @@
         "AmazonWebServices.aws-toolkit-vscode",
         "redhat.vscode-yaml",
         "ms-python.python",
-        "ms-python.black-formatter",
-        "ms-python.flake8",
+        "charliermarsh.ruff",
         "eamodio.gitlens",
         "github.vscode-pull-request-github",
         "42crunch.vscode-openapi",
@@ -54,12 +53,13 @@
         "python.testing.unittestEnabled": false,
         "python.testing.pytestEnabled": false,
         "python.linting.pylintEnabled": false,
-        "python.linting.flake8Enabled": true,
-        "python.linting.enabled": true, // required to format on save
-        "python.formatting.provider": "black",
-        "black-formatter.args": ["--line-length=120"],
+        "python.linting.enabled": false, // Disable old linting since we're using ruff
         "[python]": {
-          "editor.defaultFormatter": "ms-python.black-formatter"
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "explicit",
+            "source.fixAll.ruff": "explicit"
+          }
         },
         "editor.defaultFormatter": "dbaeumer.vscode-eslint",
         "editor.formatOnPaste": false, // required

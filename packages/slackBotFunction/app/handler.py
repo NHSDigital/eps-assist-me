@@ -6,8 +6,8 @@ This Lambda function serves two purposes:
 2. Processes async operations when invoked by itself to avoid timeouts
 """
 
-from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from aws_lambda_powertools.utilities.typing import LambdaContext
+from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 
 from typing import Any
 
