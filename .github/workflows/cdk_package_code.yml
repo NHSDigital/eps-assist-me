@@ -72,20 +72,15 @@ jobs:
           mkdir -p .dependencies/slackBotFunction/python
           mkdir -p .dependencies/syncKnowledgeBaseFunction/python
 
-          # Debug: Check Poetry groups
-          echo "Available Poetry groups:"
-          poetry show --tree --only=slackBotFunction || echo "Failed to show slackBotFunction group"
-          poetry show --tree --only=syncKnowledgeBaseFunction || echo "Failed to show syncKnowledgeBaseFunction group"
-
           # Export dependencies with error handling
           echo "Exporting slackBotFunction dependencies..."
-          if ! poetry export --without-hashes --format=requirements.txt --only=slackBotFunction > requirements_slackBotFunction; then
+          if ! poetry export --without-hashes --format=requirements.txt --with slackBotFunction > requirements_slackBotFunction; then
             echo "Failed to export slackBotFunction dependencies"
             exit 1
           fi
 
           echo "Exporting syncKnowledgeBaseFunction dependencies..."
-          if ! poetry export --without-hashes --format=requirements.txt --only=syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction; then
+          if ! poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction; then
             echo "Failed to export syncKnowledgeBaseFunction dependencies"
             exit 1
           fi
