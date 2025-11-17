@@ -66,9 +66,7 @@ jobs:
 
       - name: Build Python Lambda Functions
         run: |
-          poetry export --without-hashes --format=requirements.txt --only=slackBotFunction > requirements_slackBotFunction || \
           poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_slackBotFunction
-          poetry export --without-hashes --format=requirements.txt --only=syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction || \
           poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_syncKnowledgeBaseFunction
           if [ ! -s requirements_slackBotFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_slackBotFunction)" -eq 0 ]; then \
             echo "Error: requirements_slackBotFunction is empty or contains only blank lines"; \
