@@ -66,14 +66,16 @@ jobs:
 
       - name: Build Python Lambda Functions
         run: |
-          poetry export --without-hashes --format=requirements.txt --with slackBotFunction > requirements_slackBotFunction
-          poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction
-          if [ ! -s requirements_slackBotFunction ]; then \
-            echo "Error: requirements_slackBotFunction is empty or missing"; \
+          poetry export --without-hashes --format=requirements.txt --only=slackBotFunction > requirements_slackBotFunction || \
+          poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_slackBotFunction
+          poetry export --without-hashes --format=requirements.txt --only=syncKnowledgeBaseFunction > requirements_syncKnowledgeBaseFunction || \
+          poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_syncKnowledgeBaseFunction
+          if [ ! -s requirements_slackBotFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_slackBotFunction)" -eq 0 ]; then \
+            echo "Error: requirements_slackBotFunction is empty or contains only blank lines"; \
             exit 1; \
           fi
-          if [ ! -s requirements_syncKnowledgeBaseFunction ]; then \
-            echo "Error: requirements_syncKnowledgeBaseFunction is empty or missing"; \
+          if [ ! -s requirements_syncKnowledgeBaseFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_syncKnowledgeBaseFunction)" -eq 0 ]; then \
+            echo "Error: requirements_syncKnowledgeBaseFunction is empty or contains only blank lines"; \
             exit 1; \
           fi
           mkdir -p .dependencies/slackBotFunction/python
