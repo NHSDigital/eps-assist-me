@@ -1,6 +1,6 @@
 import {Construct} from "constructs"
 import {Role} from "aws-cdk-lib/aws-iam"
-import {Tags} from "aws-cdk-lib"
+import {Stack, Tags} from "aws-cdk-lib"
 import {
   VectorCollection,
   VectorCollectionStandbyReplicas
@@ -18,6 +18,11 @@ export class OpenSearchResources extends Construct {
   constructor(scope: Construct, id: string, props: OpenSearchResourcesProps) {
     super(scope, id)
 
+    const account = Stack.of(this).account
+    const region = Stack.of(this).region
+    const cdkExecRoleArn = `arn:aws:iam::${account}:role/cdk-hnb659fds-cfn-exec-role-${account}-${region}`
+    const cdkExecRole = Role.fromRoleArn(this, "CdkExecRole", cdkExecRoleArn)
+
     // Create the OpenSearch Serverless collection using L2 construct
     this.collection = new VectorCollection(this, "Collection", {
       description: "EPS Assist Vector Store",
@@ -30,6 +35,7 @@ export class OpenSearchResources extends Construct {
 
     // Grant access to the Bedrock execution role
     this.collection.grantDataAccess(props.bedrockExecutionRole)
+    this.collection.grantDataAccess(cdkExecRole)
 
   }
 }
