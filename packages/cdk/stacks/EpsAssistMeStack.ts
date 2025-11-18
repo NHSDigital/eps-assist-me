@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   App,
   Stack,
@@ -90,84 +89,84 @@ export class EpsAssistMeStack extends Stack {
       region
     })
 
-    // const vectorIndex = new VectorIndex(this, "VectorIndex", {
-    //   stackName: props.stackName,
-    //   collection: openSearchResources.collection
-    // })
+    const vectorIndex = new VectorIndex(this, "VectorIndex", {
+      stackName: props.stackName,
+      collection: openSearchResources.collection
+    })
 
     // Create VectorKnowledgeBase construct with Bedrock execution role
-    // const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
-    //   stackName: props.stackName,
-    //   docsBucket: storage.kbDocsBucket.bucket,
-    //   bedrockExecutionRole: bedrockExecutionRole.role,
-    //   collectionArn: openSearchResources.collection.collectionArn,
-    //   vectorIndexName: vectorIndex.indexName,
-    //   region,
-    //   account
-    // })
+    const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
+      stackName: props.stackName,
+      docsBucket: storage.kbDocsBucket.bucket,
+      bedrockExecutionRole: bedrockExecutionRole.role,
+      collectionArn: openSearchResources.collection.collectionArn,
+      vectorIndexName: vectorIndex.indexName,
+      region,
+      account
+    })
 
-    // vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
+    vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
 
     // Create runtime policies with resource dependencies
-    // const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
-    //   region,
-    //   account,
-    //   slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
-    //   slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
-    //   slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
-    //   slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn,
-    //   knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
-    //   guardrailArn: vectorKB.guardrail.guardrailArn,
-    //   dataSourceArn: vectorKB.dataSourceArn,
-    //   promptName: bedrockPromptResources.queryReformulationPrompt.promptName
-    // })
+    const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
+      region,
+      account,
+      slackBotTokenParameterName: secrets.slackBotTokenParameter.parameterName,
+      slackSigningSecretParameterName: secrets.slackSigningSecretParameter.parameterName,
+      slackBotStateTableArn: tables.slackBotStateTable.table.tableArn,
+      slackBotStateTableKmsKeyArn: tables.slackBotStateTable.kmsKey.keyArn,
+      knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
+      guardrailArn: vectorKB.guardrail.guardrailArn,
+      dataSourceArn: vectorKB.dataSourceArn,
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
+    })
 
     // Create Functions construct with actual values from VectorKB
-    // const functions = new Functions(this, "Functions", {
-    //   stackName: props.stackName,
-    //   version: props.version,
-    //   commitId: props.commitId,
-    //   logRetentionInDays,
-    //   logLevel,
-    //   slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
-    //   syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
-    //   slackBotTokenParameter: secrets.slackBotTokenParameter,
-    //   slackSigningSecretParameter: secrets.slackSigningSecretParameter,
-    //   guardrailId: vectorKB.guardrail.guardrailId,
-    //   guardrailVersion: vectorKB.guardrail.guardrailVersion,
-    //   collectionId: openSearchResources.collection.collectionId,
-    //   knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
-    //   dataSourceId: vectorKB.dataSource.attrDataSourceId,
-    //   region,
-    //   account,
-    //   slackBotTokenSecret: secrets.slackBotTokenSecret,
-    //   slackBotSigningSecret: secrets.slackBotSigningSecret,
-    //   slackBotStateTable: tables.slackBotStateTable.table,
-    //   promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
-    //   isPullRequest: isPullRequest,
-    //   mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
-    // })
+    const functions = new Functions(this, "Functions", {
+      stackName: props.stackName,
+      version: props.version,
+      commitId: props.commitId,
+      logRetentionInDays,
+      logLevel,
+      slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
+      syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
+      slackBotTokenParameter: secrets.slackBotTokenParameter,
+      slackSigningSecretParameter: secrets.slackSigningSecretParameter,
+      guardrailId: vectorKB.guardrail.guardrailId,
+      guardrailVersion: vectorKB.guardrail.guardrailVersion,
+      collectionId: openSearchResources.collection.collectionId,
+      knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
+      dataSourceId: vectorKB.dataSource.attrDataSourceId,
+      region,
+      account,
+      slackBotTokenSecret: secrets.slackBotTokenSecret,
+      slackBotSigningSecret: secrets.slackBotSigningSecret,
+      slackBotStateTable: tables.slackBotStateTable.table,
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      isPullRequest: isPullRequest,
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
+    })
 
     // Add S3 notification to trigger sync Lambda function
-    // new S3LambdaNotification(this, "S3LambdaNotification", {
-    //   bucket: storage.kbDocsBucket.bucket,
-    //   lambdaFunction: functions.syncKnowledgeBaseFunction.function
-    // })
+    new S3LambdaNotification(this, "S3LambdaNotification", {
+      bucket: storage.kbDocsBucket.bucket,
+      lambdaFunction: functions.syncKnowledgeBaseFunction.function
+    })
 
     // Create Apis and pass the Lambda function
-    // const apis = new Apis(this, "Apis", {
-    //   stackName: props.stackName,
-    //   logRetentionInDays,
-    //   functions: {
-    //     slackBot: functions.slackBotLambda
-    //   }
-    // })
+    const apis = new Apis(this, "Apis", {
+      stackName: props.stackName,
+      logRetentionInDays,
+      functions: {
+        slackBot: functions.slackBotLambda
+      }
+    })
 
     // Output: SlackBot Endpoint
-    // new CfnOutput(this, "SlackBotEventsEndpoint", {
-    //   value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
-    //   description: "Slack Events API endpoint for @mentions and direct messages"
-    // })
+    new CfnOutput(this, "SlackBotEventsEndpoint", {
+      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
+      description: "Slack Events API endpoint for @mentions and direct messages"
+    })
 
     // Output: Bedrock Prompt ARN
     new CfnOutput(this, "QueryReformulationPromptArn", {
@@ -184,15 +183,15 @@ export class EpsAssistMeStack extends Stack {
       exportName: `${props.stackName}:kbDocsBucket:Name`
     })
 
-    // new CfnOutput(this, "SlackBotLambdaRoleArn", {
-    //   value: functions.slackBotLambda.executionRole.roleArn,
-    //   exportName: `${props.stackName}:lambda:SlackBot:ExecutionRole:Arn`
-    // })
+    new CfnOutput(this, "SlackBotLambdaRoleArn", {
+      value: functions.slackBotLambda.executionRole.roleArn,
+      exportName: `${props.stackName}:lambda:SlackBot:ExecutionRole:Arn`
+    })
 
-    // new CfnOutput(this, "SlackBotLambdaArn", {
-    //   value: functions.slackBotLambda.function.functionArn,
-    //   exportName: `${props.stackName}:lambda:SlackBot:Arn`
-    // })
+    new CfnOutput(this, "SlackBotLambdaArn", {
+      value: functions.slackBotLambda.function.functionArn,
+      exportName: `${props.stackName}:lambda:SlackBot:Arn`
+    })
 
     if (isPullRequest) {
       new CfnOutput(this, "VERSION_NUMBER", {
