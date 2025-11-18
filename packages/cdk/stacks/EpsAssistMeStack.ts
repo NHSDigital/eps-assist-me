@@ -122,7 +122,6 @@ export class EpsAssistMeStack extends Stack {
       commitId: props.commitId,
       logRetentionInDays,
       logLevel,
-      createIndexManagedPolicy: runtimePolicies.createIndexPolicy,
       slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
       syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
