@@ -40,7 +40,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout local github actions
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           ref: ${{ env.BRANCH_NAME }}
           fetch-depth: 0
