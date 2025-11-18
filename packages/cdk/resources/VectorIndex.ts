@@ -64,8 +64,9 @@ export class VectorIndex extends Construct {
       }
     })
 
-    this.cfnIndex = cfnIndex
+    cfnIndex.node.addDependency(props.collection.node.defaultChild!)
 
+    this.cfnIndex = cfnIndex
     this.cfnIndex.applyRemovalPolicy(RemovalPolicy.DESTROY)
   }
 }
