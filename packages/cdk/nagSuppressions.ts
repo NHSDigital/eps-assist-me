@@ -195,8 +195,8 @@ export const nagSuppressions = (stack: Stack) => {
     "/EpsAssistMeStack/VectorIndex/PolicySyncWait/LambdaExecutionRole/Resource",
     [
       {
-        id: "AwsSolutions-IAM5",
-        reason: "DelayResource Lambda requires wildcard log permissions for CloudWatch logging."
+        id: "AwsSolutions-IAM4",
+        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role."
       }
     ]
   )
@@ -206,8 +206,8 @@ export const nagSuppressions = (stack: Stack) => {
     "/EpsAssistMeStack/VectorIndex/IndexReadyWait/LambdaExecutionRole/Resource",
     [
       {
-        id: "AwsSolutions-IAM5",
-        reason: "DelayResource Lambda requires wildcard log permissions for CloudWatch logging."
+        id: "AwsSolutions-IAM4",
+        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role."
       }
     ]
   )

@@ -1,13 +1,7 @@
 import {Construct} from "constructs"
 import {Duration, CustomResource} from "aws-cdk-lib"
 import {Function, Runtime, Code} from "aws-cdk-lib/aws-lambda"
-import {
-  Role,
-  ServicePrincipal,
-  PolicyDocument,
-  PolicyStatement,
-  Effect
-} from "aws-cdk-lib/aws-iam"
+import {Role, ServicePrincipal, ManagedPolicy} from "aws-cdk-lib/aws-iam"
 import {Provider} from "aws-cdk-lib/custom-resources"
 
 export interface DelayResourceProps {
@@ -39,21 +33,9 @@ export class DelayResource extends Construct {
     const lambdaExecutionRole = new Role(this, "LambdaExecutionRole", {
       assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
       description: "Execution role for delay custom resource Lambda function",
-      inlinePolicies: {
-        LogsPolicy: new PolicyDocument({
-          statements: [
-            new PolicyStatement({
-              effect: Effect.ALLOW,
-              actions: [
-                "logs:CreateLogGroup",
-                "logs:CreateLogStream",
-                "logs:PutLogEvents"
-              ],
-              resources: ["*"]
-            })
-          ]
-        })
-      }
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
+      ]
     })
 
     // create the delay Lambda function with inline Python code
