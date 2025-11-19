@@ -80,18 +80,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress wildcard permissions for CreateIndex policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/RuntimePolicies/CreateIndexPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Lambda needs access to all OpenSearch collections and indexes to create and manage indexes."
-      }
-    ]
-  )
-
   // Suppress wildcard permissions for SlackBot policy
   safeAddNagSuppression(
     stack,
