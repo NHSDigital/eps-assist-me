@@ -2,6 +2,7 @@ import {Construct} from "constructs"
 import {CfnIndex} from "aws-cdk-lib/aws-opensearchserverless"
 import {VectorCollection} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/opensearchserverless"
 import {RemovalPolicy} from "aws-cdk-lib"
+import {DelayResource} from "../constructs/DelayResource"
 
 export interface VectorIndexProps {
   readonly stackName: string
@@ -11,6 +12,8 @@ export interface VectorIndexProps {
 export class VectorIndex extends Construct {
   public readonly cfnIndex: CfnIndex
   public readonly indexName: string
+  public readonly policySyncWait: DelayResource
+  public readonly indexReadyWait: DelayResource
 
   constructor(scope: Construct, id: string, props: VectorIndexProps) {
     super(scope, id)
@@ -64,9 +67,31 @@ export class VectorIndex extends Construct {
       }
     })
 
-    cfnIndex.node.addDependency(props.collection.dataAccessPolicy)
+    // a fix for an annoying time sync issue that adds a small delay
+    // to ensure data access policies are synced before index creation
+    const policySyncWait = new DelayResource(this, "PolicySyncWait", {
+      delaySeconds: 15,
+      description: "Wait for OpenSearch data access policies to sync"
+    })
+
+    policySyncWait.customResource.node.addDependency(props.collection.dataAccessPolicy)
+
+    // Index depends on policy sync wait instead of directly on dataAccessPolicy
+    cfnIndex.node.addDependency(policySyncWait.customResource)
 
     cfnIndex.applyRemovalPolicy(RemovalPolicy.DESTROY)
+
+    // a fix for an annoying time sync issue that adds a small delay
+    // to ensure index is actually available for Bedrock
+    const indexReadyWait = new DelayResource(this, "IndexReadyWait", {
+      delaySeconds: 30,
+      description: "Wait for OpenSearch index to be fully available"
+    })
+
+    indexReadyWait.customResource.node.addDependency(cfnIndex)
+
     this.cfnIndex = cfnIndex
+    this.policySyncWait = policySyncWait
+    this.indexReadyWait = indexReadyWait
   }
 }

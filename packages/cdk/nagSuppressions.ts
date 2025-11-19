@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
@@ -186,6 +187,97 @@ export const nagSuppressions = (stack: Stack) => {
       ]
     )
   })
+
+  // Suppress DelayResource IAM and runtime issues
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/LambdaExecutionRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "DelayResource Lambda requires wildcard log permissions for CloudWatch logging."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/LambdaExecutionRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "DelayResource Lambda requires wildcard log permissions for CloudWatch logging."
+      }
+    ]
+  )
+
+  // Suppress DelayProvider framework ServiceRole issues
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+      }
+    ]
+  )
+
+  // Suppress DelayFunction runtime version warnings
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayFunction/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "DelayResource uses Python 3.12 which is the latest stable runtime available for the delay functionality."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayFunction/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "DelayResource uses Python 3.12 which is the latest stable runtime available for the delay functionality."
+      }
+    ]
+  )
 
 }
 
