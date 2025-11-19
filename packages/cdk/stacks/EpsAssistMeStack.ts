@@ -106,6 +106,8 @@ export class EpsAssistMeStack extends Stack {
     })
 
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
+    vectorKB.knowledgeBase.node.addDependency(openSearchResources.collection)
+    vectorKB.knowledgeBase.node.addDependency(openSearchResources.collection.dataAccessPolicy)
 
     // Create runtime policies with resource dependencies
     const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
