@@ -98,8 +98,7 @@ def handler(event, context):
 
     // create the custom resource provider
     const provider = new Provider(this, "DelayProvider", {
-      onEventHandler: delayFunction,
-      logRetention: 14 // 14 days log retention
+      onEventHandler: delayFunction
     })
 
     // create the custom resource that triggers the delay

@@ -161,7 +161,8 @@ export const nagSuppressions = (stack: Stack) => {
   })
 
   const logRetentionHandlers = stack.node.findAll().filter(node =>
-    node.node.id.startsWith("LogRetention")
+    node.node.id.startsWith("LogRetention") &&
+    !node.node.path.includes("DelayProvider")
   )
 
   logRetentionHandlers.forEach(handler => {
