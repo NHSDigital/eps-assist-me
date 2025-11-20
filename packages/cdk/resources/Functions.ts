@@ -36,7 +36,6 @@ export interface FunctionsProps {
   readonly promptName: string
   readonly isPullRequest: boolean
   readonly mainSlackBotLambdaExecutionRoleArn : string
-  readonly regressionTestRoleArn: string
 }
 
 export class Functions extends Construct {
@@ -100,29 +99,6 @@ export class Functions extends Construct {
       })
       mainSlackBotLambdaExecutionRole.addManagedPolicy(executeSlackBotPolicy)
     }
-
-    // enable direct lambda testing — regression tests bypass slack infrastructure
-    const regressionTestRole = Role.fromRoleArn(
-      this,
-      "regressionTestRole",
-      props.regressionTestRoleArn, {
-        mutable: true
-      })
-
-    const regressionTestPolicy = new ManagedPolicy(this, "RegressionTestPolicy", {
-      description: "regression test cross-account invoke permission for direct ai validation",
-      statements: [
-        new PolicyStatement({
-          actions: [
-            "lambda:invokeFunction"
-          ],
-          resources: [
-            slackBotLambda.function.functionArn
-          ]
-        })
-      ]
-    })
-    regressionTestRole.addManagedPolicy(regressionTestPolicy)
 
     // Lambda function to sync knowledge base on S3 events
     const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {

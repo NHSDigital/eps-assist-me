@@ -18,7 +18,7 @@ import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
-import {Role} from "aws-cdk-lib/aws-iam"
+import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -146,8 +146,7 @@ export class EpsAssistMeStack extends Stack {
       slackBotStateTable: tables.slackBotStateTable.table,
       promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
       isPullRequest: isPullRequest,
-      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
-      regressionTestRoleArn: regressionTestRoleArn
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
     })
 
     // Add S3 notification to trigger sync Lambda function
@@ -164,6 +163,37 @@ export class EpsAssistMeStack extends Stack {
         slackBot: functions.slackBotLambda
       }
     })
+
+    // enable direct lambda testing — regression tests bypass slack infrastructure
+    const regressionTestRole = Role.fromRoleArn(
+      this,
+      "regressionTestRole",
+      regressionTestRoleArn, {
+        mutable: true
+      })
+
+    const regressionTestPolicy = new ManagedPolicy(this, "RegressionTestPolicy", {
+      description: "regression test cross-account invoke permission for direct ai validation",
+      statements: [
+        new PolicyStatement({
+          actions: [
+            "lambda:invokeFunction"
+          ],
+          resources: [
+            functions.slackBotLambda.function.functionArn
+          ]
+        }),
+        new PolicyStatement({
+          actions: [
+            "cloudformation:DescribeStacks"
+          ],
+          resources: [
+            this.stackId
+          ]
+        })
+      ]
+    })
+    regressionTestRole.addManagedPolicy(regressionTestPolicy)
 
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {
