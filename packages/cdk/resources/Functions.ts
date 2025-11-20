@@ -19,7 +19,6 @@ export interface FunctionsProps {
   readonly commitId: string
   readonly logRetentionInDays: number
   readonly logLevel: string
-  readonly createIndexManagedPolicy: ManagedPolicy
   readonly slackBotManagedPolicy: ManagedPolicy
   readonly slackBotTokenParameter: StringParameter
   readonly syncKnowledgeBaseManagedPolicy: ManagedPolicy

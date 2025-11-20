@@ -20,38 +20,11 @@ export interface RuntimePoliciesProps {
 }
 
 export class RuntimePolicies extends Construct {
-  public readonly createIndexPolicy: ManagedPolicy
   public readonly slackBotPolicy: ManagedPolicy
   public readonly syncKnowledgeBasePolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string, props: RuntimePoliciesProps) {
     super(scope, id)
-
-    // Create managed policy for CreateIndex Lambda function
-    const createIndexPolicy = new PolicyStatement({
-      actions: [
-        "aoss:APIAccessAll",
-        "aoss:DescribeIndex",
-        "aoss:ReadDocument",
-        "aoss:CreateIndex",
-        "aoss:DeleteIndex",
-        "aoss:UpdateIndex",
-        "aoss:WriteDocument",
-        "aoss:CreateCollectionItems",
-        "aoss:DeleteCollectionItems",
-        "aoss:UpdateCollectionItems",
-        "aoss:DescribeCollectionItems"
-      ],
-      resources: [
-        `arn:aws:aoss:${props.region}:${props.account}:collection/*`,
-        `arn:aws:aoss:${props.region}:${props.account}:index/*`
-      ]
-    })
-
-    this.createIndexPolicy = new ManagedPolicy(this, "CreateIndexPolicy", {
-      description: "Policy for Lambda to create OpenSearch index",
-      statements: [createIndexPolicy]
-    })
 
     // Create managed policy for SlackBot Lambda function
     const slackBotPolicy = new PolicyStatement({
