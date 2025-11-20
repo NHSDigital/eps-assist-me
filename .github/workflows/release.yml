@@ -84,8 +84,8 @@ jobs:
       PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+      SLACK_BOT_TOKEN: ${{ secrets.DEV_SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.DEV_SLACK_SIGNING_SECRET }}
 
   release_qa:
     needs: [tag_release, package_code, release_dev]
@@ -113,8 +113,8 @@ jobs:
       PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+      SLACK_BOT_TOKEN: ${{ secrets.QA_SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.QA_SLACK_SIGNING_SECRET }}
 
   release_int:
     needs: [tag_release, package_code, release_qa]
@@ -142,8 +142,8 @@ jobs:
       PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+      SLACK_BOT_TOKEN: ${{ secrets.INT_SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.INT_SLACK_SIGNING_SECRET }}
 
   # TODO: uncomment when ready to release to prod
   # release_prod:
@@ -171,8 +171,8 @@ jobs:
   #     PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
   #     DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
   #     REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-  #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  #     SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+  #     SLACK_BOT_TOKEN: ${{ secrets.PROD_SLACK_BOT_TOKEN }}
+  #     SLACK_SIGNING_SECRET: ${{ secrets.PROD_SLACK_SIGNING_SECRET }}
   #
   # create_release_notes:
   #   needs: [tag_release, package_code, get_commit_id, release_int, release_prod]
