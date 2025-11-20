@@ -33,7 +33,7 @@ export class EpsAssistMeStack extends Stack {
     // imports
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
-    const regressionTestRoleArn = Fn.importValue("regression-test:ExecutionRole:Arn")
+    const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
 
     // Get variables from context
     const region = Stack.of(this).region
