@@ -177,19 +177,19 @@ export class EpsAssistMeStack extends Stack {
       statements: [
         new PolicyStatement({
           actions: [
-            "lambda:invokeFunction"
+            "lambda:InvokeFunction"
           ],
           resources: [
             functions.slackBotLambda.function.functionArn
           ]
         }),
         new PolicyStatement({
-          actions: [
-            "cloudformation:DescribeStacks"
-          ],
-          resources: [
-            this.stackId
-          ]
+          actions: ["cloudformation:DescribeStacks"],
+          resources: [this.stackId]
+        }),
+        new PolicyStatement({
+          actions: ["cloudformation:ListStacks"],
+          resources: ["*"]
         })
       ]
     })
