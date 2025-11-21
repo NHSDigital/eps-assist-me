@@ -184,11 +184,10 @@ export class EpsAssistMeStack extends Stack {
           ]
         }),
         new PolicyStatement({
-          actions: ["cloudformation:DescribeStacks"],
-          resources: [this.stackId]
-        }),
-        new PolicyStatement({
-          actions: ["cloudformation:ListStacks"],
+          actions: [
+            "cloudformation:ListStacks",
+            "cloudformation:DescribeStacks"
+          ],
           resources: ["*"]
         })
       ]
