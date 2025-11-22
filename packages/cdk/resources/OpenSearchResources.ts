@@ -5,6 +5,8 @@ import {
   VectorCollection,
   VectorCollectionStandbyReplicas
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/opensearchserverless"
+import {generatePhysicalNameV2} from "@cdklabs/generative-ai-cdk-constructs/lib/common/helpers/utils"
+import {CfnAccessPolicy} from "aws-cdk-lib/aws-opensearchserverless"
 
 export interface OpenSearchResourcesProps {
   readonly stackName: string
@@ -31,7 +33,34 @@ export class OpenSearchResources extends Construct {
 
     // Grant access to the Bedrock execution role
     this.collection.grantDataAccess(props.bedrockExecutionRole)
-    this.collection.grantDataAccess(props.cdkExecutionRole)
+
+    // Grant access to the CDK execution role for deployment operations
+    const dataAccessPolicyName = generatePhysicalNameV2(this,
+      "DataAccessPolicy",
+      {maxLength: 32, lower: true})
+    const dataAccessPolicyDocument = [{
+      Rules: [
+        {
+          Resource: [`index/${this.collection.collectionName}/*`],
+          Permission: [
+            "aoss:UpdateIndex",
+            "aoss:DescribeIndex",
+            "aoss:CreateIndex",
+            "aoss:DeleteIndex"
+          ],
+          ResourceType: "index"
+        }
+      ],
+      Principal: [
+        props.cdkExecutionRole.roleArn
+      ],
+      Description: ""
+    }]
+    new CfnAccessPolicy(this, "DataAccessPolicy", {
+      name: dataAccessPolicyName,
+      type: "data",
+      policy: JSON.stringify(dataAccessPolicyDocument)
+    })
 
   }
 }
