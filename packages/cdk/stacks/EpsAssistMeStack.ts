@@ -93,7 +93,7 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName,
       collection: openSearchResources.collection
     })
-
+    vectorIndex.node.addDependency(openSearchResources.deploymentPolicy)
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
