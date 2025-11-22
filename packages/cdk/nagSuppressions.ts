@@ -280,6 +280,17 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/RegressionTestPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for cloudformation stack listing."
+      }
+    ]
+  )
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {

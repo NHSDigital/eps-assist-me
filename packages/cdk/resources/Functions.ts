@@ -75,6 +75,7 @@ export class Functions extends Construct {
     props.slackBotTokenSecret.grantRead(slackBotLambda.function)
     props.slackBotSigningSecret.grantRead(slackBotLambda.function)
 
+    // pr environments need main bot to invoke pr-specific lambda
     if (props.isPullRequest) {
       const mainSlackBotLambdaExecutionRole = Role.fromRoleArn(
         this,
@@ -84,7 +85,7 @@ export class Functions extends Construct {
         })
 
       const executeSlackBotPolicy = new ManagedPolicy(this, "ExecuteSlackBotPolicy", {
-        description: "foo",
+        description: "cross-lambda invocation for pr: command routing",
         statements: [
           new PolicyStatement({
             actions: [

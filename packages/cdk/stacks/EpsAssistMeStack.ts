@@ -18,7 +18,7 @@ import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
-import {Role} from "aws-cdk-lib/aws-iam"
+import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -32,6 +32,8 @@ export class EpsAssistMeStack extends Stack {
 
     // imports
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
+    // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
+    const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
 
     // Get variables from context
     const region = Stack.of(this).region
@@ -165,6 +167,36 @@ export class EpsAssistMeStack extends Stack {
       }
     })
 
+    // enable direct lambda testing — regression tests bypass slack infrastructure
+    const regressionTestRole = Role.fromRoleArn(
+      this,
+      "regressionTestRole",
+      regressionTestRoleArn, {
+        mutable: true
+      })
+
+    const regressionTestPolicy = new ManagedPolicy(this, "RegressionTestPolicy", {
+      description: "regression test cross-account invoke permission for direct ai validation",
+      statements: [
+        new PolicyStatement({
+          actions: [
+            "lambda:InvokeFunction"
+          ],
+          resources: [
+            functions.slackBotLambda.function.functionArn
+          ]
+        }),
+        new PolicyStatement({
+          actions: [
+            "cloudformation:ListStacks",
+            "cloudformation:DescribeStacks"
+          ],
+          resources: ["*"]
+        })
+      ]
+    })
+    regressionTestRole.addManagedPolicy(regressionTestPolicy)
+
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {
       value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/events`,
@@ -194,6 +226,11 @@ export class EpsAssistMeStack extends Stack {
     new CfnOutput(this, "SlackBotLambdaArn", {
       value: functions.slackBotLambda.function.functionArn,
       exportName: `${props.stackName}:lambda:SlackBot:Arn`
+    })
+
+    new CfnOutput(this, "SlackBotLambdaName", {
+      value: functions.slackBotLambda.function.functionName,
+      exportName: `${props.stackName}:lambda:SlackBot:FunctionName`
     })
 
     if (isPullRequest) {
