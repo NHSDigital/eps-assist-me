@@ -17,6 +17,7 @@ export interface OpenSearchResourcesProps {
 
 export class OpenSearchResources extends Construct {
   public readonly collection: VectorCollection
+  public readonly deploymentPolicy: CfnAccessPolicy
 
   constructor(scope: Construct, id: string, props: OpenSearchResourcesProps) {
     super(scope, id)
@@ -56,7 +57,7 @@ export class OpenSearchResources extends Construct {
       ],
       Description: ""
     }]
-    new CfnAccessPolicy(this, "DataAccessPolicy", {
+    this.deploymentPolicy = new CfnAccessPolicy(this, "DataAccessPolicy", {
       name: dataAccessPolicyName,
       type: "data",
       policy: JSON.stringify(dataAccessPolicyDocument)
