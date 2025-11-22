@@ -70,7 +70,7 @@ export class VectorIndex extends Construct {
     // a fix for an annoying time sync issue that adds a small delay
     // to ensure data access policies are synced before index creation
     const policySyncWait = new DelayResource(this, "PolicySyncWait", {
-      delaySeconds: 15,
+      delaySeconds: 60,
       description: "Wait for OpenSearch data access policies to sync"
     })
 
@@ -84,7 +84,7 @@ export class VectorIndex extends Construct {
     // a fix for an annoying time sync issue that adds a small delay
     // to ensure index is actually available for Bedrock
     const indexReadyWait = new DelayResource(this, "IndexReadyWait", {
-      delaySeconds: 30,
+      delaySeconds: 60,
       description: "Wait for OpenSearch index to be fully available"
     })
 
