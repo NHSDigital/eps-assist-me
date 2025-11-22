@@ -18,6 +18,7 @@ import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
+import {Role} from "aws-cdk-lib/aws-iam"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -35,6 +36,8 @@ export class EpsAssistMeStack extends Stack {
     // Get variables from context
     const region = Stack.of(this).region
     const account = Stack.of(this).account
+    const cdkExecRoleArn = `arn:aws:iam::${account}:role/cdk-hnb659fds-cfn-exec-role-${account}-${region}`
+
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
     const logLevel: string = this.node.tryGetContext("logLevel")
     const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
@@ -42,6 +45,8 @@ export class EpsAssistMeStack extends Stack {
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
+
+    const cdkExecRole = Role.fromRoleArn(this, "CdkExecRole", cdkExecRoleArn)
 
     if (!slackBotToken || !slackSigningSecret) {
       throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
@@ -80,6 +85,7 @@ export class EpsAssistMeStack extends Stack {
     const openSearchResources = new OpenSearchResources(this, "OpenSearchResources", {
       stackName: props.stackName,
       bedrockExecutionRole: bedrockExecutionRole.role,
+      cdkExecutionRole: cdkExecRole,
       region
     })
 
@@ -99,7 +105,7 @@ export class EpsAssistMeStack extends Stack {
       account
     })
 
-    vectorKB.knowledgeBase.node.addDependency(vectorIndex.cfnIndex)
+    vectorKB.knowledgeBase.node.addDependency(vectorIndex.indexReadyWait.customResource)
 
     // Create runtime policies with resource dependencies
     const runtimePolicies = new RuntimePolicies(this, "RuntimePolicies", {
@@ -122,7 +128,6 @@ export class EpsAssistMeStack extends Stack {
       commitId: props.commitId,
       logRetentionInDays,
       logLevel,
-      createIndexManagedPolicy: runtimePolicies.createIndexPolicy,
       slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
       syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,

@@ -1,5 +1,5 @@
 import {Construct} from "constructs"
-import {Role} from "aws-cdk-lib/aws-iam"
+import {IRole, Role} from "aws-cdk-lib/aws-iam"
 import {Tags} from "aws-cdk-lib"
 import {
   VectorCollection,
@@ -10,6 +10,7 @@ export interface OpenSearchResourcesProps {
   readonly stackName: string
   readonly bedrockExecutionRole: Role
   readonly region: string
+  readonly cdkExecutionRole: IRole
 }
 
 export class OpenSearchResources extends Construct {
@@ -30,6 +31,7 @@ export class OpenSearchResources extends Construct {
 
     // Grant access to the Bedrock execution role
     this.collection.grantDataAccess(props.bedrockExecutionRole)
+    this.collection.grantDataAccess(props.cdkExecutionRole)
 
   }
 }

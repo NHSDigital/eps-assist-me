@@ -75,7 +75,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout local github actions
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           ref: ${{ env.BRANCH_NAME }}
           fetch-depth: 0
@@ -96,14 +96,14 @@ jobs:
 
       - name: Configure AWS Credentials
         id: connect_aws_pull_image
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8
         with:
           aws-region: eu-west-2
           role-to-assume: ${{ secrets.CDK_PULL_IMAGE_ROLE }}
           role-session-name: eps-assist-me-pull-image
 
       - name: build_artifact download
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: build_artifact
 
@@ -128,7 +128,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: connect_aws_for_deployment
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8
         with:
           aws-region: eu-west-2
           role-to-assume: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
@@ -220,7 +220,7 @@ jobs:
     steps:
       - name: Checkout gh-pages
         if: ${{ inputs.IS_PULL_REQUEST == false }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           ref: gh-pages
           path: gh-pages
