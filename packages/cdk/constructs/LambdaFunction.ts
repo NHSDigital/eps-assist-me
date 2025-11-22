@@ -129,7 +129,7 @@ export class LambdaFunction extends Construct {
 
     // Create Lambda function with Python runtime and monitoring
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
-      runtime: Runtime.PYTHON_3_13,
+      runtime: Runtime.PYTHON_3_14,
       memorySize: 256,
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
