@@ -5,7 +5,8 @@ from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
 from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateResponseTypeDef
 
-from app.core.config import get_guardrail_config, get_logger
+from app.core.config import get_retrieve_generate_config, get_logger
+from app.services.prompt_loader import load_prompt
 
 
 logger = get_logger()
@@ -19,7 +20,18 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     a response using the configured LLM model with guardrails for safety.
     """
 
-    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION = get_guardrail_config()
+    (
+        KNOWLEDGEBASE_ID,
+        RAG_MODEL_ID,
+        AWS_REGION,
+        GUARD_RAIL_ID,
+        GUARD_VERSION,
+        RAG_RESPONSE_PROMPT_NAME,
+        RAG_RESPONSE_PROMPT_VERSION,
+    ) = get_retrieve_generate_config()
+
+    prompt_template = load_prompt(RAG_RESPONSE_PROMPT_NAME, RAG_RESPONSE_PROMPT_VERSION)
+
     client: AgentsforBedrockRuntimeClient = boto3.client(
         service_name="bedrock-agent-runtime",
         region_name=AWS_REGION,
@@ -40,6 +52,14 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             },
         },
     }
+
+    if prompt_template:
+        request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"][
+            "promptTemplate"
+        ] = {"textPromptTemplate": prompt_template}
+        logger.info(
+            "Using prompt template for RAG response generation", extra={"prompt_name": RAG_RESPONSE_PROMPT_NAME}
+        )
 
     # Include session ID for conversation continuity across messages
     if session_id:

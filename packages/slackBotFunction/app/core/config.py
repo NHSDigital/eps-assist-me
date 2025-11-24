@@ -71,18 +71,28 @@ def get_bot_token() -> str:
 
 
 @lru_cache
-def get_guardrail_config() -> Tuple[str, str, str, str, str]:
+def get_retrieve_generate_config() -> Tuple[str, str, str, str, str, str, str]:
     # Bedrock configuration from environment
     KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
     RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
     AWS_REGION = os.environ["AWS_REGION"]
     GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
     GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
+    RAG_RESPONSE_PROMPT_NAME = os.environ["RAG_RESPONSE_PROMPT_NAME"]
+    RAG_RESPONSE_PROMPT_VERSION = os.environ["RAG_RESPONSE_PROMPT_VERSION"]
 
     logger.info(
         "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
     )
-    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
+    return (
+        KNOWLEDGEBASE_ID,
+        RAG_MODEL_ID,
+        AWS_REGION,
+        GUARD_RAIL_ID,
+        GUARD_VERSION,
+        RAG_RESPONSE_PROMPT_NAME,
+        RAG_RESPONSE_PROMPT_VERSION,
+    )
 
 
 @dataclass
