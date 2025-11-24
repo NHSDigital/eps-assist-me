@@ -75,7 +75,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout local github actions
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
         with:
           ref: ${{ env.BRANCH_NAME }}
           fetch-depth: 0
@@ -220,7 +220,7 @@ jobs:
     steps:
       - name: Checkout gh-pages
         if: ${{ inputs.IS_PULL_REQUEST == false }}
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
         with:
           ref: gh-pages
           path: gh-pages
