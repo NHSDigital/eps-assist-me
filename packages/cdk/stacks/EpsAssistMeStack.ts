@@ -142,7 +142,10 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
-      promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      reformulationPromptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      ragResponsePromptName: bedrockPromptResources.ragResponsePrompt.promptName,
+      reformulationPromptVersion: bedrockPromptResources.queryReformulationPrompt.promptVersion,
+      ragResponsePromptVersion: bedrockPromptResources.ragResponsePrompt.promptVersion,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
     })
