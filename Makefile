@@ -130,3 +130,6 @@ cdk-watch:
 
 sync-docs: 
 	./scripts/sync_docs.sh
+
+compile:
+	echo "Does nothing currently"

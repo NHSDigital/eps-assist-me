@@ -58,7 +58,7 @@ def handler(event, context):
     print(f"Received event: {json.dumps(event, default=str)}")
 
     try:
-        if event["RequestType"] in ["Create", "Update"]:
+        if event["RequestType"] in ["Create"]:
             wait_seconds = int(event["ResourceProperties"].get("WaitSeconds", 0))
             print(f"Waiting for {wait_seconds} seconds...")
             sleep(wait_seconds)
