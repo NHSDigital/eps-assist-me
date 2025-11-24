@@ -95,6 +95,9 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName,
       collection: openSearchResources.collection
     })
+    // this dependency ensures the OpenSearch access policy is created before the VectorIndex
+    // and deleted after the VectorIndex is deleted to prevent deletion or deployment failures
+    vectorIndex.node.addDependency(openSearchResources.deploymentPolicy)
 
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
