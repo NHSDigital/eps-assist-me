@@ -47,7 +47,17 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                     "guardrailConfiguration": {
                         "guardrailId": GUARD_RAIL_ID,
                         "guardrailVersion": GUARD_VERSION,
-                    }
+                    },
+                    "inferenceConfig": {
+                        "textInferenceConfig": {
+                            "temperature": 0,
+                            "topP": 0.9,
+                            "maxTokens": 512,
+                            "stopSequences": [
+                                "Human:",
+                            ],
+                        }
+                    },
                 },
             },
         },

@@ -97,6 +97,10 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
             response = client.get_prompt(promptIdentifier=prompt_id)
 
         template_config = response["variants"][0]["templateConfiguration"]
+        # TODO: derive actual inference config then pass it along with prompt text to the retrieve_and_generate call
+        # so that all settings from the prompt management are applied directly from the cdk
+        # inference_config = response["variants"][0]["inferenceConfiguration"]
+
         prompt_text = _render_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
 

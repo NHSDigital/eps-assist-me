@@ -37,6 +37,7 @@ User Query: {{user_query}}`
       variants: [queryReformulationPromptVariant]
     })
 
+    // TODO: add inference settings
     const ragResponsePromptVariant = PromptVariant.chat({
       variantName: "default",
       model: claudeSonnetModel,
