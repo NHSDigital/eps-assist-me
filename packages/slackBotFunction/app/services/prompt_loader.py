@@ -9,12 +9,56 @@ from mypy_boto3_bedrock_agent import AgentsforBedrockClient
 logger = get_logger()
 
 
+def _render_prompt(template_config: dict) -> str:
+    """
+    Returns a unified prompt string regardless of template type.
+    """
+
+    chat_cfg = template_config.get("chat")
+    if chat_cfg:
+        parts: list[str] = []
+
+        system = (chat_cfg.get("system") or "").strip()
+        if system:
+            parts.append(system)
+
+        role_prefix = {
+            "user": "Human: ",
+            "assistant": "Assistant: ",
+        }
+
+        for msg in chat_cfg.get("messages") or []:
+            role = (msg.get("role") or "").lower()
+            content = (msg.get("content") or "").strip()
+            prefix = role_prefix.get(role)
+
+            if not prefix or not content:
+                continue
+
+            parts.append(prefix + content)
+
+        return "\n\n".join(parts)
+
+    text_cfg = template_config.get("text")
+    if isinstance(text_cfg, str):
+        return text_cfg
+    if isinstance(text_cfg, dict):
+        return text_cfg.get("text", "")
+
+    logger.error(
+        "Unsupported prompt configuration encountered",
+        extra={"available_keys": list(template_config.keys())},
+    )
+    raise PromptLoadError(f"Unsupported prompt configuration. Keys: {list(template_config.keys())}")
+
+
 def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
     """
     Load a prompt template from Amazon Bedrock Prompt Management.
 
     Resolves prompt name to ID, then loads the specified version.
     Supports both DRAFT and numbered versions.
+    Handles both text and chat prompt templates.
     """
     try:
         client: AgentsforBedrockClient = boto3.client("bedrock-agent", region_name=os.environ["AWS_REGION"])
@@ -24,21 +68,21 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
         if not prompt_id:
             raise PromptNotFoundError(f"Could not find prompt ID for name '{prompt_name}'")
 
-        # Load the prompt with the specified version
-        if prompt_version and prompt_version != "DRAFT":
-            logger.info(
-                f"Loading version {prompt_version} of prompt '{prompt_name}' (ID: {prompt_id})",
-                extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": prompt_version},
-            )
-            response = client.get_prompt(promptIdentifier=prompt_id, promptVersion=str(prompt_version))
+        is_explicit_version = prompt_version and prompt_version != "DRAFT"
+        selected_version = str(prompt_version) if is_explicit_version else "DRAFT"
+
+        logger.info(
+            f"Loading prompt {prompt_name}' (ID: {prompt_id})",
+            extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": prompt_version},
+        )
+
+        if is_explicit_version:
+            response = client.get_prompt(promptIdentifier=prompt_id, promptVersion=selected_version)
         else:
-            logger.info(
-                f"Loading DRAFT version of prompt '{prompt_name}' (ID: {prompt_id})",
-                extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": "DRAFT"},
-            )
             response = client.get_prompt(promptIdentifier=prompt_id)
 
-        prompt_text = response["variants"][0]["templateConfiguration"]["text"]["text"]
+        template_config = response["variants"][0]["templateConfiguration"]
+        prompt_text = _render_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
 
         logger.info(
