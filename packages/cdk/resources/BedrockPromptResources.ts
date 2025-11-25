@@ -55,7 +55,7 @@ User Query: {{user_query}}`
     6. Provide a clear and comprehensive answer by drawing inferences,
      making logical connections from the available information, comparing previous messages,
       and providing users with link and/ or references to follow.
-    6. Be clear in answers, direct actions are preferred (eg., "Check Postcode" > "Refer to documentation")  
+    6. Be clear in answers, direct actions are preferred (eg., "Check Postcode" &gt; "Refer to documentation")  
   </Requirements>
   
   <Constraints>
@@ -66,13 +66,12 @@ User Query: {{user_query}}`
      (as lists or bullet), the list items must be formatted as \`*<question>*
      - <answer(s)>\`.
       4a. If there are multiple questions in the query, shorten the question to less than 50 characters
-      4b. If questions are listed, *do not* include the list number/ letter 
-      in the question (i.e., "1. Question" -> "Question")
   </Constraints>
   
   <Output>
     - Structured, informative, and tailored to the specific context of the question. 
     - Acknowledging any assumptions or limitations in your knowledge or understanding.
+    - Text structure should be in Markdown
   </Output>
   
   <Tone> 
@@ -90,7 +89,7 @@ User Query: {{user_query}}`
 `,
       messages: [ChatMessage.user(`
 - Using your knowledge around the National Health Service (NHS), Electronic Prescription Service (EPS) and
-the Fast Healthcare Intereperability Resources' (FHIR) onboarding, Supplier Conformance Assessment List (SCAL),
+the Fast Healthcare Interoperability Resources' (FHIR) onboarding, Supplier Conformance Assessment List (SCAL),
 APIs, developer guides and error resolution; please answer the following question and cite direct quotes
 and document sections.
 - If my query is asking for instructions (i.e., "How to...", "How do I...") provide step by steps instructions
@@ -100,6 +99,18 @@ and document sections.
 
 <UserQuery>{{user_query}}</UserQuery>`)]
     })
+
+    ragResponsePromptVariant["inferenceConfiguration"] = {
+      "text": {
+        "temperature": 0,
+        "topP": 1,
+        "maxTokens": 512,
+        "stopSequences": [
+          "Human:"
+        ]
+      }
+    }
+
     const ragPrompt = new Prompt(this, "ragResponsePrompt", {
       promptName: `${props.stackName}-ragResponse`,
       description: "Prompt for generating RAG responses with knowledge base context and system instructions",

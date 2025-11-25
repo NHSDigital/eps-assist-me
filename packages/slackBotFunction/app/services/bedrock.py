@@ -51,7 +51,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                     "inferenceConfig": {
                         "textInferenceConfig": {
                             "temperature": 0,
-                            "topP": 0.9,
+                            "topP": 1,
                             "maxTokens": 512,
                             "stopSequences": [
                                 "Human:",
