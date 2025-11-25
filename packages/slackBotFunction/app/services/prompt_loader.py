@@ -18,32 +18,44 @@ def _render_prompt(template_config: dict) -> str:
     if chat_cfg:
         parts: list[str] = []
 
-        system = (chat_cfg.get("system") or "").strip()
-        if system:
-            parts.append(system)
+        system_items = chat_cfg.get("system", [])
+        if isinstance(system_items, list):
+            system_texts = [
+                item["text"].strip()
+                for item in system_items
+                if isinstance(item, dict) and "text" in item and item["text"].strip()
+            ]
+            if system_texts:
+                parts.append("\n".join(system_texts))
 
         role_prefix = {
             "user": "Human: ",
             "assistant": "Assistant: ",
         }
 
-        for msg in chat_cfg.get("messages") or []:
+        for msg in chat_cfg.get("messages", []):
             role = (msg.get("role") or "").lower()
-            content = (msg.get("content") or "").strip()
             prefix = role_prefix.get(role)
-
-            if not prefix or not content:
+            if not prefix:
                 continue
 
-            parts.append(prefix + content)
+            content_items = msg.get("content", [])
+            content_texts = [
+                item["text"].strip()
+                for item in content_items
+                if isinstance(item, dict) and "text" in item and item["text"].strip()
+            ]
+
+            if content_texts:
+                parts.append(prefix + "\n".join(content_texts))
 
         return "\n\n".join(parts)
 
     text_cfg = template_config.get("text")
+    if isinstance(text_cfg, dict) and "text" in text_cfg:
+        return text_cfg["text"]
     if isinstance(text_cfg, str):
         return text_cfg
-    if isinstance(text_cfg, dict):
-        return text_cfg.get("text", "")
 
     logger.error(
         "Unsupported prompt configuration encountered",
