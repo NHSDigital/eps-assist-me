@@ -95,7 +95,9 @@ and document sections.
 - If my query is asking for instructions (i.e., "How to...", "How do I...") provide step by steps instructions
 - Do not provide general advice or external instructions
 
-<user_query>{{user_query}}<user_query>`)]
+<SearchResults>$search_results$</SearchResults>
+
+<UserQuery>{{user_query}}</UserQuery>`)]
     })
     const ragPrompt = new Prompt(this, "ragResponsePrompt", {
       promptName: `${props.stackName}-ragResponse`,

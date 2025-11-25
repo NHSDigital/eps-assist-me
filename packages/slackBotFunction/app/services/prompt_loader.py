@@ -19,6 +19,7 @@ def _render_prompt(template_config: dict) -> str:
         parts: list[str] = []
 
         system_items = chat_cfg.get("system", [])
+        logger.debug("Processing system messages for prompt rendering", extra={"system_items": system_items})
         if isinstance(system_items, list):
             system_texts = [
                 item["text"].strip()
@@ -32,6 +33,8 @@ def _render_prompt(template_config: dict) -> str:
             "user": "Human: ",
             "assistant": "Assistant: ",
         }
+
+        logger.debug("Processing chat messages for prompt rendering", extra={"messages": chat_cfg.get("messages", [])})
 
         for msg in chat_cfg.get("messages", []):
             role = (msg.get("role") or "").lower()
