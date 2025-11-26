@@ -61,9 +61,10 @@ export class BedrockPromptSettings extends Construct {
    */
   private getTypedPrompt(type: BedrockPromptSettingsType)
   : { text: string; filename: string } {
-    // Read all files in the folder
+    // Read all files in the folder)
+    const path = __dirname + "/../../../prompts"
     const files = fs
-      .readdirSync(`${process.cwd()}/prompts`)
+      .readdirSync(path)
 
     if (files.length === 0) {
       throw new Error("No variant files found in the folder.")
@@ -75,7 +76,7 @@ export class BedrockPromptSettings extends Construct {
       throw new Error(`No prompt file found for type: ${type}`)
     }
 
-    const text = fs.readFileSync(`${process.cwd()}/prompts/${file}`, "utf-8")
+    const text = fs.readFileSync(`${path}/${file}`, "utf-8")
 
     return {text, filename: file}
   }
