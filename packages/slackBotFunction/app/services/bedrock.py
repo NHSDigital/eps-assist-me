@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Any
 import boto3
 from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
@@ -28,6 +29,9 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
         GUARD_VERSION,
         RAG_RESPONSE_PROMPT_NAME,
         RAG_RESPONSE_PROMPT_VERSION,
+        RAG_TEMPERATURE,
+        RAG_MAX_TOKENS,
+        RAG_TOP_P,
     ) = get_retrieve_generate_config()
 
     prompt_template = load_prompt(RAG_RESPONSE_PROMPT_NAME, RAG_RESPONSE_PROMPT_VERSION)
@@ -50,9 +54,9 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                     },
                     "inferenceConfig": {
                         "textInferenceConfig": {
-                            "temperature": 0,
-                            "topP": 1,
-                            "maxTokens": 512,
+                            "temperature": RAG_TEMPERATURE,
+                            "topP": RAG_TOP_P,
+                            "maxTokens": RAG_MAX_TOKENS,
                             "stopSequences": [
                                 "Human:",
                             ],
@@ -92,10 +96,10 @@ def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient) -> di
         body=json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",
-                "temperature": 0.1,
-                "top_p": 0.9,
+                "temperature": os.environ.get("RAG_TEMPERATURE", "1"),
+                "top_p": os.environ.get("RAG_TOP_P", "1"),
                 "top_k": 50,
-                "max_tokens": 150,
+                "max_tokens": os.environ.get("RAG_MAX_TOKENS", "512"),
                 "messages": [{"role": "user", "content": prompt}],
             }
         ),

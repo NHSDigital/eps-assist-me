@@ -102,3 +102,31 @@ def test_query_bedrock_check_prompt(mock_boto_client: Mock, mock_load_prompt: Mo
     ]["promptTemplate"]["textPromptTemplate"]
     assert prompt_template == "Test prompt template"
     assert result["output"]["text"] == "response"
+
+
+@patch("app.services.prompt_loader.load_prompt")
+@patch("boto3.client")
+def test_query_bedrock_check_config(mock_boto_client: Mock, mock_load_prompt: Mock, mock_env: Mock):
+    """Test query_bedrock config loading"""
+    # set up mocks
+    mock_client = Mock()
+    mock_boto_client.return_value = mock_client
+    mock_client.retrieve_and_generate.return_value = {"output": {"text": "response"}}
+
+    # delete and import module to test
+    if "app.services.bedrock" in sys.modules:
+        del sys.modules["app.services.bedrock"]
+    from app.services.bedrock import query_bedrock
+
+    # perform operation
+    query_bedrock("test query")
+
+    # assertions
+    call_args = mock_client.retrieve_and_generate.call_args[1]
+    prompt_config = call_args["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"][
+        "generationConfiguration"
+    ]["inferenceConfig"]["textInferenceConfig"]
+
+    assert prompt_config["temperature"] == "0.5"
+    assert prompt_config["maxTokens"] == "1024"
+    assert prompt_config["topP"] == "0.9"

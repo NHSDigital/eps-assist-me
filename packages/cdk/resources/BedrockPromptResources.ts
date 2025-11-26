@@ -4,11 +4,11 @@ import {
   Prompt,
   PromptVariant
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
-import {BedrockPromptCollection} from "../prompts/BedrockPromptsCollection"
+import {BedrockPromptSettings} from "./BedrockPromptSettings"
 
 export interface BedrockPromptResourcesProps {
   readonly stackName: string
-  readonly collection: BedrockPromptCollection
+  readonly settings: BedrockPromptSettings
 }
 
 export class BedrockPromptResources extends Construct {
@@ -25,7 +25,7 @@ export class BedrockPromptResources extends Construct {
       variantName: "default",
       model: claudeHaikuModel,
       promptVariables: ["topic"],
-      promptText: props.collection.reformulationPrompt.text
+      promptText: props.settings.reformulationPrompt.text
     })
 
     const queryReformulationPrompt = new Prompt(this, "QueryReformulationPrompt", {
@@ -39,19 +39,12 @@ export class BedrockPromptResources extends Construct {
       variantName: "default",
       model: claudeSonnetModel,
       promptVariables: ["query", "search_results"],
-      system: props.collection.systemPrompt.text,
-      messages: [props.collection.userPrompt]
+      system: props.settings.systemPrompt.text,
+      messages: [props.settings.userPrompt]
     })
 
     ragResponsePromptVariant["inferenceConfiguration"] = {
-      "text": {
-        "temperature": 0,
-        "topP": 1,
-        "maxTokens": 512,
-        "stopSequences": [
-          "Human:"
-        ]
-      }
+      "text": props.settings.inferenceConfig
     }
 
     const ragPrompt = new Prompt(this, "ragResponsePrompt", {
