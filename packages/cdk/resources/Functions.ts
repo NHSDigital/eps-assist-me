@@ -11,10 +11,6 @@ const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 const QUERY_REFORMULATION_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
 const LAMBDA_MEMORY_SIZE = "265"
-// Claude RAG inference parameters
-const RAG_TEMPERATURE = "0"
-const RAG_MAX_TOKENS = "512"
-const RAG_TOP_P = "1"
 
 export interface FunctionsProps {
   readonly stackName: string
@@ -75,10 +71,7 @@ export class Functions extends Construct {
         "QUERY_REFORMULATION_PROMPT_NAME": props.reformulationPromptName,
         "RAG_RESPONSE_PROMPT_NAME": props.ragResponsePromptName,
         "QUERY_REFORMULATION_PROMPT_VERSION": props.reformulationPromptVersion,
-        "RAG_RESPONSE_PROMPT_VERSION": props.ragResponsePromptVersion,
-        "RAG_TEMPERATURE": RAG_TEMPERATURE,
-        "RAG_MAX_TOKENS": RAG_MAX_TOKENS,
-        "RAG_TOP_P": RAG_TOP_P
+        "RAG_RESPONSE_PROMPT_VERSION": props.ragResponsePromptVersion
       }
     })
 

@@ -43,8 +43,8 @@ export class BedrockPromptResources extends Construct {
       messages: [props.settings.userPrompt]
     })
 
-    ragResponsePromptVariant["inferenceConfiguration"] = {
-      "text": props.settings.inferenceConfig
+    ragResponsePromptVariant.inferenceConfiguration = {
+      text: props.settings.inferenceConfig
     }
 
     const ragPrompt = new Prompt(this, "ragResponsePrompt", {

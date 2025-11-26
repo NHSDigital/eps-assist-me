@@ -1,15 +1,9 @@
 import * as fs from "fs"
 import {ChatMessage} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
 import {Construct} from "constructs"
+import {CfnPrompt} from "aws-cdk-lib/aws-bedrock"
 
 export type BedrockPromptSettingsType = "system" | "user" | "reformulation"
-
-export interface BedrockPromptInferenceConfig {
-  temperature: number,
-  topP: number,
-  maxTokens: number,
-  stopSequences: Array<string>
-}
 
 /** BedrockPromptSettings is responsible for loading and providing
  * the system, user, and reformulation prompts along with their
@@ -19,7 +13,7 @@ export class BedrockPromptSettings extends Construct {
   public readonly systemPrompt: ChatMessage
   public readonly userPrompt: ChatMessage
   public readonly reformulationPrompt: ChatMessage
-  public readonly inferenceConfig: BedrockPromptInferenceConfig
+  public readonly inferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
 
   /**
    * @param scope The Construct scope
@@ -38,14 +32,10 @@ export class BedrockPromptSettings extends Construct {
     const reformulationPrompt = this.getTypedPrompt("reformulation")
     this.reformulationPrompt = ChatMessage.user(reformulationPrompt.text)
 
-    const temperature = this.node.tryGetContext("ragTemperature")
-    const maxTokens = this.node.tryGetContext("ragMaxTokens")
-    const topP = this.node.tryGetContext("ragTopP")
-
     this.inferenceConfig = {
-      temperature: parseInt(temperature, 10),
-      topP: parseInt(topP, 10),
-      maxTokens: parseInt(maxTokens, 10),
+      temperature: 0,
+      topP: 1,
+      maxTokens: 512,
       stopSequences: [
         "Human:"
       ]
