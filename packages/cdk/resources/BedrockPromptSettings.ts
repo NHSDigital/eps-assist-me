@@ -62,7 +62,7 @@ export class BedrockPromptSettings extends Construct {
   private getTypedPrompt(type: BedrockPromptSettingsType)
   : { text: string; filename: string } {
     // Read all files in the folder)
-    const path = __dirname + "/../../../prompts"
+    const path = __dirname + "/../prompts"
     const files = fs
       .readdirSync(path)
 
