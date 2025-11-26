@@ -20,7 +20,7 @@ def test_load_prompt_success_draft(mock_boto_client: Mock, mock_env: Mock):
 
     # Mock get_prompt for DRAFT version
     mock_client.get_prompt.return_value = {
-        "variants": [{"templateConfiguration": {"text": {"text": "Test prompt"}}}],
+        "variants": [{"templateConfiguration": {"text": {"text": "Test prompt"}}, "inferenceConfiguration": {}}],
         "version": "DRAFT",
     }
 
@@ -33,7 +33,7 @@ def test_load_prompt_success_draft(mock_boto_client: Mock, mock_env: Mock):
     result = load_prompt("test-prompt")
 
     # assertions
-    assert result == "Test prompt"
+    assert result.get("prompt_text") == "Test prompt"
     mock_client.get_prompt.assert_called_once_with(promptIdentifier="ABC1234567")
 
 
@@ -46,7 +46,7 @@ def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_env: Mock):
     mock_client.list_prompts.return_value = {"promptSummaries": [{"name": "test-prompt", "id": "ABC1234567"}]}
 
     mock_client.get_prompt.return_value = {
-        "variants": [{"templateConfiguration": {"text": {"text": "Versioned prompt"}}}],
+        "variants": [{"templateConfiguration": {"text": {"text": "Versioned prompt"}}, "inferenceConfiguration": {}}],
         "version": "1",
     }
 
@@ -59,7 +59,7 @@ def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_env: Mock):
     result = load_prompt("test-prompt", "1")
 
     # assertions
-    assert result == "Versioned prompt"
+    assert result.get("prompt_text") == "Versioned prompt"
     mock_client.get_prompt.assert_called_once_with(promptIdentifier="ABC1234567", promptVersion="1")
 
 

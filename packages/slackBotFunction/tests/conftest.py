@@ -26,9 +26,6 @@ def mock_env():
         "QUERY_REFORMULATION_PROMPT_VERSION": "DRAFT",
         "RAG_RESPONSE_PROMPT_NAME": "test-rag-prompt",
         "RAG_RESPONSE_PROMPT_VERSION": "DRAFT",
-        "RAG_TEMPERATURE": "0.5",
-        "RAG_MAX_TOKENS": "1024",
-        "RAG_TOP_P": "0.9",
     }
     env_vars["AWS_DEFAULT_REGION"] = env_vars["AWS_REGION"]
     with patch.dict(os.environ, env_vars, clear=False):

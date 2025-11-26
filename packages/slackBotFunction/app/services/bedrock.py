@@ -1,5 +1,4 @@
 import json
-import os
 from typing import Any
 import boto3
 from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
@@ -29,12 +28,18 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
         GUARD_VERSION,
         RAG_RESPONSE_PROMPT_NAME,
         RAG_RESPONSE_PROMPT_VERSION,
-        RAG_TEMPERATURE,
-        RAG_MAX_TOKENS,
-        RAG_TOP_P,
     ) = get_retrieve_generate_config()
 
     prompt_template = load_prompt(RAG_RESPONSE_PROMPT_NAME, RAG_RESPONSE_PROMPT_VERSION)
+    inference_config = prompt_template.get("inference_config")
+
+    if not inference_config:
+        default_values = {"temperature": 0, "maxTokens": 512, "topP": 1}
+        inference_config = default_values
+        logger.warning(
+            "No inference configuration found in prompt template; using default values",
+            extra={"prompt_name": RAG_RESPONSE_PROMPT_NAME, "default_inference_config": default_values},
+        )
 
     client: AgentsforBedrockRuntimeClient = boto3.client(
         service_name="bedrock-agent-runtime",
@@ -54,9 +59,9 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                     },
                     "inferenceConfig": {
                         "textInferenceConfig": {
-                            "temperature": RAG_TEMPERATURE,
-                            "topP": RAG_TOP_P,
-                            "maxTokens": RAG_MAX_TOKENS,
+                            "temperature": inference_config.get("temperature", 1),
+                            "topP": inference_config.get("topP", 1),
+                            "maxTokens": inference_config.get("maxTokens", 512),
                             "stopSequences": [
                                 "Human:",
                             ],
@@ -70,7 +75,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     if prompt_template:
         request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"][
             "promptTemplate"
-        ] = {"textPromptTemplate": prompt_template}
+        ] = {"textPromptTemplate": prompt_template.get("prompt_text")}
         logger.info(
             "Using prompt template for RAG response generation", extra={"prompt_name": RAG_RESPONSE_PROMPT_NAME}
         )
@@ -90,16 +95,16 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     return response
 
 
-def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient) -> dict[str, Any]:
+def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient, inference_config: dict) -> dict[str, Any]:
     response = client.invoke_model(
         modelId=model_id,
         body=json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",
-                "temperature": os.environ.get("RAG_TEMPERATURE", "1"),
-                "top_p": os.environ.get("RAG_TOP_P", "1"),
+                "temperature": inference_config.get("temperature", "1"),
+                "top_p": inference_config.get("topP", "1"),
                 "top_k": 50,
-                "max_tokens": os.environ.get("RAG_MAX_TOKENS", "512"),
+                "max_tokens": inference_config.get("maxTokens", "512"),
                 "messages": [{"role": "user", "content": prompt}],
             }
         ),

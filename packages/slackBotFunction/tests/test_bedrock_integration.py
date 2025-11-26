@@ -84,7 +84,7 @@ def test_query_bedrock_check_prompt(mock_boto_client: Mock, mock_load_prompt: Mo
     mock_client = Mock()
     mock_boto_client.return_value = mock_client
     mock_client.retrieve_and_generate.return_value = {"output": {"text": "response"}}
-    mock_load_prompt.return_value = "Test prompt template"
+    mock_load_prompt.return_value = {"prompt_text": "Test prompt template", "inference_config": {}}
 
     # delete and import module to test
     if "app.services.bedrock" in sys.modules:
@@ -112,6 +112,10 @@ def test_query_bedrock_check_config(mock_boto_client: Mock, mock_load_prompt: Mo
     mock_client = Mock()
     mock_boto_client.return_value = mock_client
     mock_client.retrieve_and_generate.return_value = {"output": {"text": "response"}}
+    mock_load_prompt.return_value = {
+        "prompt_text": "Test prompt template",
+        "inference_config": {"temperature": "0", "maxTokens": "512", "topP": "1"},
+    }
 
     # delete and import module to test
     if "app.services.bedrock" in sys.modules:
@@ -127,6 +131,6 @@ def test_query_bedrock_check_config(mock_boto_client: Mock, mock_load_prompt: Mo
         "generationConfiguration"
     ]["inferenceConfig"]["textInferenceConfig"]
 
-    assert prompt_config["temperature"] == "0.5"
-    assert prompt_config["maxTokens"] == "1024"
-    assert prompt_config["topP"] == "0.9"
+    assert prompt_config["temperature"] == "0"
+    assert prompt_config["maxTokens"] == "512"
+    assert prompt_config["topP"] == "1"

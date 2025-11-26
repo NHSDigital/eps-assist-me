@@ -71,7 +71,7 @@ def parse_system_message(chat_cfg: dict) -> str:
     return "\n\n".join(parts)
 
 
-def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
+def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
     """
     Load a prompt template from Amazon Bedrock Prompt Management.
 
@@ -103,6 +103,7 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
         template_config = response["variants"][0]["templateConfiguration"]
         prompt_text = _render_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
+        inference_config = response["variants"][0]["inferenceConfiguration"]
 
         logger.info(
             f"Successfully loaded prompt '{prompt_name}' version {actual_version}",
@@ -110,9 +111,10 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
                 "prompt_name": prompt_name,
                 "prompt_id": prompt_id,
                 "version_used": actual_version,
+                "inference_config": inference_config,
             },
         )
-        return prompt_text
+        return {"prompt_text": prompt_text, "inference_config": inference_config}
 
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")

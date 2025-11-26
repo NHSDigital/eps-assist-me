@@ -14,7 +14,7 @@ def mock_logger():
 def test_reformulate_query_returns_string(mock_invoke_model: Mock, mock_load_prompt: Mock, mock_env: Mock):
     """Test that reformulate_query returns a string without crashing"""
     # set up mocks
-    mock_load_prompt.return_value = "Test reformat. {{user_query}}"
+    mock_load_prompt.return_value = {"prompt_text": "Test reformat. {{user_query}}", "inference_config": {}}
     mock_invoke_model.return_value = {"content": [{"text": "foo"}]}
 
     # delete and import module to test
@@ -24,6 +24,7 @@ def test_reformulate_query_returns_string(mock_invoke_model: Mock, mock_load_pro
 
     # perform operation
     result = reformulate_query("How do I use EPS?")
+    result = result
 
     # assertions
     # Function should return a string (either reformulated or fallback to original)
@@ -32,7 +33,7 @@ def test_reformulate_query_returns_string(mock_invoke_model: Mock, mock_load_pro
     assert result == "foo"
     mock_load_prompt.assert_called_once_with("test-prompt", "DRAFT")
     mock_invoke_model.assert_called_once_with(
-        prompt="Test reformat. How do I use EPS?", model_id="test-model", client=ANY
+        prompt="Test reformat. How do I use EPS?", model_id="test-model", client=ANY, inference_config={}
     )
 
 
