@@ -19,6 +19,7 @@ import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
+import {BedrockPromptCollection} from "../prompts/BedrockPromptsCollection"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -66,9 +67,18 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName
     })
 
+    /// TODO: Get versions during deployment - for now, default to latest
+    // Create Bedrock Prompt Collection
+    const bedrockPromptCollection = new BedrockPromptCollection(this, "BedrockPromptCollection", {
+      systemPromptVersion: undefined,
+      userPromptVersion: undefined,
+      reformulationPromptVersion: undefined
+    })
+
     // Create Bedrock Prompt Resources
     const bedrockPromptResources = new BedrockPromptResources(this, "BedrockPromptResources", {
-      stackName: props.stackName
+      stackName: props.stackName,
+      collection: bedrockPromptCollection
     })
 
     // Create Storage construct first as it has no dependencies
