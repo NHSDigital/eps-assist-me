@@ -27,6 +27,7 @@
   </Constraints>
   
   <Output>
+    - Use Markdown, avoid XML
     - Structured, informative, and tailored to the specific context of the question. 
     - Provide evidence to support results
     - Acknowledging any assumptions or limitations in your knowledge or understanding.

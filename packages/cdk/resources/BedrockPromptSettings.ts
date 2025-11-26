@@ -72,6 +72,10 @@ export class BedrockPromptSettings extends Construct {
 
     const file = files.find(file => file.startsWith(`${type}Prompt`))!
 
+    if (!file) {
+      throw new Error(`No prompt file found for type: ${type}`)
+    }
+
     const text = fs.readFileSync(file, "utf-8")
 
     return {text, filename: file}

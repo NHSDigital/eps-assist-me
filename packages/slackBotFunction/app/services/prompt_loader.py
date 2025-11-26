@@ -16,43 +16,7 @@ def _render_prompt(template_config: dict) -> str:
 
     chat_cfg = template_config.get("chat")
     if chat_cfg:
-        parts: list[str] = []
-
-        system_items = chat_cfg.get("system", [])
-        logger.debug("Processing system messages for prompt rendering", extra={"system_items": system_items})
-        if isinstance(system_items, list):
-            system_texts = [
-                item["text"].strip()
-                for item in system_items
-                if isinstance(item, dict) and "text" in item and item["text"].strip()
-            ]
-            if system_texts:
-                parts.append("\n".join(system_texts))
-
-        role_prefix = {
-            "user": "Human: ",
-            "assistant": "Assistant: ",
-        }
-
-        logger.debug("Processing chat messages for prompt rendering", extra={"messages": chat_cfg.get("messages", [])})
-
-        for msg in chat_cfg.get("messages", []):
-            role = (msg.get("role") or "").lower()
-            prefix = role_prefix.get(role)
-            if not prefix:
-                continue
-
-            content_items = msg.get("content", [])
-            content_texts = [
-                item["text"].strip()
-                for item in content_items
-                if isinstance(item, dict) and "text" in item and item["text"].strip()
-            ]
-
-            if content_texts:
-                parts.append(prefix + "\n".join(content_texts))
-
-        return "\n\n".join(parts)
+        return parse_system_message(chat_cfg)
 
     text_cfg = template_config.get("text")
     if isinstance(text_cfg, dict) and "text" in text_cfg:
@@ -65,6 +29,46 @@ def _render_prompt(template_config: dict) -> str:
         extra={"available_keys": list(template_config.keys())},
     )
     raise PromptLoadError(f"Unsupported prompt configuration. Keys: {list(template_config.keys())}")
+
+
+def parse_system_message(chat_cfg: dict) -> str:
+    parts: list[str] = []
+
+    system_items = chat_cfg.get("system", [])
+    logger.debug("Processing system messages for prompt rendering", extra={"system_items": system_items})
+    if isinstance(system_items, list):
+        system_texts = [
+            item["text"].strip()
+            for item in system_items
+            if isinstance(item, dict) and "text" in item and item["text"].strip()
+        ]
+        if system_texts:
+            parts.append("\n".join(system_texts))
+
+    role_prefix = {
+        "user": "Human: ",
+        "assistant": "Assistant: ",
+    }
+
+    logger.debug("Processing chat messages for prompt rendering", extra={"messages": chat_cfg.get("messages", [])})
+
+    for msg in chat_cfg.get("messages", []):
+        role = (msg.get("role") or "").lower()
+        prefix = role_prefix.get(role)
+        if not prefix:
+            continue
+
+        content_items = msg.get("content", [])
+        content_texts = [
+            item["text"].strip()
+            for item in content_items
+            if isinstance(item, dict) and "text" in item and item["text"].strip()
+        ]
+
+        if content_texts:
+            parts.append(prefix + "\n".join(content_texts))
+
+    return "\n\n".join(parts)
 
 
 def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
@@ -97,10 +101,6 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
             response = client.get_prompt(promptIdentifier=prompt_id)
 
         template_config = response["variants"][0]["templateConfiguration"]
-        # TODO: derive actual inference config then pass it along with prompt text to the retrieve_and_generate call
-        # so that all settings from the prompt management are applied directly from the cdk
-        # inference_config = response["variants"][0]["inferenceConfiguration"]
-
         prompt_text = _render_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
 
