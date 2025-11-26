@@ -18,7 +18,9 @@ The solution consists of:
 ## Project Structure
 
 This is a monorepo with the following structure:
+ 
 
+ 
 ```
 packages/
 ├── cdk/                        # AWS CDK infrastructure code
