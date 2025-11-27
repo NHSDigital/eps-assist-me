@@ -59,9 +59,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                     },
                     "inferenceConfig": {
                         "textInferenceConfig": {
-                            "temperature": inference_config.get("temperature", 1),
-                            "topP": inference_config.get("topP", 1),
-                            "maxTokens": inference_config.get("maxTokens", 512),
+                            **inference_config,
                             "stopSequences": [
                                 "Human:",
                             ],
@@ -101,10 +99,10 @@ def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient, infer
         body=json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",
-                "temperature": inference_config.get("temperature", "1"),
-                "top_p": inference_config.get("topP", "1"),
+                "temperature": inference_config["temperature"],
+                "top_p": inference_config["topP"],
                 "top_k": 50,
-                "max_tokens": inference_config.get("maxTokens", "512"),
+                "max_tokens": inference_config["maxTokens"],
                 "messages": [{"role": "user", "content": prompt}],
             }
         ),

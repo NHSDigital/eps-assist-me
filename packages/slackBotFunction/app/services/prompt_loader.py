@@ -100,10 +100,16 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
         else:
             response = client.get_prompt(promptIdentifier=prompt_id)
 
+        # Extract and render the prompt template
         template_config = response["variants"][0]["templateConfiguration"]
         prompt_text = _render_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
-        inference_config = response["variants"][0]["inferenceConfiguration"]
+
+        # Extract inference configuration with defaults
+        default_inference = {"temperature": 0, "topP": 1, "maxTokens": 512}
+        raw_inference = response["variants"][0].get("inferenceConfiguration", {})
+        raw_text_config = raw_inference.get("textInferenceConfiguration", {})
+        inference_config = {**default_inference, **raw_text_config}
 
         logger.info(
             f"Successfully loaded prompt '{prompt_name}' version {actual_version}",
@@ -111,7 +117,7 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
                 "prompt_name": prompt_name,
                 "prompt_id": prompt_id,
                 "version_used": actual_version,
-                "inference_config": inference_config,
+                **inference_config,
             },
         )
         return {"prompt_text": prompt_text, "inference_config": inference_config}

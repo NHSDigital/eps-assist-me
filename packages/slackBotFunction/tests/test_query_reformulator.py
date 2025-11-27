@@ -24,7 +24,6 @@ def test_reformulate_query_returns_string(mock_invoke_model: Mock, mock_load_pro
 
     # perform operation
     result = reformulate_query("How do I use EPS?")
-    result = result
 
     # assertions
     # Function should return a string (either reformulated or fallback to original)
