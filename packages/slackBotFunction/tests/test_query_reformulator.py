@@ -72,3 +72,23 @@ def test_reformulate_query_bedrock_error(mock_invoke_model: Mock, mock_load_prom
 
     # assertions
     assert result == "original query"
+
+
+@patch("app.services.prompt_loader.load_prompt")
+@patch("app.services.bedrock.invoke_model")
+def test_reformulate_query_bedrock_invoke_model(mock_invoke_model: Mock, mock_load_prompt: Mock, mock_env: Mock):
+    """Test query reformulation with successful Bedrock invoke_model call"""
+    # set up mocks
+    mock_load_prompt.return_value = {"prompt_text": "Reformulate this query: {{user_query}}"}
+    mock_invoke_model.return_value = {"content": [{"text": "reformulated query"}]}
+
+    # delete and import module to test
+    if "app.services.query_reformulator" in sys.modules:
+        del sys.modules["app.services.query_reformulator"]
+    from app.services.query_reformulator import reformulate_query
+
+    # perform operation
+    result = reformulate_query("original query")
+
+    # assertions
+    assert result == "reformulated query"

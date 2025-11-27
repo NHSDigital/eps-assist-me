@@ -182,6 +182,33 @@ def test_get_render_prompt_chat_dict(mock_logger: Mock, mock_env: Mock):
     assert result == "Assistant prompt here.\n\nHuman: User prompt here."
 
 
+def test_get_render_prompt_chat_dict_no_role(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [
+                    {"text": "Assistant prompt here."},
+                ],
+                "messages": [
+                    {
+                        "content": [
+                            {"text": "User prompt here."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Assistant prompt here."
+
+
 def test_get_render_prompt_chat_dict_multiple_questions(mock_logger: Mock, mock_env: Mock):
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
@@ -213,6 +240,59 @@ def test_get_render_prompt_chat_dict_multiple_questions(mock_logger: Mock, mock_
     assert result == "Human: First Prompt.\n\nHuman: Second Prompt."
 
 
+def test_get_render_prompt_chat_dict_multiple_assistant_prompts(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [
+                    {"text": "First Prompt."},
+                    {"text": "Second Prompt."},
+                ],
+                "messages": [],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "First Prompt.\nSecond Prompt."
+
+
+def test_get_render_prompt_chat_dict_multiple_assistant_message(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {"text": "First Prompt."},
+                        ],
+                    },
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {"text": "Second Prompt."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Assistant: First Prompt.\n\nAssistant: Second Prompt."
+
+
 def test_get_render_prompt_text_dict(mock_logger: Mock, mock_env: Mock):
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
@@ -227,6 +307,25 @@ def test_get_render_prompt_text_dict(mock_logger: Mock, mock_env: Mock):
 
     # assertions
     assert result == "Second Prompt."
+
+
+def test_get_render_prompt_empty(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [],
+                "messages": [],
+            }
+        },
+    )
+
+    # assertions
+    assert result == ""
 
 
 def test_render_prompt_raises_configuration_error_empty(mock_logger):
