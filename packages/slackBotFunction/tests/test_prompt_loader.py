@@ -98,6 +98,7 @@ def test_load_prompt_client_error(mock_boto_client: Mock, mock_env: Mock):
     from app.services.prompt_loader import load_prompt
 
     # perform operation
+
     with pytest.raises(Exception, match="ValidationException - Invalid prompt"):
         load_prompt("test-prompt")
 
@@ -151,3 +152,110 @@ def test_get_prompt_id_client_error(mock_logger: Mock, mock_env: Mock):
 
     # assertions
     assert result is None
+
+
+def test_get_render_prompt_chat_dict(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [
+                    {"text": "Assistant prompt here."},
+                ],
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"text": "User prompt here."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Assistant prompt here.\n\nHuman: User prompt here."
+
+
+def test_get_render_prompt_chat_dict_multiple_questions(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"text": "First Prompt."},
+                        ],
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {"text": "Second Prompt."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Human: First Prompt.\n\nHuman: Second Prompt."
+
+
+def test_get_render_prompt_text_dict(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "text": "Second Prompt.",
+        },
+    )
+
+    # assertions
+    assert result == "Second Prompt."
+
+
+def test_render_prompt_raises_configuration_error_empty(mock_logger):
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        if "app.services.prompt_loader" in sys.modules:
+            del sys.modules["app.services.prompt_loader"]
+        from app.services.prompt_loader import _render_prompt
+        from app.services.exceptions import PromptLoadError
+
+        with pytest.raises(PromptLoadError) as excinfo:
+            _render_prompt({})
+
+        # Verify the exception and logger call
+        assert excinfo.type is PromptLoadError
+        assert str(excinfo.value) == "Unsupported prompt configuration. Keys: []"
+        mock_logger.error.assert_called_once()
+
+
+def test_render_prompt_raises_configuration_error_text_missing(mock_logger):
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        if "app.services.prompt_loader" in sys.modules:
+            del sys.modules["app.services.prompt_loader"]
+        from app.services.prompt_loader import _render_prompt
+        from app.services.exceptions import PromptLoadError
+
+        with pytest.raises(PromptLoadError) as excinfo:
+            _render_prompt({"text": {}})
+
+        # Verify the exception and logger call
+        assert excinfo.type is PromptLoadError
+        assert str(excinfo.value) == "Unsupported prompt configuration. Keys: ['text']"
+        mock_logger.error.assert_called_once()
