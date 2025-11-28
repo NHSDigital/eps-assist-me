@@ -20,17 +20,8 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     a response using the configured LLM model with guardrails for safety.
     """
 
-    (
-        KNOWLEDGEBASE_ID,
-        RAG_MODEL_ID,
-        AWS_REGION,
-        GUARD_RAIL_ID,
-        GUARD_VERSION,
-        RAG_RESPONSE_PROMPT_NAME,
-        RAG_RESPONSE_PROMPT_VERSION,
-    ) = get_retrieve_generate_config()
-
-    prompt_template = load_prompt(RAG_RESPONSE_PROMPT_NAME, RAG_RESPONSE_PROMPT_VERSION)
+    config = get_retrieve_generate_config()
+    prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
     inference_config = prompt_template.get("inference_config")
 
     if not inference_config:
@@ -38,24 +29,24 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
         inference_config = default_values
         logger.warning(
             "No inference configuration found in prompt template; using default values",
-            extra={"prompt_name": RAG_RESPONSE_PROMPT_NAME, "default_inference_config": default_values},
+            extra={"prompt_name": config.RAG_RESPONSE_PROMPT_NAME, "default_inference_config": default_values},
         )
 
     client: AgentsforBedrockRuntimeClient = boto3.client(
         service_name="bedrock-agent-runtime",
-        region_name=AWS_REGION,
+        region_name=config.AWS_REGION,
     )
     request_params = {
         "input": {"text": user_query},
         "retrieveAndGenerateConfiguration": {
             "type": "KNOWLEDGE_BASE",
             "knowledgeBaseConfiguration": {
-                "knowledgeBaseId": KNOWLEDGEBASE_ID,
-                "modelArn": RAG_MODEL_ID,
+                "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
+                "modelArn": config.RAG_MODEL_ID,
                 "generationConfiguration": {
                     "guardrailConfiguration": {
-                        "guardrailId": GUARD_RAIL_ID,
-                        "guardrailVersion": GUARD_VERSION,
+                        "guardrailId": config.GUARD_RAIL_ID,
+                        "guardrailVersion": config.GUARD_VERSION,
                     },
                     "inferenceConfig": {
                         "textInferenceConfig": {
@@ -75,7 +66,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "promptTemplate"
         ] = {"textPromptTemplate": prompt_template.get("prompt_text")}
         logger.info(
-            "Using prompt template for RAG response generation", extra={"prompt_name": RAG_RESPONSE_PROMPT_NAME}
+            "Using prompt template for RAG response generation", extra={"prompt_name": config.RAG_RESPONSE_PROMPT_NAME}
         )
 
     # Include session ID for conversation continuity across messages
