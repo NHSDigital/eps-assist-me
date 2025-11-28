@@ -40,7 +40,7 @@ export class DelayResource extends Construct {
 
     // create the delay Lambda function with inline Python code
     const delayFunction = new Function(this, "DelayFunction", {
-      runtime: Runtime.PYTHON_3_12,
+      runtime: Runtime.PYTHON_3_14,
       handler: "index.handler",
       role: lambdaExecutionRole,
       timeout: Duration.minutes(15), // max Lambda timeout to handle long delays
