@@ -5,7 +5,8 @@ from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
 from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateResponseTypeDef
 
-from app.core.config import get_guardrail_config, get_logger
+from app.core.config import get_retrieve_generate_config, get_logger
+from app.services.prompt_loader import load_prompt
 
 
 logger = get_logger()
@@ -19,27 +20,54 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     a response using the configured LLM model with guardrails for safety.
     """
 
-    KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION = get_guardrail_config()
+    config = get_retrieve_generate_config()
+    prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
+    inference_config = prompt_template.get("inference_config")
+
+    if not inference_config:
+        default_values = {"temperature": 0, "maxTokens": 512, "topP": 1}
+        inference_config = default_values
+        logger.warning(
+            "No inference configuration found in prompt template; using default values",
+            extra={"prompt_name": config.RAG_RESPONSE_PROMPT_NAME, "default_inference_config": default_values},
+        )
+
     client: AgentsforBedrockRuntimeClient = boto3.client(
         service_name="bedrock-agent-runtime",
-        region_name=AWS_REGION,
+        region_name=config.AWS_REGION,
     )
     request_params = {
         "input": {"text": user_query},
         "retrieveAndGenerateConfiguration": {
             "type": "KNOWLEDGE_BASE",
             "knowledgeBaseConfiguration": {
-                "knowledgeBaseId": KNOWLEDGEBASE_ID,
-                "modelArn": RAG_MODEL_ID,
+                "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
+                "modelArn": config.RAG_MODEL_ID,
                 "generationConfiguration": {
                     "guardrailConfiguration": {
-                        "guardrailId": GUARD_RAIL_ID,
-                        "guardrailVersion": GUARD_VERSION,
-                    }
+                        "guardrailId": config.GUARD_RAIL_ID,
+                        "guardrailVersion": config.GUARD_VERSION,
+                    },
+                    "inferenceConfig": {
+                        "textInferenceConfig": {
+                            **inference_config,
+                            "stopSequences": [
+                                "Human:",
+                            ],
+                        }
+                    },
                 },
             },
         },
     }
+
+    if prompt_template:
+        request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"][
+            "promptTemplate"
+        ] = {"textPromptTemplate": prompt_template.get("prompt_text")}
+        logger.info(
+            "Using prompt template for RAG response generation", extra={"prompt_name": config.RAG_RESPONSE_PROMPT_NAME}
+        )
 
     # Include session ID for conversation continuity across messages
     if session_id:
@@ -56,16 +84,16 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     return response
 
 
-def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient) -> dict[str, Any]:
+def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient, inference_config: dict) -> dict[str, Any]:
     response = client.invoke_model(
         modelId=model_id,
         body=json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",
-                "temperature": 0.1,
-                "top_p": 0.9,
+                "temperature": inference_config["temperature"],
+                "top_p": inference_config["topP"],
                 "top_k": 50,
-                "max_tokens": 150,
+                "max_tokens": inference_config["maxTokens"],
                 "messages": [{"role": "user", "content": prompt}],
             }
         ),

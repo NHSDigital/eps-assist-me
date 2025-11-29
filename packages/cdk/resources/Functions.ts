@@ -9,7 +9,6 @@ import {TableV2} from "aws-cdk-lib/aws-dynamodb"
 const RAG_MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 // Claude model for query reformulation
 const QUERY_REFORMULATION_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
-const QUERY_REFORMULATION_PROMPT_VERSION = "DRAFT"
 const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
 const LAMBDA_MEMORY_SIZE = "265"
 
@@ -33,7 +32,10 @@ export interface FunctionsProps {
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
   readonly slackBotStateTable: TableV2
-  readonly promptName: string
+  readonly reformulationPromptName: string
+  readonly ragResponsePromptName: string
+  readonly reformulationPromptVersion: string
+  readonly ragResponsePromptVersion: string
   readonly isPullRequest: boolean
   readonly mainSlackBotLambdaExecutionRoleArn : string
 }
@@ -66,8 +68,10 @@ export class Functions extends Construct {
         "GUARD_RAIL_ID": props.guardrailId,
         "GUARD_RAIL_VERSION": props.guardrailVersion,
         "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName,
-        "QUERY_REFORMULATION_PROMPT_NAME": props.promptName,
-        "QUERY_REFORMULATION_PROMPT_VERSION": QUERY_REFORMULATION_PROMPT_VERSION
+        "QUERY_REFORMULATION_PROMPT_NAME": props.reformulationPromptName,
+        "RAG_RESPONSE_PROMPT_NAME": props.ragResponsePromptName,
+        "QUERY_REFORMULATION_PROMPT_VERSION": props.reformulationPromptVersion,
+        "RAG_RESPONSE_PROMPT_VERSION": props.ragResponsePromptVersion
       }
     })
 

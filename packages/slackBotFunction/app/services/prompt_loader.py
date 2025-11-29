@@ -9,12 +9,75 @@ from mypy_boto3_bedrock_agent import AgentsforBedrockClient
 logger = get_logger()
 
 
-def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
+def _render_prompt(template_config: dict) -> str:
+    """
+    Returns a unified prompt string regardless of template type.
+    """
+
+    chat_cfg = template_config.get("chat")
+    if chat_cfg:
+        return parse_system_message(chat_cfg)
+
+    text_cfg = template_config.get("text")
+    if isinstance(text_cfg, dict) and "text" in text_cfg:
+        return text_cfg["text"]
+    if isinstance(text_cfg, str):
+        return text_cfg
+
+    logger.error(
+        "Unsupported prompt configuration encountered",
+        extra={"available_keys": list(template_config.keys())},
+    )
+    raise PromptLoadError(f"Unsupported prompt configuration. Keys: {list(template_config.keys())}")
+
+
+def parse_system_message(chat_cfg: dict) -> str:
+    parts: list[str] = []
+
+    system_items = chat_cfg.get("system", [])
+    logger.debug("Processing system messages for prompt rendering", extra={"system_items": system_items})
+    if isinstance(system_items, list):
+        system_texts = [
+            item["text"].strip()
+            for item in system_items
+            if isinstance(item, dict) and "text" in item and item["text"].strip()
+        ]
+        if system_texts:
+            parts.append("\n".join(system_texts))
+
+    role_prefix = {
+        "user": "Human: ",
+        "assistant": "Assistant: ",
+    }
+
+    logger.debug("Processing chat messages for prompt rendering", extra={"messages": chat_cfg.get("messages", [])})
+
+    for msg in chat_cfg.get("messages", []):
+        role = (msg.get("role") or "").lower()
+        prefix = role_prefix.get(role)
+        if not prefix:
+            continue
+
+        content_items = msg.get("content", [])
+        content_texts = [
+            item["text"].strip()
+            for item in content_items
+            if isinstance(item, dict) and "text" in item and item["text"].strip()
+        ]
+
+        if content_texts:
+            parts.append(prefix + "\n".join(content_texts))
+
+    return "\n\n".join(parts)
+
+
+def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
     """
     Load a prompt template from Amazon Bedrock Prompt Management.
 
     Resolves prompt name to ID, then loads the specified version.
     Supports both DRAFT and numbered versions.
+    Handles both text and chat prompt templates.
     """
     try:
         client: AgentsforBedrockClient = boto3.client("bedrock-agent", region_name=os.environ["AWS_REGION"])
@@ -24,22 +87,29 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
         if not prompt_id:
             raise PromptNotFoundError(f"Could not find prompt ID for name '{prompt_name}'")
 
-        # Load the prompt with the specified version
-        if prompt_version and prompt_version != "DRAFT":
-            logger.info(
-                f"Loading version {prompt_version} of prompt '{prompt_name}' (ID: {prompt_id})",
-                extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": prompt_version},
-            )
-            response = client.get_prompt(promptIdentifier=prompt_id, promptVersion=str(prompt_version))
+        is_explicit_version = prompt_version and prompt_version != "DRAFT"
+        selected_version = str(prompt_version) if is_explicit_version else "DRAFT"
+
+        logger.info(
+            f"Loading prompt {prompt_name}' (ID: {prompt_id})",
+            extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": prompt_version},
+        )
+
+        if is_explicit_version:
+            response = client.get_prompt(promptIdentifier=prompt_id, promptVersion=selected_version)
         else:
-            logger.info(
-                f"Loading DRAFT version of prompt '{prompt_name}' (ID: {prompt_id})",
-                extra={"prompt_name": prompt_name, "prompt_id": prompt_id, "prompt_version": "DRAFT"},
-            )
             response = client.get_prompt(promptIdentifier=prompt_id)
 
-        prompt_text = response["variants"][0]["templateConfiguration"]["text"]["text"]
+        # Extract and render the prompt template
+        template_config = response["variants"][0]["templateConfiguration"]
+        prompt_text = _render_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
+
+        # Extract inference configuration with defaults
+        default_inference = {"temperature": 0, "topP": 1, "maxTokens": 512}
+        raw_inference = response["variants"][0].get("inferenceConfiguration", {})
+        raw_text_config = raw_inference.get("textInferenceConfiguration", {})
+        inference_config = {**default_inference, **raw_text_config}
 
         logger.info(
             f"Successfully loaded prompt '{prompt_name}' version {actual_version}",
@@ -47,9 +117,10 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> str:
                 "prompt_name": prompt_name,
                 "prompt_id": prompt_id,
                 "version_used": actual_version,
+                **inference_config,
             },
         )
-        return prompt_text
+        return {"prompt_text": prompt_text, "inference_config": inference_config}
 
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")

@@ -3,6 +3,7 @@ Core configuration for the Slack bot.
 Sets up all the AWS and Slack connections we need.
 """
 
+from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import os
@@ -71,18 +72,29 @@ def get_bot_token() -> str:
 
 
 @lru_cache
-def get_guardrail_config() -> Tuple[str, str, str, str, str]:
+def get_retrieve_generate_config() -> BedrockConfig:
     # Bedrock configuration from environment
     KNOWLEDGEBASE_ID = os.environ["KNOWLEDGEBASE_ID"]
     RAG_MODEL_ID = os.environ["RAG_MODEL_ID"]
     AWS_REGION = os.environ["AWS_REGION"]
     GUARD_RAIL_ID = os.environ["GUARD_RAIL_ID"]
     GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
+    RAG_RESPONSE_PROMPT_NAME = os.environ["RAG_RESPONSE_PROMPT_NAME"]
+    RAG_RESPONSE_PROMPT_VERSION = os.environ["RAG_RESPONSE_PROMPT_VERSION"]
 
     logger.info(
         "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
     )
-    return KNOWLEDGEBASE_ID, RAG_MODEL_ID, AWS_REGION, GUARD_RAIL_ID, GUARD_VERSION
+
+    return BedrockConfig(
+        KNOWLEDGEBASE_ID,
+        RAG_MODEL_ID,
+        AWS_REGION,
+        GUARD_RAIL_ID,
+        GUARD_VERSION,
+        RAG_RESPONSE_PROMPT_NAME,
+        RAG_RESPONSE_PROMPT_VERSION,
+    )
 
 
 @dataclass
@@ -125,6 +137,17 @@ constants = Constants(
     TTL_SESSION=2592000,  # 30 days
     PULL_REQUEST_PREFIX="pr:",
 )
+
+
+@dataclass
+class BedrockConfig:
+    KNOWLEDGEBASE_ID: str
+    RAG_MODEL_ID: str
+    AWS_REGION: str
+    GUARD_RAIL_ID: str
+    GUARD_VERSION: str
+    RAG_RESPONSE_PROMPT_NAME: str
+    RAG_RESPONSE_PROMPT_VERSION: str
 
 
 @dataclass
