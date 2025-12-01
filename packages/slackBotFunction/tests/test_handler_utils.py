@@ -525,3 +525,67 @@ def test_was_bot_mentioned_later_in_thread(mock_env: Mock):
     result = was_bot_mentioned_in_thread_root("C123", "1234567890.123456", mock_client)
 
     assert result is True
+
+
+def test_get_bot_user_id_auth_test_fails(mock_env: Mock):
+    """test get_bot_user_id returns None when auth_test fails"""
+    mock_client = Mock()
+    mock_client.auth_test.return_value = {"ok": False}
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import get_bot_user_id
+
+    if hasattr(get_bot_user_id, "_cache"):
+        get_bot_user_id._cache.clear()
+
+    result = get_bot_user_id(mock_client)
+
+    assert result is None
+
+
+def test_get_bot_user_id_exception(mock_env: Mock):
+    """test get_bot_user_id returns None when exception occurs"""
+    mock_client = Mock()
+    mock_client.auth_test.side_effect = Exception("Auth failed")
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import get_bot_user_id
+
+    if hasattr(get_bot_user_id, "_cache"):
+        get_bot_user_id._cache.clear()
+
+    result = get_bot_user_id(mock_client)
+
+    assert result is None
+
+
+def test_was_bot_mentioned_no_messages_in_response(mock_env: Mock):
+    """test fail when API returns no messages"""
+    mock_client = Mock()
+    mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
+    mock_client.conversations_replies.return_value = {"ok": True, "messages": []}
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import was_bot_mentioned_in_thread_root
+
+    result = was_bot_mentioned_in_thread_root("C123", "1234567890.123456", mock_client)
+
+    assert result is True
+
+
+def test_was_bot_mentioned_api_not_ok(mock_env: Mock):
+    """test fail when API returns ok: False"""
+    mock_client = Mock()
+    mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
+    mock_client.conversations_replies.return_value = {"ok": False}
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import was_bot_mentioned_in_thread_root
+
+    result = was_bot_mentioned_in_thread_root("C123", "1234567890.123456", mock_client)
+
+    assert result is True
