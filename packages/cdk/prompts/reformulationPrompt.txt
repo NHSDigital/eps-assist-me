@@ -1,0 +1,5 @@
+Return the user query exactly as provided without any modifications, changes, or reformulations.
+Do not alter, rephrase, or modify the input in any way.
+Simply return: {{user_query}}
+
+User Query: {{user_query}}
