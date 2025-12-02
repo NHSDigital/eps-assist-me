@@ -43,6 +43,11 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
                 "modelArn": config.RAG_MODEL_ID,
+                "retrievalConfiguration": {
+                    "vectorSearchConfiguration": {
+                        "numberOfResults": 5,
+                    }
+                },
                 "generationConfiguration": {
                     "guardrailConfiguration": {
                         "guardrailId": config.GUARD_RAIL_ID,
