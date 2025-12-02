@@ -143,7 +143,12 @@ def _handle_session_management(
 
 
 def _create_feedback_blocks(
-    response_text: str, conversation_key: str, channel: str, message_ts: str, thread_ts: str
+    response_text: str,
+    citations: list[dict[str, Any]],
+    conversation_key: str,
+    channel: str,
+    message_ts: str,
+    thread_ts: str,
 ) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
     # Create compact feedback payload for button actions
@@ -151,28 +156,60 @@ def _create_feedback_blocks(
     if thread_ts:  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = thread_ts
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-    return [
+    references = citations["retrievedReferences"] if citations and "retrievedReferences" in citations else []
+    blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
-        {"type": "section", "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_PROMPT}},
-        {
-            "type": "actions",
-            "block_id": "feedback_block",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_YES},
-                    "action_id": "feedback_yes",
-                    "value": feedback_value,
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_NO},
-                    "action_id": "feedback_no",
-                    "value": feedback_value,
-                },
-            ],
-        },
     ]
+    action_elements = []
+    if references:
+        for i, c in enumerate(citations):
+            title = c.get("retrievedReferences", [{}])[0].get("metadata", {}).get("title") or f"Citation {i + 1}"
+            body = (
+                c.get("retrievedReferences", [{}])[0].get("content", {}).get("text")
+                or c.get("generatedResponsePart", {}).get("textResponsePart", {}).get("text")
+                or "No citation text available."
+            )
+
+            title_trunc = title[:100]
+            body_trunc = body[:300]
+
+            button = {
+                "type": "button",
+                "text": {"type": "plain_text", "text": title_trunc},
+                "action_id": f"cite_{i}",
+                "value": json.dumps({"index": i}),
+                "confirm": {
+                    "title": {"type": "plain_text", "text": title_trunc},
+                    "text": {"type": "mrkdwn", "text": body_trunc},
+                    "confirm": {"type": "plain_text", "text": "Close"},
+                    "deny": {"type": "plain_text", "text": "Cancel"},
+                },
+            }
+            action_elements.append(button)
+        blocks.append({"type": "actions", "elements": action_elements})
+        # Feedback buttons
+        blocks.append({"type": "divider"})
+        blocks.append(
+            {
+                "type": "actions",
+                "block_id": "feedback_block",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_YES},
+                        "action_id": "feedback_yes",
+                        "value": feedback_value,
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_NO},
+                        "action_id": "feedback_no",
+                        "value": feedback_value,
+                    },
+                ],
+            }
+        )
+    return {"blocks": blocks}
 
 
 # ================================================================
@@ -331,6 +368,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         ai_response = process_ai_query(user_query, session_id)
         kb_response = ai_response["kb_response"]
         response_text = ai_response["text"]
+        citations = ai_response["citations"]
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
@@ -353,7 +391,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Store Q&A pair for feedback correlation
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
-        blocks = _create_feedback_blocks(response_text, conversation_key, channel, message_ts, thread_ts)
+        blocks = _create_feedback_blocks(response_text, citations, conversation_key, channel, message_ts, thread_ts)
         try:
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
