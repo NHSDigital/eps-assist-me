@@ -186,7 +186,7 @@ def _create_feedback_blocks(
                 },
             }
             action_elements.append(button)
-        blocks.append({"type": "actions", "block_id": "citation_block", "elements": json.dumps(action_elements)})
+        blocks.append({"type": "actions", "block_id": "citation_block", "elements": action_elements})
         # Feedback buttons
         blocks.append({"type": "divider"})
         blocks.append(
