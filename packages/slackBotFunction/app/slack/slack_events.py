@@ -177,7 +177,7 @@ def _create_feedback_blocks(
                 "type": "button",
                 "text": {"type": "plain_text", "text": title_trunc},
                 "action_id": f"cite_{i}",
-                "value": json.dumps({"index": i}),
+                "value": f"cite_{i}",
                 "confirm": {
                     "title": {"type": "plain_text", "text": title_trunc},
                     "text": {"type": "mrkdwn", "text": body_trunc},
@@ -186,7 +186,7 @@ def _create_feedback_blocks(
                 },
             }
             action_elements.append(button)
-        blocks.append({"type": "actions", "elements": action_elements})
+        blocks.append({"type": "actions", "block_id": "citation_block", "elements": json.dumps(action_elements)})
         # Feedback buttons
         blocks.append({"type": "divider"})
         blocks.append(

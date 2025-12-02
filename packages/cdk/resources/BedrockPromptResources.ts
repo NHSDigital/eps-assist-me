@@ -18,12 +18,14 @@ export class BedrockPromptResources extends Construct {
   constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
 
-    const claudeHaikuModel = BedrockFoundationModel.ANTHROPIC_CLAUDE_HAIKU_V1_0
-    const claudeSonnetModel = BedrockFoundationModel.ANTHROPIC_CLAUDE_SONNET_V1_0
+    // Nova Pro is recommended for text generation tasks requiring high accuracy and complex understanding.
+    const novaProModel = BedrockFoundationModel.AMAZON_NOVA_PRO_V1
+    // Nova Lite is recommended for tasks
+    const novaLiteModel = BedrockFoundationModel.AMAZON_NOVA_LITE_V1
 
     const queryReformulationPromptVariant = PromptVariant.text({
       variantName: "default",
-      model: claudeHaikuModel,
+      model: novaProModel,
       promptVariables: ["topic"],
       promptText: props.settings.reformulationPrompt.text
     })
@@ -37,7 +39,7 @@ export class BedrockPromptResources extends Construct {
 
     const ragResponsePromptVariant = PromptVariant.chat({
       variantName: "default",
-      model: claudeSonnetModel,
+      model: novaLiteModel,
       promptVariables: ["query", "search_results"],
       system: props.settings.systemPrompt.text,
       messages: [props.settings.userPrompt]
