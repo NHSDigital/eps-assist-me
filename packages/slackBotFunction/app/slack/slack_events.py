@@ -156,17 +156,24 @@ def _create_feedback_blocks(
     if thread_ts:  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = thread_ts
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-    references = citations["retrievedReferences"] if citations and "retrievedReferences" in citations else []
+
+    # Main response block
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
     ]
     action_elements = []
-    if references:
-        for i, c in enumerate(citations):
-            title = c.get("retrievedReferences", [{}])[0].get("metadata", {}).get("title") or f"Citation {i + 1}"
+
+    # Citation buttons
+    if citations:
+        for i, citation in enumerate(citations):
+            # Extract the first retrieved reference for this citation
+            retrieved_refs = citation.get("retrievedReferences", [])
+            first_ref = retrieved_refs[0] if retrieved_refs else {}
+
+            title = first_ref.get("metadata", {}).get("title") or f"Citation {i + 1}"
             body = (
-                c.get("retrievedReferences", [{}])[0].get("content", {}).get("text")
-                or c.get("generatedResponsePart", {}).get("textResponsePart", {}).get("text")
+                first_ref.get("content", {}).get("text")
+                or citation.get("generatedResponsePart", {}).get("textResponsePart", {}).get("text")
                 or "No citation text available."
             )
 
@@ -187,28 +194,30 @@ def _create_feedback_blocks(
             }
             action_elements.append(button)
         blocks.append({"type": "actions", "block_id": "citation_block", "elements": action_elements})
-        # Feedback buttons
-        blocks.append({"type": "divider"})
-        blocks.append(
-            {
-                "type": "actions",
-                "block_id": "feedback_block",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_YES},
-                        "action_id": "feedback_yes",
-                        "value": feedback_value,
-                    },
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_NO},
-                        "action_id": "feedback_no",
-                        "value": feedback_value,
-                    },
-                ],
-            }
-        )
+
+    # Feedback buttons
+    blocks.append({"type": "divider"})
+    blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": "Was this response helpful?"}]})
+    blocks.append(
+        {
+            "type": "actions",
+            "block_id": "feedback_block",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_YES},
+                    "action_id": "feedback_yes",
+                    "value": feedback_value,
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_NO},
+                    "action_id": "feedback_no",
+                    "value": feedback_value,
+                },
+            ],
+        }
+    )
     return {"blocks": blocks}
 
 
