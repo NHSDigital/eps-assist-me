@@ -151,12 +151,6 @@ def _create_feedback_blocks(
     thread_ts: str,
 ) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
-    # Create compact feedback payload for button actions
-    feedback_data = {"ck": conversation_key, "ch": channel, "mt": message_ts}
-    if thread_ts:  # Only include thread_ts for channel threads, not DMs
-        feedback_data["tt"] = thread_ts
-    feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-
     # Main response block
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
@@ -164,7 +158,9 @@ def _create_feedback_blocks(
     action_elements = []
 
     # Citation buttons
-    if citations:
+    if citations is None or len(citations) == 0:
+        logger.info("No citations")
+    else:
         for i, citation in enumerate(citations):
             # Extract the first retrieved reference for this citation
             retrieved_refs = citation.get("retrievedReferences", [])
@@ -195,29 +191,11 @@ def _create_feedback_blocks(
             action_elements.append(button)
         blocks.append({"type": "actions", "block_id": "citation_block", "elements": action_elements})
 
-    # Feedback buttons
-    blocks.append({"type": "divider"})
-    blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": "Was this response helpful?"}]})
-    blocks.append(
-        {
-            "type": "actions",
-            "block_id": "feedback_block",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_YES},
-                    "action_id": "feedback_yes",
-                    "value": feedback_value,
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_NO},
-                    "action_id": "feedback_no",
-                    "value": feedback_value,
-                },
-            ],
-        }
+    logger.info(
+        "blocks",
+        extra={"blocks": blocks, "has_citations": len(citations) > 0},
     )
+
     return {"blocks": blocks}
 
 
