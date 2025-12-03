@@ -25,7 +25,7 @@ export class BedrockPromptResources extends Construct {
 
     const queryReformulationPromptVariant = PromptVariant.text({
       variantName: "default",
-      model: novaProModel,
+      model: novaLiteModel,
       promptVariables: ["topic"],
       promptText: props.settings.reformulationPrompt.text
     })
@@ -39,7 +39,7 @@ export class BedrockPromptResources extends Construct {
 
     const ragResponsePromptVariant = PromptVariant.chat({
       variantName: "default",
-      model: novaLiteModel,
+      model: novaProModel,
       promptVariables: ["query", "search_results"],
       system: props.settings.systemPrompt.text,
       messages: [props.settings.userPrompt]
