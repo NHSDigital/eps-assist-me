@@ -527,6 +527,44 @@ def test_was_bot_mentioned_later_in_thread(mock_env: Mock):
     assert result is True
 
 
+def test_should_reply_to_message_group_thread_with_bot_mention(mock_env: Mock):
+    """test should_reply_to_message returns True for group thread where bot was mentioned"""
+    mock_client = Mock()
+    mock_client.auth_test.return_value = {"ok": True, "user_id": "U123"}
+    mock_client.conversations_replies.return_value = {
+        "ok": True,
+        "messages": [{"text": "<@U123> help me", "ts": "1234567890.123456"}],
+    }
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import should_reply_to_message
+
+    event = {"channel_type": "group", "type": "message", "channel": "G123", "thread_ts": "1234567890.123456"}
+    result = should_reply_to_message(event, mock_client)
+
+    assert result is True
+
+
+def test_should_reply_to_message_group_thread_without_bot_mention(mock_env: Mock):
+    """test should_reply_to_message returns False for group thread where bot was not mentioned"""
+    mock_client = Mock()
+    mock_client.auth_test.return_value = {"ok": True, "user_id": "U123"}
+    mock_client.conversations_replies.return_value = {
+        "ok": True,
+        "messages": [{"text": "some discussion", "ts": "1234567890.123456"}],
+    }
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import should_reply_to_message
+
+    event = {"channel_type": "group", "type": "message", "channel": "G123", "thread_ts": "1234567890.123456"}
+    result = should_reply_to_message(event, mock_client)
+
+    assert result is False
+
+
 def test_get_bot_user_id_auth_test_fails(mock_env: Mock):
     """test get_bot_user_id returns None when auth_test fails"""
     mock_client = Mock()
