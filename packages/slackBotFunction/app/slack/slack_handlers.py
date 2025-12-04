@@ -50,7 +50,7 @@ def setup_handlers(app: App) -> None:
 
 # ack function for events where we respond with eyes
 def respond_to_events(event: Dict[str, Any], ack: Ack, client: WebClient):
-    if should_reply_to_message(event):
+    if should_reply_to_message(event, client):
         respond_with_eyes(event=event, client=client)
     logger.debug("Sending ack response")
     ack()
@@ -103,9 +103,9 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
     # and its a message
     # and its not in a thread
     # then ignore it as it will be handled as an app_mention event
-    if not should_reply_to_message(event):
-        logger.debug("Ignoring message in group chat not in a thread", extra={"event": event})
-        # ignore messages in group chats
+    if not should_reply_to_message(event, client):
+        logger.debug("Ignoring message in group chat not in a thread or bot not in thread", extra={"event": event})
+        # ignore messages in group chats or threads where bot wasn't mentioned
         return
     user_id = event.get("user", "unknown")
     conversation_key, _ = conversation_key_and_root(event=event)
