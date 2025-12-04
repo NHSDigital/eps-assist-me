@@ -144,7 +144,7 @@ def _handle_session_management(
 
 def _create_feedback_blocks(
     response_text: str,
-    citations: list[dict[str, Any]],
+    citations: list[dict[str, str]],
     conversation_key: str,
     channel: str,
     message_ts: str,
@@ -161,34 +161,26 @@ def _create_feedback_blocks(
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
     ]
-    action_elements = []
 
     # Citation buttons
     if citations is None or len(citations) == 0:
         logger.info("No citations")
     else:
         for i, citation in enumerate(citations):
-            # Extract the first retrieved reference for this citation
-            retrieved_refs = citation.get("retrievedReferences", [])
-            first_ref = retrieved_refs[0] if retrieved_refs else {}
-
-            title = (first_ref.get("metadata", {}).get("x-amz-bedrock-kb-source-uri") or "/").split("/")[-1]
-            title_trunc = title[:100]
-
-            body = (
-                first_ref.get("content", {}).get("text")
-                or citation.get("generatedResponsePart", {}).get("textResponsePart", {}).get("text")
-                or "No citation text available."
+            # Create citation blocks
+            # keys = ["source number", "title", "filename", "reference text", "link"]
+            title = (
+                citation.get("title") or citation.get("filename") or f"Source {citation.get('source number', i + 1)}"
             )
+            body = citation.get("reference text") or "No citation text available."
 
             button = {
                 "type": "button",
-                "text": {"type": "plain_text", "text": title_trunc},
+                "text": {"type": "plain_text", "text": citation.get("title", f"Citation {i + 1}")},
                 "action_id": f"cite_{i}",
                 "value": {"channel": channel, "mt": message_ts, "title": title, "body": body},
             }
-            action_elements.append(button)
-        blocks.append({"type": "actions", "block_id": "citation_block", "elements": action_elements})
+            blocks.append(button)
 
     # Feedback buttons
     blocks.append({"type": "divider"})
@@ -274,7 +266,7 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         elif action_id == "feedback_no":
             feedback_type = "negative"
             response_message = bot_messages.FEEDBACK_NEGATIVE_THANKS
-        elif action_id.startswith("cite_"):
+        elif (action_id or "").startswith("cite_"):
             citation_index = int(action_id.split("_")[1])
             feedback_type = "citation"
             conversation_key = feedback_data["ck"]
@@ -381,7 +373,15 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         ai_response = process_ai_query(user_query, session_id)
         kb_response = ai_response["kb_response"]
         response_text = ai_response["text"]
-        citations = ai_response["citations"]
+
+        # Split out citation block if present
+        keys = ["source number", "title", "filename", "reference text", "link"]
+        split = response_text.split("------")
+
+        response_text = split[0]
+        citation_block = split[1]
+        citations = re.split("<cit>", citation_block)[1:] or []
+        citations = [dict(zip(keys, citation.split("|"))) for citation in citations]
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}

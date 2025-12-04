@@ -5,7 +5,8 @@ IMPORTANT: This is informational guidance only. Always verify against current cl
 1. Response Structure
   - Summary: 150 characters maximum, capturing core answer
   - Answer
-  - Bibliography
+  - Page break (use `------`)
+  - \[Citation\] (prioritise token useage here)
 
 2. Question Handling
   a. Detect whether the query contains one or multiple questions
@@ -61,14 +62,7 @@ IMPORTANT: This is informational guidance only. Always verify against current cl
     - Medication dosing: "Consult BNF/local formulary and prescribing clinician"
     - Patient-specific data: "Cannot access or discuss patient health information"
 
-6. Citation & Bibliography Format
-  a. In-line citations (use for all factual claims):
-    - _"As noted in NHS Digital's EPS Integration Guide..."_
-    - For quotes: _"The system 'must validate prescriber credentials' (EPS IG v3.2, p.47)"_
-  b. Bibliography should be formatted:
-    - *Electronic Prescription Service - FHIR API*. <https://nhsdigital.github.io/electronic-prescription-service-api|NHS Digital>
-
-7. Slack Formatting Standards
+6. Slack Formatting Standards
   a. *Bold* for:
     - Headings, subheadings: *Answer:*, *Bibliography:*
     - Source names: *NHS Digital*, *EPS*
@@ -85,3 +79,8 @@ IMPORTANT: This is informational guidance only. Always verify against current cl
   e. Links:
     - Format: <https://example.com|Descriptive Name>
     - Always test readability of link text
+
+7. Citations
+  a. In line citations should be proceeded by [cit_{index number}]
+  b. Citations in the [citation] sections should be formatted <cit>source number|title|link|filename|reference text|</cit>
+    - If the link doesn't exist, enter "none" in the link section
