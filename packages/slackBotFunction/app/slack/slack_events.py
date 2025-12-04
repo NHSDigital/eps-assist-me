@@ -161,41 +161,41 @@ def _create_feedback_blocks(
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
     ]
-    action_elements = []
+    # action_elements = []
 
     # Citation buttons
-    if citations is None or len(citations) == 0:
-        logger.info("No citations")
-    else:
-        for i, citation in enumerate(citations):
-            # Extract the first retrieved reference for this citation
-            retrieved_refs = citation.get("retrievedReferences", [])
-            first_ref = retrieved_refs[0] if retrieved_refs else {}
+    # if citations is None or len(citations) == 0:
+    #     logger.info("No citations")
+    # else:
+    #     for i, citation in enumerate(citations):
+    #         # Extract the first retrieved reference for this citation
+    #         retrieved_refs = citation.get("retrievedReferences", [])
+    #         first_ref = retrieved_refs[0] if retrieved_refs else {}
 
-            title = first_ref.get("metadata", {}).get("title") or "Source"
-            body = (
-                first_ref.get("content", {}).get("text")
-                or citation.get("generatedResponsePart", {}).get("textResponsePart", {}).get("text")
-                or "No citation text available."
-            )
+    #         title = first_ref.get("metadata", {}).get("title") or "Source"
+    #         body = (
+    #             first_ref.get("content", {}).get("text")
+    #             or citation.get("generatedResponsePart", {}).get("textResponsePart", {}).get("text")
+    #             or "No citation text available."
+    #         )
 
-            title_trunc = title[:100]
-            body_trunc = body[:300]
+    #         title_trunc = title[:100]
+    #         body_trunc = body[:300]
 
-            button = {
-                "type": "button",
-                "text": {"type": "plain_text", "text": title_trunc},
-                "action_id": f"cite_{i}",
-                "value": f"cite_{i}",
-                "confirm": {
-                    "title": {"type": "plain_text", "text": title_trunc},
-                    "text": {"type": "mrkdwn", "text": body_trunc},
-                    "confirm": {"type": "plain_text", "text": "Close"},
-                    "deny": {"type": "plain_text", "text": "Cancel"},
-                },
-            }
-            action_elements.append(button)
-        blocks.append({"type": "actions", "block_id": "citation_block", "elements": action_elements})
+    #         button = {
+    #             "type": "button",
+    #             "text": {"type": "plain_text", "text": title_trunc},
+    #             "action_id": f"cite_{i}",
+    #             "value": f"cite_{i}",
+    #             "confirm": {
+    #                 "title": {"type": "plain_text", "text": title_trunc},
+    #                 "text": {"type": "mrkdwn", "text": body_trunc},
+    #                 "confirm": {"type": "plain_text", "text": "Close"},
+    #                 "deny": {"type": "plain_text", "text": "Cancel"},
+    #             },
+    #         }
+    #         action_elements.append(button)
+    #     blocks.append({"type": "actions", "block_id": "citation_block", "elements": action_elements})
 
     # Feedback buttons
     blocks.append({"type": "divider"})

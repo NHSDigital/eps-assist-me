@@ -3,7 +3,7 @@ from typing import Any
 import boto3
 from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
 from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
-from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateResponseTypeDef
+from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateStreamResponseTypeDef
 
 from app.core.config import get_retrieve_generate_config, get_logger
 from app.services.prompt_loader import load_prompt
@@ -12,7 +12,7 @@ from app.services.prompt_loader import load_prompt
 logger = get_logger()
 
 
-def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerateResponseTypeDef:
+def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerateStreamResponseTypeDef:
     """
     Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
 
@@ -87,10 +87,10 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     else:
         logger.info("Starting new conversation")
 
-    response = client.retrieve_and_generate(**request_params)
+    response = client.retrieve_and_generate_stream(**request_params)
     logger.info(
         "Got Bedrock response",
-        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
+        extra={"session_id": response.get("sessionId")},
     )
     return response
 
