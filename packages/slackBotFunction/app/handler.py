@@ -6,7 +6,6 @@ This Lambda function serves two purposes:
 2. Processes async operations when invoked by itself to avoid timeouts
 """
 
-import asyncio
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
@@ -42,10 +41,9 @@ def handler(event: dict, context: LambdaContext) -> dict:
     When subsequent actions or events are processed, this is looked up, and if it exists, then the pull request lambda
     is triggered with either pull_request_event or pull_request_action
     """
-    loop = asyncio.get_event_loop()
     # direct invocation bypasses slack infrastructure entirely
     if event.get("invocation_type") == "direct":
-        return loop.run_until_complete(handle_direct_invocation(event, context))
+        return handle_direct_invocation(event, context)
 
     app = get_app(logger=logger)
     # handle pull request processing requests
@@ -68,10 +66,10 @@ def handler(event: dict, context: LambdaContext) -> dict:
 
     # handle Slack webhook requests
     slack_handler = SlackRequestHandler(app=app)
-    return loop.run_until_complete(slack_handler.handle(event=event, context=context))
+    return slack_handler.handle(event=event, context=context)
 
 
-async def handle_direct_invocation(event: dict[str, Any], context: LambdaContext) -> DirectInvocationResponse:
+def handle_direct_invocation(event: dict[str, Any], context: LambdaContext) -> DirectInvocationResponse:
     """direct lambda invocation for ai assistance - bypasses slack entirely"""
     try:
         # validate request structure using type guard
@@ -84,7 +82,7 @@ async def handle_direct_invocation(event: dict[str, Any], context: LambdaContext
         # shared logic: same AI processing as slack handlers use
         from app.services.ai_processor import process_ai_query
 
-        ai_response = await process_ai_query(query, session_id)
+        ai_response = process_ai_query(query, session_id)
 
         return create_success_response(
             text=ai_response["text"],

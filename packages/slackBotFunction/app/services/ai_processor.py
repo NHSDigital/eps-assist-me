@@ -13,7 +13,7 @@ from app.core.types import AIProcessorResponse
 logger = get_logger()
 
 
-async def process_ai_query(user_query: str, session_id: str | None = None) -> AIProcessorResponse:
+def process_ai_query(user_query: str, session_id: str | None = None) -> AIProcessorResponse:
     """shared AI processing logic for both slack and direct invocation"""
     # reformulate: improves vector search quality in knowledge base
     reformulated_query = reformulate_query(user_query)
@@ -29,7 +29,7 @@ async def process_ai_query(user_query: str, session_id: str | None = None) -> AI
     session_id_from_response = bedrock_response.get("sessionId")
 
     # iterate through bedrock stream events to build complete response
-    async for event in bedrock_response["stream"]:
+    for event in bedrock_response["stream"]:
         logger.info(
             "[New] response from bedrock",
             extra={"session_id": session_id_from_response, "event": event},
