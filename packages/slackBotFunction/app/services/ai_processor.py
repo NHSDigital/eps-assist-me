@@ -56,4 +56,5 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
         "text": response_text,
         "session_id": session_id_from_response,
         "citations": citations,
+        "kb_response": {"session_id": session_id_from_response},
     }
