@@ -172,27 +172,20 @@ def _create_feedback_blocks(
             retrieved_refs = citation.get("retrievedReferences", [])
             first_ref = retrieved_refs[0] if retrieved_refs else {}
 
-            title = first_ref.get("metadata", {}).get("title") or "Source"
+            title = first_ref.get("metadata", {}).get("x-amz-bedrock-kb-source-uri").split("/")[-1] or f"Source {i + 1}"
+            title_trunc = title[:100]
+
             body = (
                 first_ref.get("content", {}).get("text")
                 or citation.get("generatedResponsePart", {}).get("textResponsePart", {}).get("text")
                 or "No citation text available."
             )
 
-            title_trunc = title[:100]
-            body_trunc = body[:300]
-
             button = {
                 "type": "button",
                 "text": {"type": "plain_text", "text": title_trunc},
                 "action_id": f"cite_{i}",
-                "value": f"cite_{i}",
-                "confirm": {
-                    "title": {"type": "plain_text", "text": title_trunc},
-                    "text": {"type": "mrkdwn", "text": body_trunc},
-                    "confirm": {"type": "plain_text", "text": "Close"},
-                    "deny": {"type": "plain_text", "text": "Cancel"},
-                },
+                "value": {"channel": channel, "mt": message_ts, "title": title, "body": body},
             }
             action_elements.append(button)
         blocks.append({"type": "actions", "block_id": "citation_block", "elements": action_elements})
@@ -281,6 +274,14 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         elif action_id == "feedback_no":
             feedback_type = "negative"
             response_message = bot_messages.FEEDBACK_NEGATIVE_THANKS
+        elif action_id.startswith("cite_"):
+            citation_index = int(action_id.split("_")[1])
+            feedback_type = "citation"
+            conversation_key = feedback_data["ck"]
+            message_ts = feedback_data.get("mt")
+            title = feedback_data.get("title", "No title available.")
+            body = feedback_data.get("body", "No citation text available.")
+            open_citation(citation_index, conversation_key, message_ts, title, body, client)
         else:
             logger.error(f"Unknown feedback action: {action_id}")
             return
@@ -555,6 +556,45 @@ def store_feedback(
         raise
     except Exception as e:
         logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
+
+
+def open_citation(
+    citation_index: int, conversation_key: str, message_ts: str | None, title: str, body: str, client
+) -> None:
+    """
+    Open citation - placeholder for actual implementation
+    """
+    logger.info(
+        f"Opening citation {citation_index}", extra={"conversation_key": conversation_key, "message_ts": message_ts}
+    )
+    # Get Message
+    try:
+        response = client.conversations_history(channel=conversation_key, latest=message_ts, inclusive=True, limit=1)
+
+        message = response["messages"][0]
+        logger.info("Message found for citation", extra={"message": message})
+
+        blocks = message.get("blocks", [])
+        # Remove citation block (and divider), if it exists
+        blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
+        # Add citation content before feedback block
+        citation_block = {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*{title}*\n{body}"},
+            "block_id": "citation_block",
+        }
+
+        feedback_block_index = next(
+            (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback_block"), len(blocks)
+        )
+        blocks.insert(feedback_block_index, {"type": "divider", "block_id": "citation_divider"})
+        blocks.insert(feedback_block_index, citation_block)
+
+        # Update message with new blocks
+        client.chat_update(channel=conversation_key, ts=message_ts, blocks=blocks)
+
+    except Exception as e:
+        logger.error(f"Error retrieving message for citation: {e}", extra={"error": traceback.format_exc()})
 
 
 # ================================================================
