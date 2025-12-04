@@ -172,7 +172,7 @@ def _create_feedback_blocks(
             retrieved_refs = citation.get("retrievedReferences", [])
             first_ref = retrieved_refs[0] if retrieved_refs else {}
 
-            title = first_ref.get("metadata", {}).get("x-amz-bedrock-kb-source-uri").split("/")[-1] or f"Source {i + 1}"
+            title = (first_ref.get("metadata", {}).get("x-amz-bedrock-kb-source-uri") or "/").split("/")[-1]
             title_trunc = title[:100]
 
             body = (
