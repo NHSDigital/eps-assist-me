@@ -128,7 +128,7 @@ cdk-diff:
 cdk-watch:
 	./scripts/run_sync.sh
 
-sync-docs: 
+sync-docs:
 	./scripts/sync_docs.sh
 
 convert-docs:
@@ -136,7 +136,7 @@ convert-docs:
 
 convert-docs-file:
 	@if [ -z "$$FILE" ]; then \
-		echo "usage: make convert-docs-file FILE=your_doc.pdf"; \
+		echo "usage: FILE=your_doc.pdf make convert-docs-file"; \
 		exit 1; \
 	fi
 	poetry run python scripts/convert_docs_to_markdown.py --file "$$FILE"
