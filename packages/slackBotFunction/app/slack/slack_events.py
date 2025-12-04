@@ -166,6 +166,7 @@ def _create_feedback_blocks(
     if citations is None or len(citations) == 0:
         logger.info("No citations")
     else:
+        action_buttons = []
         for i, citation in enumerate(citations):
             # Create citation blocks
             # keys = ["source number", "title", "filename", "reference text", "link"]
@@ -176,11 +177,18 @@ def _create_feedback_blocks(
 
             button = {
                 "type": "button",
-                "text": {"type": "plain_text", "text": citation.get("title", f"Citation {i + 1}")},
+                "text": {"type": "plain_text", "text": title},
                 "action_id": f"cite_{i}",
-                "value": {"channel": channel, "mt": message_ts, "title": title, "body": body},
+                "value": json.dumps({"channel": channel, "mt": message_ts, "title": title, "body": body}),
             }
-            blocks.append(button)
+            action_buttons.append(button)
+        blocks.append(
+            {
+                "type": "actions",
+                "block_id": f"citation_actions_{i}",
+                "elements": action_buttons,
+            }
+        )
 
     # Feedback buttons
     blocks.append({"type": "divider"})
@@ -269,10 +277,13 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         elif (action_id or "").startswith("cite_"):
             citation_index = int(action_id.split("_")[1])
             feedback_type = "citation"
-            conversation_key = feedback_data["ck"]
-            message_ts = feedback_data.get("mt")
-            title = feedback_data.get("title", "No title available.")
-            body = feedback_data.get("body", "No citation text available.")
+
+            params = json.loads(feedback_data)
+            conversation_key = params["ck"]
+            message_ts = params.get("mt")
+            title = params.get("title", "No title available.")
+            body = params.get("body", "No citation text available.")
+
             open_citation(citation_index, conversation_key, message_ts, title, body, client)
         else:
             logger.error(f"Unknown feedback action: {action_id}")
