@@ -292,15 +292,15 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
     Conditions:
     should not reply if:
     - Message is in a group chat (channel_type == 'group') but not in a thread
-    - Message is in a channel thread where the bot was not initially mentioned
+    - Message is in a channel or group thread where the bot was not initially mentioned
     """
 
     # we don't reply to non-threaded messages in group chats
     if event.get("channel_type") == "group" and event.get("type") == "message" and event.get("thread_ts") is None:
         return False
 
-    # for channel threads, check if bot was mentioned anywhere in the thread history
-    if event.get("channel_type") == "channel" and event.get("thread_ts"):
+    # for channel or group threads, check if bot was mentioned anywhere in the thread history
+    if event.get("channel_type") in ["channel", "group"] and event.get("thread_ts"):
         if not client:
             logger.warning("No Slack client provided to check thread participation")
             return True
