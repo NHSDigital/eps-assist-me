@@ -377,11 +377,13 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Split out citation block if present
         keys = ["source number", "title", "filename", "reference text", "link"]
         split = response_text.split("------")
-
-        response_text = split[0]
-        citation_block = split[1]
-        citations = re.split("<cit>", citation_block)[1:] or []
-        citations = [dict(zip(keys, citation.split("|"))) for citation in citations]
+        if len(split) == 1:
+            citations = []
+        else:
+            response_text = split[0]
+            citation_block = split[1]
+            citations = re.split("<cit>", citation_block)[1:] or []
+            citations = [dict(zip(keys, citation.split("|"))) for citation in citations]
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
