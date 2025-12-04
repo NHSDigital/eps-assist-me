@@ -291,6 +291,30 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // suppress onEvent runtime warnings as this is managed by the CDK team
+  // see https://github.com/aws/aws-cdk/issues/36269 for issue raised with CDK team
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "OnEvent uses Node22.x which is the latest stable runtime available for the onEvent functionality."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "OnEvent uses Node22.x which is the latest stable runtime available for the onEvent functionality."
+      }
+    ]
+  )
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
