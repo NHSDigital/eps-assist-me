@@ -38,8 +38,10 @@ def reformulate_query(user_query: str) -> str:
         )
 
         # Format the prompt with the user query (using double braces from Bedrock template)
-        prompt = prompt_template.replace("{{user_query}}", user_query)
-        result = invoke_model(prompt=prompt, model_id=model_id, client=client)
+        prompt = prompt_template.get("prompt_text").replace("{{user_query}}", user_query)
+        result = invoke_model(
+            prompt=prompt, model_id=model_id, client=client, inference_config=prompt_template.get("inference_config")
+        )
 
         reformulated_query = result["content"][0]["text"].strip()
 

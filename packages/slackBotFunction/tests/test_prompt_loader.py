@@ -20,7 +20,7 @@ def test_load_prompt_success_draft(mock_boto_client: Mock, mock_env: Mock):
 
     # Mock get_prompt for DRAFT version
     mock_client.get_prompt.return_value = {
-        "variants": [{"templateConfiguration": {"text": {"text": "Test prompt"}}}],
+        "variants": [{"templateConfiguration": {"text": {"text": "Test prompt"}}, "inferenceConfiguration": {}}],
         "version": "DRAFT",
     }
 
@@ -33,7 +33,7 @@ def test_load_prompt_success_draft(mock_boto_client: Mock, mock_env: Mock):
     result = load_prompt("test-prompt")
 
     # assertions
-    assert result == "Test prompt"
+    assert result.get("prompt_text") == "Test prompt"
     mock_client.get_prompt.assert_called_once_with(promptIdentifier="ABC1234567")
 
 
@@ -46,7 +46,7 @@ def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_env: Mock):
     mock_client.list_prompts.return_value = {"promptSummaries": [{"name": "test-prompt", "id": "ABC1234567"}]}
 
     mock_client.get_prompt.return_value = {
-        "variants": [{"templateConfiguration": {"text": {"text": "Versioned prompt"}}}],
+        "variants": [{"templateConfiguration": {"text": {"text": "Versioned prompt"}}, "inferenceConfiguration": {}}],
         "version": "1",
     }
 
@@ -59,7 +59,7 @@ def test_load_prompt_success_versioned(mock_boto_client: Mock, mock_env: Mock):
     result = load_prompt("test-prompt", "1")
 
     # assertions
-    assert result == "Versioned prompt"
+    assert result.get("prompt_text") == "Versioned prompt"
     mock_client.get_prompt.assert_called_once_with(promptIdentifier="ABC1234567", promptVersion="1")
 
 
@@ -98,6 +98,7 @@ def test_load_prompt_client_error(mock_boto_client: Mock, mock_env: Mock):
     from app.services.prompt_loader import load_prompt
 
     # perform operation
+
     with pytest.raises(Exception, match="ValidationException - Invalid prompt"):
         load_prompt("test-prompt")
 
@@ -151,3 +152,209 @@ def test_get_prompt_id_client_error(mock_logger: Mock, mock_env: Mock):
 
     # assertions
     assert result is None
+
+
+def test_get_render_prompt_chat_dict(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [
+                    {"text": "Assistant prompt here."},
+                ],
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"text": "User prompt here."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Assistant prompt here.\n\nHuman: User prompt here."
+
+
+def test_get_render_prompt_chat_dict_no_role(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [
+                    {"text": "Assistant prompt here."},
+                ],
+                "messages": [
+                    {
+                        "content": [
+                            {"text": "User prompt here."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Assistant prompt here."
+
+
+def test_get_render_prompt_chat_dict_multiple_questions(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"text": "First Prompt."},
+                        ],
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {"text": "Second Prompt."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Human: First Prompt.\n\nHuman: Second Prompt."
+
+
+def test_get_render_prompt_chat_dict_multiple_assistant_prompts(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [
+                    {"text": "First Prompt."},
+                    {"text": "Second Prompt."},
+                ],
+                "messages": [],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "First Prompt.\nSecond Prompt."
+
+
+def test_get_render_prompt_chat_dict_multiple_assistant_message(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {"text": "First Prompt."},
+                        ],
+                    },
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {"text": "Second Prompt."},
+                        ],
+                    },
+                ],
+            }
+        },
+    )
+
+    # assertions
+    assert result == "Assistant: First Prompt.\n\nAssistant: Second Prompt."
+
+
+def test_get_render_prompt_text_dict(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "text": "Second Prompt.",
+        },
+    )
+
+    # assertions
+    assert result == "Second Prompt."
+
+
+def test_get_render_prompt_empty(mock_logger: Mock, mock_env: Mock):
+    # delete and import module to test
+    if "app.services.prompt_loader" in sys.modules:
+        del sys.modules["app.services.prompt_loader"]
+    from app.services.prompt_loader import _render_prompt
+
+    result = _render_prompt(
+        {
+            "chat": {
+                "system": [],
+                "messages": [],
+            }
+        },
+    )
+
+    # assertions
+    assert result == ""
+
+
+def test_render_prompt_raises_configuration_error_empty(mock_logger):
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        if "app.services.prompt_loader" in sys.modules:
+            del sys.modules["app.services.prompt_loader"]
+        from app.services.prompt_loader import _render_prompt
+        from app.services.exceptions import PromptLoadError
+
+        with pytest.raises(PromptLoadError) as excinfo:
+            _render_prompt({})
+
+        # Verify the exception and logger call
+        assert excinfo.type is PromptLoadError
+        assert str(excinfo.value) == "Unsupported prompt configuration. Keys: []"
+        mock_logger.error.assert_called_once()
+
+
+def test_render_prompt_raises_configuration_error_text_missing(mock_logger):
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        if "app.services.prompt_loader" in sys.modules:
+            del sys.modules["app.services.prompt_loader"]
+        from app.services.prompt_loader import _render_prompt
+        from app.services.exceptions import PromptLoadError
+
+        with pytest.raises(PromptLoadError) as excinfo:
+            _render_prompt({"text": {}})
+
+        # Verify the exception and logger call
+        assert excinfo.type is PromptLoadError
+        assert str(excinfo.value) == "Unsupported prompt configuration. Keys: ['text']"
+        mock_logger.error.assert_called_once()

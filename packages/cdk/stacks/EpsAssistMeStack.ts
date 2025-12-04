@@ -19,6 +19,7 @@ import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
+import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -66,9 +67,13 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName
     })
 
+    // Create Bedrock Prompt Collection
+    const bedrockPromptCollection = new BedrockPromptSettings(this, "BedrockPromptCollection")
+
     // Create Bedrock Prompt Resources
     const bedrockPromptResources = new BedrockPromptResources(this, "BedrockPromptResources", {
-      stackName: props.stackName
+      stackName: props.stackName,
+      settings: bedrockPromptCollection
     })
 
     // Create Storage construct first as it has no dependencies
@@ -95,7 +100,8 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName,
       collection: openSearchResources.collection
     })
-    // this dependency ensures the OpenSearch access policy is created before the VectorIndex
+
+    // This dependency ensures the OpenSearch access policy is created before the VectorIndex
     // and deleted after the VectorIndex is deleted to prevent deletion or deployment failures
     vectorIndex.node.addDependency(openSearchResources.deploymentPolicy)
 
@@ -147,7 +153,10 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
-      promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      reformulationPromptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      ragResponsePromptName: bedrockPromptResources.ragResponsePrompt.promptName,
+      reformulationPromptVersion: bedrockPromptResources.queryReformulationPrompt.promptVersion,
+      ragResponsePromptVersion: bedrockPromptResources.ragResponsePrompt.promptVersion,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
     })
