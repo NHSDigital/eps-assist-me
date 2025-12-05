@@ -407,16 +407,17 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # system prompt. Instead, pull out and format the citations in the prompt manually
         prompt_value_keys = ["source number", "title", "filename", "reference text", "link"]
         split = response_text.split("------")  # Citations are separated by ------
-        citations = []
+
+        citations: list[dict[str, str]] = []
         if len(split) != 1:
             response_text = split[0]
             citation_block = split[1]
-
-            citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
-            if len(citations) > 0:
-                logger.info("Found citation(s)", extra={"Citations": citations})
-                citation_dict = [dict(zip(prompt_value_keys, citation.split("|"))) for citation in citations]
-                logger.info("Parsed citation(s)", extra={"CitationsDict": citation_dict})
+            raw_citations = []
+            raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
+            if len(raw_citations) > 0:
+                logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
+                citations = [dict(zip(prompt_value_keys, citation.split("|"))) for citation in raw_citations]
+        logger.info("Parsed citation(s)", extra={"citations": citations})
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
@@ -439,7 +440,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Store Q&A pair for feedback correlation
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
-        blocks = _create_feedback_blocks(response_text, citations, conversation_key, channel, message_ts, thread_ts)
+        blocks = _create_feedback_blocks(response_text, raw_citations, conversation_key, channel, message_ts, thread_ts)
         try:
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
