@@ -159,12 +159,12 @@ def _create_feedback_blocks(
 
     # Main response block
     blocks = []
+    action_buttons = []
 
     # Create citation buttons
     if citations is None or len(citations) == 0:
         logger.info("No citations")
     else:
-        action_buttons = []
         for i, citation in enumerate(citations):
             logger.info("Creating citation", extra={"Citation": citation})
             # Create citation blocks
