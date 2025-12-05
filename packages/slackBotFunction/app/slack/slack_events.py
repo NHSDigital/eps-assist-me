@@ -412,9 +412,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             response_text = split[0]
             citation_block = split[1]
 
-            citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", citation_block, re.DOTALL | re.IGNORECASE).findall(
-                citation_block
-            )
+            citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
             if len(citations) > 0:
                 logger.info("Found citation(s)", extra={"Citations": citations})
                 citation_dict = [dict(zip(prompt_value_keys, citation.split("|"))) for citation in citations]
