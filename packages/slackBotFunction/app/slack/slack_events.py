@@ -440,7 +440,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Store Q&A pair for feedback correlation
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
-        blocks = _create_feedback_blocks(response_text, raw_citations, conversation_key, channel, message_ts, thread_ts)
+        blocks = _create_feedback_blocks(response_text, citations, conversation_key, channel, message_ts, thread_ts)
         try:
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
