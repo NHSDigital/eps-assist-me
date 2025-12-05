@@ -230,6 +230,7 @@ def _create_feedback_blocks(
         }
     )
 
+    logger.info("Blocks", extra={"blocks": blocks})
     return blocks
 
 
