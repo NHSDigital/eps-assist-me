@@ -30,6 +30,7 @@ from app.utils.handler_utils import (
     extract_pull_request_id,
     forward_event_to_pull_request_lambda,
     is_duplicate_event,
+    is_latest_message,
     strip_mentions,
 )
 
@@ -274,6 +275,10 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         action_id = action["action_id"]
         action_data = json.loads(action["value"])
 
+        # Check if this is the latest message in the conversation
+        conversation_key = action_data["ck"]
+        message_ts = action_data.get("mt")
+
         # Required for updating
         channel_id = body["channel"]["id"]
         timestamp = body["message"]["ts"]
@@ -283,6 +288,10 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
             params = json.loads(action_data)
 
             open_citation(channel_id, timestamp, message, params, client)
+            return
+
+        if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
+            logger.info(f"Feedback ignored - not latest message: {message_ts}")
             return
 
         # Determine feedback type and response message based on action_id
