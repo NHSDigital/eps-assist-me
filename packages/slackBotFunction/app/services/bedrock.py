@@ -90,7 +90,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",
-        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
+        extra={"session_id": response.get("sessionId")},
     )
     return response
 

@@ -160,12 +160,13 @@ def _create_feedback_blocks(
     # Main response block
     blocks = []
 
-    # Citation buttons
+    # Create citation buttons
     if citations is None or len(citations) == 0:
         logger.info("No citations")
     else:
         action_buttons = []
         for i, citation in enumerate(citations):
+            logger.info("Creating citation", extra={"Citation": citation})
             # Create citation blocks
             # keys = ["source number", "title", "filename", "reference text", "link"]
             title = (
@@ -287,11 +288,9 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         timestamp = body["message"]["ts"]
 
         # Check if the action is for a citation
-        if (action_id or "").startswith("cite_"):
-            params = json.loads(action_data)
-
+        if action_id == "cite":
             # Update message to include citation content
-            open_citation(channel_id, timestamp, message, params, client)
+            open_citation(channel_id, timestamp, message, action_data, client)
             return
 
         if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
@@ -404,15 +403,22 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         response_text = ai_response["text"]
 
         # Split out citation block if present
-        keys = ["source number", "title", "filename", "reference text", "link"]
-        split = response_text.split("------")
-        if len(split) == 1:
-            citations = []
-        else:
+        # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
+        # system prompt. Instead, pull out and format the citations in the prompt manually
+        prompt_value_keys = ["source number", "title", "filename", "reference text", "link"]
+        split = response_text.split("------")  # Citations are separated by ------
+        citations = []
+        if len(split) != 1:
             response_text = split[0]
             citation_block = split[1]
-            citations = re.split("<cit>", citation_block)[1:] or []
-            citations = [dict(zip(keys, citation.split("|"))) for citation in citations]
+
+            citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", citation_block, re.DOTALL | re.IGNORECASE).findall(
+                citation_block
+            )
+            if len(citations) > 0:
+                logger.info("Found citation(s)", extra={"Citations": citations})
+                citation_dict = [dict(zip(prompt_value_keys, citation.split("|"))) for citation in citations]
+                logger.info("Parsed citation(s)", extra={"CitationsDict": citation_dict})
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}

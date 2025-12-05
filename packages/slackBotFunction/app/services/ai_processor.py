@@ -23,7 +23,7 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
 
     logger.info(
         "response from bedrock",
-        extra={"has_citations": len(kb_response.get("citations", [])) > 0, "response_text": kb_response},
+        extra={"response_text": kb_response},
     )
 
     return {
