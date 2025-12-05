@@ -41,6 +41,7 @@ def setup_handlers(app: App) -> None:
     app.event("message")(ack=respond_to_events, lazy=[unified_message_handler])
     app.action("feedback_yes")(ack=respond_to_action, lazy=[feedback_handler])
     app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
+    app.action("cite")(ack=respond_to_action, lazy=[feedback_handler])
 
 
 # ================================================================

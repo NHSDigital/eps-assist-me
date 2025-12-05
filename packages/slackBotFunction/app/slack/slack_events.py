@@ -177,9 +177,10 @@ def _create_feedback_blocks(
             button = {
                 "type": "button",
                 "text": {"type": "plain_text", "text": title},
-                "action_id": f"cite_{i}",
+                "action_id": "cite",
                 "value": json.dumps(
-                    {**feedback_data, "title": title, "body": body, "link": citation_link}, separators=(",", ":")
+                    {**feedback_data, "title": title, "body": body, "link": citation_link},
+                    separators=(",", ":"),
                 ),
             }
             action_buttons.append(button)
@@ -270,7 +271,9 @@ def process_feedback_event(
 def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
     try:
         # Extract necessary information from the action payload
-        message = body["message"]
+        message = body[
+            "message"
+        ]  # The original message object is sent back on an action, so we don't need to fetch it again
         action = body["actions"][0]
         action_id = action["action_id"]
         action_data = json.loads(action["value"])
@@ -287,6 +290,7 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         if (action_id or "").startswith("cite_"):
             params = json.loads(action_data)
 
+            # Update message to include citation content
             open_citation(channel_id, timestamp, message, params, client)
             return
 
@@ -587,7 +591,7 @@ def store_feedback(
 
 def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client) -> None:
     """
-    Open citation - placeholder for actual implementation
+    Open citation - update/ replace message to include citation content
     """
     logger.info("Opening citation", extra={"channel": channel, "timestamp": timestamp})
     # Get Message
@@ -598,8 +602,10 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         link = params.get("link", "")
 
         blocks = message.get("blocks", [])
+
         # Remove citation block (and divider), if it exists
         blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
+
         # Add citation content before feedback block
         citation_block = {
             "type": "section",
@@ -610,6 +616,7 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
             "block_id": "citation_block",
         }
 
+        # Find index of feedback block to insert before it
         feedback_block_index = next(
             (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback_block"), len(blocks)
         )
