@@ -420,6 +420,7 @@ def test_process_async_slack_action_positive(
         "type": "block_actions",
         "user": {"id": "U123"},
         "channel": {"id": "C123"},
+        "message": {"ts": "1759845126.972219"},
         "actions": [{"action_id": "feedback_yes", "value": feedback_value}],
     }
     with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:
@@ -465,6 +466,7 @@ def test_process_async_slack_action_negative(
         "type": "block_actions",
         "user": {"id": "U123"},
         "channel": {"id": "C123"},
+        "message": {"ts": "1759845126.972219"},
         "actions": [{"action_id": "feedback_no", "value": feedback_value}],
     }
     with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:

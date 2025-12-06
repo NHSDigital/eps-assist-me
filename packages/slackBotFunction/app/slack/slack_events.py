@@ -143,7 +143,12 @@ def _handle_session_management(
 
 
 def _create_feedback_blocks(
-    response_text: str, conversation_key: str, channel: str, message_ts: str, thread_ts: str
+    response_text: str,
+    citations: list[dict[str, str]],
+    conversation_key: str,
+    channel: str,
+    message_ts: str,
+    thread_ts: str,
 ) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
     # Create compact feedback payload for button actions
@@ -151,9 +156,60 @@ def _create_feedback_blocks(
     if thread_ts:  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = thread_ts
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
-    return [
-        {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
-        {"type": "section", "text": {"type": "plain_text", "text": bot_messages.FEEDBACK_PROMPT}},
+
+    # Main response block
+    blocks = []
+    action_buttons = []
+
+    # Create citation buttons
+    if citations is None or len(citations) == 0:
+        logger.info("No citations")
+    else:
+        for i, citation in enumerate(citations):
+            logger.info("Creating citation", extra={"Citation": citation})
+            # Create citation blocks
+            # keys = ["source number", "title", "filename", "reference text", "link"]
+            title = (
+                citation.get("title") or citation.get("filename") or f"Source {citation.get('source number', i + 1)}"
+            )
+            body = citation.get("reference text") or "No citation text available."
+            citation_link = citation.get("link") or ""
+
+            button = {
+                "type": "button",
+                "text": {"type": "plain_text", "text": title},
+                "action_id": "cite",
+                "value": json.dumps(
+                    {**feedback_data, "title": title, "body": body, "link": citation_link},
+                    separators=(",", ":"),
+                ),
+            }
+            action_buttons.append(button)
+
+            # Update inline citations
+            citation_number = citation.get("source number", str(i + 1))
+            response_text = response_text.replace(
+                f"[cit_{citation_number}]",
+                f"<{citation_link}|[{citation_number}]>" if citation_link else f"[{citation_number}]",
+            )
+
+    # Main body
+    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
+
+    # Citation action block
+    if action_buttons:
+        blocks.append(
+            {
+                "type": "actions",
+                "block_id": f"citation_actions_{i}",
+                "elements": action_buttons,
+            }
+        )
+
+    # Feedback buttons
+    blocks.append({"type": "divider"})
+    blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": "Was this response helpful?"}]})
+    blocks.append(
         {
             "type": "actions",
             "block_id": "feedback_block",
@@ -171,8 +227,11 @@ def _create_feedback_blocks(
                     "value": feedback_value,
                 },
             ],
-        },
-    ]
+        }
+    )
+
+    logger.info("Blocks", extra={"blocks": blocks})
+    return blocks
 
 
 # ================================================================
@@ -213,13 +272,27 @@ def process_feedback_event(
 
 def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
     try:
-        channel_id = body["channel"]["id"]
-        action_id = body["actions"][0]["action_id"]
-        feedback_data = json.loads(body["actions"][0]["value"])
+        # Extract necessary information from the action payload
+        message = body[
+            "message"
+        ]  # The original message object is sent back on an action, so we don't need to fetch it again
+        action = body["actions"][0]
+        action_id = action["action_id"]
+        action_data = json.loads(action["value"])
 
         # Check if this is the latest message in the conversation
-        conversation_key = feedback_data["ck"]
-        message_ts = feedback_data.get("mt")
+        conversation_key = action_data["ck"]
+        message_ts = action_data.get("mt")
+
+        # Required for updating
+        channel_id = body["channel"]["id"]
+        timestamp = body["message"]["ts"]
+
+        # Check if the action is for a citation
+        if action_id == "cite":
+            # Update message to include citation content
+            open_citation(channel_id, timestamp, message, action_data, client)
+            return
 
         if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
@@ -238,18 +311,16 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
 
         try:
             store_feedback(
-                conversation_key=feedback_data["ck"],
+                conversation_key=action_data["ck"],
                 feedback_type=feedback_type,
                 user_id=body["user"]["id"],
-                channel_id=feedback_data["ch"],
-                thread_ts=feedback_data.get("tt"),
-                message_ts=feedback_data.get("mt"),
+                channel_id=action_data["ch"],
+                thread_ts=action_data.get("tt"),
+                message_ts=action_data.get("mt"),
                 client=client,
             )
             # Only post message if storage succeeded
-            client.chat_postMessage(
-                channel=feedback_data["ch"], text=response_message, thread_ts=feedback_data.get("tt")
-            )
+            client.chat_postMessage(channel=action_data["ch"], text=response_message, thread_ts=action_data.get("tt"))
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
                 # Silently ignore duplicate votes - user already voted on this message
@@ -258,7 +329,7 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
             logger.error(f"Feedback storage error: {e}", extra={"error": traceback.format_exc()})
         except Exception as e:
             logger.error(f"Unexpected feedback error: {e}", extra={"error": traceback.format_exc()})
-            thread_ts = feedback_data.get("tt")
+            thread_ts = action_data.get("tt")
             post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
     except Exception as e:
         logger.error(f"Error handling feedback: {e}", extra={"error": traceback.format_exc()})
@@ -332,6 +403,23 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         kb_response = ai_response["kb_response"]
         response_text = ai_response["text"]
 
+        # Split out citation block if present
+        # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
+        # system prompt. Instead, pull out and format the citations in the prompt manually
+        prompt_value_keys = ["source number", "title", "filename", "reference text", "link"]
+        split = response_text.split("------")  # Citations are separated by ------
+
+        citations: list[dict[str, str]] = []
+        if len(split) != 1:
+            response_text = split[0]
+            citation_block = split[1]
+            raw_citations = []
+            raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
+            if len(raw_citations) > 0:
+                logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
+                citations = [dict(zip(prompt_value_keys, citation.split("|"))) for citation in raw_citations]
+        logger.info("Parsed citation(s)", extra={"citations": citations})
+
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
         if thread_ts:  # Only add thread_ts for channel threads, not DMs
@@ -353,7 +441,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Store Q&A pair for feedback correlation
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
-        blocks = _create_feedback_blocks(response_text, conversation_key, channel, message_ts, thread_ts)
+        blocks = _create_feedback_blocks(response_text, citations, conversation_key, channel, message_ts, thread_ts)
         try:
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
@@ -505,6 +593,47 @@ def store_feedback(
         raise
     except Exception as e:
         logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
+
+
+def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client) -> None:
+    """
+    Open citation - update/ replace message to include citation content
+    """
+    logger.info("Opening citation", extra={"channel": channel, "timestamp": timestamp})
+    # Get Message
+    try:
+        # Get citation details
+        title = params.get("title", "No title available.")
+        body = params.get("body", "No citation text available.")
+        link = params.get("link", "")
+
+        blocks = message.get("blocks", [])
+
+        # Remove citation block (and divider), if it exists
+        blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
+
+        # Add citation content before feedback block
+        citation_block = {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*{title}*\n\n{body}\n\n<{link}|View Source>" if link else f"*{title}*\n\n{body}",
+            },
+            "block_id": "citation_block",
+        }
+
+        # Find index of feedback block to insert before it
+        feedback_block_index = next(
+            (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback_block"), len(blocks)
+        )
+        blocks.insert(feedback_block_index, {"type": "divider", "block_id": "citation_divider"})
+        blocks.insert(feedback_block_index, citation_block)
+
+        # Update message with new blocks
+        client.chat_update(channel=channel, ts=timestamp, blocks=blocks)
+
+    except Exception as e:
+        logger.error(f"Error retrieving message for citation: {e}", extra={"error": traceback.format_exc()})
 
 
 # ================================================================
