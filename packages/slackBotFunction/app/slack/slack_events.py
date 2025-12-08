@@ -174,9 +174,14 @@ def _create_feedback_blocks(
             citation_link = citation.get("link") or ""
             citation_number = citation.get("source number", 0)
 
+            # Buttons can only be 75 characters long, truncate to be safe
+            button_text = f"[{citation_number}] {title}"
             button = {
                 "type": "button",
-                "text": {"type": "plain_text", "text": title},
+                "text": {
+                    "type": "plain_text",
+                    "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
+                },
                 "action_id": f"cite_{citation_number}",
                 "value": json.dumps(
                     {**feedback_data, "title": title, "body": body, "link": citation_link},
@@ -198,7 +203,7 @@ def _create_feedback_blocks(
     )
 
     # Main body
-    blocks.append({"type": "section", "text": {"type": "markdown", "text": response_text}})
+    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
 
     # Citation action block
     if action_buttons:
@@ -632,7 +637,7 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         citation_block = {
             "type": "section",
             "text": {
-                "type": "markdown",
+                "type": "mrkdwn",
                 "text": f"{title}\n\n{body}\n\n<{link}|View Source>" if link else f"*{title}*\n\n{body}",
             },
             "block_id": "citation_block",
