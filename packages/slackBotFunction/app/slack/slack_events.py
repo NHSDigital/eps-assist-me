@@ -168,17 +168,16 @@ def _create_feedback_blocks(
         for i, citation in enumerate(citations):
             logger.info("Creating citation", extra={"Citation": citation})
             # Create citation blocks
-            # keys = ["source number", "title", "filename", "reference text", "link"]
-            title = (
-                citation.get("title") or citation.get("filename") or f"Source {citation.get('source number', i + 1)}"
-            )
+            # keys = ["source number", "title", "link", "filename", "reference text"]
+            title = citation.get("title") or citation.get("filename") or "Source"
             body = citation.get("reference text") or "No citation text available."
             citation_link = citation.get("link") or ""
+            citation_number = citation.get("source number", 0)
 
             button = {
                 "type": "button",
                 "text": {"type": "plain_text", "text": title},
-                "action_id": "cite",
+                "action_id": f"cite_{citation_number}",
                 "value": json.dumps(
                     {**feedback_data, "title": title, "body": body, "link": citation_link},
                     separators=(",", ":"),
@@ -187,11 +186,16 @@ def _create_feedback_blocks(
             action_buttons.append(button)
 
             # Update inline citations
-            citation_number = citation.get("source number", str(i + 1))
             response_text = response_text.replace(
                 f"[cit_{citation_number}]",
                 f"<{citation_link}|[{citation_number}]>" if citation_link else f"[{citation_number}]",
             )
+
+    # Remove any citations that have not been returned
+    response_text = response_text.replace(
+        f"[cit_{citation_number}]",
+        "",
+    )
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
@@ -271,6 +275,7 @@ def process_feedback_event(
 
 
 def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
+    logger.info("Processing slack action", extra={"body": body})
     try:
         # Extract necessary information from the action payload
         message = body[
@@ -282,14 +287,14 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
 
         # Check if this is the latest message in the conversation
         conversation_key = action_data["ck"]
-        message_ts = action_data.get("mt")
+        message_ts = action_data["mt"]
 
         # Required for updating
         channel_id = body["channel"]["id"]
         timestamp = body["message"]["ts"]
 
-        # Check if the action is for a citation
-        if action_id == "cite":
+        # Check if the action is for a citation (safely)
+        if str(action_id or "").startswith("cite"):
             # Update message to include citation content
             open_citation(channel_id, timestamp, message, action_data, client)
             return
@@ -595,7 +600,7 @@ def store_feedback(
         logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
 
 
-def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client) -> None:
+def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client: WebClient) -> None:
     """
     Open citation - update/ replace message to include citation content
     """
