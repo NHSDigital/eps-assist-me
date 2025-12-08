@@ -69,11 +69,11 @@ IMPORTANT: This is informational guidance only. Always verify against current cl
   b. _Italic_ for:
     - Citations, references
     - Document titles: _Integration Guide v3.2_
-  c. ```code blocks``` for:
+  c. Block Quotes for:
     - Direct quotes >1 sentence
     - Technical specifications, parameters
     - Example configurations
-  d. `inline code` for:
+  d. `Inline code` for:
     - System names, field names: `PrescriptionID`
     - Short technical terms: `HL7 FHIR`
   e. Links:
@@ -81,7 +81,8 @@ IMPORTANT: This is informational guidance only. Always verify against current cl
     - Always test readability of link text
 
 7. Bibliography and References
-  a. In line citations should be proceeded by [cit_{index number}] and use a http link
-  b. Citations in the [citation] sections should be formatted: <cit>source number|title|link|filename|reference text|</cit>
+  a. List every source used
+  b. In line citations should be proceeded by [cit_{index number}] and use a http link
+  c. Citations in the [Bibliography] section should be formatted: <cit>source number|title|link|filename|reference text|</cit>
     - If the link doesn't exist, or the link isn't to a website, enter "none" in the link section
-  c. Any source used, inline or as a source to generate an answer, should be listed in the Bibliography section
+  d. Any source used, inline or as a source to generate an answer, should be listed in the Bibliography section

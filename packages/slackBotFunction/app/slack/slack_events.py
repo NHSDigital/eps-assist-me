@@ -197,10 +197,7 @@ def _create_feedback_blocks(
             )
 
     # Remove any citations that have not been returned
-    response_text = response_text.replace(
-        f"[cit_{citation_number}]",
-        "",
-    )
+    response_text = response_text.replace("cit_", "")
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
@@ -620,7 +617,7 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
     try:
         # Get citation details
         title: str = params.get("title", "No title available.")
-        body: str = params.get("body", "No citation text available.", "No source found")
+        body: str = params.get("body", "No citation text available.")
         link: str = params.get("link", "")
 
         blocks = message.get("blocks", [])
