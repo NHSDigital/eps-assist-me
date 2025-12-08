@@ -198,7 +198,7 @@ def _create_feedback_blocks(
     )
 
     # Main body
-    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
+    blocks.append({"type": "section", "text": {"type": "markdown", "text": response_text}})
 
     # Citation action block
     if action_buttons:
@@ -211,7 +211,7 @@ def _create_feedback_blocks(
         )
 
     # Feedback buttons
-    blocks.append({"type": "divider"})
+    blocks.append({"type": "divider", "block_id": "feedback-divider"})
     blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": "Was this response helpful?"}]})
     blocks.append(
         {
@@ -411,7 +411,13 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Split out citation block if present
         # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
         # system prompt. Instead, pull out and format the citations in the prompt manually
-        prompt_value_keys = ["source number", "title", "filename", "reference text", "link"]
+        prompt_value_keys = [
+            "source number",
+            "title",
+            "link",
+            "filename",
+            "reference text",
+        ]
         split = response_text.split("------")  # Citations are separated by ------
 
         citations: list[dict[str, str]] = []
@@ -608,28 +614,33 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
     # Get Message
     try:
         # Get citation details
-        title = params.get("title", "No title available.")
-        body = params.get("body", "No citation text available.")
-        link = params.get("link", "")
+        title: str = params.get("title", "No title available.")
+        body: str = params.get("body", "No citation text available.", "No source found")
+        link: str = params.get("link", "")
 
         blocks = message.get("blocks", [])
 
         # Remove citation block (and divider), if it exists
         blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
 
+        # Add formatting
+        title = f"## {title}"  # Add title styling
+        body = f"> {body.replace("\n", "\n> ")}"  # And block quote section
+        link = f"[link]({link})"  # Make link clickable
+
         # Add citation content before feedback block
         citation_block = {
             "type": "section",
             "text": {
-                "type": "mrkdwn",
-                "text": f"*{title}*\n\n{body}\n\n<{link}|View Source>" if link else f"*{title}*\n\n{body}",
+                "type": "markdown",
+                "text": f"{title}\n\n{body}\n\n<{link}|View Source>" if link else f"*{title}*\n\n{body}",
             },
             "block_id": "citation_block",
         }
 
         # Find index of feedback block to insert before it
         feedback_block_index = next(
-            (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback_block"), len(blocks)
+            (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback-divider"), len(blocks)
         )
         blocks.insert(feedback_block_index, {"type": "divider", "block_id": "citation_divider"})
         blocks.insert(feedback_block_index, citation_block)
