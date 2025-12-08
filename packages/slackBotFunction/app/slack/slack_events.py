@@ -637,9 +637,15 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         title = f"*{title}*"
         body = f"> {body.replace("\n", "\n> ").replace(new_button_block, "")}"
 
-        # Highlight selected citation
-        i = body.find(f'"action_id": "cit_{source_number}",\n')
-        body = body[:i] + new_button_block + body[i:]
+        # Highlight selected citation by updating the button style
+        for block in blocks:
+            if block.get("type") == "actions":
+                for element in block.get("elements", []):
+                    if element.get("type") == "button":
+                        if element.get("action_id") == f"cite_{source_number}":
+                            element["style"] = "primary"
+                        else:
+                            element.pop("style", None)
 
         # Add citation content before feedback block
         citation_block = {
