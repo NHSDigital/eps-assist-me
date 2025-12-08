@@ -172,7 +172,7 @@ def _create_feedback_blocks(
             title = citation.get("title") or citation.get("filename") or "Source"
             body = citation.get("reference_text") or "No citation text available."
             citation_link = citation.get("link") or ""
-            source_number = citation.get("source_number", 0)
+            source_number = (citation.get("source_number", "0")).replace("\n", "")
 
             # Buttons can only be 75 characters long, truncate to be safe
             button_text = f"[{source_number}] {title}"
@@ -627,15 +627,13 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         link: str = params.get("link", "")
         source_number: str = params.get("source_number")
 
-        blocks = message.get("blocks", [])
-        new_button_block = '"style": "primary",'
-
         # Remove citation block (and divider), if it exists
+        blocks = message.get("blocks", [])
         blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
 
         # Add formatting
-        title = f"*{title}*"
-        body = f"> {body.replace("\n", "\n> ").replace(new_button_block, "")}"
+        title = f"*{title.replace("\n", "")}*"
+        body = f"> {body.replace("\n", "\n> ")}"
 
         # Highlight selected citation by updating the button style
         for block in blocks:
@@ -652,7 +650,9 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"{title}\n\n{body}\n\n<{link}|View Source>" if link else f"*{title}*\n\n{body}",
+                "text": (
+                    f"{title}\n\n{body}\n\n<{link}|View Source>" if link and link != "none" else f"*{title}*\n\n{body}"
+                ),
             },
             "block_id": "citation_block",
         }
@@ -661,14 +661,14 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         feedback_block_index = next(
             (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback-divider"), len(blocks)
         )
-        blocks.insert(feedback_block_index, {"type": "divider", "block_id": "citation_divider"})
         blocks.insert(feedback_block_index, citation_block)
 
         # Update message with new blocks
+        logger.info("Updated citation", extra={"message": blocks})
         client.chat_update(channel=channel, ts=timestamp, blocks=blocks)
 
     except Exception as e:
-        logger.error(f"Error retrieving message for citation: {e}", extra={"error": traceback.format_exc()})
+        logger.error(f"Error updating message for citation: {e}", extra={"error": traceback.format_exc()})
 
 
 # ================================================================
