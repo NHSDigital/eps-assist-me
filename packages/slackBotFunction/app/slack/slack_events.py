@@ -168,23 +168,29 @@ def _create_feedback_blocks(
         for i, citation in enumerate(citations):
             logger.info("Creating citation", extra={"Citation": citation})
             # Create citation blocks
-            # keys = ["source number", "title", "link", "filename", "reference text"]
+            # keys = ["sourceNumber", "title", "link", "filename", "reference_text"]
             title = citation.get("title") or citation.get("filename") or "Source"
-            body = citation.get("reference text") or "No citation text available."
+            body = citation.get("reference_text") or "No citation text available."
             citation_link = citation.get("link") or ""
-            citation_number = citation.get("source number", 0)
+            source_number = citation.get("source_number", 0)
 
             # Buttons can only be 75 characters long, truncate to be safe
-            button_text = f"[{citation_number}] {title}"
+            button_text = f"[{source_number}] {title}"
             button = {
                 "type": "button",
                 "text": {
                     "type": "plain_text",
                     "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
                 },
-                "action_id": f"cite_{citation_number}",
+                "action_id": f"cite_{source_number}",
                 "value": json.dumps(
-                    {**feedback_data, "title": title, "body": body, "link": citation_link},
+                    {
+                        **feedback_data,
+                        "source number": source_number,
+                        "title": title,
+                        "body": body,
+                        "link": citation_link,
+                    },
                     separators=(",", ":"),
                 ),
             }
@@ -192,8 +198,8 @@ def _create_feedback_blocks(
 
             # Update inline citations
             response_text = response_text.replace(
-                f"[cit_{citation_number}]",
-                f"<{citation_link}|[{citation_number}]>" if citation_link else f"[{citation_number}]",
+                f"[cit_{source_number}]",
+                f"<{citation_link}|[{source_number}]>" if citation_link else f"[{source_number}]",
             )
 
     # Remove any citations that have not been returned
@@ -414,11 +420,11 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
         # system prompt. Instead, pull out and format the citations in the prompt manually
         prompt_value_keys = [
-            "source number",
+            "source_number",
             "title",
             "link",
             "filename",
-            "reference text",
+            "reference_text",
         ]
         split = response_text.split("------")  # Citations are separated by ------
 
@@ -619,16 +625,21 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         title: str = params.get("title", "No title available.")
         body: str = params.get("body", "No citation text available.")
         link: str = params.get("link", "")
+        source_number: str = params.get("source_number")
 
         blocks = message.get("blocks", [])
+        new_button_block = '"style": "primary",'
 
         # Remove citation block (and divider), if it exists
         blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
 
         # Add formatting
-        title = f"## {title}"  # Add title styling
-        body = f"> {body.replace("\n", "\n> ")}"  # And block quote section
-        link = f"[link]({link})"  # Make link clickable
+        title = f"*{title}*"
+        body = f"> {body.replace("\n", "\n> ").replace(new_button_block, "")}"
+
+        # Highlight selected citation
+        i = body.find(f'"action_id": "cit_{source_number}",\n')
+        body = body[:i] + new_button_block + body[i:]
 
         # Add citation content before feedback block
         citation_block = {
