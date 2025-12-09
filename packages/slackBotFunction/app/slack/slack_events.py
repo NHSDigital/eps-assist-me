@@ -645,7 +645,9 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
                 for element in block.get("elements", []):
                     if element.get("type") == "button":
                         action_id = element.get("action_id")
-                        active_id = action_id if element.get("style") else None
+
+                        if element.get("style"):
+                            active_id = action_id
 
                         if action_id == current_id and active_id != current_id:
                             logger.info(
