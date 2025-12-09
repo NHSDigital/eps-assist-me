@@ -664,7 +664,7 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         blocks.insert(feedback_block_index, citation_block)
 
         # Update message with new blocks
-        logger.info("Updated citation", extra={"message": blocks})
+        logger.info("Updated message body with citation", extra={"blocks": blocks})
         client.chat_update(channel=channel, ts=timestamp, blocks=blocks)
 
     except Exception as e:
