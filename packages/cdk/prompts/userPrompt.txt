@@ -1,4 +1,4 @@
-<SearchResults>$search_results$</SearchResults>
+<sr>$search_results$</sr>
 
 1. Using your knowledge around the National Health Service (NHS), Electronic Prescription Service (EPS) and the Fast Healthcare Interoperability Resources' (FHIR) onboarding, Supplier Conformance Assessment List (SCAL), NHS SPINE, APIs, developer guides and error resolution; please answer the following question:
-<UserQuery>{{user_query}}</UserQuery>
+{{user_query}}

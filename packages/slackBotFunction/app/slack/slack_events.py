@@ -186,7 +186,7 @@ def _create_feedback_blocks(
                 "value": json.dumps(
                     {
                         **feedback_data,
-                        "source number": source_number,
+                        "source_number": source_number,
                         "title": title,
                         "body": body,
                         "link": citation_link,
@@ -624,47 +624,59 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         # Get citation details
         title: str = params.get("title", "No title available.")
         body: str = params.get("body", "No citation text available.")
-        link: str = params.get("link", "")
         source_number: str = params.get("source_number")
 
-        # Remove citation block (and divider), if it exists
+        # Remove any citation block (and divider), if it exists
         blocks = message.get("blocks", [])
         blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
 
         # Add formatting
         title = f"*{title.replace("\n", "")}*"
         body = f"> {body.replace("\n", "\n> ")}"
+        link: str = params.get("link", "")
 
         # Highlight selected citation by updating the button style
+        logger.info("Searching for Citation", extra={"cit_n": source_number, "cit_title": title})
+
+        active_id = None
+        current_id = f"cite_{source_number}"
         for block in blocks:
             if block.get("type") == "actions":
                 for element in block.get("elements", []):
                     if element.get("type") == "button":
-                        if element.get("action_id") == f"cite_{source_number}":
+                        action_id = element.get("action_id")
+                        active_id = action_id if element["style"] else None
+                        if action_id == current_id and active_id != current_id:
+                            logger.info(
+                                "Citation found - set active", extra={"cit_n": source_number, "cit_title": title}
+                            )
                             element["style"] = "primary"
                         else:
                             element.pop("style", None)
 
-        # Add citation content before feedback block
-        citation_block = {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": (
-                    f"{title}\n\n{body}\n\n<{link}|View Source>" if link and link != "none" else f"*{title}*\n\n{body}"
-                ),
-            },
-            "block_id": "citation_block",
-        }
+        if active_id:
+            # Add citation content before feedback block
+            citation_block = {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"{title}\n\n{body}\n\n<{link}|View Source>"
+                        if link and link != "none"
+                        else f"*{title}*\n\n{body}"
+                    ),
+                },
+                "block_id": "citation_block",
+            }
 
-        # Find index of feedback block to insert before it
-        feedback_block_index = next(
-            (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback-divider"), len(blocks)
-        )
-        blocks.insert(feedback_block_index, citation_block)
+            # Find index of feedback block to insert before it
+            feedback_block_index = next(
+                (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback-divider"), len(blocks)
+            )
+            blocks.insert(feedback_block_index, citation_block)
 
         # Update message with new blocks
-        logger.info("Updated message body with citation", extra={"blocks": blocks})
+        logger.info("Updated message body", extra={"blocks": blocks})
         client.chat_update(channel=channel, ts=timestamp, blocks=blocks)
 
     except Exception as e:
