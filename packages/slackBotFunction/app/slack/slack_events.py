@@ -615,50 +615,46 @@ def store_feedback(
 
 
 def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client: WebClient) -> None:
-    """
-    Open citation - update/ replace message to include citation content
-    """
+    """Open citation - update/replace message to include citation content"""
     logger.info("Opening citation", extra={"channel": channel, "timestamp": timestamp})
-    # Get Message
     try:
-        # Get citation details
+        # Citation details
         title: str = params.get("title", "No title available.")
         body: str = params.get("body", "No citation text available.")
         source_number: str = params.get("source_number")
-
-        # Remove any citation block (and divider), if it exists
-        blocks = message.get("blocks", [])
-        blocks = [block for block in blocks if block.get("block_id") not in ["citation_block", "citation_divider"]]
-
-        # Add formatting
-        title = f"*{title.replace("\n", "")}*"
-        body = f"> {body.replace("\n", "\n> ")}"
         link: str = params.get("link", "")
 
-        # Highlight selected citation by updating the button style
-        logger.info("Searching for Citation", extra={"cit_n": source_number, "cit_title": title})
+        # Remove any existing citation block/divider
+        blocks = message.get("blocks", [])
+        blocks = [b for b in blocks if b.get("block_id") not in ["citation_block", "citation_divider"]]
 
-        active_id = None
+        # Format text
+        title = f"*{title.replace('\n', '')}*"
+        body = f"> {body.replace('\n', '\n> ')}"
+
         current_id = f"cite_{source_number}"
+        selected = False
+
+        # Reset all button styles, then set the clicked one
         for block in blocks:
             if block.get("type") == "actions":
                 for element in block.get("elements", []):
                     if element.get("type") == "button":
                         action_id = element.get("action_id")
-
-                        if element.get("style"):
-                            active_id = action_id
-
-                        if action_id == current_id and active_id != current_id:
-                            logger.info(
-                                "Citation found - set active", extra={"cit_n": source_number, "cit_title": title}
-                            )
-                            element["style"] = "primary"
+                        if action_id == current_id:
+                            # Toggle: if already styled, unselect; else select
+                            if element.get("style") == "primary":
+                                element.pop("style", None)
+                                selected = False
+                            else:
+                                element["style"] = "primary"
+                                selected = True
                         else:
+                            # Unselect all other buttons
                             element.pop("style", None)
 
-        if active_id:
-            # Add citation content before feedback block
+        # If selected, insert citation block before feedback
+        if selected:
             citation_block = {
                 "type": "section",
                 "text": {
@@ -666,19 +662,18 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
                     "text": (
                         f"{title}\n\n{body}\n\n<{link}|View Source>"
                         if link and link != "none"
-                        else f"*{title}*\n\n{body}"
+                        else f"{title}\n\n{body}"
                     ),
                 },
                 "block_id": "citation_block",
             }
-
-            # Find index of feedback block to insert before it
-            feedback_block_index = next(
-                (i for i, block in enumerate(blocks) if block.get("block_id") == "feedback-divider"), len(blocks)
+            feedback_index = next(
+                (i for i, b in enumerate(blocks) if b.get("block_id") == "feedback-divider"),
+                len(blocks),
             )
-            blocks.insert(feedback_block_index, citation_block)
+            blocks.insert(feedback_index, citation_block)
 
-        # Update message with new blocks
+        # Update Slack message
         logger.info("Updated message body", extra={"blocks": blocks})
         client.chat_update(channel=channel, ts=timestamp, blocks=blocks)
 

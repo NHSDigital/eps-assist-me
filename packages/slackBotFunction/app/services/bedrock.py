@@ -25,7 +25,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     inference_config = prompt_template.get("inference_config")
 
     if not inference_config:
-        default_values = {"temperature": 0, "maxTokens": 512, "topP": 1}
+        default_values = {"temperature": 0, "maxTokens": 1500, "topP": 1}
         inference_config = default_values
         logger.warning(
             "No inference configuration found in prompt template; using default values",
