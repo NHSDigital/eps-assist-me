@@ -165,14 +165,18 @@ def _create_feedback_blocks(
     if citations is None or len(citations) == 0:
         logger.info("No citations")
     else:
+        invalid_body = "No document excerpt available."
         for i, citation in enumerate(citations):
             logger.info("Creating citation", extra={"Citation": citation})
-            # Create citation blocks
-            # keys = ["sourceNumber", "title", "link", "filename", "reference_text"]
+            # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
             title = citation.get("title") or citation.get("filename") or "Source"
-            body = citation.get("reference_text") or "No citation text available."
+            body = citation.get("reference_text") or invalid_body
             citation_link = citation.get("link") or ""
             source_number = (citation.get("source_number", "0")).replace("\n", "")
+
+            # If snippet is from dev table or is a single word, skip
+            if re.fullmatch(r"[A-Za-z0-9-_]+", body.strip()) >= 0:
+                body = invalid_body
 
             # Buttons can only be 75 characters long, truncate to be safe
             button_text = f"[{source_number}] {title}"
@@ -436,7 +440,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
             if len(raw_citations) > 0:
                 logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
-                citations = [dict(zip(prompt_value_keys, citation.split("|"))) for citation in raw_citations]
+                citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
         logger.info("Parsed citation(s)", extra={"citations": citations})
 
         # Post the answer (plain) to get message_ts
@@ -619,10 +623,9 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
     logger.info("Opening citation", extra={"channel": channel, "timestamp": timestamp})
     try:
         # Citation details
-        title: str = params.get("title", "No title available.")
-        body: str = params.get("body", "No citation text available.")
+        title: str = params.get("title", "No title available.").strip()
+        body: str = params.get("body", "No citation text available.").strip()
         source_number: str = params.get("source_number")
-        link: str = params.get("link", "")
 
         # Remove any existing citation block/divider
         blocks = message.get("blocks", [])
@@ -630,9 +633,12 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
 
         # Format text
         title = f"*{title.replace('\n', '')}*"
-        body = f"> {body.replace('\n', '\n> ')}"
+        if body and len(body) > 0:
+            body = f"> {body.replace('\n', '\n> ')}"  # Block quote
+            body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\1|\2>", body)  # Convert links
+            body = body.replace("»", "")  # Remove double chevrons
 
-        current_id = f"cite_{source_number}"
+        current_id = f"cite_{source_number}".strip()
         selected = False
 
         # Reset all button styles, then set the clicked one
@@ -657,14 +663,7 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         if selected:
             citation_block = {
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": (
-                        f"{title}\n\n{body}\n\n<{link}|View Source>"
-                        if link and link != "none"
-                        else f"{title}\n\n{body}"
-                    ),
-                },
+                "text": {"type": "mrkdwn", "text": f"{title}\n\n{body}"},
                 "block_id": "citation_block",
             }
             feedback_index = next(
