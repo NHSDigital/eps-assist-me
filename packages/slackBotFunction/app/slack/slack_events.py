@@ -486,8 +486,8 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
                 extra={"event_id": event_id, "message_ts": message_ts, "error": traceback.format_exc()},
             )
         log_query_stats(user_query, event, channel, client, thread_ts)
-    except Exception:
-        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
+    except Exception as e:
+        logger.error(f"Error processing message: {e}", extra={"event_id": event_id, "error": traceback.format_exc()})
 
         # Try to notify user of error via Slack
         post_error_message(channel=channel, thread_ts=thread_ts, client=client)

@@ -1,5 +1,11 @@
 import sys
-from unittest.mock import Mock, patch
+import pytest
+from unittest.mock import Mock, patch, MagicMock, call
+
+
+@pytest.fixture
+def mock_logger():
+    return MagicMock()
 
 
 @patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
@@ -324,6 +330,65 @@ def test_citation_processing(
     # assertions
     # Verify that the message was processed (process_ai_query was called)
     mock_create_feedback_blocks.assert_called_once()
+
+
+@patch("app.services.dynamo.get_state_information")
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session")
+@patch("app.slack.slack_events._create_feedback_blocks")
+def test_citation_logging(
+    mock_get_session: Mock,
+    mock_create_feedback_blocks: Mock,
+    mock_process_ai_query: Mock,
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+    mock_logger,
+):
+    """Test block builder is being called correctly"""
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        # set up mocks
+        mock_client = Mock()
+        mock_process_ai_query.return_value = {
+            "text": "AI response\n------\n<cit>test</cit>",
+            "session_id": "session-123",
+            "citations": [],
+            "kb_response": {"output": {"text": "AI response"}},
+        }
+        mock_get_session.return_value = None  # No existing session
+
+        # delete and import module to test
+        if "app.slack.slack_events" in sys.modules:
+            del sys.modules["app.slack.slack_events"]
+        from app.slack.slack_events import process_slack_message
+
+        # perform operation
+        slack_event_data = {
+            "text": "AI response",
+            "user": "U456",
+            "channel": "C789",
+            "ts": "1234567890.123",
+        }
+
+        process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+
+        # assertions
+        mock_logger.info.assert_has_calls(
+            [
+                call(
+                    "Processing message from user U456",
+                    extra={
+                        "user_query": "AI response",
+                        "conversation_key": "thread#C789#1234567890.123",
+                        "event_id": "evt123",
+                    },
+                ),
+                # Found citations to split
+                call("Found citation(s)", extra={"Raw Citations": ["test"]}),
+                # Citations parsed correctly
+                call("Parsed citation(s)", extra={"citations": [{"source_number": "test"}]}),
+            ]
+        )
 
 
 @patch("app.services.dynamo.get_state_information")
