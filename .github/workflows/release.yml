@@ -145,46 +145,32 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.INT_SLACK_BOT_TOKEN }}
       SLACK_SIGNING_SECRET: ${{ secrets.INT_SLACK_SIGNING_SECRET }}
 
-  # TODO: uncomment when ready to release to prod
-  # release_prod:
-  #   needs: [get_commit_id, tag_release, package_code, release_int]
-  #   uses: ./.github/workflows/release_all_stacks.yml
-  #   with:
-  #     STACK_NAME: epsam
-  #     TARGET_ENVIRONMENT: prod
-  #     VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-  #     COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
-  #     CDK_APP_NAME: EpsAssistMeApp
-  #     DEPLOY_CODE: true
-  #     LOG_RETENTION_IN_DAYS: 731
-  #     LOG_LEVEL: "INFO"
-  #     CREATE_INT_RELEASE_NOTES: false
-  #     CREATE_PROD_RELEASE_NOTES: true
-  #     MARK_JIRA_RELEASED: true
-  #     CREATE_INT_RC_RELEASE_NOTES: false
-  #     IS_PULL_REQUEST: false
-  #   secrets:
-  #     CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_DEPLOY_ROLE }}
-  #     CDK_PULL_IMAGE_ROLE: ${{ secrets.PROD_CDK_PULL_IMAGE_ROLE }}
-  #     DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-  #     REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-  #     SLACK_BOT_TOKEN: ${{ secrets.PROD_SLACK_BOT_TOKEN }}
-  #     SLACK_SIGNING_SECRET: ${{ secrets.PROD_SLACK_SIGNING_SECRET }}
-  #
-  # create_release_notes:
-  #   needs: [tag_release, package_code, get_commit_id, release_int, release_prod]
-  #   uses: ./.github/workflows/create_release_notes.yml
-  #   with:
-  #     VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-  #     CREATE_INT_RELEASE_NOTES: true
-  #     CREATE_INT_RC_RELEASE_NOTES: false
-  #     CREATE_PROD_RELEASE_NOTES: true
-  #     MARK_JIRA_RELEASED: true
-  #   secrets:
-  #     DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-  #     DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+  release_prod:
+    needs: [tag_release, package_code, release_int]
+    uses: ./.github/workflows/release_all_stacks.yml
+    with:
+      STACK_NAME: epsam
+      TARGET_ENVIRONMENT: prod
+      VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
+      COMMIT_ID: ${{ github.sha }}
+      CDK_APP_NAME: EpsAssistMeApp
+      DEPLOY_CODE: true
+      LOG_RETENTION_IN_DAYS: 731
+      LOG_LEVEL: "INFO"
+      CREATE_INT_RELEASE_NOTES: false
+      CREATE_PROD_RELEASE_NOTES: true
+      MARK_JIRA_RELEASED: true
+      CREATE_INT_RC_RELEASE_NOTES: false
+      IS_PULL_REQUEST: false
+      RUN_REGRESSION_TESTS: false
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_DEPLOY_ROLE }}
+      CDK_PULL_IMAGE_ROLE: ${{ secrets.PROD_CDK_PULL_IMAGE_ROLE }}
+      DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+      REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+      SLACK_BOT_TOKEN: ${{ secrets.PROD_SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.PROD_SLACK_SIGNING_SECRET }}
+  
