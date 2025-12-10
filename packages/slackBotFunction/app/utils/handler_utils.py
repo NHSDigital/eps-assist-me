@@ -211,15 +211,107 @@ def extract_session_pull_request_id(conversation_key: str) -> str | None:
         return None
 
 
-def should_reply_to_message(event: Dict[str, Any]) -> bool:
+def get_bot_user_id(client: WebClient) -> str | None:
+    """
+    Get the bot's user ID using auth.test API.
+    This is cached to avoid repeated API calls.
+    """
+    if not hasattr(get_bot_user_id, "_cache"):
+        get_bot_user_id._cache = {}
+
+    cache_key = id(client)
+
+    if cache_key in get_bot_user_id._cache:
+        return get_bot_user_id._cache[cache_key]
+
+    try:
+        auth_response = client.auth_test()
+        if auth_response.get("ok"):
+            bot_user_id = auth_response.get("user_id")
+            get_bot_user_id._cache[cache_key] = bot_user_id
+            logger.info("Cached bot user ID", extra={"bot_user_id": bot_user_id})
+            return bot_user_id
+    except Exception:
+        logger.error("Error fetching bot user ID", extra={"error": traceback.format_exc()})
+
+    return None
+
+
+def was_bot_mentioned_in_thread_root(channel: str, thread_ts: str, client: WebClient) -> bool:
+    """
+    Check if THIS specific bot was mentioned anywhere in the thread history.
+    This handles cases where:
+    - Multiple bots are in the same channel (checks for this bot's specific user ID)
+    - Bot is mentioned later in a thread (not just the root message)
+    """
+    try:
+        # get this bot's user ID
+        bot_user_id = get_bot_user_id(client)
+        if not bot_user_id:
+            logger.warning("Could not determine bot user ID, failing open")
+            return True
+
+        response = client.conversations_replies(channel=channel, ts=thread_ts, inclusive=True)
+
+        if not response.get("ok") or not response.get("messages"):
+            logger.warning("Failed to fetch thread messages", extra={"channel": channel, "thread_ts": thread_ts})
+            return True
+
+        # check if THIS bot is mentioned in any message in the thread
+        bot_mention_pattern = rf"<@{re.escape(bot_user_id)}(?:\|[^>]+)?>"
+
+        for message in response["messages"]:
+            message_text = message.get("text", "")
+            if re.search(bot_mention_pattern, message_text):
+                logger.debug(
+                    "Found bot mention in thread",
+                    extra={
+                        "channel": channel,
+                        "thread_ts": thread_ts,
+                        "bot_user_id": bot_user_id,
+                        "message_ts": message.get("ts"),
+                    },
+                )
+                return True
+
+        logger.debug(
+            "Bot not mentioned in thread",
+            extra={"channel": channel, "thread_ts": thread_ts, "bot_user_id": bot_user_id},
+        )
+        return False
+
+    except Exception:
+        logger.error("Error checking bot mention in thread", extra={"error": traceback.format_exc()})
+        return True
+
+
+def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> bool:
     """
     Determine if the bot should reply to the message.
 
     Conditions:
     should not reply if:
     - Message is in a group chat (channel_type == 'group') but not in a thread
+    - Message is in a channel or group thread where the bot was not initially mentioned
     """
 
+    # we don't reply to non-threaded messages in group chats
     if event.get("channel_type") == "group" and event.get("type") == "message" and event.get("thread_ts") is None:
         return False
+
+    # for channel or group threads, check if bot was mentioned anywhere in the thread history
+    if event.get("channel_type") in ["channel", "group"] and event.get("thread_ts"):
+        if not client:
+            logger.warning("No Slack client provided to check thread participation")
+            return True
+
+        channel = event.get("channel")
+        thread_ts = event.get("thread_ts")
+
+        if not was_bot_mentioned_in_thread_root(channel, thread_ts, client):
+            logger.debug(
+                "Bot not mentioned in thread, ignoring message", extra={"channel": channel, "thread_ts": thread_ts}
+            )
+            return False
+
     return True
