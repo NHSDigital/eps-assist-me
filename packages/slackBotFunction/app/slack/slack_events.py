@@ -158,69 +158,7 @@ def _create_feedback_blocks(
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
 
     # Main response block
-    blocks = []
-    action_buttons = []
-
-    # Create citation buttons
-    if citations is None or len(citations) == 0:
-        logger.info("No citations")
-    else:
-        invalid_body = "No document excerpt available."
-        for i, citation in enumerate(citations):
-            logger.info("Creating citation", extra={"Citation": citation})
-            # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
-            title = citation.get("title") or citation.get("filename") or "Source"
-            body = citation.get("reference_text") or invalid_body
-            citation_link = citation.get("link") or ""
-            source_number = (citation.get("source_number", "0")).replace("\n", "")
-
-            # If snippet is from dev table or is a single word, skip
-            if re.fullmatch(r"[A-Za-z0-9-_]+", body.strip()):
-                body = invalid_body
-
-            # Buttons can only be 75 characters long, truncate to be safe
-            button_text = f"[{source_number}] {title}"
-            button = {
-                "type": "button",
-                "text": {
-                    "type": "plain_text",
-                    "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
-                },
-                "action_id": f"cite_{source_number}",
-                "value": json.dumps(
-                    {
-                        **feedback_data,
-                        "source_number": source_number,
-                        "title": title,
-                        "body": body,
-                        "link": citation_link,
-                    },
-                    separators=(",", ":"),
-                ),
-            }
-            action_buttons.append(button)
-
-            # Update inline citations
-            response_text = response_text.replace(
-                f"[cit_{source_number}]",
-                f"<{citation_link}|[{source_number}]>" if citation_link else f"[{source_number}]",
-            )
-
-    # Remove any citations that have not been returned
-    response_text = response_text.replace("cit_", "")
-
-    # Main body
-    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
-
-    # Citation action block
-    if action_buttons:
-        blocks.append(
-            {
-                "type": "actions",
-                "block_id": f"citation_actions_{i}",
-                "elements": action_buttons,
-            }
-        )
+    blocks = _create_response_body(citations, feedback_data, response_text)
 
     # Feedback buttons
     blocks.append({"type": "divider", "block_id": "feedback-divider"})
@@ -248,6 +186,81 @@ def _create_feedback_blocks(
 
     logger.info("Blocks", extra={"blocks": blocks})
     return blocks
+
+
+def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[str, str], response_text: str):
+    blocks = []
+    action_buttons = []
+
+    # Create citation buttons
+    if citations is None or len(citations) == 0:
+        logger.info("No citations")
+    else:
+        for i, citation in enumerate(citations):
+            result = _create_citation(citation, feedback_data, response_text)
+
+            action_buttons.append(result[0])
+            response_text = result[1]
+
+    # Remove any citations that have not been returned
+    response_text = response_text.replace("cit_", "")
+
+    # Main body
+    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
+
+    # Citation action block
+    if action_buttons:
+        blocks.append(
+            {
+                "type": "actions",
+                "block_id": "citation_actions",
+                "elements": action_buttons,
+            }
+        )
+
+    return blocks
+
+
+def _create_citation(citation: dict[str, str], feedback_data: dict, response_text: str):
+    logger.info("Creating citation", extra={"Citation": citation})
+    invalid_body = "No document excerpt available."
+    action_buttons = []
+
+    # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
+    title = citation.get("title") or citation.get("filename") or "Source"
+    body = citation.get("reference_text") or invalid_body
+    citation_link = citation.get("link") or ""
+    source_number = (citation.get("source_number", "0")).replace("\n", "")
+
+    # Buttons can only be 75 characters long, truncate to be safe
+    button_text = f"[{source_number}] {title}"
+    button = {
+        "type": "button",
+        "text": {
+            "type": "plain_text",
+            "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
+        },
+        "action_id": f"cite_{source_number}",
+        "value": json.dumps(
+            {
+                **feedback_data,
+                "source_number": source_number,
+                "title": title,
+                "body": body,
+                "link": citation_link,
+            },
+            separators=(",", ":"),
+        ),
+    }
+    action_buttons.append(button)
+
+    # Update inline citations
+    response_text = response_text.replace(
+        f"[cit_{source_number}]",
+        f"<{citation_link}|[{source_number}]>" if citation_link else f"[{source_number}]",
+    )
+
+    return [*action_buttons, response_text]
 
 
 # ================================================================

@@ -369,7 +369,7 @@ def test_citation_creation(
 
     # Verify button is correct
     assert citation_section["type"] == "actions"
-    assert citation_section["block_id"] == "citation_actions_0"
+    assert citation_section["block_id"] == "citation_actions"
     assert citation_section["elements"] and len(citation_section["elements"]) > 0
 
     # Verify that the citation data is correct
