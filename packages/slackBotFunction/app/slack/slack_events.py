@@ -175,7 +175,7 @@ def _create_feedback_blocks(
             source_number = (citation.get("source_number", "0")).replace("\n", "")
 
             # If snippet is from dev table or is a single word, skip
-            if re.fullmatch(r"[A-Za-z0-9-_]+", body.strip()) >= 0:
+            if re.fullmatch(r"[A-Za-z0-9-_]+", body.strip()):
                 body = invalid_body
 
             # Buttons can only be 75 characters long, truncate to be safe
