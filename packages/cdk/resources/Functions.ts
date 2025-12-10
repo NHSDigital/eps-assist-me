@@ -4,7 +4,6 @@ import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 import {TableV2} from "aws-cdk-lib/aws-dynamodb"
-import {QUERY_REFORMULATION_MODEL_ID, RAG_MODEL_ID} from "./Constants"
 
 const LAMBDA_MEMORY_SIZE = "265"
 
@@ -34,6 +33,8 @@ export interface FunctionsProps {
   readonly ragResponsePromptVersion: string
   readonly isPullRequest: boolean
   readonly mainSlackBotLambdaExecutionRoleArn : string
+  readonly ragModelId: string
+  readonly queryReformulationModelId: string
 }
 
 export class Functions extends Construct {
@@ -54,8 +55,8 @@ export class Functions extends Construct {
       additionalPolicies: [props.slackBotManagedPolicy],
       dependencyLocation: ".dependencies/slackBotFunction",
       environmentVariables: {
-        "RAG_MODEL_ID": RAG_MODEL_ID,
-        "QUERY_REFORMULATION_MODEL_ID": QUERY_REFORMULATION_MODEL_ID,
+        "RAG_MODEL_ID": props.ragModelId,
+        "QUERY_REFORMULATION_MODEL_ID": props.queryReformulationModelId,
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,

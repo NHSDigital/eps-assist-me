@@ -13,10 +13,10 @@ logger = get_logger()
 
 def reformulate_query(user_query: str) -> str:
     """
-    Reformulate user query using Nova for better RAG retrieval.
+    Reformulate user query using Amazon Nova Lite for better RAG retrieval.
 
     Loads prompt template from Bedrock Prompt Management, formats it with the user's
-    query, and uses Nova to generate a reformulated version optimized for vector search.
+    query, and uses Nova Lite to generate a reformulated version optimized for vector search.
     """
     try:
         client: BedrockRuntimeClient = boto3.client("bedrock-runtime", region_name=os.environ["AWS_REGION"])

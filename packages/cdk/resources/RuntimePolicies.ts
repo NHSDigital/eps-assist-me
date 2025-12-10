@@ -1,6 +1,5 @@
 import {Construct} from "constructs"
 import {PolicyStatement, ManagedPolicy} from "aws-cdk-lib/aws-iam"
-import {QUERY_REFORMULATION_MODEL_ID, RAG_MODEL_ID} from "./Constants"
 
 export interface RuntimePoliciesProps {
   readonly region: string
@@ -13,6 +12,8 @@ export interface RuntimePoliciesProps {
   readonly guardrailArn: string
   readonly dataSourceArn: string
   readonly promptName: string
+  readonly ragModelId: string
+  readonly queryReformulationModelId: string
 }
 
 export class RuntimePolicies extends Construct {
@@ -26,8 +27,8 @@ export class RuntimePolicies extends Construct {
     const slackBotPolicy = new PolicyStatement({
       actions: ["bedrock:InvokeModel"],
       resources: [
-        `arn:aws:bedrock:${props.region}::foundation-model/${RAG_MODEL_ID}`,
-        `arn:aws:bedrock:${props.region}::foundation-model/${QUERY_REFORMULATION_MODEL_ID}`
+        `arn:aws:bedrock:${props.region}::foundation-model/${props.ragModelId}`,
+        `arn:aws:bedrock:${props.region}::foundation-model/${props.queryReformulationModelId}`
       ]
     })
 
