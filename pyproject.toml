@@ -45,6 +45,11 @@ boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runt
 boto3 = "^1.42.4"
 aws-lambda-powertools = "^3.23.0"
 
+[tool.poetry.group.preprocessingFunction.dependencies]
+boto3 = "^1.42.4"
+aws-lambda-powertools = "^3.23.0"
+markitdown = {extras = ["pdf", "docx", "pptx", "xlsx"], version = "^0.0.2"}
+
 [tool.black]
 line-length = 120
 
