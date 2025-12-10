@@ -106,7 +106,7 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
         actual_version = response.get("version", "DRAFT")
 
         # Extract inference configuration with defaults
-        default_inference = {"temperature": 0, "topP": 1, "maxTokens": 512}
+        default_inference = {"temperature": 0, "topP": 1, "maxTokens": 1500}
         raw_inference = response["variants"][0].get("inferenceConfiguration", {})
         raw_text_config = raw_inference.get("textInferenceConfiguration", {})
         inference_config = {**default_inference, **raw_text_config}
