@@ -129,7 +129,9 @@ export class EpsAssistMeStack extends Stack {
       knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
       guardrailArn: vectorKB.guardrail.guardrailArn,
       dataSourceArn: vectorKB.dataSourceArn,
-      promptName: bedrockPromptResources.queryReformulationPrompt.promptName
+      promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      ragModelId: bedrockPromptResources.ragModelId,
+      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId
     })
 
     // Create Functions construct with actual values from VectorKB
