@@ -1,5 +1,11 @@
 import sys
-from unittest.mock import Mock, patch
+import pytest
+from unittest.mock import Mock, patch, MagicMock, call
+
+
+@pytest.fixture
+def mock_logger():
+    return MagicMock()
 
 
 @patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
@@ -284,6 +290,242 @@ def test_regex_text_processing(
 
 
 @patch("app.services.dynamo.get_state_information")
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session")
+@patch("app.slack.slack_events._create_feedback_blocks")
+def test_citation_processing(
+    mock_get_session: Mock,
+    mock_process_ai_query: Mock,
+    mock_create_feedback_blocks: Mock,
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test block builder is being called correctly"""
+    # set up mocks
+    mock_client = Mock()
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}},
+    }
+    mock_get_session.return_value = None  # No existing session
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_slack_message
+
+    # perform operation
+    slack_event_data = {
+        "text": "Answer",
+        "user": "U456",
+        "channel": "C789",
+        "ts": "1234567890.123",
+    }
+
+    process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+
+    # assertions
+    # Verify that the message was processed (process_ai_query was called)
+    mock_create_feedback_blocks.assert_called_once()
+
+
+@patch("app.services.dynamo.get_state_information")
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session")
+@patch("app.slack.slack_events._create_feedback_blocks")
+def test_citation_logging(
+    mock_get_session: Mock,
+    mock_create_feedback_blocks: Mock,
+    mock_process_ai_query: Mock,
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+    mock_logger,
+):
+    """Test block builder is being called correctly"""
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        # set up mocks
+        mock_client = Mock()
+        mock_process_ai_query.return_value = {
+            "text": "AI response\n------\n<cit>test</cit>",
+            "session_id": "session-123",
+            "citations": [],
+            "kb_response": {"output": {"text": "AI response"}},
+        }
+        mock_get_session.return_value = None  # No existing session
+
+        # delete and import module to test
+        if "app.slack.slack_events" in sys.modules:
+            del sys.modules["app.slack.slack_events"]
+        from app.slack.slack_events import process_slack_message
+
+        # perform operation
+        slack_event_data = {
+            "text": "AI response",
+            "user": "U456",
+            "channel": "C789",
+            "ts": "1234567890.123",
+        }
+
+        process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+
+        # assertions
+        mock_logger.info.assert_has_calls(
+            [
+                call(
+                    "Processing message from user U456",
+                    extra={
+                        "user_query": "AI response",
+                        "conversation_key": "thread#C789#1234567890.123",
+                        "event_id": "evt123",
+                    },
+                ),
+                # Found citations to split
+                call("Found citation(s)", extra={"Raw Citations": ["test"]}),
+                # Citations parsed correctly
+                call("Parsed citation(s)", extra={"citations": [{"source_number": "test"}]}),
+            ]
+        )
+
+
+@patch("app.services.dynamo.get_state_information")
+def test_citation_creation(
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test citations are being added via Slack blocks correctly"""
+    # set up mocks
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_feedback_blocks
+
+    _sourceNumber = "5"
+    _title = "Some Title Summarising the Document"
+    _link = "http://example.com"
+    _filename = "example.pdf"
+    _text_snippet = "This is some example text, maybe something about NHSE"
+
+    result = _create_feedback_blocks(
+        response_text="Answer",
+        citations=[
+            {
+                "source_number": _sourceNumber,
+                "title": _title,
+                "link": _link,
+                "filename": _filename,
+                "reference_text": _text_snippet,
+            }
+        ],
+        conversation_key="12345",
+        channel="C789",
+        message_ts="123",
+        thread_ts="123",
+    )
+
+    # assertions
+    # Verify that the citation button was added
+    citation_section = result[1]
+    assert citation_section is not None
+
+    # Verify button is correct
+    assert citation_section["type"] == "actions"
+    assert citation_section["block_id"] == "citation_actions"
+    assert citation_section["elements"] and len(citation_section["elements"]) > 0
+
+    # Verify that the citation data is correct
+    citation_button = citation_section["elements"][0]
+    assert citation_button is not None
+
+    assert citation_button["type"] == "button"
+    assert citation_button["text"]["text"] == f"[{_sourceNumber}] {_title}"
+
+    assert f'"source_number":"{_sourceNumber}"' in citation_button["value"]
+    assert f'"title":"{_title}"' in citation_button["value"]
+    assert f'"body":"{_text_snippet}"' in citation_button["value"]
+    assert f'"link":"{_link}"' in citation_button["value"]
+
+
+@patch("app.services.dynamo.get_state_information")
+def test_citation_creation_defaults(
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # set up mocks
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_feedback_blocks
+
+    result = _create_feedback_blocks(
+        response_text="Answer",
+        citations=[{}],  # Pass in empty object
+        conversation_key="12345",
+        channel="C789",
+        message_ts="123",
+        thread_ts="123",
+    )
+
+    # assertions
+    # Verify that the citation button was added
+    citation_section = result[1]
+    assert citation_section is not None
+
+    # Verify that the citation data is correct
+    citation_button = citation_section["elements"][0]
+    assert citation_button is not None
+
+    assert citation_button["type"] == "button"
+    assert citation_button["text"]["text"] == "[0] Source"
+
+    assert '"source_number":"0"' in citation_button["value"]
+    assert '"title":"Source"' in citation_button["value"]
+    assert '"body":"No document excerpt available."' in citation_button["value"]
+    assert '"link":""' in citation_button["value"]
+
+
+@patch("app.services.dynamo.get_state_information")
+def test_response_handle_links(
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing citation links in response body"""
+    # set up mocks
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_feedback_blocks
+
+    result = _create_feedback_blocks(
+        response_text="[cit_0]",
+        citations=[
+            {
+                "source_number": "0",
+                "link": "https://example.com",
+            }
+        ],
+        conversation_key="12345",
+        channel="C789",
+        message_ts="123",
+        thread_ts="123",
+    )
+
+    # assertions
+    # Verify links in the body are changed to slack links
+    citation_section = result[0]
+    assert citation_section is not None
+
+    assert "<https://example.com|[0]>" in citation_section["text"]["text"]
+
+
+@patch("app.services.dynamo.get_state_information")
 @patch("app.services.dynamo.store_state_information")
 @patch("app.services.ai_processor.process_ai_query")
 def test_process_slack_message_with_session_storage(
@@ -420,6 +662,7 @@ def test_process_async_slack_action_positive(
         "type": "block_actions",
         "user": {"id": "U123"},
         "channel": {"id": "C123"},
+        "message": {"ts": "1759845126.972219"},
         "actions": [{"action_id": "feedback_yes", "value": feedback_value}],
     }
     with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:
@@ -465,6 +708,7 @@ def test_process_async_slack_action_negative(
         "type": "block_actions",
         "user": {"id": "U123"},
         "channel": {"id": "C123"},
+        "message": {"ts": "1759845126.972219"},
         "actions": [{"action_id": "feedback_no", "value": feedback_value}],
     }
     with patch("app.slack.slack_events.store_feedback") as mock_store_feedback:

@@ -25,7 +25,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     inference_config = prompt_template.get("inference_config")
 
     if not inference_config:
-        default_values = {"temperature": 0, "maxTokens": 512, "topP": 1}
+        default_values = {"temperature": 0, "maxTokens": 1500, "topP": 1}
         inference_config = default_values
         logger.warning(
             "No inference configuration found in prompt template; using default values",
@@ -43,11 +43,22 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
                 "modelArn": config.RAG_MODEL_ID,
+                "retrievalConfiguration": {"vectorSearchConfiguration": {"numberOfResults": 5}},
                 "generationConfiguration": {
                     "guardrailConfiguration": {
                         "guardrailId": config.GUARD_RAIL_ID,
                         "guardrailVersion": config.GUARD_VERSION,
                     },
+                    "inferenceConfig": {
+                        "textInferenceConfig": {
+                            **inference_config,
+                            "stopSequences": [
+                                "Human:",
+                            ],
+                        }
+                    },
+                },
+                "orchestrationConfiguration": {
                     "inferenceConfig": {
                         "textInferenceConfig": {
                             **inference_config,
@@ -79,7 +90,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",
-        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
+        extra={"session_id": response.get("sessionId")},
     )
     return response
 

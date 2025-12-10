@@ -1,7 +1,6 @@
-- Using your knowledge around the National Health Service (NHS), Electronic Prescription Service (EPS) and the Fast Healthcare Interoperability Resources' (FHIR) onboarding, Supplier Conformance Assessment List (SCAL), APIs, developer guides and error resolution; please answer the following question and cite direct quotes and document sections.
-- If my query is asking for instructions (i.e., "How to...", "How do I...") provide step by steps instructions
-- Do not provide general advice or external instructions
+# QUERY
+{{user_query}}
 
-<SearchResults>$search_results$</SearchResults>
-
-<UserQuery>{{user_query}}</UserQuery>`
+# CONTEXT
+## Results $search_results$
+## LIST ALL RESULTS IN TABLE
