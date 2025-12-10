@@ -157,6 +157,8 @@ export class EpsAssistMeStack extends Stack {
       ragResponsePromptName: bedrockPromptResources.ragResponsePrompt.promptName,
       reformulationPromptVersion: bedrockPromptResources.queryReformulationPrompt.promptVersion,
       ragResponsePromptVersion: bedrockPromptResources.ragResponsePrompt.promptVersion,
+      ragModelId: bedrockPromptResources.ragModelId,
+      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
     })

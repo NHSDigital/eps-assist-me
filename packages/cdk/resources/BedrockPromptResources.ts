@@ -14,6 +14,8 @@ export interface BedrockPromptResourcesProps {
 export class BedrockPromptResources extends Construct {
   public readonly queryReformulationPrompt: Prompt
   public readonly ragResponsePrompt: Prompt
+  public readonly ragModelId: string
+  public readonly queryReformulationModelId: string
 
   constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
@@ -55,6 +57,10 @@ export class BedrockPromptResources extends Construct {
       defaultVariant: ragResponsePromptVariant,
       variants: [ragResponsePromptVariant]
     })
+
+    // expose model IDs for use in Lambda environment variables
+    this.ragModelId = novaProModel.modelId
+    this.queryReformulationModelId = novaLiteModel.modelId
 
     this.queryReformulationPrompt = queryReformulationPrompt
     this.ragResponsePrompt = ragPrompt
