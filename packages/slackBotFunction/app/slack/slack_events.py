@@ -652,25 +652,9 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
             body = body.replace("»", "")  # Remove double chevrons
 
         current_id = f"cite_{source_number}".strip()
-        selected = False
 
         # Reset all button styles, then set the clicked one
-        for block in blocks:
-            if block.get("type") == "actions":
-                for element in block.get("elements", []):
-                    if element.get("type") == "button":
-                        action_id = element.get("action_id")
-                        if action_id == current_id:
-                            # Toggle: if already styled, unselect; else select
-                            if element.get("style") == "primary":
-                                element.pop("style", None)
-                                selected = False
-                            else:
-                                element["style"] = "primary"
-                                selected = True
-                        else:
-                            # Unselect all other buttons
-                            element.pop("style", None)
+        [selected, blocks] = format_blocks(blocks, current_id)
 
         # If selected, insert citation block before feedback
         if selected:
@@ -691,6 +675,27 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
 
     except Exception as e:
         logger.error(f"Error updating message for citation: {e}", extra={"error": traceback.format_exc()})
+
+
+def format_blocks(blocks: Any, current_id: str):
+    selected = False
+    for block in blocks:
+        if block.get("type") == "actions":
+            for element in block.get("elements", []):
+                if element.get("type") == "button":
+                    action_id = element.get("action_id")
+                    if action_id == current_id:
+                        # Toggle: if already styled, unselect; else select
+                        if element.get("style") == "primary":
+                            element.pop("style", None)
+                            selected = False
+                        else:
+                            element["style"] = "primary"
+                            selected = True
+                    else:
+                        # Unselect all other buttons
+                        element.pop("style", None)
+    return [selected, blocks]
 
 
 # ================================================================

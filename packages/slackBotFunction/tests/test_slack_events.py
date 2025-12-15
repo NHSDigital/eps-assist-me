@@ -406,7 +406,7 @@ def test_citation_creation(
 
     _sourceNumber = "5"
     _title = "Some Title Summarising the Document"
-    _link = "http://example.com"
+    _link = "https://example.com"
     _filename = "example.pdf"
     _text_snippet = "This is some example text, maybe something about NHSE"
 
@@ -866,3 +866,200 @@ def test_process_feedback_event_error(
 
         # assertions
         mock_post_error_message.assert_called_once_with(channel="C123", thread_ts="123", client=mock_client)
+
+
+def test_process_citation_events_update_chat_message_open_citation():
+    # set up mocks
+    mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_update.return_value = {"ok": True}
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import open_citation
+
+    params = {
+        "ck": "123123",
+        "ch": "123123",
+        "mt": "123123.123123",
+        "tt": "123123.123123",
+        "source_number": "1",
+        "title": "Citation Title",
+        "body": "Citation Body",
+        "link": "http://example.com",
+    }
+
+    citations = {
+        "type": "actions",
+        "block_id": "citation_actions",
+        "elements": [
+            {
+                "type": "button",
+                "action_id": "cite_1",
+                "text": {
+                    "type": "plain_text",
+                    "text": "[1] The body of the citation",
+                    "emoji": "true",
+                },
+                "style": None,  # Set citation as de-active
+                "value": str(params),
+            },
+        ],
+    }
+
+    message = {
+        "blocks": [citations],
+    }
+
+    # perform operation
+    open_citation("ABC", "123", message, params, mock_client)
+
+    # assertions
+    expected_blocks = [
+        citations,
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "*Citation Title*\n\n> Citation Body"},
+            "block_id": "citation_block",
+        },
+    ]
+    mock_client.chat_update.assert_called()
+    mock_client.chat_update.assert_called_with(channel="ABC", ts="123", blocks=expected_blocks)
+
+
+def test_process_citation_events_update_chat_message_close_citation():
+    # set up mocks
+    mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_update.return_value = {"ok": True}
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import open_citation
+
+    params = {
+        "ck": "123123",
+        "ch": "123123",
+        "mt": "123123.123123",
+        "tt": "123123.123123",
+        "source_number": "1",
+        "title": "Citation Title",
+        "body": "Citation Body",
+        "link": "http://example.com",
+    }
+
+    citations = {
+        "type": "actions",
+        "block_id": "citation_actions",
+        "elements": [
+            {
+                "type": "button",
+                "action_id": "cite_1",
+                "text": {
+                    "type": "plain_text",
+                    "text": "[1] The body of the citation",
+                    "emoji": "true",
+                },
+                "style": "primary",  # Set citation as active
+                "value": str(params),
+            },
+        ],
+    }
+
+    citation_body = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": "*Citation Title*\n\n> Citation Body"},
+        "block_id": "citation_block",
+    }
+
+    message = {
+        "blocks": [citations, citation_body],
+    }
+
+    # perform operation
+    open_citation("ABC", "123", message, params, mock_client)
+
+    # assertions
+    expected_blocks = [
+        citations,
+    ]
+    mock_client.chat_update.assert_called()
+    mock_client.chat_update.assert_called_with(channel="ABC", ts="123", blocks=expected_blocks)
+
+
+def test_process_citation_events_update_chat_message_change_close_citation():
+    # set up mocks
+    mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_update.return_value = {"ok": True}
+
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import open_citation
+
+    params = {
+        "ck": "123123",
+        "ch": "123123",
+        "mt": "123123.123123",
+        "tt": "123123.123123",
+        "source_number": "2",
+        "title": "Second Citation Title",
+        "body": "Second Citation Body",
+        "link": "http://example.com",
+    }
+
+    citations = {
+        "type": "actions",
+        "block_id": "citation_actions",
+        "elements": [
+            {
+                "type": "button",
+                "action_id": "cite_1",
+                "text": {
+                    "type": "plain_text",
+                    "text": "[1] The body of the citation",
+                    "emoji": "true",
+                },
+                "style": "primary",  # Set citation as active
+                "value": str(params),
+            },
+            {
+                "type": "button",
+                "action_id": "cite_2",
+                "text": {
+                    "type": "plain_text",
+                    "text": "[2] The body of the citation",
+                    "emoji": "true",
+                },
+                "style": None,  # Set citation as active
+                "value": str(params),
+            },
+        ],
+    }
+
+    first_citation_body = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": "*First Citation Title*\n\n> First Citation Body"},
+        "block_id": "citation_block",
+    }
+
+    second_citation_body = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": "*Second Citation Title*\n\n> Second Citation Body"},
+        "block_id": "citation_block",
+    }
+
+    message = {
+        "blocks": [citations, first_citation_body],
+    }
+
+    # perform operation
+    open_citation("ABC", "123", message, params, mock_client)
+
+    # assertions
+    expected_blocks = [citations, second_citation_body]
+    mock_client.chat_update.assert_called()
+    mock_client.chat_update.assert_called_with(channel="ABC", ts="123", blocks=expected_blocks)
