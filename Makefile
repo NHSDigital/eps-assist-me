@@ -3,6 +3,7 @@ run-jekyll:
 
 sync-main:
 	git checkout main .tool-versions
+	git checkout main .tool-versions.asdf
 	git checkout main .pre-commit-config.yaml
 	git checkout main .gitignore
 	git checkout main .devcontainer

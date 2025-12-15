@@ -2,17 +2,19 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
   "name": "Ubuntu",
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",
-    "args": {}
+    "args": {
+      "DOCKER_GID": "${env:DOCKER_GID:}"
+    }
   },
   "mounts": [
     "source=${env:HOME}${env:USERPROFILE}/.aws,target=/home/vscode/.aws,type=bind",
     "source=${env:HOME}${env:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind",
     "source=${env:HOME}${env:USERPROFILE}/.gnupg,target=/home/vscode/.gnupg,type=bind",
-    "source=${env:HOME}${env:USERPROFILE}/.npmrc,target=/home/vscode/.npmrc,type=bind"
+    "source=${env:HOME}${env:USERPROFILE}/.npmrc,target=/home/vscode/.npmrc,type=bind",
+    "source=${env:HOME}${env:USERPROFILE}/.gitconfig,target=/home/vscode/.gitconfig,type=bind"
   ],
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
@@ -28,10 +30,10 @@
         "AmazonWebServices.aws-toolkit-vscode",
         "redhat.vscode-yaml",
         "ms-python.python",
+        "ms-python.black-formatter",
         "ms-python.flake8",
         "eamodio.gitlens",
         "github.vscode-pull-request-github",
-        "orta.vscode-jest",
         "42crunch.vscode-openapi",
         "mermade.openapi-lint",
         "dbaeumer.vscode-eslint",
@@ -46,14 +48,19 @@
         "github.vscode-github-actions"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/workspaces/eps-assist-me/.venv/bin/python",
+        "python.defaultInterpreterPath": "/home/vscode/.asdf/shims/python",
         "python.analysis.autoSearchPaths": true,
         "python.analysis.extraPaths": [],
         "python.testing.unittestEnabled": false,
-        "python.testing.pytestEnabled": true,
+        "python.testing.pytestEnabled": false,
         "python.linting.pylintEnabled": false,
         "python.linting.flake8Enabled": true,
         "python.linting.enabled": true, // required to format on save
+        "python.formatting.provider": "black",
+        "black-formatter.args": ["--line-length=120"],
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter"
+        },
         "editor.defaultFormatter": "dbaeumer.vscode-eslint",
         "editor.formatOnPaste": false, // required
         "editor.formatOnType": false, // required
@@ -62,10 +69,10 @@
         "cSpell.words": ["fhir", "Formik", "pino", "serialisation"],
         "eslint.useFlatConfig": true,
         "eslint.format.enable": true
-          }
+      }
     }
   },
-  "postCreateCommand": "rm -f ~/.docker/config.json; git config --global --add safe.directory /workspaces/eps-assist-me; make install; direnv allow .; docker build -f /workspaces/eps-workflow-quality-checks/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets ."
+  "postCreateCommand": "rm -f ~/.docker/config.json; git config --global --add safe.directory /workspaces/eps-assist-me; make install; direnv allow ."
   // "features": {},
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   // "forwardPorts": [],

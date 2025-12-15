@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v6.0.0
     hooks:
       - id: check-merge-conflict
         name: Check for merge conflict strings
@@ -20,6 +20,13 @@ repos:
     rev: "7ef0350a439c93166bc8ba89fcc3de6a9a664e6c" # release 6.1.0
     hooks:
       - id: flake8
+
+  - repo: https://github.com/psf/black
+    rev: "24.10.0"
+    hooks:
+      - id: black
+        language_version: python3
+        args: [--line-length=120]
 
   - repo: local
     hooks:
@@ -41,6 +48,15 @@ repos:
         types_or: [sh, shell]
         pass_filenames: false
 
+      - id: lint-cdk
+        name: Lint cdk
+        entry: npm
+        args: ["run", "--prefix=packages/cdk", "lint"]
+        language: system
+        files: ^packages\/cdk
+        types_or: [ts, tsx, javascript, jsx, json]
+        pass_filenames: false
+
   - repo: local
     hooks:
       - id: git-secrets
@@ -49,7 +65,7 @@ repos:
         entry: bash
         args:
           - -c
-          - 'docker run -v "$(pwd):/src" git-secrets --pre_commit_hook'
+          - 'docker run -v "$LOCAL_WORKSPACE_FOLDER:/src" git-secrets --pre_commit_hook'
         language: system
 
 fail_fast: true
