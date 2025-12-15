@@ -87,6 +87,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     else:
         logger.info("Starting new conversation")
 
+    logger.debug("Retrieve and Generate", extra={"params": request_params})
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",
@@ -96,7 +97,6 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
 
 
 def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient, inference_config: dict) -> dict[str, Any]:
-    logger.debug("Invoking Model", extra={"inference_config": inference_config})
     response = client.invoke_model(
         modelId=model_id,
         body=json.dumps(
