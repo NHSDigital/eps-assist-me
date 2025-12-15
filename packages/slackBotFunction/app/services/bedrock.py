@@ -96,14 +96,13 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
 
 
 def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient, inference_config: dict) -> dict[str, Any]:
+    logger.debug("Invoking Model", extra={"inference_config": inference_config})
     response = client.invoke_model(
         modelId=model_id,
         body=json.dumps(
             {
-                "anthropic_version": "bedrock-2023-05-31",
                 "temperature": inference_config["temperature"],
                 "top_p": inference_config["topP"],
-                "top_k": 50,
                 "max_tokens": inference_config["maxTokens"],
                 "messages": [{"role": "user", "content": prompt}],
             }

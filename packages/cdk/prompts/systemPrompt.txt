@@ -41,7 +41,7 @@ You are an AI assistant designed to provide guidance and references from your kn
 
 # Bibliography
 ## Format
-<cit>source number||summary title||link||filename||text snippet||reasoning</cit>\n
+<cit>source number||title||link||text snippet</cit>\n
 
 ## Requirements
 - Return **ALL** retrieved documents, their name and a text snippet, from "CONTEXT"

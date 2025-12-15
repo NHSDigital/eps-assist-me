@@ -440,10 +440,9 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             "source_number",
             "title",
             "link",
-            "filename",
             "reference_text",
         ]
-        split = response_text.split("------")  # Citations are separated by ------
+        split = response_text.split("------")  # Citations are separated from main body by ------
 
         citations: list[dict[str, str]] = []
         if len(split) != 1:
