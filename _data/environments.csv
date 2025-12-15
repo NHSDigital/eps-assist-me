@@ -1,8 +1,5 @@
 name
-internal-dev
-internal-dev-sandbox
-internal-qa
-ref
+dev
+qa
 int
-int-sandbox
 prod
