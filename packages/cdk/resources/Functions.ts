@@ -5,7 +5,6 @@ import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 import {TableV2} from "aws-cdk-lib/aws-dynamodb"
 
-const BEDROCK_KB_DATA_SOURCE = "eps-assist-kb-ds"
 const LAMBDA_MEMORY_SIZE = "265"
 
 export interface FunctionsProps {
@@ -59,7 +58,6 @@ export class Functions extends Construct {
         "RAG_MODEL_ID": props.ragModelId,
         "QUERY_REFORMULATION_MODEL_ID": props.queryReformulationModelId,
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
-        "BEDROCK_KB_DATA_SOURCE": BEDROCK_KB_DATA_SOURCE,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_SIGNING_SECRET_PARAMETER": props.slackSigningSecretParameter.parameterName,
