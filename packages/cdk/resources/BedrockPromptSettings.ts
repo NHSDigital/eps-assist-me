@@ -34,7 +34,7 @@ export class BedrockPromptSettings extends Construct {
 
     this.inferenceConfig = {
       temperature: 0,
-      topP: 1,
+      topP: 0.2,
       maxTokens: 1500,
       stopSequences: [
         "Human:"
