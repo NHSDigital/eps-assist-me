@@ -205,6 +205,9 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
     # Remove any citations that have not been returned
     response_text = response_text.replace("cit_", "")
 
+    # Remove Thinking
+    response_text = re.sub(r"<thinking>.*?</thinking>", "", response_text, flags=re.DOTALL)
+
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
 
@@ -226,9 +229,10 @@ def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, resp
     invalid_body = "No document excerpt available."
     action_buttons = []
 
-    # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
-    content: str = citation.get("content", {}).get("text", invalid_body)
-    title: str = citation.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
+    # Create citation blocks
+    reference = citation.get("retrievedReferences", [{}])[0]
+    content: str = reference.get("content", {}).get("text", invalid_body)
+    title: str = reference.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
 
     # Tidy up contents
     content.replace("»", "").strip()
