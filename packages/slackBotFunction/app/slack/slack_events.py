@@ -197,7 +197,7 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
         logger.info("No citations")
     else:
         for i, citation in enumerate(citations):
-            result = _create_citation(citation, feedback_data, response_text)
+            result = _create_citation(i, citation, feedback_data, response_text)
 
             action_buttons.append(result[0])
             response_text = result[1]
@@ -228,13 +228,13 @@ def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, resp
 
     # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
     content: str = citation.get("content", {}).get("text", invalid_body)
-    location: str = citation.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
+    title: str = citation.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
 
     # Tidy up contents
     content.replace("»", "").strip()
 
     # Buttons can only be 75 characters long, truncate to be safe
-    button_text = f"[{i}] {location}"
+    button_text = f"[{i}] {title}"
     button = {
         "type": "button",
         "text": {
@@ -246,7 +246,7 @@ def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, resp
             {
                 **feedback_data,
                 "source_number": f"{i}",
-                "title": location,
+                "title": title,
                 "body": content,
             },
             separators=(",", ":"),
