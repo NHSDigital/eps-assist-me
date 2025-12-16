@@ -206,7 +206,7 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
     response_text = response_text.replace("cit_", "")
 
     # Remove Thinking
-    response_text = re.sub(r"<thinking>.*?</thinking>", "", response_text, flags=re.DOTALL)
+    response_text = re.sub(r"<thinking>(\n.*)+</thinking>", "", response_text, flags=re.DOTALL)
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
@@ -235,7 +235,7 @@ def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, resp
     title: str = reference.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
 
     # Tidy up contents
-    content.replace("»", "").strip()
+    content.replace("»", "").strip()[:1000]
 
     # Buttons can only be 75 characters long, truncate to be safe
     button_text = f"[{i}] {title}"
@@ -641,7 +641,7 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
             else:
                 citation_block = {
                     "type": "section",
-                    "text": {"type": "mrkdwn", "text": f"{title}\n\n{body}"},
+                    "text": {"type": "mrkdwn", "text": f"{title}\n\n{body[:1000]}"},
                     "block_id": "citation_block",
                 }
 
@@ -694,7 +694,9 @@ def generate_table_block(title: str, content: str):
                 "elements": [
                     {
                         "type": "rich_text_section",
-                        "elements": [{"type": "text", "text": cell, "style": {"bold": True} if index == 0 else {}}],
+                        "elements": [
+                            {"type": "text", "text": cell[:500], "style": {"bold": True} if index == 0 else {}}
+                        ],
                     }
                 ],
             }
