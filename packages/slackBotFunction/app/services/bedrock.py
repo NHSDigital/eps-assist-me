@@ -42,23 +42,15 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "type": "KNOWLEDGE_BASE",
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
-                "modelArn": config.RAG_MODEL_ID,
-                "retrievalConfiguration": {"vectorSearchConfiguration": {"numberOfResults": 5}},
+                "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
+                "retrievalConfiguration": {
+                    "vectorSearchConfiguration": {"numberOfResults": 10, "overrideSearchType": "SEMANTIC"}
+                },
                 "generationConfiguration": {
                     "guardrailConfiguration": {
                         "guardrailId": config.GUARD_RAIL_ID,
                         "guardrailVersion": config.GUARD_VERSION,
                     },
-                    "inferenceConfig": {
-                        "textInferenceConfig": {
-                            **inference_config,
-                            "stopSequences": [
-                                "Human:",
-                            ],
-                        }
-                    },
-                },
-                "orchestrationConfiguration": {
                     "inferenceConfig": {
                         "textInferenceConfig": {
                             **inference_config,
