@@ -221,44 +221,38 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
     return blocks
 
 
-def _create_citation(citation: dict[str, str], feedback_data: dict, response_text: str):
+def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, response_text: str):
     logger.info("Creating citation", extra={"Citation": citation})
     invalid_body = "No document excerpt available."
     action_buttons = []
 
     # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
-    title = citation.get("title") or citation.get("filename") or "Source"
-    body = citation.get("reference_text") or invalid_body
-    citation_link = citation.get("link") or ""
-    source_number = (citation.get("source_number", "0")).replace("\n", "")
+    content: str = citation.get("content", {}).get("text", invalid_body)
+    location: str = citation.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
+
+    # Tidy up contents
+    content.replace("»", "").strip()
 
     # Buttons can only be 75 characters long, truncate to be safe
-    button_text = f"[{source_number}] {title}"
+    button_text = f"[{i}] {location}"
     button = {
         "type": "button",
         "text": {
             "type": "plain_text",
             "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
         },
-        "action_id": f"cite_{source_number}",
+        "action_id": f"cite_{i}",
         "value": json.dumps(
             {
                 **feedback_data,
-                "source_number": source_number,
-                "title": title,
-                "body": body,
-                "link": citation_link,
+                "source_number": f"{i}",
+                "title": location,
+                "body": content,
             },
             separators=(",", ":"),
         ),
     }
     action_buttons.append(button)
-
-    # Update inline citations
-    response_text = response_text.replace(
-        f"[cit_{source_number}]",
-        f"<{citation_link}|[{source_number}]>" if citation_link else f"[{source_number}]",
-    )
 
     return [*action_buttons, response_text]
 
@@ -432,28 +426,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         ai_response = process_ai_query(user_query, session_id)
         kb_response = ai_response["kb_response"]
         response_text = ai_response["text"]
-
-        # Split out citation block if present
-        # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
-        # system prompt. Instead, pull out and format the citations in the prompt manually
-        prompt_value_keys = [
-            "source_number",
-            "title",
-            "link",
-            "reference_text",
-        ]
-        split = response_text.split("------")  # Citations are separated from main body by ------
-
-        citations: list[dict[str, str]] = []
-        if len(split) != 1:
-            response_text = split[0]
-            citation_block = split[1]
-            raw_citations = []
-            raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
-            if len(raw_citations) > 0:
-                logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
-                citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
-        logger.info("Parsed citation(s)", extra={"citations": citations})
+        citations = ai_response["citations"]
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
@@ -656,12 +629,18 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         [selected, blocks] = format_blocks(blocks, current_id)
 
         # If selected, insert citation block before feedback
+        has_table = re.search(body, r"\|-+\|") is not None
         if selected:
-            citation_block = {
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": f"{title}\n\n{body}"},
-                "block_id": "citation_block",
-            }
+            citation_block = {}
+            if has_table:
+                citation_block = generate_table_block(title, body)
+            else:
+                citation_block = {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"{title}\n\n{body}"},
+                    "block_id": "citation_block",
+                }
+
             feedback_index = next(
                 (i for i, b in enumerate(blocks) if b.get("block_id") == "feedback-divider"),
                 len(blocks),
@@ -695,6 +674,30 @@ def format_blocks(blocks: Any, current_id: str):
                         # Unselect all other buttons
                         element.pop("style", None)
     return [selected, blocks]
+
+
+def generate_table_block(title: str, content: str):
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    table_lines = [line for line in lines if not set(line) <= {"|", "-", " "}]
+    rows = []
+
+    for index, line in table_lines:
+        cells = [cell.strip() for cell in line.split("|") if cell.strip()]
+        row = []
+        for cell in cells:
+            cell_block = {
+                "type": "rich_text",
+                "elements": [
+                    {
+                        "type": "rich_text_section",
+                        "elements": [{"type": "text", "text": cell, "style": {"bold": True} if index == 0 else {}}],
+                    }
+                ],
+            }
+            row.append(cell_block)
+        rows.append(row)
+
+    return {"type": "table", "rows": rows}
 
 
 # ================================================================

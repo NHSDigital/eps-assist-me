@@ -1,6 +1,4 @@
-# QUERY
-{{user_query}}
+<user_query>{{user_query}}<user_query>
 
 # CONTEXT
-## Results $search_results$
-## LIST ALL RESULTS IN TABLE
+<search_results>$search_results$<search_results>
