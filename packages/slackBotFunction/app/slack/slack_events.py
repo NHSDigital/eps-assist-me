@@ -198,15 +198,14 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
     else:
         for i, citation in enumerate(citations):
             result = _create_citation(i, citation, feedback_data, response_text)
-
-            action_buttons.append(result[0])
-            response_text = result[1]
+            action_buttons += result.get("action_buttons", [])
+            response_text = result.get("response_text", response_text)
 
     # Remove any citations that have not been returned
     response_text = response_text.replace("cit_", "")
 
     # Remove Thinking
-    response_text = re.sub(r"<thinking>(\n*.*)+</thinking>", "", response_text, flags=re.DOTALL)
+    response_text = re.sub(r"<thinking>(\n|\s|.)*</thinking>", "", response_text, flags=re.DOTALL)
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
@@ -233,7 +232,7 @@ def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, resp
     reference = citation.get("retrievedReferences", [])
     if not reference:
         logger.info("No reference found in citation")
-        return [*action_buttons, response_text]
+        return {"action_buttons": [], "response_text": response_text}
     content: str = reference.get("content", {}).get("text", invalid_body)
     title: str = reference.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
 
@@ -261,7 +260,7 @@ def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, resp
     }
     action_buttons.append(button)
 
-    return [*action_buttons, response_text]
+    return {"action_buttons": action_buttons, "response_text": response_text}
 
 
 # ================================================================
