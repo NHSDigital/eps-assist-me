@@ -206,7 +206,7 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
     response_text = response_text.replace("cit_", "")
 
     # Remove Thinking
-    response_text = re.sub(r"<thinking>(\n.*)+</thinking>", "", response_text, flags=re.DOTALL)
+    response_text = re.sub(r"<thinking>(\n*.*)+</thinking>", "", response_text, flags=re.DOTALL)
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
@@ -230,7 +230,10 @@ def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, resp
     action_buttons = []
 
     # Create citation blocks
-    reference = citation.get("retrievedReferences", [{}])[0]
+    reference = citation.get("retrievedReferences", [])
+    if not reference:
+        logger.info("No reference found in citation")
+        return [*action_buttons, response_text]
     content: str = reference.get("content", {}).get("text", invalid_body)
     title: str = reference.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
 
@@ -633,17 +636,12 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         [selected, blocks] = format_blocks(blocks, current_id)
 
         # If selected, insert citation block before feedback
-        has_table = re.search(body, r"\|-+\|") is not None
         if selected:
-            citation_block = {}
-            if has_table:
-                citation_block = generate_table_block(title, body)
-            else:
-                citation_block = {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": f"{title}\n\n{body[:1000]}"},
-                    "block_id": "citation_block",
-                }
+            citation_block = {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"{title}\n\n{body[:1000]}"},
+                "block_id": "citation_block",
+            }
 
             feedback_index = next(
                 (i for i, b in enumerate(blocks) if b.get("block_id") == "feedback-divider"),
@@ -678,32 +676,6 @@ def format_blocks(blocks: Any, current_id: str):
                         # Unselect all other buttons
                         element.pop("style", None)
     return [selected, blocks]
-
-
-def generate_table_block(title: str, content: str):
-    lines = [line.strip() for line in content.splitlines() if line.strip()]
-    table_lines = [line for line in lines if not set(line) <= {"|", "-", " "}]
-    rows = []
-
-    for index, line in table_lines:
-        cells = [cell.strip() for cell in line.split("|") if cell.strip()]
-        row = []
-        for cell in cells:
-            cell_block = {
-                "type": "rich_text",
-                "elements": [
-                    {
-                        "type": "rich_text_section",
-                        "elements": [
-                            {"type": "text", "text": cell[:500], "style": {"bold": True} if index == 0 else {}}
-                        ],
-                    }
-                ],
-            }
-            row.append(cell_block)
-        rows.append(row)
-
-    return {"type": "table", "rows": rows}
 
 
 # ================================================================
