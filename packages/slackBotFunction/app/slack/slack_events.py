@@ -222,7 +222,6 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
 
 
 def _create_citation(citation: dict[str, str], feedback_data: dict, response_text: str):
-    logger.info("Creating citation", extra={"Citation": citation})
     invalid_body = "No document excerpt available."
     action_buttons = []
 
