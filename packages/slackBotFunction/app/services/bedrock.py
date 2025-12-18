@@ -74,6 +74,8 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
 
 $conversation_history$
 
+User's question: $query$
+
 Here are the search results in numbered order:
 $search_results$
 
