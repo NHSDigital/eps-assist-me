@@ -1,5 +1,5 @@
 # QUERY
-{{user_query}}
+$query$
 
 # CONTEXT
 ## Results $search_results$
