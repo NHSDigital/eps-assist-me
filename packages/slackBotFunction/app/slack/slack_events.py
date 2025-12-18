@@ -197,15 +197,13 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
         logger.info("No citations")
     else:
         for i, citation in enumerate(citations):
-            result = _create_citation(i, citation, feedback_data, response_text)
+            result = _create_citation(citation, feedback_data, response_text)
+
             action_buttons += result.get("action_buttons", [])
             response_text = result.get("response_text", response_text)
 
     # Remove any citations that have not been returned
     response_text = response_text.replace("cit_", "")
-
-    # Remove Thinking
-    response_text = re.sub(r"<thinking>(\\n|\n|.)*</thinking>", "", response_text, flags=re.DOTALL)
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
@@ -223,45 +221,44 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
     return blocks
 
 
-def _create_citation(i: int, citation: dict[str, str], feedback_data: dict, response_text: str):
+def _create_citation(citation: dict[str, str], feedback_data: dict, response_text: str):
     logger.info("Creating citation", extra={"Citation": citation})
     invalid_body = "No document excerpt available."
     action_buttons = []
 
-    # Create citation blocks
-    reference = citation.get("retrievedReferences", [])
-    if not reference:
-        logger.info("No reference found in citation")
-        return {"action_buttons": [], "response_text": response_text}
-
-    # Get first reference and its content
-    reference = reference[0]
-    content: str = reference.get("content", {}).get("text", invalid_body)
-    title: str = reference.get("location", {}).get("s3Location", {}).get("uri", "/").split("/")[-1]
-
-    # Tidy up contents
-    content.replace("»", "").strip()[:1000]
+    # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
+    title = citation.get("title") or citation.get("filename") or "Source"
+    body = citation.get("reference_text") or invalid_body
+    citation_link = citation.get("link") or ""
+    source_number = (citation.get("source_number", "0")).replace("\n", "")
 
     # Buttons can only be 75 characters long, truncate to be safe
-    button_text = f"[{i}] {title}"
+    button_text = f"[{source_number}] {title}"
     button = {
         "type": "button",
         "text": {
             "type": "plain_text",
             "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
         },
-        "action_id": f"cite_{i}",
+        "action_id": f"cite_{source_number}",
         "value": json.dumps(
             {
                 **feedback_data,
-                "source_number": f"{i}",
+                "source_number": source_number,
                 "title": title,
-                "body": content,
+                "body": body,
+                "link": citation_link,
             },
             separators=(",", ":"),
         ),
     }
     action_buttons.append(button)
+
+    # Update inline citations
+    response_text = response_text.replace(
+        f"[cit_{source_number}]",
+        f"<{citation_link}|[{source_number}]>" if citation_link else f"[{source_number}]",
+    )
 
     return {"action_buttons": action_buttons, "response_text": response_text}
 
@@ -435,7 +432,28 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         ai_response = process_ai_query(user_query, session_id)
         kb_response = ai_response["kb_response"]
         response_text = ai_response["text"]
-        citations = ai_response["citations"]
+
+        # Split out citation block if present
+        # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
+        # system prompt. Instead, pull out and format the citations in the prompt manually
+        prompt_value_keys = [
+            "source_number",
+            "title",
+            "link",
+            "reference_text",
+        ]
+        split = response_text.split("------")  # Citations are separated from main body by ------
+
+        citations: list[dict[str, str]] = []
+        if len(split) != 1:
+            response_text = split[0]
+            citation_block = split[1]
+            raw_citations = []
+            raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
+            if len(raw_citations) > 0:
+                logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
+                citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
+        logger.info("Parsed citation(s)", extra={"citations": citations})
 
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": response_text}
@@ -641,10 +659,9 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         if selected:
             citation_block = {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": f"{title}\n\n{body[:1000]}"},
+                "text": {"type": "mrkdwn", "text": f"{title}\n\n{body}"},
                 "block_id": "citation_block",
             }
-
             feedback_index = next(
                 (i for i, b in enumerate(blocks) if b.get("block_id") == "feedback-divider"),
                 len(blocks),
