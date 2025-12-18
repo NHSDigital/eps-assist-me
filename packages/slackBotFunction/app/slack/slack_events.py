@@ -226,11 +226,11 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
     invalid_body = "No document excerpt available."
     action_buttons = []
 
-    # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
-    title = citation.get("title") or citation.get("filename") or "Source"
-    body = citation.get("reference_text") or invalid_body
-    citation_link = citation.get("link") or ""
+    # Create citation blocks ["source_number", "title", "excerpt", "relevance_score"]
     source_number = (citation.get("source_number", "0")).replace("\n", "")
+    title = citation.get("title") or citation.get("filename") or "Source"
+    body = citation.get("excerpt") or invalid_body
+    score = citation.get("relevance_score") or "0"
 
     # Buttons can only be 75 characters long, truncate to be safe
     button_text = f"[{source_number}] {title}"
@@ -242,23 +242,14 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
         },
         "action_id": f"cite_{source_number}",
         "value": json.dumps(
-            {
-                **feedback_data,
-                "source_number": source_number,
-                "title": title,
-                "body": body,
-                "link": citation_link,
-            },
+            {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": int(score)},
             separators=(",", ":"),
         ),
     }
     action_buttons.append(button)
 
-    # Update inline citations
-    response_text = response_text.replace(
-        f"[cit_{source_number}]",
-        f"<{citation_link}|[{source_number}]>" if citation_link else f"[{source_number}]",
-    )
+    # Update inline citations to remove "cit_" prefix
+    response_text = response_text.replace(f"[cit_{source_number}]", f"[{source_number}]")
 
     return {"action_buttons": action_buttons, "response_text": response_text}
 
@@ -436,12 +427,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Split out citation block if present
         # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
         # system prompt. Instead, pull out and format the citations in the prompt manually
-        prompt_value_keys = [
-            "source_number",
-            "title",
-            "link",
-            "reference_text",
-        ]
+        prompt_value_keys = ["source_number", "title", "excerpt", "relevance_score"]
         split = response_text.split("------")  # Citations are separated from main body by ------
 
         citations: list[dict[str, str]] = []
@@ -653,7 +639,9 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         current_id = f"cite_{source_number}".strip()
 
         # Reset all button styles, then set the clicked one
-        [selected, blocks] = format_blocks(blocks, current_id)
+        result = format_blocks(blocks, current_id)
+        selected = result["selected"]
+        blocks = result["blocks"]
 
         # If selected, insert citation block before feedback
         if selected:
@@ -694,7 +682,7 @@ def format_blocks(blocks: Any, current_id: str):
                     else:
                         # Unselect all other buttons
                         element.pop("style", None)
-    return [selected, blocks]
+    return {"selected": selected, "blocks": blocks}
 
 
 # ================================================================
