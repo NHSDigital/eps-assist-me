@@ -3,6 +3,7 @@ Slack event processing
 Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
+import decimal
 import re
 import time
 import traceback
@@ -242,7 +243,7 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
         },
         "action_id": f"cite_{source_number}",
         "value": json.dumps(
-            {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": int(score)},
+            {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": decimal(score)},
             separators=(",", ":"),
         ),
     }
