@@ -49,24 +49,10 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                         "guardrailId": config.GUARD_RAIL_ID,
                         "guardrailVersion": config.GUARD_VERSION,
                     },
-                    "inferenceConfig": {
-                        "textInferenceConfig": {
-                            **inference_config,
-                            "stopSequences": [
-                                "Human:",
-                            ],
-                        }
-                    },
+                    "inferenceConfig": {"textInferenceConfig": inference_config},
                 },
                 "orchestrationConfiguration": {
-                    "inferenceConfig": {
-                        "textInferenceConfig": {
-                            **inference_config,
-                            "stopSequences": [
-                                "Human:",
-                            ],
-                        }
-                    },
+                    "inferenceConfig": {"textInferenceConfig": inference_config},
                     "promptTemplate": {
                         "textPromptTemplate": """You are a question answering agent.
                         I will provide you with a set of search results and a user's question,
