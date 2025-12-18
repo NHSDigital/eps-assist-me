@@ -3,7 +3,6 @@ Slack event processing
 Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
-import decimal
 import re
 import time
 import traceback
@@ -235,6 +234,7 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
 
     # Buttons can only be 75 characters long, truncate to be safe
     button_text = f"[{source_number}] {title}"
+    button_value = {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": score}
     button = {
         "type": "button",
         "text": {
@@ -243,7 +243,7 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
         },
         "action_id": f"cite_{source_number}",
         "value": json.dumps(
-            {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": decimal(score)},
+            button_value,
             separators=(",", ":"),
         ),
     }
@@ -252,6 +252,7 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
     # Update inline citations to remove "cit_" prefix
     response_text = response_text.replace(f"[cit_{source_number}]", f"[{source_number}]")
 
+    logger.info("Created citation", extra=button_value)
     return {"action_buttons": action_buttons, "response_text": response_text}
 
 
