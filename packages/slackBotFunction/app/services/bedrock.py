@@ -67,6 +67,18 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                             ],
                         }
                     },
+                    "promptTemplate": {
+                        "textPromptTemplate": """You are a question answering agent.
+                        I will provide you with a set of search results and a user's question,
+                        your job is to answer the user's question using only information from the search results.
+
+$conversation_history$
+
+Here are the search results in numbered order:
+$search_results$
+
+$output_format_instructions$"""
+                    },
                 },
             },
         },
