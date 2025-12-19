@@ -322,3 +322,77 @@ def test_process_citation_events_update_chat_message_change_close_citation():
     expected_blocks = [citations, second_citation_body]
     mock_client.chat_update.assert_called()
     mock_client.chat_update.assert_called_with(channel="ABC", ts="123", blocks=expected_blocks)
+
+
+def test_create_response_body_no_error_without_citations(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    _create_response_body(
+        citations=[],
+        feedback_data={},
+        response_text="This is a response without a citation.[1]",
+    )
+
+    # assertions
+    # no assertions as we are just checking it does not throw an error
+
+
+def test_create_response_body_creates_body_without_citations(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[],
+        feedback_data={},
+        response_text="This is a response without a citation.",
+    )
+
+    # assertions
+    assert len(response) > 0
+    assert response[0]["type"] == "section"
+    assert "This is a response without a citation." in response[0]["text"]["text"]
+
+
+def test_create_response_body_creates_body_with_citations(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[
+            {
+                "source_number": "1",
+                "title": "Citation Title",
+                "body": "Citation Body",
+                "relevance_score": "0.95",
+            }
+        ],
+        feedback_data={},
+        response_text="This is a response with a citation.[1]",
+    )
+
+    # assertions
+    assert len(response) > 1
+    assert response[0]["type"] == "section"
+    assert "This is a response with a citation.[1]" in response[0]["text"]["text"]

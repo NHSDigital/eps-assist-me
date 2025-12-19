@@ -259,7 +259,7 @@ def test_process_slack_message_with_session_storage(
 @patch("app.services.dynamo.get_state_information")
 @patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.get_conversation_session")
-def test_process_slack_message_chat_update_error(
+def test_process_slack_message_chat_update_no_error(
     mock_get_session: Mock,
     mock_process_ai_query: Mock,
     mock_get_state_information: Mock,
@@ -290,6 +290,48 @@ def test_process_slack_message_chat_update_error(
 
     # assertions
     # no assertions as we are just checking it does not throw an error
+
+
+@patch("app.slack.slack_events.get_conversation_session")
+@patch("app.slack.slack_events.get_conversation_session_data")
+@patch("app.slack.slack_events.cleanup_previous_unfeedback_qa")
+@patch("app.slack.slack_events.update_session_latest_message")
+@patch("app.services.ai_processor.process_ai_query")
+def test_process_slack_message_chat_update_cleanup(
+    mock_process_ai_query: Mock,
+    mock_update_session_latest_message: Mock,
+    mock_cleanup_previous_unfeedback_qa: Mock,
+    mock_get_conversation_session_data: Mock,
+    mock_get_session: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test process_async_slack_event with chat_update error"""
+    # set up mocks
+    mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_update.side_effect = Exception("Update failed")
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}},
+    }
+    mock_get_conversation_session_data.return_value = {"session_id": "session-123"}
+    mock_get_session.return_value = None  # No existing session
+    mock_cleanup_previous_unfeedback_qa.return_value = {"test": "123"}
+
+    # delete and import module to test
+    from app.slack.slack_events import process_slack_message
+
+    # perform operation
+    slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    with patch("app.slack.slack_events.get_conversation_session_data", mock_get_conversation_session_data):
+        process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+
+        # assertions
+        mock_cleanup_previous_unfeedback_qa.assert_called_once()
+        mock_update_session_latest_message.assert_called_once()
 
 
 @patch("app.services.dynamo.get_state_information")
@@ -331,3 +373,46 @@ def test_process_slack_message_dm_context(
 
     # assertions
     # no assertions as we are just checking it does not throw an error
+
+
+@patch("app.services.dynamo.delete_state_information")
+def test_cleanup_previous_unfeedback_qa_no_previous_message(
+    mock_delete_state_information: Mock,
+):
+    """Test cleanup skipped when no previous message exists"""
+    conversation_key = "conv-123"
+    current_message_ts = "1234567890.124"
+    session_data = {}
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import cleanup_previous_unfeedback_qa
+
+    # perform operation
+    cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data)
+
+    # assertions
+    mock_delete_state_information.assert_not_called()
+
+
+@patch("app.services.dynamo.delete_state_information")
+def test_cleanup_previous_unfeedback_qa_same_message(
+    mock_delete_state_information: Mock,
+):
+    """Test cleanup skipped when previous message is same as current"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+
+    conversation_key = "conv-123"
+    current_message_ts = "1234567890.123"
+    session_data = {"latest_message_ts": "1234567890.123"}
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import cleanup_previous_unfeedback_qa
+
+    # perform operation
+    cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data)
+
+    # assertions
+    mock_delete_state_information.assert_not_called()
