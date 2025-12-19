@@ -279,7 +279,7 @@ def convert_markdown_to_slack(body: str) -> str:
     body = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", body)
 
     # 4. Handle Lists (Handle various bullet points and dashes, inc. unicode support)
-    body = re.sub(r"[\r\n\s]*[-•–—▪‣◦⁃][ \t]*", r"\n- ", body)
+    body = re.sub(r"(?:^|\s{1,10})[-•–—▪‣◦⁃]\s{0,10}", r"\n- ", body)
 
     # 5. Convert Markdown Links [text](url) to Slack <url|text>
     body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\2|\1>", body)
