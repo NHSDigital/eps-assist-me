@@ -416,3 +416,84 @@ def test_cleanup_previous_unfeedback_qa_same_message(
 
     # assertions
     mock_delete_state_information.assert_not_called()
+
+
+def test_create_response_body_creates_body_with_markdown_formatting(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[],
+        feedback_data={},
+        response_text="**Bold**, __italics__, *markdown italics*, and `code`.",
+    )
+
+    # assertions
+    assert len(response) > 0
+    assert response[0]["type"] == "section"
+
+    response_value = response[0]["text"]["text"]
+
+    assert "*Bold*, _italics_, _markdown italics_, and `code`." in response_value
+
+
+def test_create_response_body_creates_body_with_lists(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    dirty_input = "Header text - Standard Dash -No Space Dash • Standard Bullet  -NoSpace-NoSpace"
+
+    # perform operation
+    response = _create_response_body(
+        citations=[],
+        feedback_data={},
+        response_text=dirty_input,
+    )
+
+    # assertions
+    assert len(response) > 0
+    assert response[0]["type"] == "section"
+
+    response_value = response[0]["text"]["text"]
+
+    expected_output = "Header text\n- Standard Dash\n- No Space Dash\n- Standard Bullet\n- NoSpace-NoSpace"
+    assert expected_output in response_value
+
+
+def test_create_response_body_creates_body_without_encoding_errors(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[],
+        feedback_data={},
+        response_text="» Tabbing Issue. â¢ Bullet point issue.",
+    )
+
+    # assertions
+    assert len(response) > 0
+    assert response[0]["type"] == "section"
+
+    response_value = response[0]["text"]["text"]
+
+    assert "Tabbing Issue.\n- Bullet point issue." in response_value

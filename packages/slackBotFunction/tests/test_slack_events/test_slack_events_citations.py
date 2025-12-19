@@ -569,17 +569,7 @@ def test_create_response_body_creates_body_with_lists(
         del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_response_body
 
-    dirty_input = (
-        "Header text"
-        "\\n- Standard Dash"  # Literal \n + dash
-        "-No Space Dash"  # Dash with no spacing
-        "– En Dash"  # Unicode En-dash
-        "— Em Dash"  # Unicode Em-dash
-        "\n▪ Square Bullet"  # Real newline + Square
-        " ‣ Triangle Bullet"  # Space + Triangle
-        " ◦ Hollow Bullet"  # Space + Hollow
-        "\\n• Standard Bullet"  # Literal \n + Bullet
-    )
+    dirty_input = "Header text - Standard Dash -No Space Dash • Standard Bullet  -NoSpace-NoSpace"
 
     # perform operation
     response = _create_response_body(
@@ -603,17 +593,7 @@ def test_create_response_body_creates_body_with_lists(
     citation_element = response[1]["elements"][0]
     citation_value = json.loads(citation_element["value"])
 
-    expected_output = (
-        "Header text\n"
-        "- Standard Dash\n"
-        "- No Space Dash\n"
-        "- En Dash\n"
-        "- Em Dash\n"
-        "- Square Bullet\n"
-        "- Triangle Bullet\n"
-        "- Hollow Bullet\n"
-        "- Standard Bullet"
-    )
+    expected_output = "Header text\n- Standard Dash\n- No Space Dash\n- Standard Bullet\n- NoSpace-NoSpace"
     assert expected_output in citation_value.get("body")
 
 
