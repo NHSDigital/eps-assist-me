@@ -1,3 +1,4 @@
+import json
 import sys
 import pytest
 from unittest.mock import Mock, MagicMock, patch
@@ -368,7 +369,7 @@ def test_create_response_body_creates_body_without_citations(
     assert "This is a response without a citation." in response[0]["text"]["text"]
 
 
-def test_create_response_body_creates_body_with_citations(
+def test_create_response_body_update_body_with_citations(
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -394,5 +395,311 @@ def test_create_response_body_creates_body_with_citations(
 
     # assertions
     assert len(response) > 1
+    assert response[1]["type"] == "actions"
+    assert response[1]["block_id"] == "citation_actions"
+
+    citation_element = response[1]["elements"][0]
+    assert citation_element["type"] == "button"
+    assert citation_element["action_id"] == "cite_1"
+    assert "[1] Citation Title" in citation_element["text"]["text"]
+
+
+def test_create_response_body_creates_body_with_multiple_citations(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[
+            {
+                "source_number": "1",
+                "title": "Citation Title",
+                "body": "Citation Body",
+                "relevance_score": "0.95",
+            },
+            {
+                "source_number": "2",
+                "title": "Citation Title",
+                "body": "Citation Body",
+                "relevance_score": "0.95",
+            },
+        ],
+        feedback_data={},
+        response_text="This is a response with a citation.[1]",
+    )
+
+    # assertions
+    assert len(response) > 1
+    assert response[1]["type"] == "actions"
+    assert response[1]["block_id"] == "citation_actions"
+
+    first_citation_element = response[1]["elements"][0]
+    assert first_citation_element["type"] == "button"
+    assert first_citation_element["action_id"] == "cite_1"
+    assert "[1] Citation Title" in first_citation_element["text"]["text"]
+
+    second_citation_element = response[1]["elements"][1]
+    assert second_citation_element["type"] == "button"
+    assert second_citation_element["action_id"] == "cite_2"
+    assert "[2] Citation Title" in second_citation_element["text"]["text"]
+
+
+def test_create_response_body_creates_body_ignoring_low_score_citations(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[
+            {
+                "source_number": "1",
+                "title": "Citation Title",
+                "body": "Citation Body",
+                "relevance_score": "0.55",
+            },
+            {
+                "source_number": "2",
+                "title": "Citation Title",
+                "body": "Citation Body",
+                "relevance_score": "0.95",
+            },
+        ],
+        feedback_data={},
+        response_text="This is a response with a citation.[1]",
+    )
+
+    # assertions
+    assert len(response) > 1
+    assert response[1]["type"] == "actions"
+    assert response[1]["block_id"] == "citation_actions"
+
+    citation_elements = response[1]["elements"]
+    assert len(citation_elements) == 1
+
+    citation_element = citation_elements[0]
+    assert citation_element["type"] == "button"
+    assert citation_element["action_id"] == "cite_2"
+    assert "[2] Citation Title" in citation_element["text"]["text"]
+
+
+def test_create_response_body_update_body_with_reformatted_citations(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[
+            {
+                "source_number": "1",
+                "title": "Citation Title",
+                "body": "Citation Body",
+                "relevance_score": "0.95",
+            }
+        ],
+        feedback_data={},
+        response_text="This is a response with a citation.[cit_1]",
+    )
+
+    # assertions
+    assert len(response) > 1
     assert response[0]["type"] == "section"
     assert "This is a response with a citation.[1]" in response[0]["text"]["text"]
+
+
+def test_create_response_body_creates_body_with_markdown_formatting(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[
+            {
+                "source_number": "1",
+                "title": "Citation Title",
+                "excerpt": "**Bold**, __italics__, *markdown italics*, and `code`.",
+                "relevance_score": "0.95",
+            }
+        ],
+        feedback_data={},
+        response_text="This is a response with a citation.[1]",
+    )
+
+    # assertions
+    assert len(response) > 1
+    assert response[1]["type"] == "actions"
+    assert response[1]["block_id"] == "citation_actions"
+
+    citation_element = response[1]["elements"][0]
+    citation_value = json.loads(citation_element["value"])
+
+    assert "*Bold*, _italics_, _markdown italics_, and `code`." in citation_value.get("body")
+
+
+def test_create_response_body_creates_body_with_lists(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    dirty_input = (
+        "Header text"
+        "\\n- Standard Dash"  # Literal \n + dash
+        "-No Space Dash"  # Dash with no spacing
+        "– En Dash"  # Unicode En-dash
+        "— Em Dash"  # Unicode Em-dash
+        "\n▪ Square Bullet"  # Real newline + Square
+        " ‣ Triangle Bullet"  # Space + Triangle
+        " ◦ Hollow Bullet"  # Space + Hollow
+        "\\n• Standard Bullet"  # Literal \n + Bullet
+    )
+
+    # perform operation
+    response = _create_response_body(
+        citations=[
+            {
+                "source_number": "1",
+                "title": "Citation Title",
+                "excerpt": dirty_input,
+                "relevance_score": "0.95",
+            }
+        ],
+        feedback_data={},
+        response_text="This is a response with a citation.[1]",
+    )
+
+    # assertions
+    assert len(response) > 1
+    assert response[1]["type"] == "actions"
+    assert response[1]["block_id"] == "citation_actions"
+
+    citation_element = response[1]["elements"][0]
+    citation_value = json.loads(citation_element["value"])
+
+    expected_output = (
+        "Header text\n"
+        "- Standard Dash\n"
+        "- No Space Dash\n"
+        "- En Dash\n"
+        "- Em Dash\n"
+        "- Square Bullet\n"
+        "- Triangle Bullet\n"
+        "- Hollow Bullet\n"
+        "- Standard Bullet"
+    )
+    assert expected_output in citation_value.get("body")
+
+
+def test_create_response_body_creates_body_without_encoding_errors(
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test regex text processing functionality within process_async_slack_event"""
+    # delete and import module to test
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_response_body
+
+    # perform operation
+    response = _create_response_body(
+        citations=[
+            {
+                "source_number": "1",
+                "title": "Citation Title",
+                "excerpt": "» Tabbing Issue. â¢ Bullet point issue.",
+                "relevance_score": "0.95",
+            }
+        ],
+        feedback_data={},
+        response_text="This is a response with a citation.[1]",
+    )
+
+    # assertions
+    assert len(response) > 1
+    assert response[1]["type"] == "actions"
+    assert response[1]["block_id"] == "citation_actions"
+
+    citation_element = response[1]["elements"][0]
+    citation_value = json.loads(citation_element["value"])
+
+    assert "Tabbing Issue.\n- Bullet point issue." in citation_value.get("body")
+
+
+@patch("app.services.ai_processor.process_ai_query")
+def test_create_citation_logs_citations(
+    mock_process_ai_query: Mock,
+    mock_logger,
+):
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        # set up mocks
+        mock_client = Mock()
+        raw_citation = "1||This is the Title||This is the excerpt/ citation||0.99"
+        mock_process_ai_query.return_value = {
+            "text": "AI response" + "------" + f"<cit>{raw_citation}</cit>",
+            "session_id": "session-123",
+            "citations": [],
+            "kb_response": {"output": {"text": "AI response"}},
+        }
+
+        # delete and import module to test
+        if "app.slack.slack_events" in sys.modules:
+            del sys.modules["app.slack.slack_events"]
+        from app.slack.slack_events import process_slack_message
+
+        # perform operation
+        slack_event_data = {
+            "text": "Answer",
+            "user": "U456",
+            "channel": "C789",
+            "ts": "1234567890.123",
+        }
+
+        process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+
+        # mock_logger.assert_has_calls([call.info("Found citation(s)", extra={"Raw Citations": [raw_citation]})])
+        # assertions
+
+        mock_logger.info.assert_any_call(
+            "Found citation(s)", extra={"Raw Citations": ["1||This is the Title||This is the excerpt/ citation||0.99"]}
+        )
+        mock_logger.info.assert_any_call(
+            "Parsed citation(s)",
+            extra={
+                "citations": [
+                    {
+                        "source_number": "1",
+                        "title": "This is the Title",
+                        "excerpt": "This is the excerpt/ citation",
+                        "relevance_score": "0.99",
+                    }
+                ]
+            },
+        )
+        # mock_logger.info.assert_called_with("Found citation(s)", extra={"Raw Citations": [raw_citation]})

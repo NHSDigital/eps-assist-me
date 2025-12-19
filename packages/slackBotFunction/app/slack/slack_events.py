@@ -235,7 +235,7 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
     # Format body
     body = convert_markdown_to_slack(body)
 
-    if score < 60:  # low relevance score, skip citation
+    if score < 0.6:  # low relevance score, skip citation
         logger.info("Skipping low relevance citation", extra={"source_number": source_number, "score": score})
     else:
         # Buttons can only be 75 characters long, truncate to be safe
@@ -264,17 +264,28 @@ def _create_citation(citation: dict[str, str], feedback_data: dict, response_tex
 
 def convert_markdown_to_slack(body: str) -> str:
     """Convert basic markdown to Slack formatting"""
-    # Fix common encoding issues
-    body = body.replace("»", "")  # Remove double chevrons
-    body = body.replace("â¢", "-")  # Replace bullet points with encoding issues
+    if not body:
+        return ""
 
-    # Simple markdown conversions
-    body = re.sub(r"(\*{1,2}|_{1,2})([^\*_]+)\1", r"_\2_", body)  # Italic (Do this first to avoid conflict with bold)
-    body = body.replace("**", "*")  # Bold
+    # 1. Fix common encoding issues
+    body = body.replace("»", "")
+    body = body.replace("â¢", "-")
 
-    body = re.sub(r"(\u2022|-)\s", r"\n\g<0>", body)  # Ensure bullet points on new lines
-    body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\1|\2>", body)  # Convert links
-    return body
+    # 2. Convert Markdown Italics (*text*) and (__text__) to Slack Italics (_text_)
+    body = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"_\1_", body)
+    body = re.sub(r"_{1,2}([^_]+)_{1,2}", r"_\1_", body)
+
+    # 3. Convert Markdown Bold (**text**) to Slack Bold (*text*)
+    body = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", body)
+
+    # 4. Handle Lists (Handle various bullet points and dashes, inc. unicode support)
+    list_separator_pattern = r"\s*(?:\\n|[\r\n]+|[-•–—▪‣◦⁃])+\s*"
+    body = re.sub(list_separator_pattern, r"\n- ", body)
+
+    # 5. Convert Markdown Links [text](url) to Slack <url|text>
+    body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\2|\1>", body)
+
+    return body.strip()
 
 
 # ================================================================
