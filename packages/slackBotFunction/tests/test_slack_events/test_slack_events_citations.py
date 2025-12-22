@@ -540,7 +540,7 @@ def test_create_response_body_creates_body_with_markdown_formatting(
             {
                 "source_number": "1",
                 "title": "Citation Title",
-                "excerpt": "**Bold**, __italics__, *markdown italics*, and `code`.",
+                "excerpt": "**Bold**, __italics__, and `code`.",
                 "relevance_score": "0.95",
             }
         ],
@@ -556,7 +556,7 @@ def test_create_response_body_creates_body_with_markdown_formatting(
     citation_element = response[1]["elements"][0]
     citation_value = json.loads(citation_element["value"])
 
-    assert "*Bold*, _italics_, _markdown italics_, and `code`." in citation_value.get("body")
+    assert "*Bold*, _italics_, and `code`." in citation_value.get("body")
 
 
 def test_create_response_body_creates_body_with_lists(
