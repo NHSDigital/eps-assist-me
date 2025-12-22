@@ -271,17 +271,14 @@ def convert_markdown_to_slack(body: str) -> str:
     body = body.replace("»", "")
     body = body.replace("â¢", "-")
 
-    # 2. Convert Markdown Italics (*text*) and (__text__) to Slack Italics (_text_)
-    body = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"_\1_", body)
-    body = re.sub(r"_{1,2}([^_]+)_{1,2}", r"_\1_", body)
+    # 2. Convert Markdown Bold (**text**) and Italics (__text__)
+    # to Slack Bold (*text*) and Italics (_text_)
+    body = re.sub(r"(\*|\_){2,10}([^*]+)(\*|\_){2,10}", r"\1\2\1", body)
 
-    # 3. Convert Markdown Bold (**text**) to Slack Bold (*text*)
-    body = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", body)
-
-    # 4. Handle Lists (Handle various bullet points and dashes, inc. unicode support)
+    # 3. Handle Lists (Handle various bullet points and dashes, inc. unicode support)
     body = re.sub(r"(?:^|\s{1,10})[-•–—▪‣◦⁃]\s{0,10}", r"\n- ", body)
 
-    # 5. Convert Markdown Links [text](url) to Slack <url|text>
+    # 4. Convert Markdown Links [text](url) to Slack <url|text>
     body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\2|\1>", body)
 
     return body.strip()
