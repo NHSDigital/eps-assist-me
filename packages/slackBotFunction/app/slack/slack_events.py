@@ -273,7 +273,7 @@ def convert_markdown_to_slack(body: str) -> str:
 
     # 2. Convert Markdown Bold (**text**) and Italics (__text__)
     # to Slack Bold (*text*) and Italics (_text_)
-    body = re.sub(r"(\*|\_){2,10}([^*]+)(\*|\_){2,10}", r"\1\2\1", body)
+    body = re.sub(r"([\*_]){2,10}([^*]+)([\*_]){2,10}", r"\1\2\1", body)
 
     # 3. Handle Lists (Handle various bullet points and dashes, inc. unicode support)
     body = re.sub(r"(?:^|\s{1,10})[-•–—▪‣◦⁃]\s{0,10}", r"\n- ", body)
