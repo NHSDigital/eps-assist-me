@@ -199,10 +199,11 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
         for i, citation in enumerate(citations):
             result = _create_citation(citation, feedback_data, response_text)
 
-            action_buttons.append(result[0])
-            response_text = result[1]
+            action_buttons += result.get("action_buttons", [])
+            response_text = result.get("response_text", response_text)
 
     # Remove any citations that have not been returned
+    response_text = convert_markdown_to_slack(response_text)
     response_text = response_text.replace("cit_", "")
 
     # Main body
@@ -222,45 +223,68 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
 
 
 def _create_citation(citation: dict[str, str], feedback_data: dict, response_text: str):
-    logger.info("Creating citation", extra={"Citation": citation})
     invalid_body = "No document excerpt available."
     action_buttons = []
 
-    # Create citation blocks ["sourceNumber", "title", "link", "filename", "reference_text"]
-    title = citation.get("title") or citation.get("filename") or "Source"
-    body = citation.get("reference_text") or invalid_body
-    citation_link = citation.get("link") or ""
-    source_number = (citation.get("source_number", "0")).replace("\n", "")
+    # Create citation blocks ["source_number", "title", "excerpt", "relevance_score"]
+    source_number: str = (citation.get("source_number", "0")).replace("\n", "")
+    title: str = citation.get("title") or citation.get("filename") or "Source"
+    body: str = citation.get("excerpt") or invalid_body
+    score: float = float(citation.get("relevance_score") or "0")
 
-    # Buttons can only be 75 characters long, truncate to be safe
-    button_text = f"[{source_number}] {title}"
-    button = {
-        "type": "button",
-        "text": {
-            "type": "plain_text",
-            "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
-        },
-        "action_id": f"cite_{source_number}",
-        "value": json.dumps(
-            {
-                **feedback_data,
-                "source_number": source_number,
-                "title": title,
-                "body": body,
-                "link": citation_link,
+    # Format body
+    body = convert_markdown_to_slack(body)
+
+    if score < 0.6:  # low relevance score, skip citation
+        logger.info("Skipping low relevance citation", extra={"source_number": source_number, "score": score})
+    else:
+        # Buttons can only be 75 characters long, truncate to be safe
+        button_text = f"[{source_number}] {title}"
+        button_value = {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": score}
+        button = {
+            "type": "button",
+            "text": {
+                "type": "plain_text",
+                "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
             },
-            separators=(",", ":"),
-        ),
-    }
-    action_buttons.append(button)
+            "action_id": f"cite_{source_number}",
+            "value": json.dumps(
+                button_value,
+                separators=(",", ":"),
+            ),
+        }
+        action_buttons.append(button)
 
-    # Update inline citations
-    response_text = response_text.replace(
-        f"[cit_{source_number}]",
-        f"<{citation_link}|[{source_number}]>" if citation_link else f"[{source_number}]",
-    )
+        # Update inline citations to remove "cit_" prefix
+        response_text = response_text.replace(f"[cit_{source_number}]", f"[{source_number}]")
+        logger.info("Created citation", extra=button_value)
 
-    return [*action_buttons, response_text]
+    return {"action_buttons": action_buttons, "response_text": response_text}
+
+
+def convert_markdown_to_slack(body: str) -> str:
+    """Convert basic markdown to Slack formatting"""
+    if not body:
+        return ""
+
+    # 1. Fix common encoding issues
+    body = body.replace("»", "")
+    body = body.replace("â¢", "-")
+
+    # 2. Convert Markdown Italics (*text*) and (__text__) to Slack Italics (_text_)
+    body = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"_\1_", body)
+    body = re.sub(r"_{1,2}([^_]+)_{1,2}", r"_\1_", body)
+
+    # 3. Convert Markdown Bold (**text**) to Slack Bold (*text*)
+    body = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", body)
+
+    # 4. Handle Lists (Handle various bullet points and dashes, inc. unicode support)
+    body = re.sub(r"(?:^|\s{1,10})[-•–—▪‣◦⁃]\s{0,10}", r"\n- ", body)
+
+    # 5. Convert Markdown Links [text](url) to Slack <url|text>
+    body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\2|\1>", body)
+
+    return body.strip()
 
 
 # ================================================================
@@ -436,14 +460,8 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         # Split out citation block if present
         # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
         # system prompt. Instead, pull out and format the citations in the prompt manually
-        prompt_value_keys = [
-            "source_number",
-            "title",
-            "link",
-            "filename",
-            "reference_text",
-        ]
-        split = response_text.split("------")  # Citations are separated by ------
+        prompt_value_keys = ["source_number", "title", "excerpt", "relevance_score"]
+        split = response_text.split("------")  # Citations are separated from main body by ------
 
         citations: list[dict[str, str]] = []
         if len(split) != 1:
@@ -652,25 +670,11 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
             body = body.replace("»", "")  # Remove double chevrons
 
         current_id = f"cite_{source_number}".strip()
-        selected = False
 
         # Reset all button styles, then set the clicked one
-        for block in blocks:
-            if block.get("type") == "actions":
-                for element in block.get("elements", []):
-                    if element.get("type") == "button":
-                        action_id = element.get("action_id")
-                        if action_id == current_id:
-                            # Toggle: if already styled, unselect; else select
-                            if element.get("style") == "primary":
-                                element.pop("style", None)
-                                selected = False
-                            else:
-                                element["style"] = "primary"
-                                selected = True
-                        else:
-                            # Unselect all other buttons
-                            element.pop("style", None)
+        result = format_blocks(blocks, current_id)
+        selected = result["selected"]
+        blocks = result["blocks"]
 
         # If selected, insert citation block before feedback
         if selected:
@@ -691,6 +695,36 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
 
     except Exception as e:
         logger.error(f"Error updating message for citation: {e}", extra={"error": traceback.format_exc()})
+
+
+def format_blocks(blocks: Any, current_id: str):
+    """Format blocks by styling the selected citation button and unstyle others"""
+    selected = False
+
+    for block in blocks:
+        if block.get("type") != "actions":
+            continue
+
+        for element in block.get("elements", []):
+            if element.get("type") != "button":
+                continue
+
+            if element.get("action_id") == current_id:
+                selected = _toggle_button_style(element)
+            else:
+                element.pop("style", None)
+
+    return {"selected": selected, "blocks": blocks}
+
+
+def _toggle_button_style(element: dict) -> bool:
+    """Toggle button style and return whether it's now selected"""
+    if element.get("style") == "primary":
+        element.pop("style", None)
+        return False
+    else:
+        element["style"] = "primary"
+        return True
 
 
 # ================================================================

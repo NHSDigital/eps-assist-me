@@ -42,23 +42,15 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "type": "KNOWLEDGE_BASE",
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
-                "modelArn": config.RAG_MODEL_ID,
-                "retrievalConfiguration": {"vectorSearchConfiguration": {"numberOfResults": 5}},
+                "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
+                "retrievalConfiguration": {
+                    "vectorSearchConfiguration": {"numberOfResults": 5, "overrideSearchType": "SEMANTIC"}
+                },
                 "generationConfiguration": {
                     "guardrailConfiguration": {
                         "guardrailId": config.GUARD_RAIL_ID,
                         "guardrailVersion": config.GUARD_VERSION,
                     },
-                    "inferenceConfig": {
-                        "textInferenceConfig": {
-                            **inference_config,
-                            "stopSequences": [
-                                "Human:",
-                            ],
-                        }
-                    },
-                },
-                "orchestrationConfiguration": {
                     "inferenceConfig": {
                         "textInferenceConfig": {
                             **inference_config,
@@ -87,6 +79,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     else:
         logger.info("Starting new conversation")
 
+    logger.debug("Retrieve and Generate", extra={"params": request_params})
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",
@@ -100,10 +93,8 @@ def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient, infer
         modelId=model_id,
         body=json.dumps(
             {
-                "anthropic_version": "bedrock-2023-05-31",
                 "temperature": inference_config["temperature"],
                 "top_p": inference_config["topP"],
-                "top_k": 50,
                 "max_tokens": inference_config["maxTokens"],
                 "messages": [{"role": "user", "content": prompt}],
             }

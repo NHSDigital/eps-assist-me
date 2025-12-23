@@ -20,14 +20,12 @@ export class BedrockPromptResources extends Construct {
   constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
 
-    // Nova Pro is recommended for text generation tasks requiring high accuracy and complex understanding.
-    const novaProModel = BedrockFoundationModel.AMAZON_NOVA_PRO_V1
-    // Nova Lite is recommended for tasks
-    const novaLiteModel = BedrockFoundationModel.AMAZON_NOVA_LITE_V1
+    const ragModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
+    const reformulationModel = BedrockFoundationModel.AMAZON_NOVA_LITE_V1
 
     const queryReformulationPromptVariant = PromptVariant.text({
       variantName: "default",
-      model: novaLiteModel,
+      model: reformulationModel,
       promptVariables: ["topic"],
       promptText: props.settings.reformulationPrompt.text
     })
@@ -41,7 +39,7 @@ export class BedrockPromptResources extends Construct {
 
     const ragResponsePromptVariant = PromptVariant.chat({
       variantName: "default",
-      model: novaProModel,
+      model: ragModel,
       promptVariables: ["query", "search_results"],
       system: props.settings.systemPrompt.text,
       messages: [props.settings.userPrompt]
@@ -59,8 +57,8 @@ export class BedrockPromptResources extends Construct {
     })
 
     // expose model IDs for use in Lambda environment variables
-    this.ragModelId = novaProModel.modelId
-    this.queryReformulationModelId = novaLiteModel.modelId
+    this.ragModelId = ragModel.modelId
+    this.queryReformulationModelId = reformulationModel.modelId
 
     this.queryReformulationPrompt = queryReformulationPrompt
     this.ragResponsePrompt = ragPrompt
