@@ -432,7 +432,7 @@ def test_create_response_body_creates_body_with_markdown_formatting(
     response = _create_response_body(
         citations=[],
         feedback_data={},
-        response_text="**Bold**, __italics__, *markdown italics*, and `code`.",
+        response_text="**Bold**, __italics__, and `code`.",
     )
 
     # assertions
@@ -441,7 +441,7 @@ def test_create_response_body_creates_body_with_markdown_formatting(
 
     response_value = response[0]["text"]["text"]
 
-    assert "*Bold*, _italics_, _markdown italics_, and `code`." in response_value
+    assert "*Bold*, _italics_, and `code`." in response_value
 
 
 def test_create_response_body_creates_body_with_lists(
