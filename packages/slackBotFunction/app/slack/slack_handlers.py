@@ -41,6 +41,7 @@ def setup_handlers(app: App) -> None:
     app.event("message")(ack=respond_to_events, lazy=[unified_message_handler])
     app.action("feedback_yes")(ack=respond_to_action, lazy=[feedback_handler])
     app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
+    app.command("test")(ack=respond_to_command, lazy=[feedback_handler])
     for i in range(1, 10):
         app.action(f"cite_{i}")(ack=respond_to_action, lazy=[feedback_handler])
 
@@ -60,6 +61,11 @@ def respond_to_events(event: Dict[str, Any], ack: Ack, client: WebClient):
 
 # ack function for actions where we just send an ack response back
 def respond_to_action(ack: Ack):
+    logger.debug("Sending ack response")
+    ack()
+
+
+def respond_to_command(ack: Ack):
     logger.debug("Sending ack response")
     ack()
 
