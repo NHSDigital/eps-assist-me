@@ -41,7 +41,7 @@ def setup_handlers(app: App) -> None:
     app.event("message")(ack=respond_to_events, lazy=[unified_message_handler])
     app.action("feedback_yes")(ack=respond_to_action, lazy=[feedback_handler])
     app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
-    app.command("test")(ack=respond_to_command, lazy=[feedback_handler])
+    app.command("test")(ack=respond_to_command, lazy=[prompt_test_handler])
     for i in range(1, 10):
         app.action(f"cite_{i}")(ack=respond_to_action, lazy=[feedback_handler])
 
@@ -133,3 +133,14 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
         process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
         logger.error("Error triggering async processing", extra={"error": traceback.format_exc()})
+
+
+def prompt_test_handler(body: Dict[str, Any], event: Dict[str, Any], client: WebClient) -> None:
+    """Handle /test command to prompt the bot to respond."""
+    try:
+        event_id = gate_common(event=event, body=body)
+        logger.debug("logging result of gate_common", extra={"event_id": event_id, "body": body})
+        if not event_id:
+            return
+    except Exception as e:
+        logger.error(f"Error handling /test command: {e}", extra={"error": traceback.format_exc()})
