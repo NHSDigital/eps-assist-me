@@ -37,6 +37,17 @@ export class Apis extends Construct {
       lambdaFunction: props.functions.slackBot
     })
 
+    // Create the '/slack/commands' POST endpoint for Slack Events API
+    // This endpoint will handle slash commands, such as /test
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const slackCommandsEndpoint = new LambdaEndpoint(this, "SlackCommandsEndpoint", {
+      parentResource: slackResource,
+      resourceName: "commands",
+      method: HttpMethod.POST,
+      restApiGatewayRole: apiGateway.role,
+      lambdaFunction: props.functions.slackBot
+    })
+
     this.apis = {
       api: apiGateway
     }
