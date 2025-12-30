@@ -21,6 +21,11 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     # session_id enables conversation continuity across multiple queries
     kb_response = query_bedrock(reformulated_query, session_id)
 
+    logger.info(
+        "response from bedrock",
+        extra={"response_text": kb_response},
+    )
+
     return {
         "text": kb_response["output"]["text"],
         "session_id": kb_response.get("sessionId"),

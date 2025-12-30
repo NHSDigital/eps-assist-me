@@ -25,7 +25,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     inference_config = prompt_template.get("inference_config")
 
     if not inference_config:
-        default_values = {"temperature": 0, "maxTokens": 512, "topP": 1}
+        default_values = {"temperature": 0, "maxTokens": 1500, "topP": 1}
         inference_config = default_values
         logger.warning(
             "No inference configuration found in prompt template; using default values",
@@ -42,7 +42,10 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "type": "KNOWLEDGE_BASE",
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
-                "modelArn": config.RAG_MODEL_ID,
+                "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
+                "retrievalConfiguration": {
+                    "vectorSearchConfiguration": {"numberOfResults": 5, "overrideSearchType": "SEMANTIC"}
+                },
                 "generationConfiguration": {
                     "guardrailConfiguration": {
                         "guardrailId": config.GUARD_RAIL_ID,
@@ -76,10 +79,11 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     else:
         logger.info("Starting new conversation")
 
+    logger.debug("Retrieve and Generate", extra={"params": request_params})
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",
-        extra={"session_id": response.get("sessionId"), "has_citations": len(response.get("citations", [])) > 0},
+        extra={"session_id": response.get("sessionId")},
     )
     return response
 
@@ -89,10 +93,8 @@ def invoke_model(prompt: str, model_id: str, client: BedrockRuntimeClient, infer
         modelId=model_id,
         body=json.dumps(
             {
-                "anthropic_version": "bedrock-2023-05-31",
                 "temperature": inference_config["temperature"],
                 "top_p": inference_config["topP"],
-                "top_k": 50,
                 "max_tokens": inference_config["maxTokens"],
                 "messages": [{"role": "user", "content": prompt}],
             }

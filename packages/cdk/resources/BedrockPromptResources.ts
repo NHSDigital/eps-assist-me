@@ -14,16 +14,18 @@ export interface BedrockPromptResourcesProps {
 export class BedrockPromptResources extends Construct {
   public readonly queryReformulationPrompt: Prompt
   public readonly ragResponsePrompt: Prompt
+  public readonly ragModelId: string
+  public readonly queryReformulationModelId: string
 
   constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
 
-    const claudeHaikuModel = BedrockFoundationModel.ANTHROPIC_CLAUDE_HAIKU_V1_0
-    const claudeSonnetModel = BedrockFoundationModel.ANTHROPIC_CLAUDE_SONNET_V1_0
+    const ragModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
+    const reformulationModel = BedrockFoundationModel.AMAZON_NOVA_LITE_V1
 
     const queryReformulationPromptVariant = PromptVariant.text({
       variantName: "default",
-      model: claudeHaikuModel,
+      model: reformulationModel,
       promptVariables: ["topic"],
       promptText: props.settings.reformulationPrompt.text
     })
@@ -37,7 +39,7 @@ export class BedrockPromptResources extends Construct {
 
     const ragResponsePromptVariant = PromptVariant.chat({
       variantName: "default",
-      model: claudeSonnetModel,
+      model: ragModel,
       promptVariables: ["query", "search_results"],
       system: props.settings.systemPrompt.text,
       messages: [props.settings.userPrompt]
@@ -53,6 +55,10 @@ export class BedrockPromptResources extends Construct {
       defaultVariant: ragResponsePromptVariant,
       variants: [ragResponsePromptVariant]
     })
+
+    // expose model IDs for use in Lambda environment variables
+    this.ragModelId = ragModel.modelId
+    this.queryReformulationModelId = reformulationModel.modelId
 
     this.queryReformulationPrompt = queryReformulationPrompt
     this.ragResponsePrompt = ragPrompt

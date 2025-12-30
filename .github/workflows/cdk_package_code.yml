@@ -37,7 +37,7 @@ jobs:
           asdf_version: ${{ steps.asdf-version.outputs.version }}
 
       - name: Cache asdf
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb
         with:
           path: |
             ~/.asdf
@@ -94,7 +94,7 @@ jobs:
             cdk.json \
             .dependencies
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         name: upload build artifact
         with:
           name: build_artifact

@@ -2,11 +2,6 @@ name: deploy to environments
 
 on:
   workflow_dispatch:
-    inputs:
-      dev_version:
-        description: "DEV version to promote (e.g., dev-123-a1b2c3d)"
-        required: true
-        type: string
 
 env:
   BRANCH_NAME: ${{ github.event.ref.BRANCH_NAME }}
@@ -32,7 +27,7 @@ jobs:
           echo "TAG_FORMAT=$TAG_FORMAT" >> "$GITHUB_OUTPUT"
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks.yml@41e3450a9869f278be0e431a4b47b5c77bd55559
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks.yml@2b3ddfd1e59daf9905522d0140c6cd08e2547432
     needs: [get_asdf_version]
     with:
       asdfVersion: ${{ needs.get_asdf_version.outputs.asdf_version }}
@@ -41,7 +36,7 @@ jobs:
 
   tag_release:
     needs: [quality_checks, get_asdf_version]
-    uses: NHSDigital/eps-common-workflows/.github/workflows/tag-release.yml@41e3450a9869f278be0e431a4b47b5c77bd55559
+    uses: NHSDigital/eps-common-workflows/.github/workflows/tag-release.yml@2b3ddfd1e59daf9905522d0140c6cd08e2547432
     with:
       dry_run: false
       asdfVersion: ${{ needs.get_asdf_version.outputs.asdf_version }}
@@ -64,7 +59,7 @@ jobs:
     with:
       STACK_NAME: epsam
       TARGET_ENVIRONMENT: dev
-      VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
+      VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
@@ -93,7 +88,7 @@ jobs:
     with:
       STACK_NAME: epsam
       TARGET_ENVIRONMENT: qa
-      VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
+      VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
@@ -122,7 +117,7 @@ jobs:
     with:
       STACK_NAME: epsam
       TARGET_ENVIRONMENT: int
-      VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
+      VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
       CDK_APP_NAME: EpsAssistMeApp
       DEPLOY_CODE: true
@@ -145,46 +140,32 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.INT_SLACK_BOT_TOKEN }}
       SLACK_SIGNING_SECRET: ${{ secrets.INT_SLACK_SIGNING_SECRET }}
 
-  # TODO: uncomment when ready to release to prod
-  # release_prod:
-  #   needs: [get_commit_id, tag_release, package_code, release_int]
-  #   uses: ./.github/workflows/release_all_stacks.yml
-  #   with:
-  #     STACK_NAME: epsam
-  #     TARGET_ENVIRONMENT: prod
-  #     VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-  #     COMMIT_ID: ${{ needs.get_commit_id.outputs.commit_id }}
-  #     CDK_APP_NAME: EpsAssistMeApp
-  #     DEPLOY_CODE: true
-  #     LOG_RETENTION_IN_DAYS: 731
-  #     LOG_LEVEL: "INFO"
-  #     CREATE_INT_RELEASE_NOTES: false
-  #     CREATE_PROD_RELEASE_NOTES: true
-  #     MARK_JIRA_RELEASED: true
-  #     CREATE_INT_RC_RELEASE_NOTES: false
-  #     IS_PULL_REQUEST: false
-  #   secrets:
-  #     CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_DEPLOY_ROLE }}
-  #     CDK_PULL_IMAGE_ROLE: ${{ secrets.PROD_CDK_PULL_IMAGE_ROLE }}
-  #     DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-  #     REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
-  #     SLACK_BOT_TOKEN: ${{ secrets.PROD_SLACK_BOT_TOKEN }}
-  #     SLACK_SIGNING_SECRET: ${{ secrets.PROD_SLACK_SIGNING_SECRET }}
-  #
-  # create_release_notes:
-  #   needs: [tag_release, package_code, get_commit_id, release_int, release_prod]
-  #   uses: ./.github/workflows/create_release_notes.yml
-  #   with:
-  #     VERSION_NUMBER: ${{ inputs.dev_version || needs.tag_release.outputs.version_tag }}
-  #     CREATE_INT_RELEASE_NOTES: true
-  #     CREATE_INT_RC_RELEASE_NOTES: false
-  #     CREATE_PROD_RELEASE_NOTES: true
-  #     MARK_JIRA_RELEASED: true
-  #   secrets:
-  #     DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-  #     DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
-  #     PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+  release_prod:
+    needs: [tag_release, package_code, release_int]
+    uses: ./.github/workflows/release_all_stacks.yml
+    with:
+      STACK_NAME: epsam
+      TARGET_ENVIRONMENT: prod
+      VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
+      COMMIT_ID: ${{ github.sha }}
+      CDK_APP_NAME: EpsAssistMeApp
+      DEPLOY_CODE: true
+      LOG_RETENTION_IN_DAYS: 731
+      LOG_LEVEL: "INFO"
+      CREATE_INT_RELEASE_NOTES: false
+      CREATE_PROD_RELEASE_NOTES: true
+      MARK_JIRA_RELEASED: true
+      CREATE_INT_RC_RELEASE_NOTES: false
+      IS_PULL_REQUEST: false
+      RUN_REGRESSION_TESTS: false
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_DEPLOY_ROLE }}
+      CDK_PULL_IMAGE_ROLE: ${{ secrets.PROD_CDK_PULL_IMAGE_ROLE }}
+      DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+      REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+      SLACK_BOT_TOKEN: ${{ secrets.PROD_SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.PROD_SLACK_SIGNING_SECRET }}
+  
