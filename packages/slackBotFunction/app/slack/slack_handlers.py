@@ -19,8 +19,7 @@ from app.core.config import (
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_session_pull_request_id,
-    forward_action_to_pull_request_lambda,
-    forward_event_to_pull_request_lambda,
+    forward_to_pull_request_lambda,
     gate_common,
     respond_with_eyes,
     should_reply_to_message,
@@ -41,9 +40,9 @@ def setup_handlers(app: App) -> None:
     app.event("message")(ack=respond_to_events, lazy=[unified_message_handler])
     app.action("feedback_yes")(ack=respond_to_action, lazy=[feedback_handler])
     app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
-    app.command("test")(ack=respond_to_command, lazy=[prompt_test_handler])
     for i in range(1, 10):
         app.action(f"cite_{i}")(ack=respond_to_action, lazy=[feedback_handler])
+    app.command("test")(ack=respond_to_command, lazy=[prompt_test_handler])
 
 
 # ================================================================
@@ -83,7 +82,14 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
                 f"Feedback in pull request session {session_pull_request_id}",
                 extra={"session_pull_request_id": session_pull_request_id},
             )
-            forward_action_to_pull_request_lambda(body=body, pull_request_id=session_pull_request_id)
+            forward_to_pull_request_lambda(
+                body=body,
+                event=None,
+                event_id="",
+                store_pull_request_id=False,
+                pull_request_id=session_pull_request_id,
+                type="action",
+            )
             return
         process_async_slack_action(body=body, client=client)
     except Exception as e:
@@ -123,8 +129,13 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
             f"Message in pull request session {session_pull_request_id} from user {user_id}",
             extra={"session_pull_request_id": session_pull_request_id},
         )
-        forward_event_to_pull_request_lambda(
-            event=event, pull_request_id=session_pull_request_id, event_id=event_id, store_pull_request_id=False
+        forward_to_pull_request_lambda(
+            body=body,
+            event=event,
+            pull_request_id=session_pull_request_id,
+            event_id=event_id,
+            store_pull_request_id=False,
+            type="event",
         )
         return
 
@@ -135,6 +146,7 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
         logger.error("Error triggering async processing", extra={"error": traceback.format_exc()})
 
 
+# TODO: Remove duplication with unified_message_handler
 def prompt_test_handler(body: Dict[str, Any], event: Dict[str, Any], client: WebClient) -> None:
     """Handle /test command to prompt the bot to respond."""
     try:
@@ -144,3 +156,28 @@ def prompt_test_handler(body: Dict[str, Any], event: Dict[str, Any], client: Web
             return
     except Exception as e:
         logger.error(f"Error handling /test command: {e}", extra={"error": traceback.format_exc()})
+    # if its in a group chat
+    # and its a message
+    # and its not in a thread
+    # then ignore it as it will be handled as an app_mention event
+    if not should_reply_to_message(event, client):
+        logger.debug("Ignoring message in group chat not in a thread or bot not in thread", extra={"event": event})
+        # ignore messages in group chats or threads where bot wasn't mentioned
+        return
+    user_id = event.get("user", "unknown")
+    conversation_key, _ = conversation_key_and_root(event=event)
+    session_pull_request_id = extract_session_pull_request_id(conversation_key)
+    if session_pull_request_id:
+        logger.info(
+            f"Message in pull request session {session_pull_request_id} from user {user_id}",
+            extra={"session_pull_request_id": session_pull_request_id},
+        )
+        forward_to_pull_request_lambda(
+            body=body,
+            event=event,
+            pull_request_id=session_pull_request_id,
+            event_id=event_id,
+            store_pull_request_id=False,
+            type="event",
+        )
+        return

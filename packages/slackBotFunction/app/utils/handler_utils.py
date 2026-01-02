@@ -67,20 +67,20 @@ def get_pull_request_lambda_arn(pull_request_id: str) -> str:
         raise e
 
 
-def forward_event_to_pull_request_lambda(
-    pull_request_id: str, event: Dict[str, Any], event_id: str, store_pull_request_id: bool
+def forward_to_pull_request_lambda(
+    body: Dict[str, Any],
+    event: Dict[str, Any],
+    event_id: str,
+    pull_request_id: str,
+    store_pull_request_id: bool,
+    type: str,
 ) -> None:
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
         pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
-        # strip pull request prefix and id from message text
-        message_text = event["text"]
-        _, extracted_message = extract_pull_request_id(message_text)
-        event["text"] = extracted_message
-
-        lambda_payload = {"pull_request_event": True, "slack_event": {"event": event, "event_id": event_id}}
+        lambda_payload = get_forward_payload(body=body, event=event, event_id=event_id, type=type)
         logger.debug(
-            "Forwarding event to pull request lambda",
+            f"Forwarding {type} to pull request lambda",
             extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
         )
         lambda_client.invoke(
@@ -94,27 +94,22 @@ def forward_event_to_pull_request_lambda(
             store_state_information(item=item)
 
     except Exception as e:
-        logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
-        raise e
-
-
-def forward_action_to_pull_request_lambda(body: Dict[str, Any], pull_request_id: str) -> None:
-    lambda_client: LambdaClient = boto3.client("lambda")
-    try:
-        pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
-        lambda_payload = {"pull_request_action": True, "slack_body": body}
-        logger.debug(
-            "Forwarding action to pull request lambda",
-            extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
-        )
-        lambda_client.invoke(
-            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
-        )
-        logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
-
-    except Exception as e:
         logger.error("Failed to forward request to pull request lambda", extra={"error": traceback.format_exc()})
         raise e
+
+
+def get_forward_payload(body: Dict[str, Any], event: Dict[str, Any], event_id: str, type: str) -> Dict[str, Any]:
+    if type != "event":
+        return {f"pull_request_{type}": True, "slack_body": body}
+
+    if event_id is None or event["text"] is None:
+        logger.error("Missing required fields to forward pull request event")
+        return None
+
+    message_text = event["text"]
+    _, extracted_message = extract_pull_request_id(message_text)
+    event["text"] = extracted_message
+    return {"pull_request_event": True, "slack_event": {"event": event, "event_id": event_id}}
 
 
 def is_latest_message(conversation_key: str, message_ts: str) -> bool:

@@ -28,7 +28,7 @@ from app.services.slack import get_friendly_channel_name, post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_pull_request_id,
-    forward_event_to_pull_request_lambda,
+    forward_to_pull_request_lambda,
     is_duplicate_event,
     is_latest_message,
     strip_mentions,
@@ -397,8 +397,13 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
             pull_request_id, _ = extract_pull_request_id(text=message_text)
-            forward_event_to_pull_request_lambda(
-                pull_request_id=pull_request_id, event=event, event_id=event_id, store_pull_request_id=True
+            forward_to_pull_request_lambda(
+                body={},
+                pull_request_id=pull_request_id,
+                event=event,
+                event_id=event_id,
+                store_pull_request_id=True,
+                type="event",
             )
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
