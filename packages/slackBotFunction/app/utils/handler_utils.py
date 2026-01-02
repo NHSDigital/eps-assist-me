@@ -158,7 +158,7 @@ def strip_mentions(message_text: str) -> str:
 
 def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
-    pattern = rf"^(<[^>]+>\s*)?({prefix})\s*(\d+)\b"
+    pattern = rf"^(<[^>]+>\s*)?{prefix}\s*(\d+)\b"
 
     match = re.match(pattern, text, flags=re.IGNORECASE)
     if match:
