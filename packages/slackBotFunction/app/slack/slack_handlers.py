@@ -18,8 +18,8 @@ from app.core.config import (
 )
 from app.utils.handler_utils import (
     conversation_key_and_root,
-    extract_pull_request_id,
     extract_session_pull_request_id,
+    extract_test_command_params,
     forward_to_pull_request_lambda,
     gate_common,
     respond_with_eyes,
@@ -157,7 +157,7 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
         return
 
     user_id = command.get("user_id")
-    session_pull_request_id = extract_pull_request_id(command.get("text").strip())
+    session_pull_request_id = extract_test_command_params(command.get("text")).get("pr")
     if session_pull_request_id:
         logger.info(
             f"Command in pull request session {session_pull_request_id} from user {user_id}",

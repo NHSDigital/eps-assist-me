@@ -158,7 +158,7 @@ def strip_mentions(message_text: str) -> str:
 
 def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
-    pattern = rf"^(<[^>]+>\s*)?{prefix}\s*(\d+)\b"
+    pattern = rf"^(<[^>]+>\s*)?({prefix})\s*(\d+)\b"
 
     match = re.match(pattern, text, flags=re.IGNORECASE)
     if match:
@@ -171,6 +171,33 @@ def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
         return pr_number, cleaned_text
 
     return None, text.strip()
+
+
+def extract_test_command_params(text: str) -> Dict[str, str]:
+    """
+    Extract parameters from the /test command text.
+
+    Expected format: /test pr: 123 q1-2
+    """
+    params = {
+        "pr": None,
+        "q-start": "0",
+        "q-end": "20",
+    }
+    prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
+    pr_pattern = rf"(<[^>]+>\s*)?({prefix})\s*(\d+)\b"
+    q_pattern = r"\bq-?(\d+)(?:-(\d+))?"
+
+    pr_match = re.match(pr_pattern, text, flags=re.IGNORECASE)
+    if pr_match:
+        params["pr"] = pr_match.group(2)
+
+    q_match = re.search(q_pattern, text, flags=re.IGNORECASE)
+    if q_match:
+        params["q-start"] = q_match.group(1)
+        params["q-end"] = q_match.group(2) if q_match.group(2) else q_match.group(1)
+
+    return params
 
 
 def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:

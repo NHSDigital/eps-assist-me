@@ -24,10 +24,12 @@ from app.services.dynamo import (
     update_state_information,
 )
 
+from app.services.sample_questions import SampleQuestionBank
 from app.services.slack import get_friendly_channel_name, post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_pull_request_id,
+    extract_test_command_params,
     forward_to_pull_request_lambda,
     is_duplicate_event,
     is_latest_message,
@@ -426,7 +428,21 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
 def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> None:
     logger.debug("Processing async Slack command", extra={"command": command})
 
-    logger.debug("Command not implemented")
+    params = extract_test_command_params(command.get("text"))
+    pr = params.get("pr", "")
+    pr = f"pr: {pr}" if pr else ""
+
+    start = params.get("start", "")
+    end = params.get("end", "")
+    logger.info("Test command parameters", extra={"start": start, "end": end})
+
+    test_questions = SampleQuestionBank().get_questions(start=int(start), end=int(end))
+    for question in test_questions:
+        post_params = {
+            "channel": command["channel_id"],
+            "text": f"{pr} {question}",
+        }
+        client.chat_postMessage(**post_params)
 
 
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
