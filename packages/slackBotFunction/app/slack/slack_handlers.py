@@ -43,7 +43,7 @@ def setup_handlers(app: App) -> None:
     app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
     for i in range(1, 10):
         app.action(f"cite_{i}")(ack=respond_to_action, lazy=[feedback_handler])
-    app.command("test")(ack=respond_to_command, lazy=[command_handler])
+    app.command("/test")(ack=respond_to_command, lazy=[command_handler])
 
 
 # ================================================================
