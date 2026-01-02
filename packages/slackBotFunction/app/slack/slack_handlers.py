@@ -18,13 +18,14 @@ from app.core.config import (
 )
 from app.utils.handler_utils import (
     conversation_key_and_root,
+    extract_pull_request_id,
     extract_session_pull_request_id,
     forward_to_pull_request_lambda,
     gate_common,
     respond_with_eyes,
     should_reply_to_message,
 )
-from app.slack.slack_events import process_async_slack_action, process_async_slack_event
+from app.slack.slack_events import process_async_slack_action, process_async_slack_event, process_async_slack_command
 
 logger = get_logger()
 
@@ -145,9 +146,34 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
     try:
         process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
-        logger.error("Error triggering async processing", extra={"error": traceback.format_exc()})
+        logger.error("Error triggering async processing for event", extra={"error": traceback.format_exc()})
 
 
 def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebClient) -> None:
     """Handle /test command to prompt the bot to respond."""
-    logger.info("Received /test command from user", extra={"body": body, "command": command, "client": client})
+    logger.info("Received command from user", extra={"body": body, "command": command, "client": client})
+    if not command:
+        logger.error("Invalid command payload")
+        return
+
+    user_id = command.get("user_id")
+    session_pull_request_id = extract_pull_request_id(command.get("text").strip())
+    if session_pull_request_id:
+        logger.info(
+            f"Command in pull request session {session_pull_request_id} from user {user_id}",
+            extra={"session_pull_request_id": session_pull_request_id},
+        )
+        forward_to_pull_request_lambda(
+            body=body,
+            event=None,
+            pull_request_id=session_pull_request_id,
+            event_id="",
+            store_pull_request_id=False,
+            type="command",
+        )
+        return
+
+    try:
+        process_async_slack_command(command, client)
+    except Exception:
+        logger.error("Error triggering async processing for command", extra={"error": traceback.format_exc()})

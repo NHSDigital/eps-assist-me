@@ -423,6 +423,12 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     process_slack_message(event=event, event_id=event_id, client=client)
 
 
+def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> None:
+    logger.debug("Processing async Slack command", extra={"command": command})
+
+    logger.debug("Command not implemented")
+
+
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
