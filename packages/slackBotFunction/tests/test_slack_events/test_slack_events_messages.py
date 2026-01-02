@@ -8,9 +8,9 @@ def mock_logger():
     return MagicMock()
 
 
-@patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
 def test_process_async_slack_event_normal_message(
-    mock_forward_event_to_pull_request_lambda: Mock,
+    mock_forward_to_pull_request_lambda: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -29,16 +29,16 @@ def test_process_async_slack_event_normal_message(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_event_to_pull_request_lambda.assert_not_called()
+        mock_forward_to_pull_request_lambda.assert_not_called()
         mock_process_feedback_event.assert_not_called()
         mock_process_slack_message.assert_called_once_with(
             event=slack_event_data, event_id="evt123", client=mock_client
         )
 
 
-@patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
 def test_process_async_slack_event_pull_request_with_mention(
-    mock_forward_event_to_pull_request_lambda: Mock,
+    mock_forward_to_pull_request_lambda: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -62,19 +62,21 @@ def test_process_async_slack_event_pull_request_with_mention(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_event_to_pull_request_lambda.assert_called_once_with(
+        mock_forward_to_pull_request_lambda.assert_called_once_with(
+            body={},
             pull_request_id="123",
             event=slack_event_data,
             event_id="evt123",
             store_pull_request_id=True,
+            type="event",
         )
         mock_process_feedback_event.assert_not_called()
         mock_process_slack_message.assert_not_called()
 
 
-@patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
 def test_process_async_slack_event_pull_request_with_no_mention(
-    mock_forward_event_to_pull_request_lambda: Mock,
+    mock_forward_to_pull_request_lambda: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -98,11 +100,13 @@ def test_process_async_slack_event_pull_request_with_no_mention(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_event_to_pull_request_lambda.assert_called_once_with(
+        mock_forward_to_pull_request_lambda.assert_called_once_with(
+            body={},
             pull_request_id="123",
             event=slack_event_data,
             event_id="evt123",
             store_pull_request_id=True,
+            type="event",
         )
         mock_process_feedback_event.assert_not_called()
         mock_process_slack_message.assert_not_called()
