@@ -757,7 +757,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Initial acknowledgment
     post_params = {
         "channel": command["channel_id"],
-        "text": "Certainly! Here are some sample test questions:\n\n",
+        "text": "Test acknowledged. Processing...",
     }
     client.chat_postMessage(**post_params)
 
@@ -768,6 +768,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     start = int(params.get("start", 0))
     end = int(params.get("end", 20))
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
+    client.chat_postMessage(channel=command["channel_id"], text=f"Testing questions {start} to {end}.\n")
 
     # Retrieve sample questions
     test_questions = SampleQuestionBank().get_questions(start=start, end=end)
@@ -776,8 +777,10 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Post each test question
     for question in test_questions:
         logger.info("Posting test question", extra={"question": question})
-        post_params["text"] = f"{pr} {question}\n"
-        client.chat_postMessage(**post_params)
+        post_params["text"] = f"{question[0]}\n> {question[1]}\n"
+        response = client.chat_postMessage(**post_params)
+
+        logger.debug("Simulating user message", extra={"response": response})
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
