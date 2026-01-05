@@ -13,17 +13,10 @@ logger = Logger()
 
 def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, str]:
     """
-    Process a single S3 event record.
-
-    Args:
-        record: S3 event record
-        record_index: Index of the record in the batch
-
-    Returns:
-        Dict with status and message
+    converts or copies file from raw/ to processed/
+    .md and .txt pass through, others convert to markdown
     """
     try:
-        # Extract S3 bucket and key from event
         s3_info = record.get("s3", {})
         bucket_info = s3_info.get("bucket", {})
         object_info = s3_info.get("object", {})
@@ -37,50 +30,40 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
 
         logger.info(f"Processing: s3://{bucket_name}/{object_key}")
 
-        # Extract file extension
         file_path = Path(object_key)
         file_extension = file_path.suffix.lower()
 
-        # Check if file is supported
         if not converter.is_supported_format(file_extension):
             logger.warning(f"Unsupported file type: {file_extension}")
             return {"status": "skipped", "message": f"Unsupported format: {file_extension}"}
 
-        # Determine output key (replace raw/ prefix with processed/ and change extension to .md if converting)
         if object_key.startswith(config.RAW_PREFIX):
             relative_key = object_key[len(config.RAW_PREFIX) :]
         else:
             relative_key = object_key
 
-        # Handle pass-through files (copy directly)
         if converter.is_passthrough_format(file_extension):
             logger.info(f"Pass-through file: {file_extension}")
             output_key = f"{config.PROCESSED_PREFIX}{relative_key}"
             s3_client.copy_s3_object(bucket_name, object_key, bucket_name, output_key)
             return {"status": "success", "message": f"Copied to {output_key}"}
 
-        # Handle convertible files (download, convert, upload)
         if converter.is_convertible_format(file_extension):
             logger.info(f"Converting file: {file_extension}")
 
-            # Create temp paths
             temp_dir = Path("/tmp")
             input_path = temp_dir / file_path.name
             output_filename = file_path.stem + ".md"
             output_path = temp_dir / output_filename
 
             try:
-                # Download from S3
                 s3_client.download_from_s3(bucket_name, object_key, input_path)
-
-                # Convert to markdown
                 conversion_success = converter.convert_document_to_markdown(input_path, output_path)
 
                 if not conversion_success:
                     logger.error(f"Conversion failed for {object_key}")
                     return {"status": "failed", "message": "Conversion failed"}
 
-                # Upload to processed/ prefix
                 output_key = f"{config.PROCESSED_PREFIX}{Path(relative_key).stem}.md"
                 s3_client.upload_to_s3(output_path, bucket_name, output_key)
 
@@ -88,7 +71,6 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
                 return {"status": "success", "message": f"Converted to {output_key}"}
 
             finally:
-                # Clean up temp files
                 if input_path.exists():
                     input_path.unlink()
                 if output_path.exists():
@@ -104,22 +86,12 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """
-    Lambda handler for preprocessing documents uploaded to S3.
-
-    Triggered by S3 ObjectCreated events on the raw/ prefix.
-    Converts documents to markdown and uploads to processed/ prefix.
-
-    Args:
-        event: S3 event notification
-        context: Lambda context
-
-    Returns:
-        Response with status code and processing results
+    triggered by s3 uploads to raw/
+    converts documents to markdown for knowledge base ingestion
     """
     logger.info("Preprocessing function invoked")
 
     try:
-        # Extract S3 records from event
         records = event.get("Records", [])
 
         if not records:
@@ -128,13 +100,11 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
 
         logger.info(f"Processing {len(records)} record(s)")
 
-        # Process each record
         results = []
         for idx, record in enumerate(records):
             result = process_s3_record(record, idx)
             results.append(result)
 
-        # Summarize results
         success_count = sum(1 for r in results if r["status"] == "success")
         failed_count = sum(1 for r in results if r["status"] == "failed")
         skipped_count = sum(1 for r in results if r["status"] == "skipped")

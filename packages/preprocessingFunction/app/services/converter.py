@@ -1,44 +1,40 @@
 from pathlib import Path
 from markitdown import MarkItDown
-from aws_lambda_powertools import Logger
 
-logger = Logger(child=True)
+try:
+    from aws_lambda_powertools import Logger
 
-# Excel sheets to include in conversion
+    logger = Logger(child=True)
+    USE_LAMBDA_LOGGER = True
+except ImportError:
+    # lambda powertools not available in local cli mode
+    import logging
+
+    logger = logging.getLogger(__name__)
+    USE_LAMBDA_LOGGER = False
+
 EXCEL_SHEET_FILTER = ["EPS Dispensing Requirements", "Technical Conformance"]
 
 
 def remove_table_columns(markdown_content: str) -> str:
     """
-    Remove specified columns from markdown tables.
-    Removes the last 4 columns: "How the requirement may be assessed", "Actioned By",
-    "Response: Yes / No", and "Response Details".
-
-    Args:
-        markdown_content: Markdown content with tables
-
-    Returns:
-        Markdown with columns removed
+    strips last 4 columns from scal tables
+    (assessment method, actioned by, response fields)
     """
     lines = markdown_content.split("\n")
     processed_lines = []
 
     for line in lines:
-        # Check if this is a table row (starts with |)
         if line.strip().startswith("|"):
-            # Split by | and remove empty first/last elements
             cells = [cell.strip() for cell in line.split("|")]
-            # Filter out empty cells from start/end
             if cells and cells[0] == "":
                 cells = cells[1:]
             if cells and cells[-1] == "":
                 cells = cells[:-1]
 
-            # Remove the last 4 columns if we have more than 4 columns
             if len(cells) > 4:
                 cells = cells[:-4]
 
-            # Reconstruct the row
             processed_lines.append("| " + " | ".join(cells) + " |")
         else:
             processed_lines.append(line)
@@ -48,13 +44,8 @@ def remove_table_columns(markdown_content: str) -> str:
 
 def filter_excel_sheets(markdown_content: str) -> str:
     """
-    Filter Excel markdown output to only include specified sheets.
-
-    Args:
-        markdown_content: Full markdown content from Excel conversion
-
-    Returns:
-        Filtered markdown with only the specified sheets
+    keeps only sheets matching EXCEL_SHEET_FILTER
+    markitdown converts each sheet to markdown section
     """
     if not EXCEL_SHEET_FILTER:
         return markdown_content
@@ -64,11 +55,8 @@ def filter_excel_sheets(markdown_content: str) -> str:
     include_section = False
 
     for line in lines:
-        # Check if this is a sheet header (## Sheet Name)
         if line.startswith("## "):
-            sheet_name = line[3:].strip()
-            # Remove &amp; HTML entities
-            sheet_name = sheet_name.replace("&amp;", "&")
+            sheet_name = line[3:].strip().replace("&amp;", "&")
 
             if sheet_name in EXCEL_SHEET_FILTER:
                 include_section = True
@@ -82,23 +70,13 @@ def filter_excel_sheets(markdown_content: str) -> str:
 
 
 def convert_document_to_markdown(input_path: Path, output_path: Path) -> bool:
-    """
-    Convert a single document file into markdown using MarkItDown.
-
-    Args:
-        input_path: Path to the input document
-        output_path: Path where markdown output should be saved
-
-    Returns:
-        True if conversion successful, False otherwise
-    """
+    """converts document to markdown, applies excel filtering if needed"""
     try:
         logger.info(f"Converting document: {input_path.name}")
 
         md = MarkItDown()
         result = md.convert(str(input_path))
 
-        # Apply sheet filtering and column removal for Excel files
         markdown_content = result.text_content
         if input_path.suffix.lower() in [".xls", ".xlsx"]:
             original_size = len(markdown_content)
@@ -127,45 +105,18 @@ def convert_document_to_markdown(input_path: Path, output_path: Path) -> bool:
 
 
 def is_convertible_format(file_extension: str) -> bool:
-    """
-    Check if a file extension requires conversion to markdown.
-
-    Args:
-        file_extension: File extension (e.g., ".pdf", ".docx")
-
-    Returns:
-        True if file should be converted, False otherwise
-    """
     from app.config.config import CONVERTIBLE_FORMATS
 
     return file_extension.lower() in CONVERTIBLE_FORMATS
 
 
 def is_passthrough_format(file_extension: str) -> bool:
-    """
-    Check if a file extension should be passed through without conversion.
-
-    Args:
-        file_extension: File extension (e.g., ".md", ".txt")
-
-    Returns:
-        True if file should be passed through, False otherwise
-    """
     from app.config.config import PASSTHROUGH_FORMATS
 
     return file_extension.lower() in PASSTHROUGH_FORMATS
 
 
 def is_supported_format(file_extension: str) -> bool:
-    """
-    Check if a file extension is supported at all.
-
-    Args:
-        file_extension: File extension (e.g., ".pdf", ".md")
-
-    Returns:
-        True if file is supported, False otherwise
-    """
     from app.config.config import SUPPORTED_FILE_TYPES
 
     return file_extension.lower() in SUPPORTED_FILE_TYPES
