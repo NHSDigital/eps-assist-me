@@ -29,6 +29,18 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress wildcard log permissions for Preprocessing Lambda
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/PreprocessingFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions are required for log stream access under known paths."
+      }
+    ]
+  )
+
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
@@ -89,6 +101,18 @@ export const nagSuppressions = (stack: Stack) => {
       {
         id: "AwsSolutions-IAM5",
         reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation."
+      }
+    ]
+  )
+
+  // Suppress wildcard permissions for Preprocessing policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/RuntimePolicies/PreprocessingPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Preprocessing Lambda requires wildcard permissions to access all files in raw/ and processed/ prefixes."
       }
     ]
   )
