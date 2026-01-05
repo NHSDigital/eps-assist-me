@@ -44,6 +44,7 @@ jobs:
   quality_checks:
     uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks.yml@2b3ddfd1e59daf9905522d0140c6cd08e2547432
     needs: [get_asdf_version, get_commit_message]
+    if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc') }}
     with:
       asdfVersion: ${{ needs.get_asdf_version.outputs.asdf_version }}
     secrets:
