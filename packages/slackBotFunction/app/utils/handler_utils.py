@@ -99,8 +99,8 @@ def forward_to_pull_request_lambda(
 
 
 def get_forward_payload(body: Dict[str, Any], event: Dict[str, Any], event_id: str, type: str) -> Dict[str, Any]:
-    if type != "event":
-        return {"pull_request_event": True, "slack_body": body}
+    if type == "action":
+        return {"pull_request_action": True, "slack_body": body}
 
     if event_id is None or event["text"] is None:
         logger.error("Missing required fields to forward pull request event")
