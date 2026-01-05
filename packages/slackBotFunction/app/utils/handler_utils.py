@@ -84,7 +84,7 @@ def forward_to_pull_request_lambda(
             extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
         )
         lambda_client.invoke(
-            FunctionName=pull_request_lambda_arn, InvocationType=type.title(), Payload=json.dumps(lambda_payload)
+            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
 
@@ -100,7 +100,7 @@ def forward_to_pull_request_lambda(
 
 def get_forward_payload(body: Dict[str, Any], event: Dict[str, Any], event_id: str, type: str) -> Dict[str, Any]:
     if type != "event":
-        return {f"pull_request_{type}": True, "slack_body": body}
+        return {"pull_request_event": True, "slack_body": body}
 
     if event_id is None or event["text"] is None:
         logger.error("Missing required fields to forward pull request event")

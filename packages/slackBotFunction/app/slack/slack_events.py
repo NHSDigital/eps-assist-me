@@ -542,6 +542,21 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
         logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
 
 
+def process_pull_request_slack_command(slack_command_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    logger.debug(
+        "Processing pull request slack command", extra={"slack_command_data": slack_command_data}
+    )  # Removed line after debugging
+    try:
+        command = slack_command_data["event"]
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_command(command=command, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error("Error processing message", extra={"error": traceback.format_exc()})
+
+
 def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
     # separate function to process pull requests so that we can ensure we store session information
     try:
@@ -782,11 +797,9 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         response = client.chat_postMessage(**post_params)
 
         # Process as normal message
-        response["text"] = f"{pr} {question[1]}"
-        process_slack_message(event=response, event_id=f"test_{response['ts']}", client=client)
-
-    post_params["text"] = "\nTesting complete.\n"
-    client.chat_meMessage(**post_params)
+        slack_message = {**response, "text": f"{pr} {question[1]}"}
+        logger.debug("Processing test question", extra={"slack_message": slack_message})
+        process_slack_message(event=slack_message, event_id=f"test_{response['ts']}", client=client)
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:

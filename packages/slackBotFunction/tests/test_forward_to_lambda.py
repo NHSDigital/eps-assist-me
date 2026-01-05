@@ -212,7 +212,7 @@ def test_forward_action_to_pull_request_lambda(
 
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn", return_value="output_SlackBotLambdaArn"):
         forward_to_pull_request_lambda(
-            pull_request_id="123", body=mock_body, type="action", event=None, event_id="", store_pull_request_id=False
+            pull_request_id="123", body=mock_body, type="Event", event=None, event_id="", store_pull_request_id=False
         )
 
         # assertions
@@ -223,7 +223,7 @@ def test_forward_action_to_pull_request_lambda(
 
         mock_lambda_client.invoke.assert_called_once_with(
             FunctionName="output_SlackBotLambdaArn",
-            InvocationType="Action",
+            InvocationType="Event",
             Payload=json.dumps(expected_lambda_payload),
         )
         mock_store_state_information.assert_not_called()

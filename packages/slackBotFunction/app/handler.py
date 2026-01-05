@@ -19,7 +19,11 @@ from app.core.types import (
     create_error_response,
 )
 from app.services.app import get_app
-from app.slack.slack_events import process_pull_request_slack_action, process_pull_request_slack_event
+from app.slack.slack_events import (
+    process_pull_request_slack_action,
+    process_pull_request_slack_command,
+    process_pull_request_slack_event,
+)
 
 logger = get_logger()
 
@@ -55,6 +59,16 @@ def handler(event: dict, context: LambdaContext) -> dict:
 
         process_pull_request_slack_event(slack_event_data=slack_event_data)
         return {"statusCode": 200}
+
+    if event.get("pull_request_command"):
+        slack_body_data = event.get("slack_event")
+        if not slack_body_data:
+            logger.error("Pull request processing requested but no slack_event provided")
+            return {"statusCode": 400}
+
+        process_pull_request_slack_command(slack_command_data=slack_body_data)
+        return {"statusCode": 200}
+
     if event.get("pull_request_action"):
         slack_body_data = event.get("slack_body")
         if not slack_body_data:
