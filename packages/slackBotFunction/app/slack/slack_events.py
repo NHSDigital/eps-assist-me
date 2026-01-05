@@ -747,7 +747,7 @@ def _toggle_button_style(element: dict) -> bool:
 # Command management
 # ================================================================
 def process_command_test(command: Dict[str, Any], client: WebClient) -> None:
-    if "test" in command.get("text"):
+    if "help" in command.get("text"):
         process_command_test_help(command=command, client=client)
     else:
         process_command_test_response(command=command, client=client)
@@ -757,14 +757,16 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Initial acknowledgment
     post_params = {
         "channel": command["channel_id"],
-        "text": "Initialising tests...\n",  # TODO - LIST PR NUMBERS
+        "text": "Initialising tests...\n",
     }
     client.chat_meMessage(**post_params)
 
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
 
-    pr = params.get("pr", "").trim()
+    pr = params.get("pr", "").strip()
+    pr = f"pr: {pr}" if pr else ""
+
     start = int(params.get("start", 0))
     end = int(params.get("end", 20))
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
