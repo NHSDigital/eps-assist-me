@@ -138,13 +138,15 @@ export class VectorKnowledgeBaseResources extends Construct {
     knowledgeBase.applyRemovalPolicy(RemovalPolicy.DESTROY)
 
     // Create S3 data source for knowledge base documents
+    // prefix pointed to processed/ to only ingest converted markdown documents
     const dataSource = new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: knowledgeBase.attrKnowledgeBaseId,
       name: `${props.stackName}-s3-datasource`,
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
-          bucketArn: props.docsBucket.bucketArn
+          bucketArn: props.docsBucket.bucketArn,
+          inclusionPrefixes: ["processed/"]
         }
       }
     })

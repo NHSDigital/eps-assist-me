@@ -131,7 +131,9 @@ export class EpsAssistMeStack extends Stack {
       dataSourceArn: vectorKB.dataSourceArn,
       promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
       ragModelId: bedrockPromptResources.ragModelId,
-      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId
+      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
+      docsBucketArn: storage.kbDocsBucket.bucket.bucketArn,
+      docsBucketKmsKeyArn: storage.kbDocsBucket.kmsKey.keyArn
     })
 
     // Create Functions construct with actual values from VectorKB
@@ -143,6 +145,7 @@ export class EpsAssistMeStack extends Stack {
       logLevel,
       slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
       syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
+      preprocessingManagedPolicy: runtimePolicies.preprocessingPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: vectorKB.guardrail.guardrailId,
@@ -162,13 +165,22 @@ export class EpsAssistMeStack extends Stack {
       ragModelId: bedrockPromptResources.ragModelId,
       queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
       isPullRequest: isPullRequest,
-      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
+      docsBucketName: storage.kbDocsBucket.bucket.bucketName
     })
 
-    // Add S3 notification to trigger sync Lambda function
-    new S3LambdaNotification(this, "S3LambdaNotification", {
+    //S3 notification for raw/ prefix to trigger preprocessing Lambda
+    new S3LambdaNotification(this, "S3RawNotification", {
       bucket: storage.kbDocsBucket.bucket,
-      lambdaFunction: functions.syncKnowledgeBaseFunction.function
+      lambdaFunction: functions.preprocessingFunction.function,
+      prefix: "raw/"
+    })
+
+    // S3 notification for processed/ prefix to trigger sync Lambda function
+    new S3LambdaNotification(this, "S3ProcessedNotification", {
+      bucket: storage.kbDocsBucket.bucket,
+      lambdaFunction: functions.syncKnowledgeBaseFunction.function,
+      prefix: "processed/"
     })
 
     // Create Apis and pass the Lambda function
