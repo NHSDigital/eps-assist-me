@@ -66,8 +66,10 @@ echo "Installing dependencies locally"
 mkdir -p .dependencies
 poetry export --without-hashes --format=requirements.txt --with slackBotFunction > .dependencies/requirements_slackBotFunction
 poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > .dependencies/requirements_syncKnowledgeBaseFunction
+poetry export --without-hashes --format=requirements.txt --with preprocessingFunction > .dependencies/requirements_preprocessingFunction
 pip3 install -r .dependencies/requirements_slackBotFunction -t .dependencies/slackBotFunction/python
 pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
+pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
 
 sync_epsam_app() {
     echo "Starting sync epsam CDK app"
