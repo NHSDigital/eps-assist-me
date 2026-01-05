@@ -181,11 +181,11 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
     """
     params = {
         "pr": None,
-        "q-start": "0",
-        "q-end": "20",
+        "start": "0",
+        "end": "20",
     }
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
-    pr_pattern = rf"(<[^>]+>\s*)?({prefix})\s*(\d+)\b"
+    pr_pattern = rf"{prefix}\s*(\d+)\b"
     q_pattern = r"\bq-?(\d+)(?:-(\d+))?"
 
     pr_match = re.match(pr_pattern, text, flags=re.IGNORECASE)
@@ -194,9 +194,10 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
 
     q_match = re.search(q_pattern, text, flags=re.IGNORECASE)
     if q_match:
-        params["q-start"] = q_match.group(1)
-        params["q-end"] = q_match.group(2) if q_match.group(2) else q_match.group(1)
+        params["start"] = q_match.group(1)
+        params["end"] = q_match.group(2) if q_match.group(2) else q_match.group(1)
 
+    logger.debug("Extracted test command parameters", extra={"params": params})
     return params
 
 

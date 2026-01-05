@@ -5,7 +5,7 @@ class SampleQuestionBank:
 
     def __init__(self):
         self.questions = []
-        # Append data as tuples: (id, text)
+        # Append data as tuples: (id, text) just to make it easier to read for users.
         self.questions.append((0, "can a prescribed item have more than one endorsement or is it expected that a single item has no more than one endorsement?"))  # noqa: E501
         self.questions.append((1, "for the non-repudiation screen, Note - is this the note to pharmacy? note to patient?"))  # noqa: E501
         self.questions.append((2, """We are getting an error from DSS "Unauthorised". We have checked the credentials and they appear to be correct. What could be the cause? Note that, the CIS2 key is different to the key used in the EPS application (which has the signing api attached to it)"""))  # noqa: E501
@@ -40,15 +40,19 @@ Doctor requests to cancel all remaining issues on Spine, 3-6"""))  # noqa: E501
         """
         Pulls a selection of questions
         """
+        # Must be integers
+        if not isinstance(start, int):
+            raise TypeError(f"'start' must be an integer, got {type(start).__name__}")
+        
+        if not isinstance(end, int):
+            raise TypeError(f"'end' must be an integer, got {type(end).__name__}")
+
+        # Must be in valid range
         if start < 0:
-            start = 0
-
+            raise ValueError("'start' cannot be negative")
+        
         if end < 0 or end < start:
-            end = start
-
-        if start == 0:
-            start += 1
-            end += 1
+            raise ValueError("'end' must be non-negative and greater than or equal to 'start'")
 
         # Extract only the text (index 1) from the tuple
         return [q[1] for q in self.questions[start - 1 : end]]

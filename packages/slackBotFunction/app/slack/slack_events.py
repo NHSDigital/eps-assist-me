@@ -432,8 +432,8 @@ def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> N
     pr = params.get("pr", "")
     pr = f"pr: {pr}" if pr else ""
 
-    start = params.get("start", "")
-    end = params.get("end", "")
+    start = params.get("start", 0)
+    end = params.get("end", 20)
     logger.info("Test command parameters", extra={"start": start, "end": end})
 
     test_questions = SampleQuestionBank().get_questions(start=int(start), end=int(end))
