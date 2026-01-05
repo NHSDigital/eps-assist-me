@@ -777,17 +777,13 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
     # Post each test question
     for question in test_questions:
-        # Construct message to evoke event processing
-        post_params["text"] = f"{pr} {question[1]}"
-        post_params["as_user"] = True
-        post_params["token"] = command.get("token")
-        post_params["username"] = command.get("user_name")
-        response = client.chat_postMessage(**post_params)
-
         # Update message to make it more user-friendly
         post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
-        post_params["ts"] = response["ts"]
-        client.chat_update(**post_params)
+        response = client.chat_postMessage(**post_params)
+
+        # Process as normal message
+        response["text"] = f"{pr} {question[1]}"
+        process_slack_message(event=response, event_id=f"test_{response['ts']}", client=client)
 
     post_params["text"] = "\nTesting complete.\n"
     client.chat_meMessage(**post_params)
