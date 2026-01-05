@@ -776,7 +776,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Post each test question
     for question in test_questions:
         # Construct message to evoke event processing
-        post_params["text"] = question[1]
+        post_params["text"] = f"{pr} {question[1]}"
         post_params["as_user"] = True
         response = client.chat_postMessage(**post_params)
 
