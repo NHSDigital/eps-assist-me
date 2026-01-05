@@ -776,7 +776,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Post each test question
     for question in test_questions:
         index = question[0]
-        text = f"Question {index}:\n> {question[1].replace('\\n', '\\n> ')}\n"
+        text = f"Question {index}:\n> {question[1].replace('\n', '\n> ')}\n"
         logger.info("Posting test question", extra={"index": index, "question": text})
 
         post_params["text"] = f"Question {index}:\n> {text}\n"
