@@ -777,10 +777,17 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Post each test question
     for question in test_questions:
         logger.info("Posting test question", extra={"question": question})
-        post_params["text"] = f"{question[0]}\n> {question[1]}\n"
+        post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\\n', '\\n> ')}\n"
         response = client.chat_postMessage(**post_params)
 
-        logger.debug("Simulating user message", extra={"response": response})
+        message_params = {
+            "user": response["bot_profile"]["user_id"],
+            "channel": response["channel"],
+            "text": question[1],
+            "thread_ts": response["ts"],
+        }
+
+        process_slack_message(event=message_params, event_id=f"command-{response['ts']}", client=client)
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
