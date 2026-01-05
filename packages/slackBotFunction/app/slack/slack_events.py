@@ -757,14 +757,14 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Initial acknowledgment
     post_params = {
         "channel": command["channel_id"],
-        "text": "Initialising tests...\n",
+        "text": "Initialising tests...\n",  # TODO - LIST PR NUMBERS
     }
     client.chat_meMessage(**post_params)
 
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
 
-    pr = params.get("pr", "")
+    pr = params.get("pr", "").trim()
     start = int(params.get("start", 0))
     end = int(params.get("end", 20))
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
@@ -782,7 +782,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
         # Update message to make it more user-friendly
         post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
-        post_params["thread_ts"] = response["ts"]
+        post_params["ts"] = response["ts"]
         client.chat_update(**post_params)
 
     post_params["text"] = "\nTesting complete.\n"
@@ -811,7 +811,7 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
         - /test pr:12345 --> Sends questions 0 to 20 for pull request 12345
         - /test pr:12345 q5-15 --> Sends questions 5 to 15 for pull request 12345
     """
-    client.chat_postMessage(channel=command["channel_id"], text=help_text)
+    client.chat_meMessage(channel=command["channel_id"], text=help_text)
 
 
 # ================================================================

@@ -180,7 +180,7 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
     Expected format: /test pr: 123 q1-2
     """
     params = {
-        "pr": None,
+        "pr": "",
         "start": "0",
         "end": "20",
     }
@@ -190,7 +190,7 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
 
     pr_match = re.match(pr_pattern, text, flags=re.IGNORECASE)
     if pr_match:
-        params["pr"] = pr_match.group(2)
+        params["pr"] = pr_match.group(1)
         params["pr"] = f"pr: {params["pr"]}" if params["pr"] else ""
 
     q_match = re.search(q_pattern, text, flags=re.IGNORECASE)
