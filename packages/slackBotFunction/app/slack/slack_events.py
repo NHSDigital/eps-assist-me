@@ -428,21 +428,28 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
 def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> None:
     logger.debug("Processing async Slack command", extra={"command": command})
 
-    params = extract_test_command_params(command.get("text"))
-    pr = params.get("pr", "")
-    pr = f"pr: {pr}" if pr else ""
+    try:
+        params = extract_test_command_params(command.get("text"))
+        pr = params.get("pr", "")
+        pr = f"pr: {pr}" if pr else ""
 
-    start = params.get("start", 0)
-    end = params.get("end", 20)
-    logger.info("Test command parameters", extra={"start": start, "end": end})
+        start = int(params.get("start", 0))
+        end = int(params.get("end", 20))
+        logger.info("Test command parameters", extra={"start": start, "end": end})
 
-    test_questions = SampleQuestionBank().get_questions(start=int(start), end=int(end))
-    for question in test_questions:
-        post_params = {
-            "channel": command["channel_id"],
-            "text": f"{pr} {question}",
-        }
-        client.chat_postMessage(**post_params)
+        test_questions = SampleQuestionBank().get_questions(start=start, end=end)
+        logger.info("Retrieved test questions", extra={"count": len(test_questions)})
+
+        for question in test_questions:
+            logger.info("Posting test question", extra={"question": question})
+            post_params = {
+                "channel": command["channel_id"],
+                "text": f"{pr} {question}",
+            }
+            client.chat_postMessage(**post_params)
+    except Exception as e:
+        logger.error(f"Error processing test command: {e}", extra={"error": traceback.format_exc()})
+        post_error_message(channel=command["channel_id"], thread_ts=None, client=client)
 
 
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
