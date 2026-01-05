@@ -757,9 +757,9 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Initial acknowledgment
     post_params = {
         "channel": command["channel_id"],
-        "text": "Test Initialised...\n\n",
+        "text": "Initialising tests...\n",
     }
-    client.chat_postMessage(**post_params)
+    client.chat_meMessage(**post_params)
 
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
@@ -775,21 +775,18 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
     # Post each test question
     for question in test_questions:
-        index = question[0]
-        text = f"Question {index}:\n> {question[1].replace('\n', '\n> ')}\n"
-        logger.info("Posting test question", extra={"index": index, "question": text})
-
-        post_params["text"] = f"Question {index}:\n> {text}\n"
+        # Construct message to evoke event processing
+        post_params["text"] = question[1]
+        post_params["as_user"] = True
         response = client.chat_postMessage(**post_params)
 
-        message_params = {
-            "user": response["message"]["user"],
-            "channel": response["channel"],
-            "text": question[1],
-            "thread_ts": response["ts"],
-        }
+        # Update message to make it more user-friendly
+        post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
+        post_params["thread_ts"] = response["ts"]
+        client.chat_update(**post_params)
 
-        process_slack_message(event=message_params, event_id=f"command-{response['ts']}", client=client)
+    post_params["text"] = "\nTesting complete.\n"
+    client.chat_meMessage(**post_params)
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
