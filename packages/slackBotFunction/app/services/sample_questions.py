@@ -36,7 +36,7 @@ Doctor requests to cancel all remaining issues on Spine, 3-6"""))  # noqa: E501
         self.questions.append((19, "for the non-repudiation screen, do we use the patient friendly text for dosage information?"))  # noqa: E501
         self.questions.append((20, "Can an API have multiple callback URLs"))  # noqa: E501
 
-    def get_questions(self, start: int, end: int):
+    def get_questions(self, start: int, end: int) -> list[tuple[int, str]]:
         """
         Pulls a selection of questions
         """

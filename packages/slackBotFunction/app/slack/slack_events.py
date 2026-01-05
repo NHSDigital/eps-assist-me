@@ -757,7 +757,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Initial acknowledgment
     post_params = {
         "channel": command["channel_id"],
-        "text": "Test acknowledged. Processing...",
+        "text": "Test Initialised...\n\n",
     }
     client.chat_postMessage(**post_params)
 
@@ -768,7 +768,6 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     start = int(params.get("start", 0))
     end = int(params.get("end", 20))
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
-    client.chat_postMessage(channel=command["channel_id"], text=f"Testing questions {start} to {end}.\n")
 
     # Retrieve sample questions
     test_questions = SampleQuestionBank().get_questions(start=start, end=end)
@@ -776,12 +775,15 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
     # Post each test question
     for question in test_questions:
-        logger.info("Posting test question", extra={"question": question})
-        post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\\n', '\\n> ')}\n"
+        index = question[0]
+        text = f"Question {index}:\n> {question[1].replace('\\n', '\\n> ')}\n"
+        logger.info("Posting test question", extra={"index": index, "question": text})
+
+        post_params["text"] = f"Question {index}:\n> {text}\n"
         response = client.chat_postMessage(**post_params)
 
         message_params = {
-            "user": response["bot_profile"]["user_id"],
+            "user": response["message"]["user"],
             "channel": response["channel"],
             "text": question[1],
             "thread_ts": response["ts"],
