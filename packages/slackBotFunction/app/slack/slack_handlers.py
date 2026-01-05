@@ -69,7 +69,6 @@ def respond_to_action(ack: Ack):
 def respond_to_command(ack: Ack, say: Say):
     logger.debug("Sending ack response for command")
     ack()
-    say("Certainly! Preparing tests...")
 
 
 def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:

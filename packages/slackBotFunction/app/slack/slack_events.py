@@ -429,24 +429,9 @@ def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> N
     logger.debug("Processing async Slack command", extra={"command": command})
 
     try:
-        params = extract_test_command_params(command.get("text"))
-        pr = params.get("pr", "")
-        pr = f"pr: {pr}" if pr else ""
-
-        start = int(params.get("start", 0))
-        end = int(params.get("end", 20))
-        logger.info("Test command parameters", extra={"start": start, "end": end})
-
-        test_questions = SampleQuestionBank().get_questions(start=start, end=end)
-        logger.info("Retrieved test questions", extra={"count": len(test_questions)})
-
-        for question in test_questions:
-            logger.info("Posting test question", extra={"question": question})
-            post_params = {
-                "channel": command["channel_id"],
-                "text": f"{pr} {question}",
-            }
-            client.chat_postMessage(**post_params)
+        command_arg = command.get("command", "").strip()
+        if command_arg == "/test":
+            process_command_test(command=command, client=client)
     except Exception as e:
         logger.error(f"Error processing test command: {e}", extra={"error": traceback.format_exc()})
         post_error_message(channel=command["channel_id"], thread_ts=None, client=client)
@@ -756,6 +741,68 @@ def _toggle_button_style(element: dict) -> bool:
     else:
         element["style"] = "primary"
         return True
+
+
+# ================================================================
+# Command management
+# ================================================================
+def process_command_test(command: Dict[str, Any], client: WebClient) -> None:
+    if "test" in command.get("text"):
+        process_command_test_help(command=command, client=client)
+    else:
+        process_command_test_response(command=command, client=client)
+
+
+def process_command_test_response(command: Dict[str, Any], client: WebClient) -> None:
+    # Initial acknowledgment
+    post_params = {
+        "channel": command["channel_id"],
+        "text": "Certainly! Here are some sample test questions:\n\n",
+    }
+    client.chat_postMessage(**post_params)
+
+    # Extract parameters
+    params = extract_test_command_params(command.get("text"))
+
+    pr = params.get("pr", "")
+    start = int(params.get("start", 0))
+    end = int(params.get("end", 20))
+    logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
+
+    # Retrieve sample questions
+    test_questions = SampleQuestionBank().get_questions(start=start, end=end)
+    logger.info("Retrieved test questions", extra={"count": len(test_questions)})
+
+    # Post each test question
+    for question in test_questions:
+        logger.info("Posting test question", extra={"question": question})
+        post_params["text"] = f"{pr} {question}\n"
+        client.chat_postMessage(**post_params)
+
+
+def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
+    help_text = """
+    Certainly! Here is some help testing me!
+
+    You can use the `/test` command to send sample test questions to the bot.
+    The command supports parameters to specify the range of questions or have me target a specific pull request.
+
+    - Usage:
+       - /test [pr: <pull_request_id>] [q<start_index>-<end_index>]
+
+    - Parameters:
+       - <pull_request_id>: (optional) Specify a pull request ID to associate the questions with.
+       - <start_index>: (optional) The starting and ending index of the sample questions (default is 0-20).
+       - <end-index>: The ending index of the sample questions (default is 20).
+
+    - Examples:
+        - /test --> Sends questions 0 to 20
+        - /test q15 --> Sends question 15 only
+        - /test q10-25 --> Sends questions 10 to 25
+        - /test pr:12345 --> Sends questions 0 to 20 for pull request 12345
+        - /test pr:12345 q5-15 --> Sends questions 5 to 15 for pull request 12345
+    """
+    client.chat_postMessage(channel=command["channel_id"], text=help_text)
 
 
 # ================================================================

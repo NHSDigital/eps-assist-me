@@ -55,7 +55,7 @@ Doctor requests to cancel all remaining issues on Spine, 3-6"""))  # noqa: E501
             raise ValueError("'end' must be non-negative and greater than or equal to 'start'")
 
         # Extract only the text (index 1) from the tuple
-        return [q[1] for q in self.questions[start : end]]
+        return [q[1] for q in self.questions[start : end + 1]]
 
     def add_questions(self, question_text: str):
         self.questions.append((len(self.questions), question_text))
