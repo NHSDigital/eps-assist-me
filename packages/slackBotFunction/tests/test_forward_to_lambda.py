@@ -222,6 +222,8 @@ def test_forward_action_to_pull_request_lambda(
         }
 
         mock_lambda_client.invoke.assert_called_once_with(
-            FunctionName="output_SlackBotLambdaArn", InvocationType="Event", Payload=json.dumps(expected_lambda_payload)
+            FunctionName="output_SlackBotLambdaArn",
+            InvocationType="Action",
+            Payload=json.dumps(expected_lambda_payload),
         )
         mock_store_state_information.assert_not_called()

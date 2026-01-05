@@ -780,6 +780,8 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         # Construct message to evoke event processing
         post_params["text"] = f"{pr} {question[1]}"
         post_params["as_user"] = True
+        post_params["token"] = command.get("token")
+        post_params["username"] = command.get("user_name")
         response = client.chat_postMessage(**post_params)
 
         # Update message to make it more user-friendly

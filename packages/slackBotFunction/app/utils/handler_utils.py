@@ -80,11 +80,11 @@ def forward_to_pull_request_lambda(
         pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
         lambda_payload = get_forward_payload(body=body, event=event, event_id=event_id, type=type)
         logger.debug(
-            f"Forwarding {type} to pull request lambda",
+            f"Forwarding '{type}' to pull request lambda",
             extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
         )
         lambda_client.invoke(
-            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
+            FunctionName=pull_request_lambda_arn, InvocationType=type.title(), Payload=json.dumps(lambda_payload)
         )
         logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
 
@@ -317,6 +317,7 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
     - Message is in a group chat (channel_type == 'group') but not in a thread
     - Message is in a channel or group thread where the bot was not initially mentioned
     """
+    logger.debug("Checking if should reply to message", extra={"event": event, "client": client})
 
     # we don't reply to non-threaded messages in group chats
     if event.get("channel_type") == "group" and event.get("type") == "message" and event.get("thread_ts") is None:
