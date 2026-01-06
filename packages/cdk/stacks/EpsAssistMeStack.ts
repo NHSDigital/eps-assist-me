@@ -18,6 +18,7 @@ import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
+import {BucketDeployment, Source} from "aws-cdk-lib/aws-s3-deployment"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 
@@ -79,6 +80,12 @@ export class EpsAssistMeStack extends Stack {
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
       stackName: props.stackName
+    })
+
+    // initialize s3 folders for raw and processed documents
+    new BucketDeployment(this, "S3FolderInitializer", {
+      sources: [Source.asset("packages/cdk/assets/s3-folders")],
+      destinationBucket: storage.kbDocsBucket.bucket
     })
 
     // Create Bedrock execution role without dependencies
@@ -168,6 +175,9 @@ export class EpsAssistMeStack extends Stack {
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
       docsBucketName: storage.kbDocsBucket.bucket.bucketName
     })
+
+    // Grant preprocessing Lambda access to the KMS key for S3 bucket
+    storage.kbDocsBucket.kmsKey.grantEncryptDecrypt(functions.preprocessingFunction.executionRole)
 
     //S3 notification for raw/ prefix to trigger preprocessing Lambda
     new S3LambdaNotification(this, "S3RawNotification", {
