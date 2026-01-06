@@ -87,6 +87,8 @@ jobs:
           pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
           pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
           pip3 install -r requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
+          rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
+          cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
 
       - name: "Tar files"
         run: |

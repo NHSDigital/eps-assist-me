@@ -70,6 +70,9 @@ poetry export --without-hashes --format=requirements.txt --with preprocessingFun
 pip3 install -r .dependencies/requirements_slackBotFunction -t .dependencies/slackBotFunction/python
 pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
+rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
+cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
+
 
 sync_epsam_app() {
     echo "Starting sync epsam CDK app"
