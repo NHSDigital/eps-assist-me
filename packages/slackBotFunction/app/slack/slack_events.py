@@ -823,7 +823,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
         _, response_text, blocks = process_formatted_bedrock_query(question[1], None, feedback_data)
         try:
-            client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
+            client.chat_postMessage(channel=channel, thread_ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
                 f"Failed to attach feedback buttons: {e}",

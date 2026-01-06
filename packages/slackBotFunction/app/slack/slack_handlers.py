@@ -8,6 +8,7 @@ Design goals:
 """
 
 import json
+import time
 from functools import lru_cache
 import traceback
 from typing import Any, Dict
@@ -87,7 +88,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
             forward_to_pull_request_lambda(
                 body=body,
                 event=None,
-                event_id="",
+                event_id=f"feedback-{time.time()}",
                 store_pull_request_id=False,
                 pull_request_id=session_pull_request_id,
                 type="action",
@@ -166,7 +167,7 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
             body=body,
             event=command,
             pull_request_id=session_pull_request_id,
-            event_id="",
+            event_id=f"/command-{time.time()}",
             store_pull_request_id=False,
             type="command",
         )
