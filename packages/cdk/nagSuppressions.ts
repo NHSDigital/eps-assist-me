@@ -339,6 +339,68 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress BucketDeployment (S3 folder initializer) suppressions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "BucketDeployment uses AWS managed policy for Lambda execution, required by CDK construct.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "BucketDeployment requires wildcard permissions for S3 and KMS operations to deploy assets.",
+        appliesTo: [
+          "Action::s3:GetBucket*",
+          "Action::s3:GetObject*",
+          "Action::s3:List*",
+          "Action::s3:Abort*",
+          "Action::s3:DeleteObject*",
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*",
+          "Resource::arn:aws:s3:::cdk-hnb659fds-assets-591291862413-eu-west-2/*",
+          "Resource::<StorageDocsBucketepsampr221Docs1E745B36.Arn>/*"
+        ]
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "BucketDeployment uses CDK-managed Lambda runtime, updated by CDK library."
+      }
+    ]
+  )
+
+  // Suppress KMS wildcard permissions for Preprocessing Lambda role
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/PreprocessingFunction/LambdaRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Preprocessing Lambda requires KMS wildcard permissions for S3 encryption operations.",
+        appliesTo: [
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*"
+        ]
+      }
+    ]
+  )
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
