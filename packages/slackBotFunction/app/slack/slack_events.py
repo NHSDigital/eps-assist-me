@@ -811,7 +811,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         slack_message = {**response.data, "text": f"{pr} {question[1]}"}
         logger.debug("Processing test question", extra={"slack_message": slack_message})
 
-        message_ts = response.get("thread_ts")
+        message_ts = response.get("ts")
         channel = response.get("channel")
 
         feedback_data = {

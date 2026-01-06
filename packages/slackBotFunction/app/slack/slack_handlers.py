@@ -164,7 +164,7 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
         )
         forward_to_pull_request_lambda(
             body=body,
-            event=None,
+            event=command,
             pull_request_id=session_pull_request_id,
             event_id="",
             store_pull_request_id=False,
