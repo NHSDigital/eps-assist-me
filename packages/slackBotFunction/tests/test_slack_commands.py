@@ -78,7 +78,9 @@ def test_process_slack_command_test_questions_default(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    assert mock_client.chat_postMessage.call_count == 21
+    assert (
+        mock_client.chat_postMessage.call_count == 42
+    )  # 21 Tests - Posts once with question information, then replies with answer
 
 
 @patch("app.services.ai_processor.process_ai_query")
@@ -115,7 +117,9 @@ def test_process_slack_command_test_questions_single_question(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    mock_client.chat_postMessage.assert_called_once()
+    assert (
+        mock_client.chat_postMessage.call_count == 2
+    )  # 1 Test - Posts once with question information, then replies with answer
 
 
 @patch("app.services.ai_processor.process_ai_query")

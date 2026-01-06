@@ -88,7 +88,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
             forward_to_pull_request_lambda(
                 body=body,
                 event=None,
-                event_id=f"feedback-{time.time()}",
+                event_id="",
                 store_pull_request_id=False,
                 pull_request_id=session_pull_request_id,
                 type="action",
