@@ -467,7 +467,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         session_id = session_data.get("session_id") if session_data else None
 
         # Post the answer (plain) to get message_ts
-        post_params = {"channel": channel, "text": "Processing..."}
+        post_params = {"channel": channel, "text": ":spinner:"}
         if thread_ts:  # Only add thread_ts for channel threads, not DMs
             post_params["thread_ts"] = thread_ts
         post = client.chat_postMessage(**post_params)
@@ -808,7 +808,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         response = client.chat_postMessage(**post_params)
 
         # Process as normal message
-        slack_message = {**response, "text": f"{pr} {question[1]}"}
+        slack_message = {**response.data, "text": f"{pr} {question[1]}"}
         logger.debug("Processing test question", extra={"slack_message": slack_message})
 
         message_ts = response.get("thread_ts")

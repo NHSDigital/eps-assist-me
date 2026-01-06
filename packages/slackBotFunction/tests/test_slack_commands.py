@@ -66,7 +66,10 @@ def test_process_slack_command_test_questions_default(
         "command": "/test",
     }
 
-    mock_client.chat_postMessage.return_value = {}
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
 
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
@@ -100,7 +103,10 @@ def test_process_slack_command_test_questions_single_question(
         "command": "/test",
     }
 
-    mock_client.chat_postMessage.return_value = {}
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
 
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
@@ -211,7 +217,9 @@ def test_process_slack_command_test_help(
         "command": "/test",
     }
 
-    mock_client.chat_postMessage.return_value = {}
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_client.chat_postMessage.return_value = mock_response
 
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
