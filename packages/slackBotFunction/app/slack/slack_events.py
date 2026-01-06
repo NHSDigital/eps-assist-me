@@ -41,6 +41,8 @@ from app.services.ai_processor import process_ai_query
 
 logger = get_logger()
 
+processing_error_message = "Error processing message"
+
 
 # ================================================================
 # Privacy and Q&A management helpers
@@ -147,16 +149,11 @@ def _handle_session_management(
 def _create_feedback_blocks(
     response_text: str,
     citations: list[dict[str, str]],
-    conversation_key: str,
-    channel: str,
-    message_ts: str,
-    thread_ts: str,
+    feedback_data: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
-    # Create compact feedback payload for button actions
-    feedback_data = {"ck": conversation_key, "ch": channel, "mt": message_ts}
-    if thread_ts:  # Only include thread_ts for channel threads, not DMs
-        feedback_data["tt"] = thread_ts
+    if feedback_data.get("thread_ts"):  # Only include thread_ts for channel threads, not DMs
+        feedback_data["tt"] = feedback_data["thread_ts"]
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
 
     # Main response block
@@ -469,49 +466,33 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         session_data = get_conversation_session_data(conversation_key)
         session_id = session_data.get("session_id") if session_data else None
 
-        ai_response = process_ai_query(user_query, session_id)
-        kb_response = ai_response["kb_response"]
-        response_text = ai_response["text"]
-
-        # Split out citation block if present
-        # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
-        # system prompt. Instead, pull out and format the citations in the prompt manually
-        prompt_value_keys = ["source_number", "title", "excerpt", "relevance_score"]
-        split = response_text.split("------")  # Citations are separated from main body by ------
-
-        citations: list[dict[str, str]] = []
-        if len(split) != 1:
-            response_text = split[0]
-            citation_block = split[1]
-            raw_citations = []
-            raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
-            if len(raw_citations) > 0:
-                logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
-                citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
-        logger.info("Parsed citation(s)", extra={"citations": citations})
-
         # Post the answer (plain) to get message_ts
-        post_params = {"channel": channel, "text": response_text}
+        post_params = {"channel": channel, "text": "Processing..."}
         if thread_ts:  # Only add thread_ts for channel threads, not DMs
             post_params["thread_ts"] = thread_ts
         post = client.chat_postMessage(**post_params)
         message_ts = post["ts"]
 
+        # Create compact feedback payload for button actions
+        feedback_data = {"channel": channel, "message_ts": message_ts, "thread_ts": thread_ts}
+
+        # Call Bedrock to process the user query
+        kb_response, response_text, blocks = process_formatted_bedrock_query(
+            user_query=user_query, session_id=session_id, feedback_data={**feedback_data, "ck": conversation_key}
+        )
+
         _handle_session_management(
-            conversation_key=conversation_key,
+            **feedback_data,
             session_data=session_data,
             session_id=session_id,
             kb_response=kb_response,
             user_id=user_id,
-            channel=channel,
-            thread_ts=thread_ts,
-            message_ts=message_ts,
+            conversation_key=conversation_key,
         )
 
         # Store Q&A pair for feedback correlation
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
-        blocks = _create_feedback_blocks(response_text, citations, conversation_key, channel, message_ts, thread_ts)
         try:
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
@@ -539,7 +520,7 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
         process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
+        logger.error(processing_error_message, extra={"event_id": event_id, "error": traceback.format_exc()})
 
 
 def process_pull_request_slack_command(slack_command_data: Dict[str, Any]) -> None:
@@ -554,7 +535,7 @@ def process_pull_request_slack_command(slack_command_data: Dict[str, Any]) -> No
         process_async_slack_command(command=command, client=client)
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error("Error processing message", extra={"error": traceback.format_exc()})
+        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
 
 
 def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
@@ -565,7 +546,7 @@ def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
         process_async_slack_action(body=slack_body_data, client=client)
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error("Error processing message", extra={"error": traceback.format_exc()})
+        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
 
 
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
@@ -678,6 +659,36 @@ def store_feedback(
         raise
     except Exception as e:
         logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
+
+
+def process_formatted_bedrock_query(
+    user_query: str, session_id: str | None, feedback_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Process the user query with Bedrock and return the response dict"""
+    ai_response = process_ai_query(user_query, session_id)
+    kb_response = ai_response["kb_response"]
+    response_text = ai_response["text"]
+
+    # Split out citation block if present
+    # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
+    # system prompt. Instead, pull out and format the citations in the prompt manually
+    prompt_value_keys = ["source_number", "title", "excerpt", "relevance_score"]
+    split = response_text.split("------")  # Citations are separated from main body by ------
+
+    citations: list[dict[str, str]] = []
+    if len(split) != 1:
+        response_text = split[0]
+        citation_block = split[1]
+        raw_citations = []
+        raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
+        if len(raw_citations) > 0:
+            logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
+            citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
+    logger.info("Parsed citation(s)", extra={"citations": citations})
+
+    blocks = _create_feedback_blocks(response_text, citations, feedback_data)
+
+    return kb_response, response_text, blocks
 
 
 def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client: WebClient) -> None:
@@ -799,7 +810,25 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         # Process as normal message
         slack_message = {**response, "text": f"{pr} {question[1]}"}
         logger.debug("Processing test question", extra={"slack_message": slack_message})
-        process_slack_message(event=slack_message, event_id=f"test_{response['ts']}", client=client)
+
+        message_ts = response.get("thread_ts")
+        channel = response.get("channel")
+
+        feedback_data = {
+            "ck": None,
+            "ch": channel,
+            "mt": message_ts,
+            "thread_ts": message_ts,
+        }
+
+        _, response_text, blocks = process_formatted_bedrock_query(question[1], None, feedback_data)
+        try:
+            client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
+        except Exception as e:
+            logger.error(
+                f"Failed to attach feedback buttons: {e}",
+                extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
+            )
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:

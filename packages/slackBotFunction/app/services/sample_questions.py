@@ -53,6 +53,9 @@ Doctor requests to cancel all remaining issues on Spine, 3-6"""))  # noqa: E501
         
         if end < 0 or end < start:
             raise ValueError("'end' must be non-negative and greater than or equal to 'start'")
+        
+        if end > len(self.questions) - 1:
+            raise ValueError(f"'end' must be less than {len(self.questions)}")
 
         # Extract only the text (index 1) from the tuple
         return list(self.questions[start : end + 1])
