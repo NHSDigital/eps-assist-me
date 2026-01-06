@@ -72,6 +72,13 @@ pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .depende
 pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
 rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
 cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
+find .dependencies/preprocessingFunction/python -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
+find .dependencies/preprocessingFunction/python -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
+find .dependencies/preprocessingFunction/python -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find .dependencies/preprocessingFunction/python -type d -name "examples" -exec rm -rf {} + 2>/dev/null || true
+find .dependencies/preprocessingFunction/python -type f \( -name "*.pyc" -o -name "*.pyo" -o -name "*.so.debug" \) -delete
+find .dependencies/preprocessingFunction/python -type f -name "*.md" ! -name "README.md" -delete
+find .dependencies/preprocessingFunction/python -name "*.txt" -size +10k -delete
 
 
 sync_epsam_app() {
