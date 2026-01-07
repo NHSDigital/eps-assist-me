@@ -315,6 +315,90 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
+  // Suppress BedrockLogging KMS wildcard permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "KMS wildcard permissions (GenerateDataKey*, ReEncrypt*) are required for CloudWatch Logs encryption operations."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Lambda role using AWS managed policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigLambdaRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Custom resource Lambda uses AWS managed policy for basic Lambda execution role."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Lambda wildcard permissions for Bedrock API
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigLambdaRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Bedrock logging configuration API requires wildcard resource permissions as it's account-level configuration."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Lambda runtime version
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigFunction/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "Custom resource Lambda uses Python 3.13 which is the latest stable runtime available."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework role using AWS managed policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework wildcard permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework runtime version
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "OnEvent uses Node22.x which is the latest stable runtime available for the onEvent functionality."
+      }
+    ]
+  )
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
