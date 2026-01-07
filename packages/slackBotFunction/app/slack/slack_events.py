@@ -7,6 +7,7 @@ import re
 import time
 import traceback
 import json
+import threading
 from typing import Any, Dict
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
@@ -818,37 +819,49 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     test_questions = SampleQuestionBank().get_questions(start=start, end=end)
     logger.info("Retrieved test questions", extra={"count": len(test_questions)})
 
+    threads = []
     # Post each test question
     for question in test_questions:
-        # Update message to make it more user-friendly
-        post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
-        response = client.chat_postMessage(**post_params)
+        thread = threading.Thread(
+            target=process_command_test_ai_request(question=question, pr=pr, post_params=post_params, client=client)
+        )
+        threads.append(thread)
+        thread.start()
 
-        # Process as normal message
-        slack_message = {**response.data, "text": f"{pr} {question[1]}"}
-        logger.debug("Processing test question", extra={"slack_message": slack_message})
-
-        message_ts = response.get("ts")
-        channel = response.get("channel")
-
-        feedback_data = {
-            "ck": None,
-            "ch": channel,
-            "mt": message_ts,
-            "thread_ts": message_ts,
-        }
-
-        _, response_text, blocks = process_formatted_bedrock_query(question[1], None, feedback_data)
-        try:
-            client.chat_postMessage(channel=channel, thread_ts=message_ts, text=response_text, blocks=blocks)
-        except Exception as e:
-            logger.error(
-                f"Failed to attach feedback buttons: {e}",
-                extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
-            )
+    for thread in threads:
+        thread.join()
 
     post_params["text"] = "Testing complete"
     client.chat_postEphemeral(**post_params)
+
+
+def process_command_test_ai_request(question, pr, post_params: Dict[str, str], client: WebClient):
+    # Update message to make it more user-friendly
+    post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
+    response = client.chat_postMessage(**post_params)
+
+    # Process as normal message
+    slack_message = {**response.data, "text": f"{pr} {question[1]}"}
+    logger.debug("Processing test question", extra={"slack_message": slack_message})
+
+    message_ts = response.get("ts")
+    channel = response.get("channel")
+
+    feedback_data = {
+        "ck": None,
+        "ch": channel,
+        "mt": message_ts,
+        "thread_ts": message_ts,
+    }
+
+    _, response_text, blocks = process_formatted_bedrock_query(question[1], None, feedback_data)
+    try:
+        client.chat_postMessage(channel=channel, thread_ts=message_ts, text=response_text, blocks=blocks)
+    except Exception as e:
+        logger.error(
+            f"Failed to attach feedback buttons: {e}",
+            extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
+        )
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
