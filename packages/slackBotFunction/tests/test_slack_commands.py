@@ -24,7 +24,7 @@ def test_process_slack_command(
     # perform operation
     slack_command_data = {
         "text": "",
-        "user": "U456",
+        "user_id": "U456",
         "channel": "C789",
         "ts": "1234567890.123",
         "command": "/test",
@@ -60,7 +60,7 @@ def test_process_slack_command_test_questions_default(
     # perform operation
     slack_command_data = {
         "text": "",
-        "user": "U456",
+        "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
         "command": "/test",
@@ -99,7 +99,7 @@ def test_process_slack_command_test_questions_single_question(
     # perform operation
     slack_command_data = {
         "text": "q2",
-        "user": "U456",
+        "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
         "command": "/test",
@@ -138,7 +138,7 @@ def test_process_slack_command_test_questions_two_questions(
     # perform operation
     slack_command_data = {
         "text": "q2-3",
-        "user": "U456",
+        "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
         "command": "/test",
@@ -174,7 +174,7 @@ def test_process_slack_command_test_questions_too_many_questions_error(
         # perform operation
         slack_command_data = {
             "text": "q0-100",
-            "user": "U456",
+            "user_id": "U456",
             "channel_id": "C789",
             "ts": "1234567890.123",
             "command": "/test",
@@ -215,7 +215,7 @@ def test_process_slack_command_test_help(
     # perform operation
     slack_command_data = {
         "text": "help",
-        "user": "U456",
+        "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
         "command": "/test",
@@ -223,7 +223,7 @@ def test_process_slack_command_test_help(
 
     mock_response = MagicMock()
     mock_response.data = {}
-    mock_client.chat_postMessage.return_value = mock_response
+    mock_client.chat_postEphemeral.return_value = mock_response
 
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
