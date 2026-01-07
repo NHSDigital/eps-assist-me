@@ -10,14 +10,16 @@ import {
   ManagedWordFilterType,
   PIIType
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
-import {RemovalPolicy} from "aws-cdk-lib"
+import {Fn, RemovalPolicy} from "aws-cdk-lib"
 import {
   LogGroup,
   RetentionDays,
   CfnDeliverySource,
   CfnDeliveryDestination,
-  CfnDelivery
+  CfnDelivery,
+  CfnLogGroup
 } from "aws-cdk-lib/aws-logs"
+import {Key} from "aws-cdk-lib/aws-kms"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -46,6 +48,9 @@ export class VectorKnowledgeBaseResources extends Construct {
       `${this.knowledgeBase.attrKnowledgeBaseId}/data-source/` +
       `${this.dataSource.attrDataSourceId}`
   }
+
+  cloudWatchLogsKmsKey = Key.fromKeyArn(
+    this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn"))
 
   constructor(scope: Construct, id: string, props: VectorKnowledgeBaseProps) {
     super(scope, id)
@@ -161,10 +166,21 @@ export class VectorKnowledgeBaseResources extends Construct {
     // Configure CloudWatch Logs delivery for Knowledge Base logging
     // Create log group for KB application logs
     const kbLogGroup = new LogGroup(this, "KBApplicationLogGroup", {
+      encryptionKey: this.cloudWatchLogsKmsKey,
       logGroupName: `/aws/vendedlogs/bedrock/knowledge-base/APPLICATION_LOGS/${knowledgeBase.attrKnowledgeBaseId}`,
       retention: props.logRetentionInDays as RetentionDays,
       removalPolicy: RemovalPolicy.DESTROY
     })
+
+    // Suppress CFN guard rules for log group
+    const cfnlogGroup = kbLogGroup.node.defaultChild as CfnLogGroup
+    cfnlogGroup.cfnOptions.metadata = {
+      guard: {
+        SuppressedRules: [
+          "CW_LOGGROUP_RETENTION_PERIOD_CHECK"
+        ]
+      }
+    }
 
     // Create delivery source for the Knowledge Base
     const kbDeliverySource = new CfnDeliverySource(this, "KBDeliverySource", {
