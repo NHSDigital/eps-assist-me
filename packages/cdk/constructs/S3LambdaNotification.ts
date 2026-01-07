@@ -6,6 +6,7 @@ import {Function as LambdaFunction} from "aws-cdk-lib/aws-lambda"
 export interface S3LambdaNotificationProps {
   bucket: Bucket
   lambdaFunction: LambdaFunction
+  prefix?: string
 }
 
 export class S3LambdaNotification extends Construct {
@@ -18,18 +19,23 @@ export class S3LambdaNotification extends Construct {
     const supportedExtensions = [".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"]
 
     supportedExtensions.forEach(ext => {
+      const filter: {suffix: string; prefix?: string} = {suffix: ext}
+      if (props.prefix) {
+        filter.prefix = props.prefix
+      }
+
       // Handle all file creation/modification events
       props.bucket.addEventNotification(
         EventType.OBJECT_CREATED,
         lambdaDestination,
-        {suffix: ext}
+        filter
       )
 
       // Handle all file deletion events
       props.bucket.addEventNotification(
         EventType.OBJECT_REMOVED,
         lambdaDestination,
-        {suffix: ext}
+        filter
       )
     })
   }

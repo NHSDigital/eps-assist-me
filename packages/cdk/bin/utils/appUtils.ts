@@ -65,7 +65,7 @@ export const applyCfnGuardSuppressions = (stack: Stack): void => {
   addSuppressions(allLambdas, ["LAMBDA_DLQ_CHECK", "LAMBDA_INSIDE_VPC", "LAMBDA_CONCURRENCY_CHECK"])
   const permissionResources = findResourcesByPattern(stack, [
     "ApiPermission.Test.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.events",
-    "AllowBucketNotificationsToEpsAssistMeStackFunctionsSyncKnowledgeBaseFunctionepsamSyncKnowledgeBaseFunction94D011F3"
+    "AllowBucketNotificationsToEpsAssistMeStackFunctionsPreprocessingFunctionepsamPreprocessingFunction"
   ])
   addSuppressions(permissionResources, ["LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED"])
 }
