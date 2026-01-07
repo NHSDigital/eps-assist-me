@@ -803,7 +803,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         "channel": command["channel_id"],
         "text": "Initialising tests...\n",
     }
-    client.chat_postEphemeral({**post_params, "user": command.get("user_id")})
+    client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
@@ -832,7 +832,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         thread.join()
 
     post_params["text"] = "Testing complete"
-    client.chat_postEphemeral({**post_params, "user": command.get("user_id")})
+    client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
 
 def process_command_test_ai_request(question, pr, post_params: Dict[str, str], client: WebClient):
@@ -886,7 +886,7 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
 
     Note: To mention me in another channel, you can use "/test @eps-assist-me [q<start_index>-<end_index>]"
     """
-    client.chat_postEphemeral(channel=command["channel_id"], text=help_text)
+    client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
 
 
 # ================================================================
