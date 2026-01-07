@@ -179,11 +179,7 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
 
     Expected format: /test pr: 123 q1-2
     """
-    params = {
-        "pr": "",
-        "start": "0",
-        "end": "20",
-    }
+    params = {}
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
     pr_pattern = rf"{prefix}\s*(\d+)\b"
     q_pattern = r"\bq-?(\d+)(?:-(\d+))?"

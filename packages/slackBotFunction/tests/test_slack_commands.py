@@ -231,5 +231,5 @@ def test_process_slack_command_test_help(
     process_async_slack_command(command=slack_command_data, client=mock_client)
 
     # assertions
-    mock_client.chat_meMessage.assert_called_once()
     mock_client.chat_postMessage.assert_not_called()
+    mock_client.chat_postEphemeral.assert_called()

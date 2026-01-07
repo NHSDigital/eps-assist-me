@@ -434,6 +434,57 @@ def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> N
         post_error_message(channel=command["channel_id"], thread_ts=None, client=client)
 
 
+# ================================================================
+# Pull Request Re-routing
+# ================================================================
+
+
+def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        event_id = slack_event_data["event_id"]
+        event = slack_event_data["event"]
+        token = get_bot_token()
+        client = WebClient(token=token)
+        if is_duplicate_event(event_id=event_id):
+            return
+        process_async_slack_event(event=event, event_id=event_id, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error(processing_error_message, extra={"event_id": event_id, "error": traceback.format_exc()})
+
+
+def process_pull_request_slack_command(slack_command_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    logger.debug(
+        "Processing pull request slack command", extra={"slack_command_data": slack_command_data}
+    )  # Removed line after debugging
+    try:
+        command = slack_command_data["event"]
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_command(command=command, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
+
+
+def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_action(body=slack_body_data, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
+
+
+# ================================================================
+# Slack Message management
+# ================================================================
+
+
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
@@ -508,47 +559,6 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         post_error_message(channel=channel, thread_ts=thread_ts, client=client)
 
 
-def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
-    # separate function to process pull requests so that we can ensure we store session information
-    try:
-        event_id = slack_event_data["event_id"]
-        event = slack_event_data["event"]
-        token = get_bot_token()
-        client = WebClient(token=token)
-        if is_duplicate_event(event_id=event_id):
-            return
-        process_async_slack_event(event=event, event_id=event_id, client=client)
-    except Exception:
-        # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error(processing_error_message, extra={"event_id": event_id, "error": traceback.format_exc()})
-
-
-def process_pull_request_slack_command(slack_command_data: Dict[str, Any]) -> None:
-    # separate function to process pull requests so that we can ensure we store session information
-    logger.debug(
-        "Processing pull request slack command", extra={"slack_command_data": slack_command_data}
-    )  # Removed line after debugging
-    try:
-        command = slack_command_data["event"]
-        token = get_bot_token()
-        client = WebClient(token=token)
-        process_async_slack_command(command=command, client=client)
-    except Exception:
-        # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
-
-
-def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
-    # separate function to process pull requests so that we can ensure we store session information
-    try:
-        token = get_bot_token()
-        client = WebClient(token=token)
-        process_async_slack_action(body=slack_body_data, client=client)
-    except Exception:
-        # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
-
-
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
     query_length = len(user_query)
     start_time = float(event["event_ts"])
@@ -569,7 +579,7 @@ def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client
 
 
 # ================================================================
-# Feedback management
+# Slack Feedback management
 # ================================================================
 
 
@@ -659,6 +669,11 @@ def store_feedback(
         raise
     except Exception as e:
         logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
+
+
+# ================================================================
+# AI Response Formatting
+# ================================================================
 
 
 def process_formatted_bedrock_query(
@@ -770,8 +785,10 @@ def _toggle_button_style(element: dict) -> bool:
 
 
 # ================================================================
-# Command management
+# Slack Command management
 # ================================================================
+
+
 def process_command_test(command: Dict[str, Any], client: WebClient) -> None:
     if "help" in command.get("text"):
         process_command_test_help(command=command, client=client)
@@ -785,7 +802,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
         "channel": command["channel_id"],
         "text": "Initialising tests...\n",
     }
-    client.chat_meMessage(**post_params)
+    client.chat_postEphemeral(**post_params)
 
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
@@ -793,8 +810,8 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     pr = params.get("pr", "").strip()
     pr = f"pr: {pr}" if pr else ""
 
-    start = int(params.get("start", 0))
-    end = int(params.get("end", 20))
+    start = int(params.get("start", 1)) - 1
+    end = int(params.get("end", 21)) - 1
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
 
     # Retrieve sample questions
@@ -830,30 +847,33 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
                 extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
             )
 
+    post_params["text"] = "Testing complete"
+    client.chat_postEphemeral(**post_params)
+
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
-    help_text = """
+    length = SampleQuestionBank().length() + 1
+    help_text = f"""
     Certainly! Here is some help testing me!
 
     You can use the `/test` command to send sample test questions to the bot.
     The command supports parameters to specify the range of questions or have me target a specific pull request.
 
     - Usage:
-       - /test [pr: <pull_request_id>] [q<start_index>-<end_index>]
+       - /test [q<start_index>-<end_index>]
 
     - Parameters:
-       - <pull_request_id>: (optional) Specify a pull request ID to associate the questions with.
-       - <start_index>: (optional) The starting and ending index of the sample questions (default is 0-20).
-       - <end-index>: The ending index of the sample questions (default is 20).
+       - <start_index>: (optional) The starting and ending index of the sample questions (default is 1-{length}).
+       - <end-index>: The ending index of the sample questions (default is {length}).
 
     - Examples:
-        - /test --> Sends questions 0 to 20
+        - /test --> Sends questions 1 to {length}
         - /test q15 --> Sends question 15 only
-        - /test q10-25 --> Sends questions 10 to 25
-        - /test pr:12345 --> Sends questions 0 to 20 for pull request 12345
-        - /test pr:12345 q5-15 --> Sends questions 5 to 15 for pull request 12345
+        - /test q10-16 --> Sends questions 10 to 16
+
+    Note: To mention me in another channel, you can use "/test @eps-assist-me [q<start_index>-<end_index>]"
     """
-    client.chat_meMessage(channel=command["channel_id"], text=help_text)
+    client.chat_postEphemeral(channel=command["channel_id"], text=help_text)
 
 
 # ================================================================
