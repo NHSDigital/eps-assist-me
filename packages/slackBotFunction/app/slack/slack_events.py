@@ -7,6 +7,7 @@ import re
 import time
 import traceback
 import json
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
 from botocore.exceptions import ClientError
@@ -808,11 +809,16 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
 
+    # Is the command targeting a PR
     pr = params.get("pr", "").strip()
     pr = f"pr: {pr}" if pr else ""
 
+    # Has the user defined any questions
     start = int(params.get("start", 1)) - 1
     end = int(params.get("end", 21)) - 1
+
+    # Should the answer be output to the channel
+    output = params.get("output", False)
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
 
     # Retrieve sample questions
@@ -824,8 +830,9 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
         for question in test_questions:
             # This happens sequentially, ensuring questions appear 1, 2, 3...
-            post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
-            response = client.chat_postMessage(**post_params)
+            if output:
+                post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
+                response = client.chat_postMessage(**post_params)
 
             # We submit the work to the pool. It starts immediately.
             future = executor.submit(
@@ -833,15 +840,40 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
                 question=question,
                 pr=pr,
                 response=response,  # Pass the response object we just got
+                output=output,
                 client=client,
             )
             futures.append(future)
 
-    post_params["text"] = "Testing complete"
+    post_params["text"] = "Testing complete, creating file..."
     client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
+    aggregated_results = []
+    for i, future in enumerate(futures):
+        try:
+            result_text = future.result()
+            aggregated_results.append(f"--- Question {i + 1} ---\n")
+            aggregated_results.append(f"{test_questions[i][1]}\n\n")
+            aggregated_results.append(f"{result_text}\n\n")
+        except Exception as e:
+            aggregated_results.append(f"--- Question {i + 1} ---\nError processing request: {str(e)}\n\n")
 
-def process_command_test_ai_request(question, pr, response, client: WebClient):
+    # 4. Create the file content
+    final_file_content = "\n".join(aggregated_results)
+    timestamp = datetime.now().strftime("%y_%m_%d_%H:%M")
+    filename = f"test_results_{timestamp}.txt"
+
+    # 5. Upload the file to Slack
+    client.files_upload_v2(
+        channel=command["channel_id"],
+        content=final_file_content,
+        title="Test Results",
+        filename=filename,
+        initial_comment="Testing complete. Here are the results:",
+    )
+
+
+def process_command_test_ai_request(question, pr, response, output: bool, client: WebClient) -> str:
     # Process as normal message
     slack_message = {**response.data, "text": f"{pr} {question[1]}"}
     logger.debug("Processing test question on new thread", extra={"slack_message": slack_message})
@@ -857,14 +889,18 @@ def process_command_test_ai_request(question, pr, response, client: WebClient):
     }
 
     _, response_text, blocks = process_formatted_bedrock_query(question[1], None, feedback_data)
-    try:
-        client.chat_postMessage(channel=channel, thread_ts=message_ts, text=response_text, blocks=blocks)
-    except Exception as e:
-        logger.error(
-            f"Failed to attach feedback buttons: {e}",
-            extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
-        )
     logger.debug("question complete", extra={"response_text": response_text, "blocks": blocks})
+
+    if output:
+        try:
+            client.chat_postMessage(channel=channel, thread_ts=message_ts, text=response_text, blocks=blocks)
+        except Exception as e:
+            logger.error(
+                f"Failed to attach feedback buttons: {e}",
+                extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
+            )
+
+    return response_text
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
@@ -876,18 +912,19 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
     The command supports parameters to specify the range of questions or have me target a specific pull request.
 
     - Usage:
-       - /test [q<start_index>-<end_index>]
+       - /test [q<start_index>-<end_index>] [<output>]
 
     - Parameters:
        - <start_index>: (optional) The starting and ending index of the sample questions (default is 1-{length}).
-       - <end-index>: The ending index of the sample questions (default is {length}).
+       - <end-index>: (optional) The ending index of the sample questions (default is {length}).
+       - <output> (optional) If provided, will post questions and answers (this won't effect if the file is returned)
 
     - Examples:
         - /test --> Sends questions 1 to {length}
         - /test q15 --> Sends question 15 only
         - /test q10-16 --> Sends questions 10 to 16
 
-    Note: To mention me in another channel, you can use "/test @eps-assist-me [q<start_index>-<end_index>]"
+    Note: To mention me in another channel, you can use "/test @eps-assist-me [q<start_index>-<end_index>] [<output>]"
     """
     client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
 
