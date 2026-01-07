@@ -109,7 +109,7 @@ def get_forward_payload(body: Dict[str, Any], event: Dict[str, Any], event_id: s
     message_text = event["text"]
     _, extracted_message = extract_pull_request_id(message_text)
     event["text"] = extracted_message
-    return {"pull_request_event": True, "slack_event": {"event": event, "event_id": event_id}}
+    return {f"pull_request_{type}": True, "slack_event": {"event": event, "event_id": event_id}}
 
 
 def is_latest_message(conversation_key: str, message_ts: str) -> bool:

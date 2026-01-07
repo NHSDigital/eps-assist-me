@@ -162,7 +162,7 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
         logger.info(f"Command in pull request session {session_pull_request_id} from user {user_id}")
         forward_to_pull_request_lambda(
             body=body,
-            event=command,
+            event={**command, "channel": command.get("channel_id")},
             pull_request_id=session_pull_request_id,
             event_id=f"/command-{time.time()}",
             store_pull_request_id=False,

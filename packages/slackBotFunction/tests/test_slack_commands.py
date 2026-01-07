@@ -271,7 +271,7 @@ def test_process_slack_command_test_help(
     # perform operation
     slack_command_data = {
         "text": "help",
-        "user_id_": "U456",
+        "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
         "command": "/test",
