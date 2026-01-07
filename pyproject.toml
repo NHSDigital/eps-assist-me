@@ -45,6 +45,10 @@ boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runt
 boto3 = "^1.42.19"
 aws-lambda-powertools = "^3.23.0"
 
+[tool.poetry.group.bedrockLoggingConfigFunction.dependencies]
+boto3 = "^1.42.19"
+urllib3 = "^2.6.2"
+
 [tool.black]
 line-length = 120
 

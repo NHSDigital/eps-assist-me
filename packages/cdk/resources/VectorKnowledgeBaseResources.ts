@@ -11,6 +11,13 @@ import {
   PIIType
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
 import {RemovalPolicy} from "aws-cdk-lib"
+import {
+  LogGroup,
+  RetentionDays,
+  CfnDeliverySource,
+  CfnDeliveryDestination,
+  CfnDelivery
+} from "aws-cdk-lib/aws-logs"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -23,12 +30,14 @@ export interface VectorKnowledgeBaseProps {
   readonly vectorIndexName: string
   readonly region: string
   readonly account: string
+  readonly logRetentionInDays: number
 }
 
 export class VectorKnowledgeBaseResources extends Construct {
   public readonly knowledgeBase: CfnKnowledgeBase
   public readonly guardrail: Guardrail
   public readonly dataSource: CfnDataSource
+  public readonly kbLogGroup: LogGroup
   private readonly region: string
   private readonly account: string
 
@@ -149,8 +158,41 @@ export class VectorKnowledgeBaseResources extends Construct {
       }
     })
 
+    // Configure CloudWatch Logs delivery for Knowledge Base logging
+    // Create log group for KB application logs
+    const kbLogGroup = new LogGroup(this, "KBApplicationLogGroup", {
+      logGroupName: `/aws/vendedlogs/bedrock/knowledge-base/APPLICATION_LOGS/${knowledgeBase.attrKnowledgeBaseId}`,
+      retention: props.logRetentionInDays as RetentionDays,
+      removalPolicy: RemovalPolicy.DESTROY
+    })
+
+    // Create delivery source for the Knowledge Base
+    const kbDeliverySource = new CfnDeliverySource(this, "KBDeliverySource", {
+      name: `${props.stackName}-kb-delivery-source`,
+      logType: "APPLICATION_LOGS",
+      resourceArn: knowledgeBase.attrKnowledgeBaseArn
+    })
+
+    // Create delivery destination pointing to the log group
+    const kbDeliveryDestination = new CfnDeliveryDestination(this, "KBDeliveryDestination", {
+      name: `${props.stackName}-kb-delivery-destination`,
+      destinationResourceArn: kbLogGroup.logGroupArn
+    })
+
+    // Create delivery to link source and destination
+    const kbDelivery = new CfnDelivery(this, "KBDelivery", {
+      deliverySourceName: kbDeliverySource.name,
+      deliveryDestinationArn: kbDeliveryDestination.attrArn
+    })
+
+    // Ensure proper resource dependencies
+    kbDeliverySource.node.addDependency(knowledgeBase)
+    kbDelivery.node.addDependency(kbDeliverySource)
+    kbDelivery.node.addDependency(kbDeliveryDestination)
+
     this.knowledgeBase = knowledgeBase
     this.dataSource = dataSource
     this.guardrail = guardrail
+    this.kbLogGroup = kbLogGroup
   }
 }
