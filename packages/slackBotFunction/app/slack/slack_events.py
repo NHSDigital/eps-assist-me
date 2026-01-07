@@ -7,7 +7,7 @@ import re
 import time
 import traceback
 import json
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
@@ -819,17 +819,15 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     test_questions = SampleQuestionBank().get_questions(start=start, end=end)
     logger.info("Retrieved test questions", extra={"count": len(test_questions)})
 
-    threads = []
-    # Post each test question
-    for question in test_questions:
-        thread = threading.Thread(
-            target=process_command_test_ai_request(question=question, pr=pr, post_params=post_params, client=client)
-        )
-        threads.append(thread)
-        thread.start()
-
-    for thread in threads:
-        thread.join()
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        for question in test_questions:
+            executor.submit(
+                process_command_test_ai_request,
+                question=question,
+                pr=pr,
+                post_params=post_params,
+                client=client,
+            )
 
     post_params["text"] = "Testing complete"
     client.chat_postEphemeral(**post_params, user=command.get("user_id"))
