@@ -819,28 +819,32 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     test_questions = SampleQuestionBank().get_questions(start=start, end=end)
     logger.info("Retrieved test questions", extra={"count": len(test_questions)})
 
-    with ThreadPoolExecutor(max_workers=25) as executor:
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = []
+
         for question in test_questions:
-            executor.submit(
+            # This happens sequentially, ensuring questions appear 1, 2, 3...
+            post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
+            response = client.chat_postMessage(**post_params)
+
+            # We submit the work to the pool. It starts immediately.
+            future = executor.submit(
                 process_command_test_ai_request,
                 question=question,
                 pr=pr,
-                post_params=post_params,
+                response=response,  # Pass the response object we just got
                 client=client,
             )
+            futures.append(future)
 
     post_params["text"] = "Testing complete"
     client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
 
-def process_command_test_ai_request(question, pr, post_params: Dict[str, str], client: WebClient):
-    # Update message to make it more user-friendly
-    post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
-    response = client.chat_postMessage(**post_params)
-
+def process_command_test_ai_request(question, pr, response, client: WebClient):
     # Process as normal message
     slack_message = {**response.data, "text": f"{pr} {question[1]}"}
-    logger.debug("Processing test question", extra={"slack_message": slack_message})
+    logger.debug("Processing test question on new thread", extra={"slack_message": slack_message})
 
     message_ts = response.get("ts")
     channel = response.get("channel")
@@ -860,6 +864,7 @@ def process_command_test_ai_request(question, pr, post_params: Dict[str, str], c
             f"Failed to attach feedback buttons: {e}",
             extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
         )
+    logger.debug("question complete", extra={"response_text": response_text, "blocks": blocks})
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
