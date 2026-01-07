@@ -830,6 +830,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
         for question in test_questions:
             # This happens sequentially, ensuring questions appear 1, 2, 3...
+            response = None
             if output:
                 post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
                 response = client.chat_postMessage(**post_params)
@@ -838,7 +839,6 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
             future = executor.submit(
                 process_command_test_ai_request,
                 question=question,
-                pr=pr,
                 response=response,  # Pass the response object we just got
                 output=output,
                 client=client,
@@ -873,10 +873,9 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
     )
 
 
-def process_command_test_ai_request(question, pr, response, output: bool, client: WebClient) -> str:
+def process_command_test_ai_request(question, response, output: bool, client: WebClient) -> str:
     # Process as normal message
-    slack_message = {**response.data, "text": f"{pr} {question[1]}"}
-    logger.debug("Processing test question on new thread", extra={"slack_message": slack_message})
+    logger.debug("Processing test question on new thread", extra={"question": question})
 
     message_ts = response.get("ts")
     channel = response.get("channel")

@@ -101,7 +101,118 @@ def test_process_slack_command_handler_no_command(
 
 
 @patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.process_command_test_ai_request")
 def test_process_slack_command_test_questions_default(
+    mock_process_command_test_ai_request: Mock,
+    mock_process_ai_query: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    mock_client.chat_postMessage.assert_not_called()
+    mock_client.files_upload_v2.assert_called_once()
+    assert mock_process_command_test_ai_request.call_count == 21
+
+
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.process_command_test_ai_request")
+def test_process_slack_command_test_questions_single_question(
+    mock_process_command_test_ai_request: Mock,
+    mock_process_ai_query: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # delete and import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "q2",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    mock_client.chat_postMessage.assert_not_called()
+    mock_client.files_upload_v2.assert_called_once()
+    assert mock_process_command_test_ai_request.call_count == 1
+
+
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.process_command_test_ai_request")
+def test_process_slack_command_test_questions_two_questions(
+    mock_process_command_test_ai_request: Mock,
+    mock_process_ai_query: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "q2-3",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_client.chat_postMessage.return_value = {}
+    mock_process_command_test_ai_request.return_value = "test"
+
+    mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    mock_client.chat_postMessage.assert_not_called()
+    mock_client.files_upload_v2.assert_called_once()
+    assert mock_process_command_test_ai_request.call_count == 2
+
+
+@patch("app.services.ai_processor.process_ai_query")
+def test_process_slack_command_test_questions_default_output(
     mock_process_ai_query: Mock,
 ):
     """Test successful command processing"""
@@ -115,7 +226,7 @@ def test_process_slack_command_test_questions_default(
 
     # perform operation
     slack_command_data = {
-        "text": "",
+        "text": "output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -140,7 +251,7 @@ def test_process_slack_command_test_questions_default(
 
 
 @patch("app.services.ai_processor.process_ai_query")
-def test_process_slack_command_test_questions_single_question(
+def test_process_slack_command_test_questions_single_question_output(
     mock_process_ai_query: Mock,
 ):
     """Test successful command processing"""
@@ -154,7 +265,7 @@ def test_process_slack_command_test_questions_single_question(
 
     # perform operation
     slack_command_data = {
-        "text": "q2",
+        "text": "q2 output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -173,13 +284,11 @@ def test_process_slack_command_test_questions_single_question(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    assert (
-        mock_client.chat_postMessage.call_count == 2
-    )  # 1 Test - Posts once with question information, then replies with answer
+    assert mock_client.chat_postMessage.call_count == 2  # 1 questions + 1 answers
 
 
 @patch("app.services.ai_processor.process_ai_query")
-def test_process_slack_command_test_questions_two_questions(
+def test_process_slack_command_test_questions_two_questions_output(
     mock_process_ai_query: Mock,
 ):
     """Test successful command processing"""
@@ -193,7 +302,7 @@ def test_process_slack_command_test_questions_two_questions(
 
     # perform operation
     slack_command_data = {
-        "text": "q2-3",
+        "text": "q2-3 output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -209,7 +318,7 @@ def test_process_slack_command_test_questions_two_questions(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    assert mock_client.chat_postMessage.call_count == 2
+    assert mock_client.chat_postMessage.call_count == 4  # 2 questions + 2 answers
 
 
 @patch("app.services.ai_processor.process_ai_query")
