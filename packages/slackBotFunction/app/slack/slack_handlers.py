@@ -159,10 +159,7 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
     user_id = command.get("user_id")
     session_pull_request_id = extract_test_command_params(command.get("text")).get("pr")
     if session_pull_request_id:
-        logger.info(
-            f"Command in pull request session {session_pull_request_id} from user {user_id}",
-            extra={"session_pull_request_id": session_pull_request_id},
-        )
+        logger.info(f"Command in pull request session {session_pull_request_id} from user {user_id}")
         forward_to_pull_request_lambda(
             body=body,
             event=command,

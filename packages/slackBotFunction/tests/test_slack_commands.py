@@ -8,40 +8,96 @@ def mock_logger():
     return MagicMock()
 
 
-@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
-def test_process_slack_command(
-    mock_forward_to_pull_request_lambda: Mock,
-):
+@patch("app.slack.slack_events.process_async_slack_command")
+def test_process_slack_command_handler_succeeds(mock_process_async_slack_command: Mock):
     """Test successful command processing"""
     # set up mocks
     mock_client = Mock()
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
-    from app.slack.slack_events import process_async_slack_command
-
-    # perform operation
     slack_command_data = {
         "text": "",
         "user_id": "U456",
-        "channel": "C789",
+        "channel_id": "C789",
         "ts": "1234567890.123",
         "command": "/test",
     }
-    with patch("app.slack.slack_events.process_command_test_response") as mock_process_command_test_response, patch(
-        "app.slack.slack_events.process_slack_message"
-    ) as mock_process_slack_message, patch(
-        "app.slack.slack_events.process_async_slack_event"
-    ) as mock_process_async_slack_event:
-        process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # delete and import module to test
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
+    from app.slack.slack_handlers import command_handler
+
+    # perform operation
+    command_handler(slack_command_data, slack_command_data, mock_client)
+
+    # assertions
+    mock_process_async_slack_command.assert_called_once()
+
+
+@patch("boto3.client")
+@patch("app.utils.handler_utils.extract_test_command_params")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
+def test_process_slack_command_handler_forwards_pr(
+    mock_forward_to_pull_request_lambda: Mock,
+    mock_extract_test_command_params: Mock,
+    mock_boto_client: Mock,
+    mock_logger,
+):
+    """Test redirect to PR lambda"""
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        # setup mock
+        mock_client = Mock()
+
+        pr_number = "123"
+        user_id = "U456"
+        slack_command_data = {
+            "text": f"pr: {pr_number}",
+            "user_id": user_id,
+            "channel_id": "C789",
+            "ts": "1234567890.123",
+            "command": "/test",
+        }
+
+        # perform operation
+        # delete and import module to test
+        if "app.slack.slack_handlers" in sys.modules:
+            del sys.modules["app.slack.slack_handlers"]
+        from app.slack.slack_handlers import command_handler
+
+        mock_extract_test_command_params.return_value = {"pr": pr_number}
+
+        command_handler(slack_command_data, slack_command_data, mock_client)
+
+        # assertions
+        mock_forward_to_pull_request_lambda.assert_called_once()
+        mock_extract_test_command_params.assert_called_once()
+        mock_logger.info.assert_called_with(f"Command in pull request session {pr_number} from user {user_id}")
+
+
+@patch("app.slack.slack_events.process_async_slack_command")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
+def test_process_slack_command_handler_no_command(
+    mock_forward_to_pull_request_lambda: Mock, mock_process_async_slack_command: Mock, mock_logger
+):
+    """Test redirect to PR lambda"""
+    with patch("app.core.config.get_logger", return_value=mock_logger):
+        # setup mock
+        mock_client = Mock()
+
+        slack_command_data = None
+
+        # perform operation
+        # delete and import module to test
+        if "app.slack.slack_handlers" in sys.modules:
+            del sys.modules["app.slack.slack_handlers"]
+        from app.slack.slack_handlers import command_handler
+
+        command_handler(slack_command_data, slack_command_data, mock_client)
+
+        # assertions
         mock_forward_to_pull_request_lambda.assert_not_called()
-        mock_process_command_test_response.assert_called_once_with(
-            command={**slack_command_data},
-            client=mock_client,
-        )
-        mock_process_slack_message.assert_not_called()
-        mock_process_async_slack_event.assert_not_called()
+        mock_process_async_slack_command.assert_not_called()
+        mock_logger.error.assert_called_once()
 
 
 @patch("app.services.ai_processor.process_ai_query")
