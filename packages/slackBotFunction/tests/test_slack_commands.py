@@ -100,9 +100,42 @@ def test_process_slack_command_handler_no_command(
         mock_logger.error.assert_called_once()
 
 
+@pytest.fixture(scope="module")
+@patch("app.services.bedrock.query_bedrock")
+def test_process_slack_command_test_questions_ai_request_to_file(
+    mock_query_bedrock: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    assert mock_query_bedrock.call_count == 21
+
+
 @patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.process_command_test_ai_request")
-def test_process_slack_command_test_questions_default(
+def test_process_slack_command_test_questions_default_to_file(
     mock_process_command_test_ai_request: Mock,
     mock_process_ai_query: Mock,
 ):
@@ -140,7 +173,7 @@ def test_process_slack_command_test_questions_default(
 
 @patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.process_command_test_ai_request")
-def test_process_slack_command_test_questions_single_question(
+def test_process_slack_command_test_questions_single_question_to_file(
     mock_process_command_test_ai_request: Mock,
     mock_process_ai_query: Mock,
 ):
@@ -148,6 +181,7 @@ def test_process_slack_command_test_questions_single_question(
     # set up mocks
     mock_client = Mock()
 
+    mock_client.retrieve_and_generate.return_value = {"output": {"text": "bedrock response"}}
     # delete and import module to test
     from app.slack.slack_events import process_async_slack_command
 
@@ -178,7 +212,7 @@ def test_process_slack_command_test_questions_single_question(
 
 @patch("app.services.ai_processor.process_ai_query")
 @patch("app.slack.slack_events.process_command_test_ai_request")
-def test_process_slack_command_test_questions_two_questions(
+def test_process_slack_command_test_questions_two_questions_to_file(
     mock_process_command_test_ai_request: Mock,
     mock_process_ai_query: Mock,
 ):
@@ -211,8 +245,41 @@ def test_process_slack_command_test_questions_two_questions(
     assert mock_process_command_test_ai_request.call_count == 2
 
 
+@pytest.fixture(scope="module")
+@patch("app.services.bedrock.query_bedrock")
+def test_process_slack_command_test_questions_ai_request_to_slack(
+    mock_query_bedrock: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "output",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    assert mock_query_bedrock.call_count == 21
+
+
 @patch("app.services.ai_processor.process_ai_query")
-def test_process_slack_command_test_questions_default_output(
+def test_process_slack_command_test_questions_default_to_slack(
     mock_process_ai_query: Mock,
 ):
     """Test successful command processing"""
@@ -251,7 +318,7 @@ def test_process_slack_command_test_questions_default_output(
 
 
 @patch("app.services.ai_processor.process_ai_query")
-def test_process_slack_command_test_questions_single_question_output(
+def test_process_slack_command_test_questions_single_question_to_slack(
     mock_process_ai_query: Mock,
 ):
     """Test successful command processing"""
@@ -288,7 +355,7 @@ def test_process_slack_command_test_questions_single_question_output(
 
 
 @patch("app.services.ai_processor.process_ai_query")
-def test_process_slack_command_test_questions_two_questions_output(
+def test_process_slack_command_test_questions_two_questions_to_slack(
     mock_process_ai_query: Mock,
 ):
     """Test successful command processing"""

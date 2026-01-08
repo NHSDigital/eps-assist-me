@@ -430,7 +430,7 @@ def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> N
     try:
         command_arg = command.get("command", "").strip()
         if command_arg == "/test":
-            process_command_test(command=command, client=client)
+            process_command_test_request(command=command, client=client)
     except Exception as e:
         logger.error(f"Error processing test command: {e}", extra={"error": traceback.format_exc()})
         post_error_message(channel=command["channel_id"], thread_ts=None, client=client)
@@ -791,14 +791,14 @@ def _toggle_button_style(element: dict) -> bool:
 # ================================================================
 
 
-def process_command_test(command: Dict[str, Any], client: WebClient) -> None:
+def process_command_test_request(command: Dict[str, Any], client: WebClient) -> None:
     if "help" in command.get("text"):
         process_command_test_help(command=command, client=client)
     else:
-        process_command_test_response(command=command, client=client)
+        process_command_test_questions(command=command, client=client)
 
 
-def process_command_test_response(command: Dict[str, Any], client: WebClient) -> None:
+def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
     # Initial acknowledgment
     post_params = {
         "channel": command["channel_id"],
@@ -830,7 +830,7 @@ def process_command_test_response(command: Dict[str, Any], client: WebClient) ->
 
         for question in test_questions:
             # This happens sequentially, ensuring questions appear 1, 2, 3...
-            response = None
+            response = {}
             if output:
                 post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
                 response = client.chat_postMessage(**post_params)
@@ -916,7 +916,7 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
     - Parameters:
        - <start_index>: (optional) The starting and ending index of the sample questions (default is 1-{length}).
        - <end-index>: (optional) The ending index of the sample questions (default is {length}).
-       - <output> (optional) If provided, will post questions and answers (this won't effect if the file is returned)
+       - <output> (optional) If provided, will post questions and answers to slack (this won't effect if the file is returned)
 
     - Examples:
         - /test --> Sends questions 1 to {length}
@@ -924,7 +924,7 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
         - /test q10-16 --> Sends questions 10 to 16
 
     Note: To mention me in another channel, you can use "/test @eps-assist-me [q<start_index>-<end_index>] [<output>]"
-    """
+    """  # noqa: E501
     client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
 
 
