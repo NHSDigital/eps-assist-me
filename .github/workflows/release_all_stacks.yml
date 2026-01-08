@@ -181,6 +181,21 @@ jobs:
           cdk-utils-build-repo:latest
         shell: bash
 
+        # TODO - enable when testing is done
+      - name: Upload Assistant Documents
+        uses: ./.github/workflows/sync_documents
+        if: ${{ inputs.DEPLOY_CODE == true && inputs.TARGET_ENVIRONMENT != 'int' }}
+        with: 
+          TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+          STACK: ${{ inputs.STACK_NAME }}
+
+        # TODO - remove when testing is done
+      - name: Upload Assistant Documents
+        uses: ./.github/workflows/sync_documents
+        with: 
+          TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+          STACK: ${{ inputs.STACK_NAME }}
+
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira
         if: ${{ inputs.CREATE_INT_RELEASE_NOTES == true && inputs.TARGET_ENVIRONMENT == 'int' && always() && !failure() && !cancelled() }}
