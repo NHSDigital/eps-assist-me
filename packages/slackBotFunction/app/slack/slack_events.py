@@ -799,27 +799,34 @@ def process_command_test_request(command: Dict[str, Any], client: WebClient) -> 
 
 
 def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
-    # Initial acknowledgment
-    post_params = {
-        "channel": command["channel_id"],
-        "text": "Initialising tests...\n",
-    }
-    client.chat_postEphemeral(**post_params, user=command.get("user_id"))
+    # Prepare response
+    acknowledgement_msg = "Initialise tests\n"
 
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
 
     # Is the command targeting a PR
     pr = params.get("pr", "").strip()
-    pr = f"pr: {pr}" if pr else ""
+    if pr:
+        pr = f"pr: {pr}"
+        acknowledgement_msg += f"for {pr}\n"
 
     # Has the user defined any questions
     start = int(params.get("start", 1)) - 1
     end = int(params.get("end", 21)) - 1
+    acknowledgement_msg += f"Asking question {start}{f"to {end}" if end != start else ""}"
 
     # Should the answer be output to the channel
     output = params.get("output", False)
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
+    acknowledgement_msg += "and printing results to channel" if output else ""
+
+    # Initial acknowledgment
+    post_params = {
+        "channel": command["channel_id"],
+        "text": acknowledgement_msg,
+    }
+    client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
     # Retrieve sample questions
     test_questions = SampleQuestionBank().get_questions(start=start, end=end)
