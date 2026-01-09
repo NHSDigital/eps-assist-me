@@ -520,7 +520,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         session_id = session_data.get("session_id") if session_data else None
 
         # Post the answer (plain) to get message_ts
-        post_params = {"channel": channel, "text": ":spinner:"}
+        post_params = {"channel": channel, "text": "Processing..."}
         if thread_ts:  # Only add thread_ts for channel threads, not DMs
             post_params["thread_ts"] = thread_ts
         post = client.chat_postMessage(**post_params)
@@ -550,7 +550,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
-                f"Failed to attach feedback buttons: {e}",
+                f"Failed to update message: {e}",
                 extra={"event_id": event_id, "message_ts": message_ts, "error": traceback.format_exc()},
             )
         log_query_stats(user_query, event, channel, client, thread_ts)
@@ -800,7 +800,8 @@ def process_command_test_request(command: Dict[str, Any], client: WebClient) -> 
 
 def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
     # Prepare response
-    acknowledgement_msg = "Initialise tests\n"
+    acknowledgement_msg = f"<@{command.get("user_id")}> has initiated testing."
+    logger.info(acknowledgement_msg, extra={"command": command})
 
     # Extract parameters
     params = extract_test_command_params(command.get("text"))
@@ -809,19 +810,26 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
     pr = params.get("pr", "").strip()
     if pr:
         pr = f"pr: {pr}"
-        acknowledgement_msg += f"for {pr}\n"
+        acknowledgement_msg += f" for {pr}\n"
+
+    # Initial acknowledgment
+    post_params = {
+        "channel": command["channel_id"],
+        "text": acknowledgement_msg,
+    }
+    client.chat_postMessage(**post_params)
 
     # Has the user defined any questions
     start = int(params.get("start", 1)) - 1
     end = int(params.get("end", 21)) - 1
-    acknowledgement_msg += f"Asking question {start}{f"to {end}" if end != start else ""}"
+    acknowledgement_msg = f"Loading {f"questions {start} to {end}" if end != start else f"question {start}"}"
 
     # Should the answer be output to the channel
     output = params.get("output", False)
     logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
-    acknowledgement_msg += "and printing results to channel" if output else ""
+    acknowledgement_msg += " and printing results to channel" if output else ""
 
-    # Initial acknowledgment
+    # Post query information (for reflection in future)
     post_params = {
         "channel": command["channel_id"],
         "text": acknowledgement_msg,
@@ -852,37 +860,43 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
             )
             futures.append(future)
 
-    post_params["text"] = "Testing complete, creating file..."
+    post_params["text"] = "Testing complete, generating file..."
     client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
     aggregated_results = []
     for i, future in enumerate(futures):
         try:
             result_text = future.result()
-            aggregated_results.append(f"--- Question {i + 1} ---\n")
-            aggregated_results.append(f"{test_questions[i][1]}\n\n")
-            aggregated_results.append(f"{result_text}\n\n")
+            aggregated_results.append(f"# Question {i + 1}:")
+            aggregated_results.append(f"{test_questions[i][1].strip()}\n")
+            aggregated_results.append(f"# Answer:\n{result_text}")
         except Exception as e:
-            aggregated_results.append(f"--- Question {i + 1} ---\nError processing request: {str(e)}\n\n")
+            aggregated_results.append(f"**[Q{i + 1}] Error processing request**: {str(e)}")
+        aggregated_results.append("\n\n---\n")
 
     # 4. Create the file content
+    now = datetime.now()
+    name_timestamp = datetime.now().strftime("%y%m%d_%M%H")
+    alt_timestamp = {now.strftime("%d %B %Y at %I:%M %p")}
+
+    filename = f"EpsamTestResults_{name_timestamp}.txt"
+    alt_text = f"EPS Assist Me Test Results from {alt_timestamp}"
     final_file_content = "\n".join(aggregated_results)
-    timestamp = datetime.now().strftime("%y_%m_%d_%H:%M")
-    filename = f"test_results_{timestamp}.txt"
 
     # 5. Upload the file to Slack
     client.files_upload_v2(
         channel=command["channel_id"],
         content=final_file_content,
-        title="Test Results",
+        title=filename,
         filename=filename,
-        initial_comment="Testing complete. Here are the results:",
+        snippet_type="markdown",
+        alt_txt=alt_text,
+        initial_comment="Here are your results:",
     )
 
 
 def process_command_test_ai_request(question, response, output: bool, client: WebClient) -> str:
-    # Process as normal message
-    logger.debug("Processing test question on new thread", extra={"question": question})
+    logger.debug("Processing test question", extra={"question": question})
 
     message_ts = response.get("ts")
     channel = response.get("channel")
@@ -910,12 +924,13 @@ def process_command_test_ai_request(question, response, output: bool, client: We
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
+    logger.info("Processing Command Test Help Message", extra={"command": command})
     length = SampleQuestionBank().length() + 1
     help_text = f"""
     Certainly! Here is some help testing me!
 
     You can use the `/test` command to send sample test questions to the bot.
-    The command supports parameters to specify the range of questions or have me target a specific pull request.
+    Once the test is complete, the bot will respond with a text file to view the results.
 
     - Usage:
        - /test [q<start_index>-<end_index>] [<output>]
@@ -929,8 +944,7 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
         - /test --> Sends questions 1 to {length}
         - /test q15 --> Sends question 15 only
         - /test q10-16 --> Sends questions 10 to 16
-
-    Note: To mention me in another channel, you can use "/test @eps-assist-me [q<start_index>-<end_index>] [<output>]"
+        - /test out -> Sends questions 1 to {length} and posts them to Slack
     """  # noqa: E501
     client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
 

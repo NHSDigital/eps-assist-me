@@ -166,7 +166,7 @@ def test_process_slack_command_test_questions_default_to_file(
     process_async_slack_command(command=slack_command_data, client=mock_client)
 
     # assertions
-    mock_client.chat_postMessage.assert_not_called()
+    mock_client.chat_postMessage.assert_called_once()
     mock_client.files_upload_v2.assert_called_once()
     assert mock_process_command_test_ai_request.call_count == 21
 
@@ -205,7 +205,7 @@ def test_process_slack_command_test_questions_single_question_to_file(
     process_async_slack_command(command=slack_command_data, client=mock_client)
 
     # assertions
-    mock_client.chat_postMessage.assert_not_called()
+    mock_client.chat_postMessage.asset_called_once()
     mock_client.files_upload_v2.assert_called_once()
     assert mock_process_command_test_ai_request.call_count == 1
 
@@ -240,7 +240,7 @@ def test_process_slack_command_test_questions_two_questions_to_file(
     process_async_slack_command(command=slack_command_data, client=mock_client)
 
     # assertions
-    mock_client.chat_postMessage.assert_not_called()
+    mock_client.chat_postMessage.assert_called_once()
     mock_client.files_upload_v2.assert_called_once()
     assert mock_process_command_test_ai_request.call_count == 2
 
@@ -312,9 +312,9 @@ def test_process_slack_command_test_questions_default_to_slack(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    assert (
-        mock_client.chat_postMessage.call_count == 42
-    )  # 21 Tests - Posts once with question information, then replies with answer
+    assert mock_client.chat_postMessage.call_count == 43
+    # Initial response to notify user/ channel
+    # + 21 Tests - Posts once with question information, then replies with answer
 
 
 @patch("app.services.ai_processor.process_ai_query")
@@ -351,7 +351,7 @@ def test_process_slack_command_test_questions_single_question_to_slack(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    assert mock_client.chat_postMessage.call_count == 2  # 1 questions + 1 answers
+    assert mock_client.chat_postMessage.call_count == 3  # Initial + 1 questions + 1 answers
 
 
 @patch("app.services.ai_processor.process_ai_query")
@@ -385,7 +385,7 @@ def test_process_slack_command_test_questions_two_questions_to_slack(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    assert mock_client.chat_postMessage.call_count == 4  # 2 questions + 2 answers
+    assert mock_client.chat_postMessage.call_count == 5  # Initial + 2 questions + 2 answers
 
 
 @patch("app.services.ai_processor.process_ai_query")

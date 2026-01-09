@@ -182,7 +182,7 @@ def test_process_slack_message_with_thread_ts(
     assert mock_client.chat_postMessage.call_count >= 1
     first_call = mock_client.chat_postMessage.call_args_list[0]
     assert first_call[1]["thread_ts"] == "1234567888.111"
-    assert first_call[1]["text"] == ":spinner:"
+    assert first_call[1]["text"] == "Processing..."
 
 
 @patch("app.services.dynamo.get_state_information")
