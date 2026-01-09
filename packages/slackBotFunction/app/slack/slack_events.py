@@ -800,99 +800,102 @@ def process_command_test_request(command: Dict[str, Any], client: WebClient) -> 
 
 def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
     # Prepare response
-    acknowledgement_msg = f"<@{command.get("user_id")}> has initiated testing."
-    logger.info(acknowledgement_msg, extra={"command": command})
 
-    # Extract parameters
-    params = extract_test_command_params(command.get("text"))
+    try:
+        acknowledgement_msg = f"<@{command.get("user_id")}> has initiated testing."
+        logger.info(acknowledgement_msg, extra={"command": command})
 
-    # Is the command targeting a PR
-    pr = params.get("pr", "").strip()
-    if pr:
-        pr = f"pr: {pr}"
-        acknowledgement_msg += f" for {pr}\n"
+        # Extract parameters
+        params = extract_test_command_params(command.get("text"))
 
-    # Initial acknowledgment
-    post_params = {
-        "channel": command["channel_id"],
-        "text": acknowledgement_msg,
-    }
-    client.chat_postMessage(**post_params)
+        # Is the command targeting a PR
+        pr = params.get("pr", "").strip()
+        if pr:
+            pr = f"pr: {pr}"
+            acknowledgement_msg += f" for {pr}\n"
 
-    # Has the user defined any questions
-    start = int(params.get("start", 1)) - 1
-    end = int(params.get("end", 21)) - 1
-    acknowledgement_msg = f"Loading {f"questions {start} to {end}" if end != start else f"question {start}"}"
+        # Initial acknowledgment
+        post_params = {
+            "channel": command["channel_id"],
+            "text": acknowledgement_msg,
+        }
+        client.chat_postMessage(**post_params)
 
-    # Should the answer be output to the channel
-    output = params.get("output", False)
-    logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
-    acknowledgement_msg += " and printing results to channel" if output else ""
+        # Has the user defined any questions
+        start = int(params.get("start", 1)) - 1
+        end = int(params.get("end", 21)) - 1
+        acknowledgement_msg = f"Loading {f"questions {start} to {end}" if end != start else f"question {start}"}"
 
-    # Post query information (for reflection in future)
-    post_params = {
-        "channel": command["channel_id"],
-        "text": acknowledgement_msg,
-    }
-    client.chat_postEphemeral(**post_params, user=command.get("user_id"))
+        # Should the answer be output to the channel
+        output = params.get("output", False)
+        logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
+        acknowledgement_msg += " and printing results to channel" if output else ""
 
-    # Retrieve sample questions
-    test_questions = SampleQuestionBank().get_questions(start=start, end=end)
-    logger.info("Retrieved test questions", extra={"count": len(test_questions)})
+        # Post query information (for reflection in future)
+        post_params = {
+            "channel": command["channel_id"],
+            "text": acknowledgement_msg,
+        }
+        client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        futures = []
+        # Retrieve sample questions
+        test_questions = SampleQuestionBank().get_questions(start=start, end=end)
+        logger.info("Retrieved test questions", extra={"count": len(test_questions)})
 
-        for question in test_questions:
-            # This happens sequentially, ensuring questions appear 1, 2, 3...
-            response = {}
-            if output:
-                post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
-                response = client.chat_postMessage(**post_params)
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = []
 
-            # We submit the work to the pool. It starts immediately.
-            future = executor.submit(
-                process_command_test_ai_request,
-                question=question,
-                response=response,  # Pass the response object we just got
-                output=output,
-                client=client,
-            )
-            futures.append(future)
+            for question in test_questions:
+                # This happens sequentially, ensuring questions appear 1, 2, 3...
+                response = {}
+                if output:
+                    post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
+                    response = client.chat_postMessage(**post_params)
 
-    post_params["text"] = "Testing complete, generating file..."
-    client.chat_postEphemeral(**post_params, user=command.get("user_id"))
+                # We submit the work to the pool. It starts immediately.
+                future = executor.submit(
+                    process_command_test_ai_request,
+                    question=question,
+                    response=response,  # Pass the response object we just got
+                    output=output,
+                    client=client,
+                )
+                futures.append(future)
 
-    aggregated_results = []
-    for i, future in enumerate(futures):
-        try:
-            result_text = future.result()
-            aggregated_results.append(f"# Question {i + 1}:")
-            aggregated_results.append(f"{test_questions[i][1].strip()}\n")
-            aggregated_results.append(f"# Answer:\n{result_text}")
-        except Exception as e:
-            aggregated_results.append(f"**[Q{i + 1}] Error processing request**: {str(e)}")
-        aggregated_results.append("\n\n---\n")
+        post_params["text"] = "Testing complete, generating file..."
+        client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
-    # 4. Create the file content
-    now = datetime.now()
-    name_timestamp = datetime.now().strftime("%y%m%d_%M%H")
-    alt_timestamp = {now.strftime("%d %B %Y at %I:%M %p")}
+        aggregated_results = []
+        for i, future in enumerate(futures):
+            try:
+                result_text = future.result()
+                aggregated_results.append(f"# Question {i + 1}:")
+                aggregated_results.append(f"{test_questions[i][1].strip()}\n")
+                aggregated_results.append(f"# Answer:\n{result_text}")
+            except Exception as e:
+                aggregated_results.append(f"**[Q{i + 1}] Error processing request**: {str(e)}")
+            aggregated_results.append("\n\n---\n")
 
-    filename = f"EpsamTestResults_{name_timestamp}.txt"
-    alt_text = f"EPS Assist Me Test Results from {alt_timestamp}"
-    final_file_content = "\n".join(aggregated_results)
+        # Create the file content
+        name_timestamp = datetime.now().strftime("%y%m%d_%M%H")
 
-    # 5. Upload the file to Slack
-    client.files_upload_v2(
-        channel=command["channel_id"],
-        content=final_file_content,
-        title=filename,
-        filename=filename,
-        snippet_type="markdown",
-        alt_txt=alt_text,
-        initial_comment="Here are your results:",
-    )
+        filename = f"EpsamTestResults_{name_timestamp}.txt"
+        final_file_content = "\n".join(aggregated_results)
+
+        # Upload the file to Slack
+        client.files_upload_v2(
+            channel=command["channel_id"],
+            content=final_file_content,
+            title=filename,
+            filename=filename,
+            snippet_type="markdown",
+            initial_comment="Here are your results:",
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to attach feedback buttons: {e}",
+            extra={"channel": command["channel_id"], "error": traceback.format_exc()},
+        )
 
 
 def process_command_test_ai_request(question, response, output: bool, client: WebClient) -> str:
