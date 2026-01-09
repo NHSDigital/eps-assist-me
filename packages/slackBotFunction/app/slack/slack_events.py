@@ -822,8 +822,8 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         client.chat_postMessage(**post_params)
 
         # Has the user defined any questions
-        start = int(params.get("start", 1)) - 1
-        end = int(params.get("end", 21)) - 1
+        start = int(params.get("start", 1))
+        end = int(params.get("end", 22))
         acknowledgement_msg = f"Loading {f"questions {start} to {end}" if end != start else f"question {start}"}"
 
         # Should the answer be output to the channel
@@ -839,7 +839,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
         # Retrieve sample questions
-        test_questions = SampleQuestionBank().get_questions(start=start, end=end)
+        test_questions = SampleQuestionBank().get_questions(start=start - 1, end=end - 1)
         logger.info("Retrieved test questions", extra={"count": len(test_questions)})
 
         with ThreadPoolExecutor(max_workers=20) as executor:
@@ -869,17 +869,17 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         for i, future in enumerate(futures):
             try:
                 question = future.result()
-                aggregated_results.append(f"# Question {question.get("index", i) + 1}:")
+                aggregated_results.append(f"# Question {question.get("index", i)}:")
                 aggregated_results.append(f"{question.get("text", "").strip()}\n")
-                aggregated_results.append(f"# Answer:{question.get("response", "").strip()}")
+                aggregated_results.append(f"# Response:\n{question.get("response", "").strip()}")
             except Exception as e:
-                aggregated_results.append(f"**[Q{i + 1}] Error processing request**: {str(e)}")
+                aggregated_results.append(f"**[Q{i}] Error processing request**: {str(e)}")
             aggregated_results.append("\n---\n")
 
         # Create the file content
-        name_timestamp = datetime.now().strftime("%y%m%d_%M%H")
+        name_timestamp = datetime.now().strftime("%y%m%d%M%H")
 
-        filename = f"EpsamTestResults_{name_timestamp}.txt"
+        filename = f"EpsamTestResults_{name_timestamp}_.txt"
         final_file_content = "\n".join(aggregated_results)
 
         # Upload the file to Slack
@@ -936,7 +936,7 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
     Once the test is complete, the bot will respond with a text file to view the results.
 
     - Usage:
-       - /test [q<start_index>-<end_index>] [<output>]
+       - /test [q<start_index>-<end_index>] [.<output>]
 
     - Parameters:
        - <start_index>: (optional) The starting and ending index of the sample questions (default is 1-{length}).
@@ -947,7 +947,7 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
         - /test --> Sends questions 1 to {length}
         - /test q15 --> Sends question 15 only
         - /test q10-16 --> Sends questions 10 to 16
-        - /test out -> Sends questions 1 to {length} and posts them to Slack
+        - /test .output -> Sends questions 1 to {length} and posts them to Slack
     """  # noqa: E501
     client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
 

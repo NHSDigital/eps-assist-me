@@ -177,7 +177,7 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
     """
     Extract parameters from the /test command text.
 
-    Expected format: /test pr: 123 q1-2 output
+    Expected format: /test pr: 123 q1-2 .output
     """
     params = {}
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
@@ -193,7 +193,7 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
         params["start"] = q_match.group(1)
         params["end"] = q_match.group(2) if q_match.group(2) else q_match.group(1)
 
-    if "output" in text.lower():
+    if ".output" in text.lower():
         params["output"] = True
 
     logger.debug("Extracted test command parameters", extra={"params": params})
