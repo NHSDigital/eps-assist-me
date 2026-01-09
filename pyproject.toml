@@ -48,9 +48,5 @@ aws-lambda-powertools = "^3.23.0"
 [tool.black]
 line-length = 120
 
-[build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
-
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.8"
