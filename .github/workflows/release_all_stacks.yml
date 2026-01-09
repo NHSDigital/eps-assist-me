@@ -58,6 +58,10 @@ on:
         required: false
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
         required: false
+      INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
+        required: false
+      PROD_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
+        required: false
       REGRESSION_TESTS_PEM:
         required: false
       SLACK_BOT_TOKEN:
@@ -182,11 +186,13 @@ jobs:
         shell: bash
 
         # TODO - add if statement
-      - name: Upload Assistant Documents
+      - name: Sync Documents
         uses: ./.github/actions/sync_documents
         with: 
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
+          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}__CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.TARGET_ENVIRONMENT)] }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira

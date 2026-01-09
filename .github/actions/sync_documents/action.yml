@@ -1,0 +1,74 @@
+name: "Document Sync"
+description: "Sync Documents between INT and a target Environment"
+inputs:
+  TARGET_ENVIRONMENT:
+    required: true
+    description: "The Environment to Copy Files into (e.g., DEV, PROD)"
+  STACK:
+    required: false
+    description: "The stack being deployed (ie., 'epsam' or 'epsam-pr-123')"
+    default: "epsam"
+  INT_CLOUD_FORMATION_DEPLOY_ROLE:
+    required: true
+    description: "The role to assume for the source (INT) account"
+  TARGET_CLOUD_FORMATION_DEPLOY_ROLE:
+    required: true
+    description: "The role to assume for the target account"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Connect to Source Account (INT)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: eu-west-2
+        role-to-assume: ${{ inputs.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+        role-session-name: epsam-document-sync-source
+
+    - name: Find Source Bucket by Partial Name
+      id: find-source-bucket
+      shell: bash
+      working-directory: .github/scripts
+      run: ./find_bucket.sh "epsam-storagedocsbucketepsamdocs"
+
+    - name: Download all Files from Source Bucket
+      shell: bash
+      run: |
+        mkdir -p ./s3-content
+        aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }} ./s3-content
+
+    - name: Connect to Target Account
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: eu-west-2
+        role-to-assume: ${{ inputs.TARGET_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+        role-session-name: epsam-document-sync-target
+
+    - name: Find Destination Bucket by Partial Name
+      id: find-destination-bucket
+      shell: bash
+      working-directory: .github/scripts
+      run: |
+        # If STACK is provided and not empty, use it, otherwise default
+        PATTERN="${{ inputs.STACK != '' && format('{0}-storagedocsbucketepsamdocs', inputs.STACK) || 'epsam-storagedocsbucketepsamdocs' }}"
+
+        echo "Searching for bucket with pattern: $PATTERN"
+        ./find_bucket.sh "$PATTERN"
+
+    - name: Check Discrepancies (Dry Run)
+      id: compare
+      shell: bash
+      run: |
+        echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET }}..."
+        DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET }} --dryrun)
+
+        if [ -z "$DIFFS" ]; then
+          echo "No discrepancies found."
+        else
+          echo "::warning title=Discrepancy Found in ${{ inputs.TARGET_ENVIRONMENT }}::$DIFFS"
+        fi
+
+    - name: Upload Files to Target S3
+      shell: bash
+      run: |
+        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET }} --delete
