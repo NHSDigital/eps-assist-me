@@ -868,10 +868,10 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         aggregated_results = []
         for i, future in enumerate(futures):
             try:
-                question = future.result()
-                aggregated_results.append(f"# Question {question.get("index", i)}:")
-                aggregated_results.append(f"{question.get("text", "").strip()}\n")
-                aggregated_results.append(f"# Response:\n{question.get("response", "").strip()}")
+                result = future.result()
+                aggregated_results.append(f"# Question {result.get("index", i)}:")
+                aggregated_results.append(f"{result.get("text", "").strip()}\n")
+                aggregated_results.append(f"# Response:\n{result.get("response", "").strip()}")
             except Exception as e:
                 aggregated_results.append(f"**[Q{i}] Error processing request**: {str(e)}")
             aggregated_results.append("\n---\n")
@@ -898,7 +898,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         )
 
 
-def process_command_test_ai_request(question, response, output: bool, client: WebClient) -> dict[str, str]:
+def process_command_test_ai_request(question, response, output: bool, client: WebClient) -> dict:
     logger.debug("Processing test question", extra={"question": question})
 
     message_ts = response.get("ts")
@@ -923,7 +923,7 @@ def process_command_test_ai_request(question, response, output: bool, client: We
                 extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
             )
 
-    return {"index": question[0], "text": question[1], "response": response_text}
+    return {"index": f"{question[0]}", "text": question[1], "response": response_text}
 
 
 def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:

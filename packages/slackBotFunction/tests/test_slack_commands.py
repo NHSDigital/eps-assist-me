@@ -293,7 +293,7 @@ def test_process_slack_command_test_questions_default_to_slack(
 
     # perform operation
     slack_command_data = {
-        "text": "output",
+        "text": ".output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -332,7 +332,7 @@ def test_process_slack_command_test_questions_single_question_to_slack(
 
     # perform operation
     slack_command_data = {
-        "text": "q2 output",
+        "text": "q2 .output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -369,7 +369,7 @@ def test_process_slack_command_test_questions_two_questions_to_slack(
 
     # perform operation
     slack_command_data = {
-        "text": "q2-3 output",
+        "text": "q2-3 .output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
