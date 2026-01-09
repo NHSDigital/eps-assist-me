@@ -869,12 +869,12 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         for i, future in enumerate(futures):
             try:
                 question = future.result()
-                aggregated_results.append(f"# Question {question.get("index", i)}:")
+                aggregated_results.append(f"# Question {question.get("index", i) + 1}:")
                 aggregated_results.append(f"{question.get("text", "").strip()}\n")
-                aggregated_results.append(f"# Answer:\n{question.get("response", "")}")
+                aggregated_results.append(f"# Answer:{question.get("response", "").strip()}")
             except Exception as e:
                 aggregated_results.append(f"**[Q{i + 1}] Error processing request**: {str(e)}")
-            aggregated_results.append("\n\n---\n")
+            aggregated_results.append("\n---\n")
 
         # Create the file content
         name_timestamp = datetime.now().strftime("%y%m%d_%M%H")
