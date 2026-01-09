@@ -64,6 +64,7 @@ echo "Generating config for ${EPSAM_CONFIG}"
 
 echo "Installing dependencies locally"
 mkdir -p .dependencies
+poetry self add poetry-plugin-export==1.9.0
 poetry export --without-hashes --format=requirements.txt --with slackBotFunction > .dependencies/requirements_slackBotFunction
 poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > .dependencies/requirements_syncKnowledgeBaseFunction
 pip3 install -r .dependencies/requirements_slackBotFunction -t .dependencies/slackBotFunction/python

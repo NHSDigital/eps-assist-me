@@ -47,6 +47,3 @@ aws-lambda-powertools = "^3.23.0"
 
 [tool.black]
 line-length = 120
-
-[tool.poetry.requires-plugins]
-poetry-plugin-export = ">=1.9"
