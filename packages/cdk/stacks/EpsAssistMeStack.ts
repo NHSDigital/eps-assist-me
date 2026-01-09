@@ -112,7 +112,7 @@ export class EpsAssistMeStack extends Stack {
       region,
       account,
       logRetentionInDays,
-      enableS3Logging: false // Set to true if you want S3 logging as well
+      enableLogging: true // Set to false to disable model invocation logging
     })
 
     // Create VectorKnowledgeBase construct with Bedrock execution role

@@ -9,7 +9,6 @@ import {
 import {LogGroup, RetentionDays} from "aws-cdk-lib/aws-logs"
 import {Provider} from "aws-cdk-lib/custom-resources"
 import {Runtime, Function as LambdaFunction, Code} from "aws-cdk-lib/aws-lambda"
-import {Bucket, BucketEncryption} from "aws-cdk-lib/aws-s3"
 import {Key} from "aws-cdk-lib/aws-kms"
 
 export interface BedrockLoggingConfigurationProps {
@@ -17,12 +16,11 @@ export interface BedrockLoggingConfigurationProps {
   readonly region: string
   readonly account: string
   readonly logRetentionInDays: number
-  readonly enableS3Logging?: boolean
+  readonly enableLogging?: boolean
 }
 
 export class BedrockLoggingConfiguration extends Construct {
   public readonly modelInvocationLogGroup: LogGroup
-  public readonly loggingBucket?: Bucket
   public readonly bedrockLoggingRole: Role
 
   constructor(scope: Construct, id: string, props: BedrockLoggingConfigurationProps) {
@@ -82,24 +80,6 @@ export class BedrockLoggingConfiguration extends Construct {
     // Grant KMS permissions
     kmsKey.grantEncryptDecrypt(bedrockLoggingRole)
 
-    let loggingBucket: Bucket | undefined
-
-    // Optionally create S3 bucket for logging
-    if (props.enableS3Logging) {
-      loggingBucket = new Bucket(this, "BedrockLoggingBucket", {
-        bucketName: `${props.stackName}-bedrock-logs-${props.account}`,
-        encryption: BucketEncryption.KMS,
-        encryptionKey: kmsKey,
-        enforceSSL: true,
-        versioned: true,
-        removalPolicy: RemovalPolicy.DESTROY,
-        autoDeleteObjects: true
-      })
-
-      // Grant S3 permissions to Bedrock logging role
-      loggingBucket.grantWrite(bedrockLoggingRole)
-    }
-
     // Create Lambda execution role for custom resource
     const lambdaRole = new Role(this, "LoggingConfigLambdaRole", {
       assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
@@ -129,12 +109,15 @@ export class BedrockLoggingConfiguration extends Construct {
 
     // Create Lambda function for custom resource
     const loggingConfigFunction = new LambdaFunction(this, "LoggingConfigFunction", {
-      runtime: Runtime.PYTHON_3_13,
+      runtime: Runtime.PYTHON_3_14,
       handler: "handler.handler",
       code: Code.fromAsset("packages/bedrockLoggingConfigFunction/app"),
       timeout: Duration.minutes(5),
       role: lambdaRole,
-      description: "Custom resource to configure Bedrock model invocation logging"
+      description: "Custom resource to configure Bedrock model invocation logging",
+      environment: {
+        ENABLE_LOGGING: props.enableLogging !== undefined ? props.enableLogging.toString() : "true"
+      }
     })
 
     // Create custom resource provider
@@ -148,8 +131,6 @@ export class BedrockLoggingConfiguration extends Construct {
       properties: {
         CloudWatchLogGroupName: modelInvocationLogGroup.logGroupName,
         CloudWatchRoleArn: bedrockLoggingRole.roleArn,
-        S3BucketName: loggingBucket?.bucketName || "",
-        S3KeyPrefix: "model-invocations/",
         TextDataDeliveryEnabled: "true",
         ImageDataDeliveryEnabled: "true",
         EmbeddingDataDeliveryEnabled: "true"
@@ -157,7 +138,6 @@ export class BedrockLoggingConfiguration extends Construct {
     })
 
     this.modelInvocationLogGroup = modelInvocationLogGroup
-    this.loggingBucket = loggingBucket
     this.bedrockLoggingRole = bedrockLoggingRole
   }
 }
