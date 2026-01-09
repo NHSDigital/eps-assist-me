@@ -1,21 +1,14 @@
 name: "Document Sync"
-
-on:
-  workflow_call: 
-    inputs:
-      TARGET_ENVIRONMENT:
-        required: true
-        type: string # Expecting 'DEV', 'QA', or 'LIVE'
-      STACK: 
-        required: false
-        type: string # Expecting 'epsam' or 'epsam-pr-123'
-    secrets: 
-      DEV_CLOUD_FORMATION_DEPLOY_ROLE:
-        required: true
-      QA_CLOUD_FORMATION_DEPLOY_ROLE:
-        required: true
-      INT_CLOUD_FORMATION_DEPLOY_ROLE:
-        required: true
+description: "Sync Documents between INT and a target Environment"
+inputs:
+  TARGET_ENVIRONMENT:
+    required: true
+    type: string
+    description: The Environment to Copy Files into.
+  STACK:
+    required: false
+    type: string
+    description: The stack being deployed. (ie., 'epsam' or 'epsam-pr-123')
 
 jobs:
   #  Download files from Environment
@@ -27,9 +20,9 @@ jobs:
       - name: Connect to Source Account
         uses: aws-actions/configure-aws-credentials@v4
         with:
-            aws-region: eu-west-2
-            role-to-assume: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
-            role-session-name: epsam-document-sync
+          aws-region: eu-west-2
+          role-to-assume: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
+          role-session-name: epsam-document-sync
 
       - name: Find Source Bucket by Partial Name
         id: find-source-bucket
@@ -44,9 +37,9 @@ jobs:
       - name: Connect to Source Account
         uses: aws-actions/configure-aws-credentials@v4
         with:
-            aws-region: eu-west-2
-            role-to-assume: ${{ secrets[format('{0}_CLOUD_FORMATION_DEPLOY_ROLE', inputs.TARGET_ENVIRONMENT)] }}
-            role-session-name: epsam-document-sync
+          aws-region: eu-west-2
+          role-to-assume: ${{ secrets[format('{0}_CLOUD_FORMATION_DEPLOY_ROLE', inputs.TARGET_ENVIRONMENT)] }}
+          role-session-name: epsam-document-sync
 
       - name: Find Destination Bucket by Partial Name
         id: find-destination-bucket
@@ -54,7 +47,7 @@ jobs:
         run: |
           # If PR is provided, use the PR pattern, otherwise use the standard name
           PATTERN="${{ inputs.STACK != '' && format('{0}-storagedocsbucketepsamdocs', inputs.STACK) || 'epsam-storagedocsbucketepsamdocs' }}"
-          
+
           echo "Searching for bucket with pattern: $PATTERN"
           ./find_bucket.sh "$PATTERN"
 
@@ -64,7 +57,7 @@ jobs:
           echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET }}..."
           # Capture the dry-run output to see what WOULD change
           DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET }} --dryrun)
-          
+
           if [ -z "$DIFFS" ]; then
             echo "No discrepancies found."
           else

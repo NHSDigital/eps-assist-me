@@ -181,17 +181,9 @@ jobs:
           cdk-utils-build-repo:latest
         shell: bash
 
-        # TODO - enable when testing is done
+        # TODO - add if statement
       - name: Upload Assistant Documents
-        uses: ./.github/workflows/sync_documents
-        if: ${{ inputs.DEPLOY_CODE == true && inputs.TARGET_ENVIRONMENT != 'int' }}
-        with: 
-          TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
-          STACK: ${{ inputs.STACK_NAME }}
-
-        # TODO - remove when testing is done
-      - name: Upload Assistant Documents
-        uses: ./.github/workflows/sync_documents
+        uses: ./.github/actions/sync_documents
         with: 
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
