@@ -151,6 +151,65 @@ def test_handler_pull_request_action_missing_slack_event(
     mock_process_pull_request_slack_action.assert_not_called()
 
 
+@patch("app.services.app.get_app")
+@patch("app.slack.slack_events.process_pull_request_slack_command")
+def test_handler_pull_request_command_processing(
+    mock_process_pull_request_slack_command: Mock,
+    mock_get_app: Mock,
+    mock_get_parameter: Mock,
+    mock_slack_app: Mock,
+    mock_env: Mock,
+    lambda_context: Mock,
+):
+    """Test Lambda handler function for pull request processing"""
+    # set up mocks
+    mock_get_app.return_value = mock_slack_app
+
+    # delete and import module to test
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    # perform operation
+    event = {"pull_request_command": True, "slack_event": {"body": "test command"}}
+    handler(event, lambda_context)
+
+    # assertions
+    mock_process_pull_request_slack_command.assert_called_once_with(slack_command_data={"body": "test command"})
+
+
+@patch("app.services.app.get_app")
+@patch("app.slack.slack_events.process_pull_request_slack_command")
+def test_handler_pull_request_command_processing_missing_slack_command(
+    mock_process_pull_request_slack_command: Mock,
+    mock_get_app: Mock,
+    mock_slack_app: Mock,
+    mock_env: Mock,
+    mock_get_parameter: Mock,
+    lambda_context: Mock,
+):
+    """Test Lambda handler function for async processing without slack_command data"""
+    # set up mocks
+    mock_get_app.return_value = mock_slack_app
+
+    # delete and import module to test
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    # perform operation
+    # Test async processing without slack_event - should return 400
+    event = {"pull_request_command": True}  # Missing slack_command
+    result = handler(event, lambda_context)
+
+    # assertions
+    # Check that result is a dict with statusCode
+    assert isinstance(result, dict)
+    assert "statusCode" in result
+    assert result["statusCode"] == 400
+    mock_process_pull_request_slack_command.assert_not_called()
+
+
 @patch("app.services.ai_processor.process_ai_query")
 def test_handler_direct_invocation(
     mock_process_ai_query: Mock,

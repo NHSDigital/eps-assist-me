@@ -25,14 +25,19 @@ def test_forward_event_to_pull_request_lambda_with_store_pull_request_true(
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
-    from app.utils.handler_utils import forward_event_to_pull_request_lambda
+    from app.utils.handler_utils import forward_to_pull_request_lambda
 
     # perform operation
     event_data = {"test": "data", "channel": "C123", "ts": "12345.6789", "text": "foo_bar"}
 
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn", return_value="output_SlackBotLambdaArn"):
-        forward_event_to_pull_request_lambda(
-            pull_request_id="123", event=event_data, event_id="evt123", store_pull_request_id=True
+        forward_to_pull_request_lambda(
+            body={},
+            pull_request_id="123",
+            event=event_data,
+            event_id="evt123",
+            store_pull_request_id=True,
+            type="event",
         )
 
         # assertions
@@ -72,14 +77,19 @@ def test_forward_event_to_pull_request_lambda_with_store_pull_request_false(
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
-    from app.utils.handler_utils import forward_event_to_pull_request_lambda
+    from app.utils.handler_utils import forward_to_pull_request_lambda
 
     # perform operation
     event_data = {"test": "data", "channel": "C123", "ts": "12345.6789", "text": "foo_bar"}
 
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn", return_value="output_SlackBotLambdaArn"):
-        forward_event_to_pull_request_lambda(
-            pull_request_id="123", event=event_data, event_id="evt123", store_pull_request_id=False
+        forward_to_pull_request_lambda(
+            body={},
+            pull_request_id="123",
+            event=event_data,
+            event_id="evt123",
+            store_pull_request_id=False,
+            type="event",
         )
 
         # assertions
@@ -115,15 +125,20 @@ def test_forward_event_to_pull_request_lambda_processing_error(
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
-    from app.utils.handler_utils import forward_event_to_pull_request_lambda
+    from app.utils.handler_utils import forward_to_pull_request_lambda
 
     # perform operation
     event_data = {"test": "data"}
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn") as mock_get_pull_request_lambda_arn:
         mock_get_pull_request_lambda_arn.side_effect = Exception("Error getting lambda arn")
         with pytest.raises(Exception):
-            forward_event_to_pull_request_lambda(
-                pull_request_id="123", event=event_data, event_id="evt123", store_pull_request_id=False
+            forward_to_pull_request_lambda(
+                body={},
+                pull_request_id="123",
+                event=event_data,
+                event_id="evt123",
+                store_pull_request_id=False,
+                type="event",
             )
 
         # assertions
@@ -149,14 +164,21 @@ def test_forward_action_to_pull_request_lambda_processing_error(
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
-    from app.utils.handler_utils import forward_action_to_pull_request_lambda
+    from app.utils.handler_utils import forward_to_pull_request_lambda
 
     # perform operation
     mock_body = {"type": "block_actions", "user": {"id": "U123"}, "actions": []}
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn") as mock_get_pull_request_lambda_arn:
         mock_get_pull_request_lambda_arn.side_effect = Exception("Error getting lambda arn")
         with pytest.raises(Exception):
-            forward_action_to_pull_request_lambda(pull_request_id="123", body=mock_body)
+            forward_to_pull_request_lambda(
+                pull_request_id="123",
+                body=mock_body,
+                type="action",
+                event=None,
+                event_id="",
+                store_pull_request_id=False,
+            )
 
         # assertions
 
@@ -183,13 +205,15 @@ def test_forward_action_to_pull_request_lambda(
     # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
-    from app.utils.handler_utils import forward_action_to_pull_request_lambda
+    from app.utils.handler_utils import forward_to_pull_request_lambda
 
     # perform operation
     mock_body = {"type": "block_actions", "user": {"id": "U123"}, "actions": []}
 
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn", return_value="output_SlackBotLambdaArn"):
-        forward_action_to_pull_request_lambda(pull_request_id="123", body=mock_body)
+        forward_to_pull_request_lambda(
+            pull_request_id="123", body=mock_body, type="action", event=None, event_id="", store_pull_request_id=False
+        )
 
         # assertions
         expected_lambda_payload = {
@@ -198,6 +222,8 @@ def test_forward_action_to_pull_request_lambda(
         }
 
         mock_lambda_client.invoke.assert_called_once_with(
-            FunctionName="output_SlackBotLambdaArn", InvocationType="Event", Payload=json.dumps(expected_lambda_payload)
+            FunctionName="output_SlackBotLambdaArn",
+            InvocationType="Event",
+            Payload=json.dumps(expected_lambda_payload),
         )
         mock_store_state_information.assert_not_called()
