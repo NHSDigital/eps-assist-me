@@ -39,18 +39,55 @@ def send_response(event, context, response_status, response_data, physical_resou
         print(f"failed to signal cloudformation: {str(e)}")
 
 
-def handler(event, context):
-    """
-    configures bedrock model invocation logging via put/delete api calls
-    toggleable via ENABLE_LOGGING environment variable
-    """
-    print(f"received event: {json.dumps(event)}")
+def parse_event(event):
+    """parse event to determine request type, properties, and logging state"""
+    is_direct_invocation = not event or "RequestType" not in event
 
-    # check if logging is enabled via environment variable
-    enable_logging = os.environ.get("ENABLE_LOGGING", "true").lower() == "true"
+    if is_direct_invocation:
+        print("direct invocation detected - treating as Update operation")
+        request_type = "Update"
+        resource_properties = {}
 
-    request_type = event["RequestType"]
-    resource_properties = event.get("ResourceProperties", {})
+        # check for enable_logging override in event, otherwise use env var
+        if "enable_logging" in event:
+            enable_logging = str(event.get("enable_logging", "true")).lower() == "true"
+            print(f"using enable_logging from event payload: {enable_logging}")
+        else:
+            enable_logging = os.environ.get("ENABLE_LOGGING", "true").lower() == "true"
+            print(f"using ENABLE_LOGGING from environment: {enable_logging}")
+    else:
+        # cloudformation invocation - always use env var
+        request_type = event["RequestType"]
+        resource_properties = event.get("ResourceProperties", {})
+        enable_logging = os.environ.get("ENABLE_LOGGING", "true").lower() == "true"
+        print(f"cloudformation invocation - using ENABLE_LOGGING from environment: {enable_logging}")
+
+    return request_type, resource_properties, enable_logging, is_direct_invocation
+
+
+def handle_logging_disabled(event, context, bedrock, is_direct_invocation):
+    """handle case when logging is disabled"""
+    print("bedrock logging disabled - removing configuration")
+    try:
+        bedrock.delete_model_invocation_logging_configuration()
+        print("bedrock logging configuration deleted")
+    except bedrock.exceptions.ResourceNotFoundException:
+        print("logging configuration not found (already disabled)")
+
+    # only send cloudformation response if this is a real cfn event
+    if not is_direct_invocation:
+        send_response(
+            event,
+            context,
+            "SUCCESS",
+            {"Message": "Bedrock logging disabled via environment variable"},
+            physical_resource_id="BedrockModelInvocationLogging",
+        )
+
+
+def handle_create_or_update(event, context, bedrock, resource_properties, is_direct_invocation):
+    """handle create or update operations"""
+    print("configuring bedrock model invocation logging")
 
     cloudwatch_log_group_name = resource_properties.get("CloudWatchLogGroupName")
     cloudwatch_role_arn = resource_properties.get("CloudWatchRoleArn")
@@ -58,80 +95,87 @@ def handler(event, context):
     image_data_delivery_enabled = resource_properties.get("ImageDataDeliveryEnabled", "true").lower() == "true"
     embedding_data_delivery_enabled = resource_properties.get("EmbeddingDataDeliveryEnabled", "true").lower() == "true"
 
+    logging_config = {
+        "textDataDeliveryEnabled": text_data_delivery_enabled,
+        "imageDataDeliveryEnabled": image_data_delivery_enabled,
+        "embeddingDataDeliveryEnabled": embedding_data_delivery_enabled,
+    }
+
+    if cloudwatch_log_group_name and cloudwatch_role_arn:
+        logging_config["cloudWatchConfig"] = {
+            "logGroupName": cloudwatch_log_group_name,
+            "roleArn": cloudwatch_role_arn,
+        }
+        print(f"cloudwatch logs enabled: {cloudwatch_log_group_name}")
+
+    response = bedrock.put_model_invocation_logging_configuration(loggingConfig=logging_config)
+    print(f"bedrock logging configured: {json.dumps(response)}")
+
+    # only send cloudformation response if this is a real cfn event
+    if not is_direct_invocation:
+        send_response(
+            event,
+            context,
+            "SUCCESS",
+            {
+                "Message": "Bedrock model invocation logging configured successfully",
+                "CloudWatchLogGroup": cloudwatch_log_group_name,
+            },
+            physical_resource_id="BedrockModelInvocationLogging",
+        )
+
+
+def handle_delete(event, context, bedrock, is_direct_invocation):
+    """handle delete operations"""
+    print("deleting bedrock model invocation logging")
+
+    try:
+        bedrock.delete_model_invocation_logging_configuration()
+        print("bedrock logging configuration deleted")
+    except bedrock.exceptions.ResourceNotFoundException:
+        print("logging configuration not found")
+
+    # only send cloudformation response if this is a real cfn event
+    if not is_direct_invocation:
+        send_response(
+            event,
+            context,
+            "SUCCESS",
+            {"Message": "Bedrock model invocation logging deleted successfully"},
+            physical_resource_id="BedrockModelInvocationLogging",
+        )
+
+
+def handler(event, context):
+    """
+    configures bedrock model invocation logging via put/delete api calls
+    toggleable via ENABLE_LOGGING environment variable
+
+    supports direct invocation in aws console with:
+    - {} (empty) - uses ENABLE_LOGGING env var
+    - {"enable_logging": true/false} - overrides env var
+    """
+    print(f"received event: {json.dumps(event)}")
+
+    request_type, resource_properties, enable_logging, is_direct_invocation = parse_event(event)
+
     bedrock = boto3.client("bedrock")
 
     try:
         if request_type in ["Create", "Update"]:
             if not enable_logging:
-                # when disabled, delete any existing logging configuration
-                print("bedrock logging disabled via ENABLE_LOGGING environment variable - removing configuration")
-                try:
-                    bedrock.delete_model_invocation_logging_configuration()
-                    print("bedrock logging configuration deleted")
-                except bedrock.exceptions.ResourceNotFoundException:
-                    print("logging configuration not found (already disabled)")
-
-                send_response(
-                    event,
-                    context,
-                    "SUCCESS",
-                    {"Message": "Bedrock logging disabled via environment variable"},
-                    physical_resource_id="BedrockModelInvocationLogging",
-                )
+                handle_logging_disabled(event, context, bedrock, is_direct_invocation)
                 return
-
-            print("configuring bedrock model invocation logging")
-
-            logging_config = {
-                "textDataDeliveryEnabled": text_data_delivery_enabled,
-                "imageDataDeliveryEnabled": image_data_delivery_enabled,
-                "embeddingDataDeliveryEnabled": embedding_data_delivery_enabled,
-            }
-
-            if cloudwatch_log_group_name and cloudwatch_role_arn:
-                logging_config["cloudWatchConfig"] = {
-                    "logGroupName": cloudwatch_log_group_name,
-                    "roleArn": cloudwatch_role_arn,
-                }
-                print(f"cloudwatch logs enabled: {cloudwatch_log_group_name}")
-
-            response = bedrock.put_model_invocation_logging_configuration(loggingConfig=logging_config)
-
-            print(f"bedrock logging configured: {json.dumps(response)}")
-
-            send_response(
-                event,
-                context,
-                "SUCCESS",
-                {
-                    "Message": "Bedrock model invocation logging configured successfully",
-                    "CloudWatchLogGroup": cloudwatch_log_group_name,
-                },
-                physical_resource_id="BedrockModelInvocationLogging",
-            )
-
+            handle_create_or_update(event, context, bedrock, resource_properties, is_direct_invocation)
         elif request_type == "Delete":
-            print("deleting bedrock model invocation logging")
-
-            try:
-                bedrock.delete_model_invocation_logging_configuration()
-                print("bedrock logging configuration deleted")
-            except bedrock.exceptions.ResourceNotFoundException:
-                # already deleted or never existed
-                print("logging configuration not found")
-
-            send_response(
-                event,
-                context,
-                "SUCCESS",
-                {"Message": "Bedrock model invocation logging deleted successfully"},
-                physical_resource_id="BedrockModelInvocationLogging",
-            )
-
+            handle_delete(event, context, bedrock, is_direct_invocation)
         else:
-            send_response(event, context, "FAILED", {}, reason=f"unsupported request type: {request_type}")
-
+            if not is_direct_invocation:
+                send_response(event, context, "FAILED", {}, reason=f"unsupported request type: {request_type}")
     except Exception as e:
         error_message = f"error: {str(e)}\n{traceback.format_exc()}"
         print(error_message)
-        send_response(event, context, "FAILED", {}, reason=error_message)
+        if not is_direct_invocation:
+            send_response(event, context, "FAILED", {}, reason=error_message)
+        else:
+            raise  # re-raise for direct invocations so user sees the error
