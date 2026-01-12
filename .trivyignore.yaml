@@ -1,0 +1,16 @@
+vulnerabilities:
+  - id: CVE-2025-66418
+    paths:
+      - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/aws-bedrock-batch-stepfn/uv.lock"
+      - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/opensearch-serverless-custom-resources/poetry.lock"
+    statement: downstream dependency just used in build stage
+  - id: CVE-2025-66471
+    paths:
+      - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/aws-bedrock-batch-stepfn/uv.lock"
+      - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/opensearch-serverless-custom-resources/poetry.lock"
+    statement: downstream dependency just used in build stage
+  - id: CVE-2026-21441
+    paths:
+      - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/aws-bedrock-batch-stepfn/uv.lock"
+      - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/opensearch-serverless-custom-resources/poetry.lock"
+    statement: downstream dependency just used in build stage

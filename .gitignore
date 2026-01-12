@@ -34,3 +34,4 @@ cdk.out
 .requirements_syncKnowledgeBaseFunction
 .local_config/
 .dependencies/
+.poetry/

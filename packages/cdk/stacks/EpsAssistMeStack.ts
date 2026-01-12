@@ -217,6 +217,12 @@ export class EpsAssistMeStack extends Stack {
       description: "Slack Events API endpoint for @mentions and direct messages"
     })
 
+    // Output: SlackBot Endpoint
+    new CfnOutput(this, "SlackBotCommandsEndpoint", {
+      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/commands`,
+      description: "Slack Commands API endpoint for slash commands"
+    })
+
     // Output: Bedrock Prompt ARN
     new CfnOutput(this, "QueryReformulationPromptArn", {
       value: bedrockPromptResources.queryReformulationPrompt.promptArn,
