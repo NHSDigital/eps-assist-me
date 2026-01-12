@@ -65,6 +65,7 @@ clean:
 
 deep-clean: clean
 	rm -rf .venv
+	rm -rf .poetry
 	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
 
 check-licenses: check-licenses-node check-licenses-python
