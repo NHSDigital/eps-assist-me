@@ -49,17 +49,6 @@ def handler(event, context):
     # check if logging is enabled via environment variable
     enable_logging = os.environ.get("ENABLE_LOGGING", "true").lower() == "true"
 
-    if not enable_logging:
-        print("bedrock logging disabled via ENABLE_LOGGING environment variable")
-        send_response(
-            event,
-            context,
-            "SUCCESS",
-            {"Message": "Bedrock logging disabled via environment variable"},
-            physical_resource_id="BedrockModelInvocationLogging",
-        )
-        return
-
     request_type = event["RequestType"]
     resource_properties = event.get("ResourceProperties", {})
 
@@ -73,6 +62,24 @@ def handler(event, context):
 
     try:
         if request_type in ["Create", "Update"]:
+            if not enable_logging:
+                # when disabled, delete any existing logging configuration
+                print("bedrock logging disabled via ENABLE_LOGGING environment variable - removing configuration")
+                try:
+                    bedrock.delete_model_invocation_logging_configuration()
+                    print("bedrock logging configuration deleted")
+                except bedrock.exceptions.ResourceNotFoundException:
+                    print("logging configuration not found (already disabled)")
+
+                send_response(
+                    event,
+                    context,
+                    "SUCCESS",
+                    {"Message": "Bedrock logging disabled via environment variable"},
+                    physical_resource_id="BedrockModelInvocationLogging",
+                )
+                return
+
             print("configuring bedrock model invocation logging")
 
             logging_config = {
