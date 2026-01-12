@@ -48,6 +48,22 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-APIG4",
+        reason: "Slack event endpoint is intentionally unauthenticated."
+      },
+      {
+        id: "AwsSolutions-COG4",
+        reason: "Cognito not required for this public endpoint."
+      }
+    ]
+  )
+
+  // Suppress unauthenticated API route warnings
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/commands/POST/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG4",
         reason: "Slack command endpoint is intentionally unauthenticated."
       },
       {

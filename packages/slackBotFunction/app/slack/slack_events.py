@@ -7,6 +7,8 @@ import re
 import time
 import traceback
 import json
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
 from botocore.exceptions import ClientError
 from slack_sdk import WebClient
@@ -24,11 +26,13 @@ from app.services.dynamo import (
     update_state_information,
 )
 
+from app.services.sample_questions import SampleQuestionBank
 from app.services.slack import get_friendly_channel_name, post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_pull_request_id,
-    forward_event_to_pull_request_lambda,
+    extract_test_command_params,
+    forward_to_pull_request_lambda,
     is_duplicate_event,
     is_latest_message,
     strip_mentions,
@@ -38,6 +42,8 @@ from app.services.ai_processor import process_ai_query
 
 
 logger = get_logger()
+
+processing_error_message = "Error processing message"
 
 
 # ================================================================
@@ -145,16 +151,11 @@ def _handle_session_management(
 def _create_feedback_blocks(
     response_text: str,
     citations: list[dict[str, str]],
-    conversation_key: str,
-    channel: str,
-    message_ts: str,
-    thread_ts: str,
+    feedback_data: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
-    # Create compact feedback payload for button actions
-    feedback_data = {"ck": conversation_key, "ch": channel, "mt": message_ts}
-    if thread_ts:  # Only include thread_ts for channel threads, not DMs
-        feedback_data["tt"] = thread_ts
+    if feedback_data.get("thread_ts"):  # Only include thread_ts for channel threads, not DMs
+        feedback_data["tt"] = feedback_data["thread_ts"]
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
 
     # Main response block
@@ -397,8 +398,13 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
             pull_request_id, _ = extract_pull_request_id(text=message_text)
-            forward_event_to_pull_request_lambda(
-                pull_request_id=pull_request_id, event=event, event_id=event_id, store_pull_request_id=True
+            forward_to_pull_request_lambda(
+                body={},
+                pull_request_id=pull_request_id,
+                event=event,
+                event_id=event_id,
+                store_pull_request_id=True,
+                type="event",
             )
         except Exception as e:
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
@@ -416,6 +422,69 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
         )
         return
     process_slack_message(event=event, event_id=event_id, client=client)
+
+
+def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> None:
+    logger.debug("Processing async Slack command", extra={"command": command})
+
+    try:
+        command_arg = command.get("command", "").strip()
+        if command_arg == "/test":
+            process_command_test_request(command=command, client=client)
+    except Exception as e:
+        logger.error(f"Error processing test command: {e}", extra={"error": traceback.format_exc()})
+        post_error_message(channel=command["channel_id"], thread_ts=None, client=client)
+
+
+# ================================================================
+# Pull Request Re-routing
+# ================================================================
+
+
+def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        event_id = slack_event_data["event_id"]
+        event = slack_event_data["event"]
+        token = get_bot_token()
+        client = WebClient(token=token)
+        if is_duplicate_event(event_id=event_id):
+            return
+        process_async_slack_event(event=event, event_id=event_id, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error(processing_error_message, extra={"event_id": event_id, "error": traceback.format_exc()})
+
+
+def process_pull_request_slack_command(slack_command_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    logger.debug(
+        "Processing pull request slack command", extra={"slack_command_data": slack_command_data}
+    )  # Removed line after debugging
+    try:
+        command = slack_command_data["event"]
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_command(command=command, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
+
+
+def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
+    # separate function to process pull requests so that we can ensure we store session information
+    try:
+        token = get_bot_token()
+        client = WebClient(token=token)
+        process_async_slack_action(body=slack_body_data, client=client)
+    except Exception:
+        # we cant post a reply to slack for this error as we may not have details about where to post it
+        logger.error(processing_error_message, extra={"error": traceback.format_exc()})
+
+
+# ================================================================
+# Slack Message management
+# ================================================================
 
 
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
@@ -450,54 +519,38 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         session_data = get_conversation_session_data(conversation_key)
         session_id = session_data.get("session_id") if session_data else None
 
-        ai_response = process_ai_query(user_query, session_id)
-        kb_response = ai_response["kb_response"]
-        response_text = ai_response["text"]
-
-        # Split out citation block if present
-        # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
-        # system prompt. Instead, pull out and format the citations in the prompt manually
-        prompt_value_keys = ["source_number", "title", "excerpt", "relevance_score"]
-        split = response_text.split("------")  # Citations are separated from main body by ------
-
-        citations: list[dict[str, str]] = []
-        if len(split) != 1:
-            response_text = split[0]
-            citation_block = split[1]
-            raw_citations = []
-            raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
-            if len(raw_citations) > 0:
-                logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
-                citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
-        logger.info("Parsed citation(s)", extra={"citations": citations})
-
         # Post the answer (plain) to get message_ts
-        post_params = {"channel": channel, "text": response_text}
+        post_params = {"channel": channel, "text": "Processing..."}
         if thread_ts:  # Only add thread_ts for channel threads, not DMs
             post_params["thread_ts"] = thread_ts
         post = client.chat_postMessage(**post_params)
         message_ts = post["ts"]
 
+        # Create compact feedback payload for button actions
+        feedback_data = {"channel": channel, "message_ts": message_ts, "thread_ts": thread_ts}
+
+        # Call Bedrock to process the user query
+        kb_response, response_text, blocks = process_formatted_bedrock_query(
+            user_query=user_query, session_id=session_id, feedback_data={**feedback_data, "ck": conversation_key}
+        )
+
         _handle_session_management(
-            conversation_key=conversation_key,
+            **feedback_data,
             session_data=session_data,
             session_id=session_id,
             kb_response=kb_response,
             user_id=user_id,
-            channel=channel,
-            thread_ts=thread_ts,
-            message_ts=message_ts,
+            conversation_key=conversation_key,
         )
 
         # Store Q&A pair for feedback correlation
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
-        blocks = _create_feedback_blocks(response_text, citations, conversation_key, channel, message_ts, thread_ts)
         try:
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
-                f"Failed to attach feedback buttons: {e}",
+                f"Failed to update message: {e}",
                 extra={"event_id": event_id, "message_ts": message_ts, "error": traceback.format_exc()},
             )
         log_query_stats(user_query, event, channel, client, thread_ts)
@@ -506,32 +559,6 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
 
         # Try to notify user of error via Slack
         post_error_message(channel=channel, thread_ts=thread_ts, client=client)
-
-
-def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
-    # separate function to process pull requests so that we can ensure we store session information
-    try:
-        event_id = slack_event_data["event_id"]
-        event = slack_event_data["event"]
-        token = get_bot_token()
-        client = WebClient(token=token)
-        if is_duplicate_event(event_id=event_id):
-            return
-        process_async_slack_event(event=event, event_id=event_id, client=client)
-    except Exception:
-        # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error("Error processing message", extra={"event_id": event_id, "error": traceback.format_exc()})
-
-
-def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
-    # separate function to process pull requests so that we can ensure we store session information
-    try:
-        token = get_bot_token()
-        client = WebClient(token=token)
-        process_async_slack_action(body=slack_body_data, client=client)
-    except Exception:
-        # we cant post a reply to slack for this error as we may not have details about where to post it
-        logger.error("Error processing message", extra={"error": traceback.format_exc()})
 
 
 def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client: WebClient, thread_ts: str) -> None:
@@ -554,7 +581,7 @@ def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client
 
 
 # ================================================================
-# Feedback management
+# Slack Feedback management
 # ================================================================
 
 
@@ -646,6 +673,41 @@ def store_feedback(
         logger.error(f"Error storing feedback: {e}", extra={"error": traceback.format_exc()})
 
 
+# ================================================================
+# AI Response Formatting
+# ================================================================
+
+
+def process_formatted_bedrock_query(
+    user_query: str, session_id: str | None, feedback_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Process the user query with Bedrock and return the response dict"""
+    ai_response = process_ai_query(user_query, session_id)
+    kb_response = ai_response["kb_response"]
+    response_text = ai_response["text"]
+
+    # Split out citation block if present
+    # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
+    # system prompt. Instead, pull out and format the citations in the prompt manually
+    prompt_value_keys = ["source_number", "title", "excerpt", "relevance_score"]
+    split = response_text.split("------")  # Citations are separated from main body by ------
+
+    citations: list[dict[str, str]] = []
+    if len(split) != 1:
+        response_text = split[0]
+        citation_block = split[1]
+        raw_citations = []
+        raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
+        if len(raw_citations) > 0:
+            logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
+            citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
+    logger.info("Parsed citation(s)", extra={"citations": citations})
+
+    blocks = _create_feedback_blocks(response_text, citations, feedback_data)
+
+    return kb_response, response_text, blocks
+
+
 def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client: WebClient) -> None:
     """Open citation - update/replace message to include citation content"""
     logger.info("Opening citation", extra={"channel": channel, "timestamp": timestamp})
@@ -722,6 +784,172 @@ def _toggle_button_style(element: dict) -> bool:
     else:
         element["style"] = "primary"
         return True
+
+
+# ================================================================
+# Slack Command management
+# ================================================================
+
+
+def process_command_test_request(command: Dict[str, Any], client: WebClient) -> None:
+    if "help" in command.get("text"):
+        process_command_test_help(command=command, client=client)
+    else:
+        process_command_test_questions(command=command, client=client)
+
+
+def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
+    # Prepare response
+
+    try:
+        acknowledgement_msg = f"<@{command.get("user_id")}> has initiated testing."
+        logger.info(acknowledgement_msg, extra={"command": command})
+
+        # Extract parameters
+        params = extract_test_command_params(command.get("text"))
+
+        # Is the command targeting a PR
+        pr = params.get("pr", "").strip()
+        if pr:
+            pr = f"pr: {pr}"
+            acknowledgement_msg += f" for {pr}\n"
+
+        # Initial acknowledgment
+        post_params = {
+            "channel": command["channel_id"],
+            "text": acknowledgement_msg,
+        }
+        client.chat_postMessage(**post_params)
+
+        # Has the user defined any questions
+        start = int(params.get("start", 1))
+        end = int(params.get("end", 22))
+        acknowledgement_msg = f"Loading {f"questions {start} to {end}" if end != start else f"question {start}"}"
+
+        # Should the answer be output to the channel
+        output = params.get("output", False)
+        logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
+        acknowledgement_msg += " and printing results to channel" if output else ""
+
+        # Post query information (for reflection in future)
+        post_params = {
+            "channel": command["channel_id"],
+            "text": acknowledgement_msg,
+        }
+        client.chat_postEphemeral(**post_params, user=command.get("user_id"))
+
+        # Retrieve sample questions
+        test_questions = SampleQuestionBank().get_questions(start=start - 1, end=end - 1)
+        logger.info("Retrieved test questions", extra={"count": len(test_questions)})
+
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = []
+
+            for question in test_questions:
+                # This happens sequentially, ensuring questions appear 1, 2, 3...
+                response = {}
+                if output:
+                    post_params["text"] = f"Question {question[0]}:\n> {question[1].replace('\n', '\n> ')}\n"
+                    response = client.chat_postMessage(**post_params)
+
+                # We submit the work to the pool. It starts immediately.
+                future = executor.submit(
+                    process_command_test_ai_request,
+                    question=question,
+                    response=response,  # Pass the response object we just got
+                    output=output,
+                    client=client,
+                )
+                futures.append(future)
+
+        post_params["text"] = "Testing complete, generating file..."
+        client.chat_postEphemeral(**post_params, user=command.get("user_id"))
+
+        aggregated_results = []
+        for i, future in enumerate(futures):
+            try:
+                result = future.result()
+                aggregated_results.append(f"# Question {result.get("index", i)}:")
+                aggregated_results.append(f"{result.get("text", "").strip()}\n")
+                aggregated_results.append(f"# Response:\n{result.get("response", "").strip()}")
+            except Exception as e:
+                aggregated_results.append(f"**[Q{i}] Error processing request**: {str(e)}")
+            aggregated_results.append("\n---\n")
+
+        # Create the file content
+        name_timestamp = datetime.now().strftime("%y%m%d%M%H")
+
+        filename = f"EpsamTestResults_{name_timestamp}_.txt"
+        final_file_content = "\n".join(aggregated_results)
+
+        # Upload the file to Slack
+        client.files_upload_v2(
+            channel=command["channel_id"],
+            content=final_file_content,
+            title=filename,
+            filename=filename,
+            snippet_type="markdown",
+            initial_comment="Here are your results:",
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to attach feedback buttons: {e}",
+            extra={"channel": command["channel_id"], "error": traceback.format_exc()},
+        )
+
+
+def process_command_test_ai_request(question, response, output: bool, client: WebClient) -> dict:
+    logger.debug("Processing test question", extra={"question": question})
+
+    message_ts = response.get("ts")
+    channel = response.get("channel")
+
+    feedback_data = {
+        "ck": None,
+        "ch": channel,
+        "mt": message_ts,
+        "thread_ts": message_ts,
+    }
+
+    _, response_text, blocks = process_formatted_bedrock_query(question[1], None, feedback_data)
+    logger.debug("question complete", extra={"response_text": response_text, "blocks": blocks})
+
+    if output:
+        try:
+            client.chat_postMessage(channel=channel, thread_ts=message_ts, text=response_text, blocks=blocks)
+        except Exception as e:
+            logger.error(
+                f"Failed to attach feedback buttons: {e}",
+                extra={"event_id": None, "message_ts": message_ts, "error": traceback.format_exc()},
+            )
+
+    return {"index": f"{question[0]}", "text": question[1], "response": response_text}
+
+
+def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
+    logger.info("Processing Command Test Help Message", extra={"command": command})
+    length = SampleQuestionBank().length() + 1
+    help_text = f"""
+    Certainly! Here is some help testing me!
+
+    You can use the `/test` command to send sample test questions to the bot.
+    Once the test is complete, the bot will respond with a text file to view the results.
+
+    - Usage:
+       - /test [q<start_index>-<end_index>] [.<output>]
+
+    - Parameters:
+       - <start_index>: (optional) The starting and ending index of the sample questions (default is 1-{length}).
+       - <end-index>: (optional) The ending index of the sample questions (default is {length}).
+       - <output> (optional) If provided, will post questions and answers to slack (this won't effect if the file is returned)
+
+    - Examples:
+        - /test --> Sends questions 1 to {length}
+        - /test q15 --> Sends question 15 only
+        - /test q10-16 --> Sends questions 10 to 16
+        - /test .output -> Sends questions 1 to {length} and posts them to Slack
+    """  # noqa: E501
+    client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
 
 
 # ================================================================
