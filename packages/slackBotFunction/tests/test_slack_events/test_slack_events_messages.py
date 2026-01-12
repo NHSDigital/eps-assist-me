@@ -8,9 +8,9 @@ def mock_logger():
     return MagicMock()
 
 
-@patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
 def test_process_async_slack_event_normal_message(
-    mock_forward_event_to_pull_request_lambda: Mock,
+    mock_forward_to_pull_request_lambda: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -29,16 +29,16 @@ def test_process_async_slack_event_normal_message(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_event_to_pull_request_lambda.assert_not_called()
+        mock_forward_to_pull_request_lambda.assert_not_called()
         mock_process_feedback_event.assert_not_called()
         mock_process_slack_message.assert_called_once_with(
             event=slack_event_data, event_id="evt123", client=mock_client
         )
 
 
-@patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
 def test_process_async_slack_event_pull_request_with_mention(
-    mock_forward_event_to_pull_request_lambda: Mock,
+    mock_forward_to_pull_request_lambda: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -62,19 +62,21 @@ def test_process_async_slack_event_pull_request_with_mention(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_event_to_pull_request_lambda.assert_called_once_with(
+        mock_forward_to_pull_request_lambda.assert_called_once_with(
+            body={},
             pull_request_id="123",
             event=slack_event_data,
             event_id="evt123",
             store_pull_request_id=True,
+            type="event",
         )
         mock_process_feedback_event.assert_not_called()
         mock_process_slack_message.assert_not_called()
 
 
-@patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
 def test_process_async_slack_event_pull_request_with_no_mention(
-    mock_forward_event_to_pull_request_lambda: Mock,
+    mock_forward_to_pull_request_lambda: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -98,11 +100,13 @@ def test_process_async_slack_event_pull_request_with_no_mention(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_event_to_pull_request_lambda.assert_called_once_with(
+        mock_forward_to_pull_request_lambda.assert_called_once_with(
+            body={},
             pull_request_id="123",
             event=slack_event_data,
             event_id="evt123",
             store_pull_request_id=True,
+            type="event",
         )
         mock_process_feedback_event.assert_not_called()
         mock_process_slack_message.assert_not_called()
@@ -178,7 +182,7 @@ def test_process_slack_message_with_thread_ts(
     assert mock_client.chat_postMessage.call_count >= 1
     first_call = mock_client.chat_postMessage.call_args_list[0]
     assert first_call[1]["thread_ts"] == "1234567888.111"
-    assert first_call[1]["text"] == "AI response"
+    assert first_call[1]["text"] == "Processing..."
 
 
 @patch("app.services.dynamo.get_state_information")
@@ -194,6 +198,7 @@ def test_regex_text_processing(
     """Test regex text processing functionality within process_async_slack_event"""
     # set up mocks
     mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": ""}
     mock_process_ai_query.return_value = {
         "text": "AI response",
         "session_id": "session-123",
@@ -236,6 +241,7 @@ def test_process_slack_message_with_session_storage(
     mock_client.chat_update.return_value = {"ok": True}
     mock_process_ai_query.return_value = {
         "text": "AI response",
+        "ck": "thread#123",
         "session_id": "new-session-123",
         "citations": [],
         "kb_response": {"output": {"text": "AI response"}, "sessionId": "new-session-123"},
@@ -247,7 +253,13 @@ def test_process_slack_message_with_session_storage(
     from app.slack.slack_events import process_slack_message
 
     # perform operation
-    slack_event_data = {"text": "test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    slack_event_data = {
+        "text": "test question",
+        "user": "U456",
+        "channel": "C789",
+        "ts": "1234567890.123",
+        "event_ts": "123",
+    }
 
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 

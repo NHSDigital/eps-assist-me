@@ -67,20 +67,20 @@ def get_pull_request_lambda_arn(pull_request_id: str) -> str:
         raise e
 
 
-def forward_event_to_pull_request_lambda(
-    pull_request_id: str, event: Dict[str, Any], event_id: str, store_pull_request_id: bool
+def forward_to_pull_request_lambda(
+    body: Dict[str, Any],
+    event: Dict[str, Any],
+    event_id: str,
+    pull_request_id: str,
+    store_pull_request_id: bool,
+    type: str,
 ) -> None:
     lambda_client: LambdaClient = boto3.client("lambda")
     try:
         pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
-        # strip pull request prefix and id from message text
-        message_text = event["text"]
-        _, extracted_message = extract_pull_request_id(message_text)
-        event["text"] = extracted_message
-
-        lambda_payload = {"pull_request_event": True, "slack_event": {"event": event, "event_id": event_id}}
+        lambda_payload = get_forward_payload(body=body, event=event, event_id=event_id, type=type)
         logger.debug(
-            "Forwarding event to pull request lambda",
+            f"Forwarding '{type}' to pull request lambda",
             extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
         )
         lambda_client.invoke(
@@ -94,27 +94,22 @@ def forward_event_to_pull_request_lambda(
             store_state_information(item=item)
 
     except Exception as e:
-        logger.error("Failed to trigger pull request lambda", extra={"error": traceback.format_exc()})
-        raise e
-
-
-def forward_action_to_pull_request_lambda(body: Dict[str, Any], pull_request_id: str) -> None:
-    lambda_client: LambdaClient = boto3.client("lambda")
-    try:
-        pull_request_lambda_arn = get_pull_request_lambda_arn(pull_request_id=pull_request_id)
-        lambda_payload = {"pull_request_action": True, "slack_body": body}
-        logger.debug(
-            "Forwarding action to pull request lambda",
-            extra={"lambda_arn": pull_request_lambda_arn, "lambda_payload": lambda_payload},
-        )
-        lambda_client.invoke(
-            FunctionName=pull_request_lambda_arn, InvocationType="Event", Payload=json.dumps(lambda_payload)
-        )
-        logger.info("Triggered pull request lambda", extra={"lambda_arn": pull_request_lambda_arn})
-
-    except Exception as e:
         logger.error("Failed to forward request to pull request lambda", extra={"error": traceback.format_exc()})
         raise e
+
+
+def get_forward_payload(body: Dict[str, Any], event: Dict[str, Any], event_id: str, type: str) -> Dict[str, Any]:
+    if type == "action":
+        return {"pull_request_action": True, "slack_body": body}
+
+    if event_id is None or event["text"] is None:
+        logger.error("Missing required fields to forward pull request event")
+        return None
+
+    message_text = event["text"]
+    _, extracted_message = extract_pull_request_id(message_text)
+    event["text"] = extracted_message
+    return {f"pull_request_{type}": True, "slack_event": {"event": event, "event_id": event_id}}
 
 
 def is_latest_message(conversation_key: str, message_ts: str) -> bool:
@@ -176,6 +171,33 @@ def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
         return pr_number, cleaned_text
 
     return None, text.strip()
+
+
+def extract_test_command_params(text: str) -> Dict[str, str]:
+    """
+    Extract parameters from the /test command text.
+
+    Expected format: /test pr: 123 q1-2 .output
+    """
+    params = {}
+    prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
+    pr_pattern = rf"{prefix}\s*(\d+)\b"
+    q_pattern = r"\bq-?(\d+)(?:-(\d+))?"
+
+    pr_match = re.match(pr_pattern, text, flags=re.IGNORECASE)
+    if pr_match:
+        params["pr"] = pr_match.group(1)
+
+    q_match = re.search(q_pattern, text, flags=re.IGNORECASE)
+    if q_match:
+        params["start"] = q_match.group(1)
+        params["end"] = q_match.group(2) if q_match.group(2) else q_match.group(1)
+
+    if ".output" in text.lower():
+        params["output"] = True
+
+    logger.debug("Extracted test command parameters", extra={"params": params})
+    return params
 
 
 def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
@@ -294,6 +316,7 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
     - Message is in a group chat (channel_type == 'group') but not in a thread
     - Message is in a channel or group thread where the bot was not initially mentioned
     """
+    logger.debug("Checking if should reply to message", extra={"event": event, "client": client})
 
     # we don't reply to non-threaded messages in group chats
     if event.get("channel_type") == "group" and event.get("type") == "message" and event.get("thread_ts") is None:
