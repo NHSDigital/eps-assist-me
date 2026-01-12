@@ -8,8 +8,10 @@ import os
 import traceback
 import boto3
 import urllib3
+from aws_lambda_powertools import Logger
 
 http = urllib3.PoolManager()
+logger = Logger()
 
 
 def send_response(event, context, response_status, response_data, physical_resource_id=None, reason=None):
@@ -34,9 +36,9 @@ def send_response(event, context, response_status, response_data, physical_resou
 
     try:
         http.request("PUT", response_url, body=json_response_body, headers=headers)
-        print(f"cloudformation response sent: {response_status}")
+        logger.info(f"cloudformation response sent: {response_status}")
     except Exception as e:
-        print(f"failed to signal cloudformation: {str(e)}")
+        logger.error(f"failed to signal cloudformation: {str(e)}")
 
 
 def parse_event(event):
@@ -44,35 +46,35 @@ def parse_event(event):
     is_direct_invocation = not event or "RequestType" not in event
 
     if is_direct_invocation:
-        print("direct invocation detected - treating as Update operation")
+        logger.info("direct invocation detected - treating as Update operation")
         request_type = "Update"
-        resource_properties = {}
+        resource_properties = event if event else {}
 
         # check for enable_logging override in event, otherwise use env var
         if "enable_logging" in event:
             enable_logging = str(event.get("enable_logging", "true")).lower() == "true"
-            print(f"using enable_logging from event payload: {enable_logging}")
+            logger.info(f"using enable_logging from event payload: {enable_logging}")
         else:
             enable_logging = os.environ.get("ENABLE_LOGGING", "true").lower() == "true"
-            print(f"using ENABLE_LOGGING from environment: {enable_logging}")
+            logger.info(f"using ENABLE_LOGGING from environment: {enable_logging}")
     else:
         # cloudformation invocation - always use env var
         request_type = event["RequestType"]
         resource_properties = event.get("ResourceProperties", {})
         enable_logging = os.environ.get("ENABLE_LOGGING", "true").lower() == "true"
-        print(f"cloudformation invocation - using ENABLE_LOGGING from environment: {enable_logging}")
+        logger.info(f"cloudformation invocation - using ENABLE_LOGGING from environment: {enable_logging}")
 
     return request_type, resource_properties, enable_logging, is_direct_invocation
 
 
 def handle_logging_disabled(event, context, bedrock, is_direct_invocation):
     """handle case when logging is disabled"""
-    print("bedrock logging disabled - removing configuration")
+    logger.info("bedrock logging disabled - removing configuration")
     try:
         bedrock.delete_model_invocation_logging_configuration()
-        print("bedrock logging configuration deleted")
+        logger.info("bedrock logging configuration deleted")
     except bedrock.exceptions.ResourceNotFoundException:
-        print("logging configuration not found (already disabled)")
+        logger.info("logging configuration not found (already disabled)")
 
     # only send cloudformation response if this is a real cfn event
     if not is_direct_invocation:
@@ -87,10 +89,23 @@ def handle_logging_disabled(event, context, bedrock, is_direct_invocation):
 
 def handle_create_or_update(event, context, bedrock, resource_properties, is_direct_invocation):
     """handle create or update operations"""
-    print("configuring bedrock model invocation logging")
+    logger.info("configuring bedrock model invocation logging")
 
     cloudwatch_log_group_name = resource_properties.get("CloudWatchLogGroupName")
     cloudwatch_role_arn = resource_properties.get("CloudWatchRoleArn")
+
+    # aws requires at least one logging destination
+    if not cloudwatch_log_group_name or not cloudwatch_role_arn:
+        error_msg = """
+        CloudWatchLogGroupName and CloudWatchRoleArn required.
+        Cannot configure logging without destination."""
+
+        logger.error(error_msg)
+        if is_direct_invocation:
+            raise ValueError(error_msg)
+        send_response(event, context, "FAILED", {}, reason=error_msg)
+        return
+
     text_data_delivery_enabled = resource_properties.get("TextDataDeliveryEnabled", "true").lower() == "true"
     image_data_delivery_enabled = resource_properties.get("ImageDataDeliveryEnabled", "true").lower() == "true"
     embedding_data_delivery_enabled = resource_properties.get("EmbeddingDataDeliveryEnabled", "true").lower() == "true"
@@ -99,17 +114,16 @@ def handle_create_or_update(event, context, bedrock, resource_properties, is_dir
         "textDataDeliveryEnabled": text_data_delivery_enabled,
         "imageDataDeliveryEnabled": image_data_delivery_enabled,
         "embeddingDataDeliveryEnabled": embedding_data_delivery_enabled,
-    }
-
-    if cloudwatch_log_group_name and cloudwatch_role_arn:
-        logging_config["cloudWatchConfig"] = {
+        "cloudWatchConfig": {
             "logGroupName": cloudwatch_log_group_name,
             "roleArn": cloudwatch_role_arn,
-        }
-        print(f"cloudwatch logs enabled: {cloudwatch_log_group_name}")
+        },
+    }
+
+    logger.info(f"cloudwatch logs enabled: {cloudwatch_log_group_name}")
 
     response = bedrock.put_model_invocation_logging_configuration(loggingConfig=logging_config)
-    print(f"bedrock logging configured: {json.dumps(response)}")
+    logger.info(f"bedrock logging configured: {json.dumps(response)}")
 
     # only send cloudformation response if this is a real cfn event
     if not is_direct_invocation:
@@ -127,13 +141,13 @@ def handle_create_or_update(event, context, bedrock, resource_properties, is_dir
 
 def handle_delete(event, context, bedrock, is_direct_invocation):
     """handle delete operations"""
-    print("deleting bedrock model invocation logging")
+    logger.info("deleting bedrock model invocation logging")
 
     try:
         bedrock.delete_model_invocation_logging_configuration()
-        print("bedrock logging configuration deleted")
+        logger.info("bedrock logging configuration deleted")
     except bedrock.exceptions.ResourceNotFoundException:
-        print("logging configuration not found")
+        logger.info("logging configuration not found")
 
     # only send cloudformation response if this is a real cfn event
     if not is_direct_invocation:
@@ -146,6 +160,7 @@ def handle_delete(event, context, bedrock, is_direct_invocation):
         )
 
 
+@logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
     """
     configures bedrock model invocation logging via put/delete api calls
@@ -155,8 +170,6 @@ def handler(event, context):
     - {} (empty) - uses ENABLE_LOGGING env var
     - {"enable_logging": true/false} - overrides env var
     """
-    print(f"received event: {json.dumps(event)}")
-
     request_type, resource_properties, enable_logging, is_direct_invocation = parse_event(event)
 
     bedrock = boto3.client("bedrock")
@@ -174,7 +187,7 @@ def handler(event, context):
                 send_response(event, context, "FAILED", {}, reason=f"unsupported request type: {request_type}")
     except Exception as e:
         error_message = f"error: {str(e)}\n{traceback.format_exc()}"
-        print(error_message)
+        logger.error(error_message)
         if not is_direct_invocation:
             send_response(event, context, "FAILED", {}, reason=error_message)
         else:
