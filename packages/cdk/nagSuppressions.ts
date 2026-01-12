@@ -327,22 +327,10 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress BedrockLogging Lambda role using AWS managed policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigLambdaRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Custom resource Lambda uses AWS managed policy for basic Lambda execution role."
-      }
-    ]
-  )
-
   // Suppress BedrockLogging Lambda wildcard permissions for Bedrock API
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigLambdaRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingConfigPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -351,14 +339,14 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress BedrockLogging Lambda runtime version
+  // Suppress BedrockLogging Lambda log group and put logs permissions
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigFunction/Resource",
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigFunction/LambdaPutLogsManagedPolicy/Resource",
     [
       {
-        id: "AwsSolutions-L1",
-        reason: "Custom resource Lambda uses Python 3.13 which is the latest stable runtime available."
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
       }
     ]
   )

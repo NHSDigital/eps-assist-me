@@ -1,5 +1,5 @@
 import {Construct} from "constructs"
-import {Duration, CustomResource, RemovalPolicy} from "aws-cdk-lib"
+import {CustomResource, RemovalPolicy} from "aws-cdk-lib"
 import {
   Role,
   ServicePrincipal,
@@ -8,8 +8,8 @@ import {
 } from "aws-cdk-lib/aws-iam"
 import {LogGroup, RetentionDays} from "aws-cdk-lib/aws-logs"
 import {Provider} from "aws-cdk-lib/custom-resources"
-import {Runtime, Function as LambdaFunction, Code} from "aws-cdk-lib/aws-lambda"
 import {Key} from "aws-cdk-lib/aws-kms"
+import {LambdaFunction} from "../constructs/LambdaFunction"
 
 export interface BedrockLoggingConfigurationProps {
   readonly stackName: string
@@ -80,49 +80,42 @@ export class BedrockLoggingConfiguration extends Construct {
     // Grant KMS permissions
     kmsKey.grantEncryptDecrypt(bedrockLoggingRole)
 
-    // Create Lambda execution role for custom resource
-    const lambdaRole = new Role(this, "LoggingConfigLambdaRole", {
-      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-      description: "Role for Lambda to configure Bedrock logging"
+    // Create managed policy for Bedrock logging configuration
+    const bedrockLoggingConfigPolicy = new ManagedPolicy(this, "BedrockLoggingConfigPolicy", {
+      description: "Policy for Lambda to configure Bedrock logging",
+      statements: [
+        new PolicyStatement({
+          actions: [
+            "bedrock:PutModelInvocationLoggingConfiguration",
+            "bedrock:GetModelInvocationLoggingConfiguration",
+            "bedrock:DeleteModelInvocationLoggingConfiguration"
+          ],
+          resources: ["*"]
+        }),
+        new PolicyStatement({
+          actions: ["iam:PassRole"],
+          resources: [bedrockLoggingRole.roleArn]
+        })
+      ]
     })
-
-    // Add basic Lambda execution permissions
-    lambdaRole.addManagedPolicy(
-      ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
-    )
-
-    // Grant permissions to configure Bedrock logging
-    lambdaRole.addToPolicy(new PolicyStatement({
-      actions: [
-        "bedrock:PutModelInvocationLoggingConfiguration",
-        "bedrock:GetModelInvocationLoggingConfiguration",
-        "bedrock:DeleteModelInvocationLoggingConfiguration"
-      ],
-      resources: ["*"]
-    }))
-
-    // Grant permission to pass the Bedrock logging role
-    lambdaRole.addToPolicy(new PolicyStatement({
-      actions: ["iam:PassRole"],
-      resources: [bedrockLoggingRole.roleArn]
-    }))
 
     // Create Lambda function for custom resource
     const loggingConfigFunction = new LambdaFunction(this, "LoggingConfigFunction", {
-      runtime: Runtime.PYTHON_3_14,
+      stackName: props.stackName,
+      functionName: `${props.stackName}-BedrockLoggingConfig`,
+      packageBasePath: "packages/bedrockLoggingConfigFunction/app",
       handler: "handler.handler",
-      code: Code.fromAsset("packages/bedrockLoggingConfigFunction/app"),
-      timeout: Duration.minutes(5),
-      role: lambdaRole,
-      description: "Custom resource to configure Bedrock model invocation logging",
-      environment: {
+      logRetentionInDays: props.logRetentionInDays,
+      logLevel: "INFO",
+      additionalPolicies: [bedrockLoggingConfigPolicy],
+      environmentVariables: {
         ENABLE_LOGGING: props.enableLogging !== undefined ? props.enableLogging.toString() : "true"
       }
     })
 
     // Create custom resource provider
     const provider = new Provider(this, "LoggingConfigProvider", {
-      onEventHandler: loggingConfigFunction
+      onEventHandler: loggingConfigFunction.function
     })
 
     // Create custom resource
