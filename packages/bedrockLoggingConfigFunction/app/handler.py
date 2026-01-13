@@ -87,7 +87,7 @@ def handle_logging_disabled(event, context, bedrock, is_direct_invocation):
         )
 
 
-def handle_create_or_update(event, context, bedrock, resource_properties, is_direct_invocation):
+def handle_create_or_update(event, context, bedrock, is_direct_invocation):
     """handle create or update operations"""
     logger.info("configuring bedrock model invocation logging")
 
@@ -164,7 +164,7 @@ def handler(event, context):
     - {} (empty) - uses ENABLE_LOGGING env var
     - {"enable_logging": true/false} - overrides env var
     """
-    request_type, resource_properties, enable_logging, is_direct_invocation = parse_event(event)
+    request_type, enable_logging, is_direct_invocation = parse_event(event)
 
     bedrock = boto3.client("bedrock")
 
@@ -173,7 +173,7 @@ def handler(event, context):
             if not enable_logging:
                 handle_logging_disabled(event, context, bedrock, is_direct_invocation)
                 return
-            handle_create_or_update(event, context, bedrock, resource_properties, is_direct_invocation)
+            handle_create_or_update(event, context, bedrock, is_direct_invocation)
         elif request_type == "Delete":
             handle_delete(event, context, bedrock, is_direct_invocation)
         else:
