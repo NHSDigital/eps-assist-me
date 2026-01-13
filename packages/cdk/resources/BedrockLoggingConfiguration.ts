@@ -103,8 +103,8 @@ export class BedrockLoggingConfiguration extends Construct {
     const loggingConfigFunction = new LambdaFunction(this, "LoggingConfigFunction", {
       stackName: props.stackName,
       functionName: `${props.stackName}-BedrockLoggingConfig`,
-      packageBasePath: "packages/bedrockLoggingConfigFunction/app",
-      handler: "handler.handler",
+      packageBasePath: "packages/bedrockLoggingConfigFunction",
+      handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,
       logLevel: "INFO",
       additionalPolicies: [bedrockLoggingConfigPolicy],
