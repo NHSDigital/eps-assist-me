@@ -91,13 +91,14 @@ def handle_create_or_update(event, context, bedrock, resource_properties, is_dir
     """handle create or update operations"""
     logger.info("configuring bedrock model invocation logging")
 
-    cloudwatch_log_group_name = resource_properties.get("CloudWatchLogGroupName")
-    cloudwatch_role_arn = resource_properties.get("CloudWatchRoleArn")
+    # Get CloudWatch config from environment variables (set by CDK)
+    cloudwatch_log_group_name = os.environ.get("CLOUDWATCH_LOG_GROUP_NAME")
+    cloudwatch_role_arn = os.environ.get("CLOUDWATCH_ROLE_ARN")
 
     # aws requires at least one logging destination
     if not cloudwatch_log_group_name or not cloudwatch_role_arn:
         error_msg = """
-        CloudWatchLogGroupName and CloudWatchRoleArn required.
+        CLOUDWATCH_LOG_GROUP_NAME and CLOUDWATCH_ROLE_ARN environment variables required.
         Cannot configure logging without destination."""
 
         logger.error(error_msg)
@@ -106,6 +107,7 @@ def handle_create_or_update(event, context, bedrock, resource_properties, is_dir
         send_response(event, context, "FAILED", {}, reason=error_msg)
         return
 
+    # Get data delivery settings from resource properties (optional, with defaults)
     text_data_delivery_enabled = resource_properties.get("TextDataDeliveryEnabled", "true").lower() == "true"
     image_data_delivery_enabled = resource_properties.get("ImageDataDeliveryEnabled", "true").lower() == "true"
     embedding_data_delivery_enabled = resource_properties.get("EmbeddingDataDeliveryEnabled", "true").lower() == "true"

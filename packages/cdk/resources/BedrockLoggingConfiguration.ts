@@ -114,7 +114,9 @@ export class BedrockLoggingConfiguration extends Construct {
       additionalPolicies: [bedrockLoggingConfigPolicy],
       dependencyLocation: ".dependencies/bedrockLoggingConfigFunction",
       environmentVariables: {
-        ENABLE_LOGGING: props.enableLogging !== undefined ? props.enableLogging.toString() : "true"
+        ENABLE_LOGGING: props.enableLogging !== undefined ? props.enableLogging.toString() : "true",
+        CLOUDWATCH_LOG_GROUP_NAME: modelInvocationLogGroup.logGroupName,
+        CLOUDWATCH_ROLE_ARN: bedrockLoggingRole.roleArn
       }
     })
 
@@ -127,8 +129,6 @@ export class BedrockLoggingConfiguration extends Construct {
     new CustomResource(this, "BedrockLoggingConfig", {
       serviceToken: provider.serviceToken,
       properties: {
-        CloudWatchLogGroupName: modelInvocationLogGroup.logGroupName,
-        CloudWatchRoleArn: bedrockLoggingRole.roleArn,
         TextDataDeliveryEnabled: "true",
         ImageDataDeliveryEnabled: "true",
         EmbeddingDataDeliveryEnabled: "true"

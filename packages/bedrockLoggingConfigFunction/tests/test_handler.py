@@ -121,7 +121,14 @@ class TestHandlerCreate:
 
     @patch("app.handler.boto3.client")
     @patch("app.handler.send_response")
-    @patch.dict(os.environ, {"ENABLE_LOGGING": "true"})
+    @patch.dict(
+        os.environ,
+        {
+            "ENABLE_LOGGING": "true",
+            "CLOUDWATCH_LOG_GROUP_NAME": "/aws/bedrock/test/model-invocations",
+            "CLOUDWATCH_ROLE_ARN": "arn:aws:iam::123456789012:role/BedrockLoggingRole",
+        },
+    )
     def test_create_success(self, mock_send_response, mock_boto3, base_event, mock_context):
         """test successful create request"""
         base_event["RequestType"] = "Create"
@@ -144,7 +151,14 @@ class TestHandlerCreate:
 
     @patch("app.handler.boto3.client")
     @patch("app.handler.send_response")
-    @patch.dict(os.environ, {"ENABLE_LOGGING": "true"})
+    @patch.dict(
+        os.environ,
+        {
+            "ENABLE_LOGGING": "true",
+            "CLOUDWATCH_LOG_GROUP_NAME": "/aws/bedrock/test/model-invocations",
+            "CLOUDWATCH_ROLE_ARN": "arn:aws:iam::123456789012:role/BedrockLoggingRole",
+        },
+    )
     def test_create_data_delivery_flags(self, mock_send_response, mock_boto3, base_event, mock_context):
         """test create respects data delivery flags"""
         base_event["RequestType"] = "Create"
@@ -168,7 +182,14 @@ class TestHandlerUpdate:
 
     @patch("app.handler.boto3.client")
     @patch("app.handler.send_response")
-    @patch.dict(os.environ, {"ENABLE_LOGGING": "true"})
+    @patch.dict(
+        os.environ,
+        {
+            "ENABLE_LOGGING": "true",
+            "CLOUDWATCH_LOG_GROUP_NAME": "/aws/bedrock/test/model-invocations",
+            "CLOUDWATCH_ROLE_ARN": "arn:aws:iam::123456789012:role/BedrockLoggingRole",
+        },
+    )
     def test_update_success(self, mock_send_response, mock_boto3, base_event, mock_context):
         """test successful update request"""
         base_event["RequestType"] = "Update"
@@ -224,7 +245,14 @@ class TestHandlerErrors:
 
     @patch("app.handler.boto3.client")
     @patch("app.handler.send_response")
-    @patch.dict(os.environ, {"ENABLE_LOGGING": "true"})
+    @patch.dict(
+        os.environ,
+        {
+            "ENABLE_LOGGING": "true",
+            "CLOUDWATCH_LOG_GROUP_NAME": "/aws/bedrock/test/model-invocations",
+            "CLOUDWATCH_ROLE_ARN": "arn:aws:iam::123456789012:role/BedrockLoggingRole",
+        },
+    )
     def test_create_bedrock_error(self, mock_send_response, mock_boto3, base_event, mock_context):
         """test create handles bedrock api errors"""
         base_event["RequestType"] = "Create"
