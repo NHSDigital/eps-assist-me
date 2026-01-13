@@ -42,13 +42,12 @@ def send_response(event, context, response_status, response_data, physical_resou
 
 
 def parse_event(event):
-    """parse event to determine request type, properties, and logging state"""
+    """parse event to determine request type and logging state"""
     is_direct_invocation = not event or "RequestType" not in event
 
     if is_direct_invocation:
         logger.info("direct invocation detected - treating as Update operation")
         request_type = "Update"
-        resource_properties = event if event else {}
 
         # check for enable_logging override in event, otherwise use env var
         if "enable_logging" in event:
@@ -60,11 +59,10 @@ def parse_event(event):
     else:
         # cloudformation invocation - always use env var
         request_type = event["RequestType"]
-        resource_properties = event.get("ResourceProperties", {})
         enable_logging = os.environ.get("ENABLE_LOGGING", "true").lower() == "true"
         logger.info(f"cloudformation invocation - using ENABLE_LOGGING from environment: {enable_logging}")
 
-    return request_type, resource_properties, enable_logging, is_direct_invocation
+    return request_type, enable_logging, is_direct_invocation
 
 
 def handle_logging_disabled(event, context, bedrock, is_direct_invocation):
