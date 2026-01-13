@@ -105,6 +105,7 @@ cdk-deploy: guard-STACK_NAME
 cdk-synth:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam \
 	COMMIT_ID=undefined \
