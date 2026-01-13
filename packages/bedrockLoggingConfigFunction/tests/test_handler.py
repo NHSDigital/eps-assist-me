@@ -141,40 +141,10 @@ class TestHandlerCreate:
         mock_bedrock.put_model_invocation_logging_configuration.assert_called_once()
         call_args = mock_bedrock.put_model_invocation_logging_configuration.call_args[1]
 
-        assert call_args["loggingConfig"]["textDataDeliveryEnabled"] is True
-        assert call_args["loggingConfig"]["imageDataDeliveryEnabled"] is True
-        assert call_args["loggingConfig"]["embeddingDataDeliveryEnabled"] is True
         assert call_args["loggingConfig"]["cloudWatchConfig"]["logGroupName"] == "/aws/bedrock/test/model-invocations"
 
         mock_send_response.assert_called_once()
         assert mock_send_response.call_args[0][2] == "SUCCESS"
-
-    @patch("app.handler.boto3.client")
-    @patch("app.handler.send_response")
-    @patch.dict(
-        os.environ,
-        {
-            "ENABLE_LOGGING": "true",
-            "CLOUDWATCH_LOG_GROUP_NAME": "/aws/bedrock/test/model-invocations",
-            "CLOUDWATCH_ROLE_ARN": "arn:aws:iam::123456789012:role/BedrockLoggingRole",
-        },
-    )
-    def test_create_data_delivery_flags(self, mock_send_response, mock_boto3, base_event, mock_context):
-        """test create respects data delivery flags"""
-        base_event["RequestType"] = "Create"
-        base_event["ResourceProperties"]["TextDataDeliveryEnabled"] = "false"
-        base_event["ResourceProperties"]["ImageDataDeliveryEnabled"] = "false"
-
-        mock_bedrock = MagicMock()
-        mock_boto3.return_value = mock_bedrock
-        mock_bedrock.put_model_invocation_logging_configuration.return_value = {}
-
-        handler(base_event, mock_context)
-
-        call_args = mock_bedrock.put_model_invocation_logging_configuration.call_args[1]
-        assert call_args["loggingConfig"]["textDataDeliveryEnabled"] is False
-        assert call_args["loggingConfig"]["imageDataDeliveryEnabled"] is False
-        assert call_args["loggingConfig"]["embeddingDataDeliveryEnabled"] is True
 
 
 class TestHandlerUpdate:
@@ -280,3 +250,70 @@ class TestHandlerErrors:
         mock_send_response.assert_called_once()
         assert mock_send_response.call_args[0][2] == "FAILED"
         assert "unsupported request type" in mock_send_response.call_args[1]["reason"]
+
+
+class TestDirectInvocation:
+    """test direct lambda invocation (not from cloudformation)"""
+
+    @patch("app.handler.boto3.client")
+    @patch.dict(
+        os.environ,
+        {
+            "ENABLE_LOGGING": "true",
+            "CLOUDWATCH_LOG_GROUP_NAME": "/aws/bedrock/test/model-invocations",
+            "CLOUDWATCH_ROLE_ARN": "arn:aws:iam::123456789012:role/BedrockLoggingRole",
+        },
+    )
+    def test_direct_invocation_with_enable_logging_true(self, mock_boto3, mock_context):
+        """test direct invocation with enable_logging override in event"""
+        event = {"enable_logging": True}
+        mock_bedrock = MagicMock()
+        mock_boto3.return_value = mock_bedrock
+        mock_bedrock.put_model_invocation_logging_configuration.return_value = {}
+
+        handler(event, mock_context)
+
+        mock_bedrock.put_model_invocation_logging_configuration.assert_called_once()
+
+    @patch("app.handler.boto3.client")
+    @patch.dict(os.environ, {"ENABLE_LOGGING": "true"})
+    def test_direct_invocation_with_enable_logging_false(self, mock_boto3, mock_context):
+        """test direct invocation with enable_logging=false in event"""
+        event = {"enable_logging": False}
+        mock_bedrock = MagicMock()
+        mock_boto3.return_value = mock_bedrock
+
+        handler(event, mock_context)
+
+        mock_bedrock.delete_model_invocation_logging_configuration.assert_called_once()
+
+    @patch("app.handler.boto3.client")
+    @patch.dict(os.environ, {"ENABLE_LOGGING": "false"})
+    def test_direct_invocation_empty_event_logging_disabled(self, mock_boto3, mock_context):
+        """test direct invocation with empty event uses env var"""
+        event = {}
+        mock_bedrock = MagicMock()
+        mock_boto3.return_value = mock_bedrock
+
+        handler(event, mock_context)
+
+        mock_bedrock.delete_model_invocation_logging_configuration.assert_called_once()
+
+
+class TestMissingEnvironmentVariables:
+    """test handling of missing environment variables"""
+
+    @patch("app.handler.boto3.client")
+    @patch("app.handler.send_response")
+    @patch.dict(os.environ, {"ENABLE_LOGGING": "true"}, clear=True)
+    def test_missing_cloudwatch_env_vars(self, mock_send_response, mock_boto3, base_event, mock_context):
+        """test create fails gracefully when CloudWatch env vars are missing"""
+        base_event["RequestType"] = "Create"
+        mock_bedrock = MagicMock()
+        mock_boto3.return_value = mock_bedrock
+
+        handler(base_event, mock_context)
+
+        mock_send_response.assert_called_once()
+        assert mock_send_response.call_args[0][2] == "FAILED"
+        assert "environment variables required" in mock_send_response.call_args[1]["reason"]

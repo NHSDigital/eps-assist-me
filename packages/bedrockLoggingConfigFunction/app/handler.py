@@ -107,15 +107,7 @@ def handle_create_or_update(event, context, bedrock, resource_properties, is_dir
         send_response(event, context, "FAILED", {}, reason=error_msg)
         return
 
-    # Get data delivery settings from resource properties (optional, with defaults)
-    text_data_delivery_enabled = resource_properties.get("TextDataDeliveryEnabled", "true").lower() == "true"
-    image_data_delivery_enabled = resource_properties.get("ImageDataDeliveryEnabled", "true").lower() == "true"
-    embedding_data_delivery_enabled = resource_properties.get("EmbeddingDataDeliveryEnabled", "true").lower() == "true"
-
     logging_config = {
-        "textDataDeliveryEnabled": text_data_delivery_enabled,
-        "imageDataDeliveryEnabled": image_data_delivery_enabled,
-        "embeddingDataDeliveryEnabled": embedding_data_delivery_enabled,
         "cloudWatchConfig": {
             "logGroupName": cloudwatch_log_group_name,
             "roleArn": cloudwatch_role_arn,
