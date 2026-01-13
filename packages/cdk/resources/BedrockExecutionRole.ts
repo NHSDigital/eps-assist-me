@@ -6,6 +6,7 @@ import {
   ManagedPolicy
 } from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
+import {Key} from "aws-cdk-lib/aws-kms"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -14,6 +15,7 @@ export interface BedrockExecutionRoleProps {
   readonly region: string
   readonly account: string
   readonly kbDocsBucket: Bucket
+  readonly kbDocsKmsKey: Key
 }
 
 export class BedrockExecutionRole extends Construct {
@@ -63,7 +65,7 @@ export class BedrockExecutionRole extends Construct {
     // KMS permissions for S3 bucket encryption
     const kmsAccessPolicy = new PolicyStatement({
       actions: ["kms:Decrypt", "kms:DescribeKey"],
-      resources: ["*"],
+      resources:  [props.kbDocsKmsKey.keyArn],
       conditions: {"StringEquals": {"aws:ResourceAccount": props.account}}
     })
 
