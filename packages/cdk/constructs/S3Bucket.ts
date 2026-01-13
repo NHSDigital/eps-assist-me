@@ -8,11 +8,14 @@ import {
   CfnBucket,
   CfnBucketPolicy
 } from "aws-cdk-lib/aws-s3"
-import {Key} from "aws-cdk-lib/aws-kms"
+import {CfnKey, Key} from "aws-cdk-lib/aws-kms"
+import {PolicyDocument, PolicyStatement} from "aws-cdk-lib/aws-iam"
 
 export interface S3BucketProps {
   readonly bucketName: string
   readonly versioned: boolean
+  readonly extraBucketPolicies?: Array<PolicyStatement>
+  readonly extraKmsPolicies?: Array<PolicyDocument>
 }
 
 export class S3Bucket extends Construct {
@@ -38,6 +41,16 @@ export class S3Bucket extends Construct {
       enforceSSL: true,
       versioned: props.versioned ?? false,
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
+    })
+
+    props.extraBucketPolicies?.forEach((extraBucketPolicy) => {
+      extraBucketPolicy.resources.push(bucket.arnForObjects("*"))
+      bucket.addToResourcePolicy(extraBucketPolicy)
+    })
+
+    const contentBucketKmsKey = (kmsKey.node.defaultChild as CfnKey)
+    props.extraKmsPolicies?.forEach((extraKmsPolicy) => {
+      contentBucketKmsKey.keyPolicy = extraKmsPolicy.toJSON()
     })
 
     const cfnBucket = bucket.node.defaultChild as CfnBucket
