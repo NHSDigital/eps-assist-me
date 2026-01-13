@@ -72,9 +72,13 @@ export class BedrockLoggingConfiguration extends Construct {
     bedrockLoggingRole.addToPolicy(new PolicyStatement({
       actions: [
         "logs:CreateLogStream",
-        "logs:PutLogEvents"
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
       ],
-      resources: [modelInvocationLogGroup.logGroupArn]
+      resources: [
+        modelInvocationLogGroup.logGroupArn,
+        `${modelInvocationLogGroup.logGroupArn}:*`
+      ]
     }))
 
     // Grant KMS permissions
