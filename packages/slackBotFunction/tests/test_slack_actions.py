@@ -134,7 +134,10 @@ def test_process_async_slack_action_negative(
         )
         mock_client.chat_postMessage.assert_called_once_with(
             channel="C123",
-            text='Please let us know how the answer could be improved. Start your message with "feedback:"',
+            text=(
+                "Please let us know how the answer could be improved. Do not enter any personal data.\n"
+                + 'Start your message with "feedback:"'
+            ),
             thread_ts="1759845114.407989",
         )
 
