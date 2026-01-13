@@ -33,6 +33,7 @@ export class EpsAssistMeStack extends Stack {
 
     // imports
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
+    const deploymentRoleImport = Fn.importValue("ci-resources:CloudFormationDeployRole")
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
     const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
 
@@ -50,6 +51,7 @@ export class EpsAssistMeStack extends Stack {
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
 
     const cdkExecRole = Role.fromRoleArn(this, "CdkExecRole", cdkExecRoleArn)
+    const deploymentRole = Role.fromRoleArn(this, "deploymentRole", deploymentRoleImport)
 
     if (!slackBotToken || !slackSigningSecret) {
       throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
@@ -78,7 +80,8 @@ export class EpsAssistMeStack extends Stack {
 
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
-      stackName: props.stackName
+      stackName: props.stackName,
+      deploymentRole: deploymentRole
     })
 
     // Create Bedrock execution role without dependencies

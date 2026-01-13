@@ -24,7 +24,6 @@ export class Storage extends Construct {
       principals: [props.deploymentRole],
       actions: [
         "s3:Abort*",
-        "s3:DeleteObject*",
         "s3:GetBucket*",
         "s3:GetObject*",
         "s3:List*",
