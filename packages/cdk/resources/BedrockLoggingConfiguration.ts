@@ -108,6 +108,7 @@ export class BedrockLoggingConfiguration extends Construct {
       logRetentionInDays: props.logRetentionInDays,
       logLevel: "INFO",
       additionalPolicies: [bedrockLoggingConfigPolicy],
+      dependencyLocation: ".dependencies/bedrockLoggingConfigFunction",
       environmentVariables: {
         ENABLE_LOGGING: props.enableLogging !== undefined ? props.enableLogging.toString() : "true"
       }
