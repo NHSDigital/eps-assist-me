@@ -64,6 +64,7 @@ export class S3Bucket extends Construct {
         "s3:PutObjectVersionTagging"
       ],
       resources: [
+        bucket.bucketArn,
         bucket.arnForObjects("*")
       ]
     })
