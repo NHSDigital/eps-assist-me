@@ -9,13 +9,18 @@ import {
   CfnBucketPolicy
 } from "aws-cdk-lib/aws-s3"
 import {CfnKey, Key} from "aws-cdk-lib/aws-kms"
-import {PolicyDocument, PolicyStatement} from "aws-cdk-lib/aws-iam"
+import {
+  AccountRootPrincipal,
+  Effect,
+  IPrincipal,
+  PolicyDocument,
+  PolicyStatement
+} from "aws-cdk-lib/aws-iam"
 
 export interface S3BucketProps {
   readonly bucketName: string
   readonly versioned: boolean
-  readonly extraBucketPolicies?: Array<PolicyStatement>
-  readonly extraKmsPolicies?: Array<PolicyDocument>
+  readonly deploymentRole: IPrincipal
 }
 
 export class S3Bucket extends Construct {
@@ -43,15 +48,51 @@ export class S3Bucket extends Construct {
       objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
     })
 
-    props.extraBucketPolicies?.forEach((extraBucketPolicy) => {
-      extraBucketPolicy.resources.push(bucket.arnForObjects("*"))
-      bucket.addToResourcePolicy(extraBucketPolicy)
+    // Adding full deployment roles to this bucket
+    const deploymentPolicy = new PolicyStatement({
+      effect: Effect.ALLOW,
+      principals: [props.deploymentRole],
+      actions: [
+        "s3:Abort*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+      ],
+      resources: [
+        bucket.arnForObjects("*")
+      ]
     })
 
-    const contentBucketKmsKey = (kmsKey.node.defaultChild as CfnKey)
-    props.extraKmsPolicies?.forEach((extraKmsPolicy) => {
-      contentBucketKmsKey.keyPolicy = extraKmsPolicy.toJSON()
+    const accountRootPrincipal = new AccountRootPrincipal()
+    const kmsPolicy = new PolicyDocument({
+      statements: [
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          principals: [accountRootPrincipal],
+          actions: ["kms:*"],
+          resources: ["*"]
+        }),
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          principals: [props.deploymentRole],
+          actions: [
+            "kms:Encrypt",
+            "kms:GenerateDataKey*"
+          ],
+          resources:["*"]
+        })
+      ]
     })
+
+    bucket.addToResourcePolicy(deploymentPolicy)
+
+    const contentBucketKmsKey = (kmsKey.node.defaultChild as CfnKey)
+    contentBucketKmsKey.keyPolicy = kmsPolicy.toJSON()
 
     const cfnBucket = bucket.node.defaultChild as CfnBucket
     cfnBucket.cfnOptions.metadata = {
