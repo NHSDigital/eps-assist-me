@@ -92,7 +92,13 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection."
+        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
+        appliesTo: [
+          "Action::bedrock:Delete*",
+          "Resource::arn:aws:bedrock:eu-west-2:<AWS::AccountId>:knowledge-base/*",
+          "Resource::arn:aws:aoss:eu-west-2:<AWS::AccountId>:collection/*",
+          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*"
+        ]
       }
     ]
   )

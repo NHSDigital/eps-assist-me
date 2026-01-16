@@ -89,7 +89,8 @@ export class EpsAssistMeStack extends Stack {
     const bedrockExecutionRole = new BedrockExecutionRole(this, "BedrockExecutionRole", {
       region,
       account,
-      kbDocsBucket: storage.kbDocsBucket.bucket
+      kbDocsBucket: storage.kbDocsBucket,
+      kbDocsKmsKey: storage.kbDocsKmsKey
     })
 
     // Create OpenSearch Resources with Bedrock execution role
@@ -112,7 +113,7 @@ export class EpsAssistMeStack extends Stack {
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
-      docsBucket: storage.kbDocsBucket.bucket,
+      docsBucket: storage.kbDocsBucket,
       bedrockExecutionRole: bedrockExecutionRole.role,
       collectionArn: openSearchResources.collection.collectionArn,
       vectorIndexName: vectorIndex.indexName,
@@ -171,7 +172,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
-      bucket: storage.kbDocsBucket.bucket,
+      bucket: storage.kbDocsBucket,
       lambdaFunction: functions.syncKnowledgeBaseFunction.function
     })
 
@@ -235,11 +236,11 @@ export class EpsAssistMeStack extends Stack {
     })
 
     new CfnOutput(this, "kbDocsBucketArn", {
-      value: storage.kbDocsBucket.bucket.bucketArn,
+      value: storage.kbDocsBucket.bucketArn,
       exportName: `${props.stackName}:kbDocsBucket:Arn`
     })
     new CfnOutput(this, "kbDocsBucketName", {
-      value: storage.kbDocsBucket.bucket.bucketName,
+      value: storage.kbDocsBucket.bucketName,
       exportName: `${props.stackName}:kbDocsBucket:Name`
     })
 
