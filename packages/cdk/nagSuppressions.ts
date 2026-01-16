@@ -4,7 +4,6 @@ import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack, account: string) => {
-  const stackName = stack.node.tryGetContext("stackName") || "epsam"
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
@@ -119,18 +118,6 @@ export const nagSuppressions = (stack: Stack, account: string) => {
           `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam-pr-*`,
           "Resource::arn:aws:bedrock:*"
         ]
-      }
-    ]
-  )
-
-  // Suppress S3 server access logs for knowledge base documents bucket
-  safeAddNagSuppression(
-    stack,
-    `/EpsAssistMeStack/Storage/DocsBucket/${stackName}-Docs/Resource`,
-    [
-      {
-        id: "AwsSolutions-S1",
-        reason: "Server access logging not required for knowledge base documents bucket."
       }
     ]
   )

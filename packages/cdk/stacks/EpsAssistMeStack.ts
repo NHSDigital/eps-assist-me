@@ -21,6 +21,7 @@ import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
+import {Bucket} from "aws-cdk-lib/aws-s3"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -37,6 +38,7 @@ export class EpsAssistMeStack extends Stack {
     const deploymentRoleImport = Fn.importValue("ci-resources:CloudFormationDeployRole")
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
     const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
+    const auditLoggingBucketImport = Fn.importValue("account-resources:AuditLoggingBucket")
 
     // Get variables from context
     const region = Stack.of(this).region
@@ -55,6 +57,8 @@ export class EpsAssistMeStack extends Stack {
 
     const cdkExecRole = Role.fromRoleArn(this, "CdkExecRole", cdkExecRoleArn)
     const deploymentRole = Role.fromRoleArn(this, "deploymentRole", deploymentRoleImport)
+    const auditLoggingBucket = Bucket.fromBucketArn(
+      this, "AuditLoggingBucket", auditLoggingBucketImport)
 
     if (!slackBotToken || !slackSigningSecret) {
       throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
@@ -84,7 +88,8 @@ export class EpsAssistMeStack extends Stack {
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
       stackName: props.stackName,
-      deploymentRole: deploymentRole
+      deploymentRole: deploymentRole,
+      auditLoggingBucket: auditLoggingBucket
     })
 
     // Create Bedrock execution role without dependencies
