@@ -149,47 +149,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
       [
         {
           id: "AwsSolutions-IAM4",
-          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution."
-        }
-      ]
-    )
-
-    safeAddNagSuppression(
-      stack,
-      `${handler.node.path}/Role/DefaultPolicy/Resource`,
-      [
-        {
-          id: "AwsSolutions-IAM5",
-          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications."
-        }
-      ]
-    )
-  })
-
-  const logRetentionHandlers = stack.node.findAll().filter(node =>
-    node.node.id.startsWith("LogRetention") &&
-    !node.node.path.includes("DelayProvider")
-  )
-
-  logRetentionHandlers.forEach(handler => {
-    safeAddNagSuppression(
-      stack,
-      `${handler.node.path}/ServiceRole/Resource`,
-      [
-        {
-          id: "AwsSolutions-IAM4",
-          reason: "Auto-generated CDK log retention role uses AWS managed policy for basic Lambda execution."
-        }
-      ]
-    )
-
-    safeAddNagSuppression(
-      stack,
-      `${handler.node.path}/ServiceRole/DefaultPolicy/Resource`,
-      [
-        {
-          id: "AwsSolutions-IAM5",
-          reason: "Auto-generated CDK log retention role requires wildcard permissions for log management."
+          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
+          appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
         }
       ]
     )
@@ -202,7 +163,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role."
+        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -213,7 +175,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role."
+        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -225,7 +188,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -236,7 +200,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
+        appliesTo: ["Resource::<VectorIndexPolicySyncWaitDelayFunctionBDE3D308.Arn>:*"]
       }
     ]
   )
@@ -247,7 +212,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -258,7 +224,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
+        appliesTo: ["Resource::<VectorIndexIndexReadyWaitDelayFunction56EB971B.Arn>:*"]
       }
     ]
   )
@@ -292,7 +259,11 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for cloudformation stack listing."
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for cloudformation stack listing.",
+        appliesTo: [
+          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam*",
+          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`
+        ]
       }
     ]
   )
@@ -328,7 +299,12 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "KMS wildcard permissions (GenerateDataKey*, ReEncrypt*) are required for CloudWatch Logs encryption operations."
+        reason: "KMS wildcard permissions (GenerateDataKey*, ReEncrypt*) are required for CloudWatch Logs encryption operations.",
+        appliesTo: [
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*",
+          "Resource::<BedrockLoggingModelInvocationLogGroupC58FAE2D.Arn>:*"
+        ]
       }
     ]
   )
@@ -364,7 +340,10 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
+        appliesTo: [
+          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ]
       }
     ]
   )

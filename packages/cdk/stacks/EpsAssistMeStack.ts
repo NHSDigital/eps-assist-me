@@ -227,7 +227,7 @@ export class EpsAssistMeStack extends Stack {
               "cloudformation:ListStacks",
               "cloudformation:DescribeStacks"
             ],
-            resources: ["*"]
+            resources: [`arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`]
           })
         ]
       })

@@ -87,7 +87,7 @@ export class S3Bucket extends Construct {
           principals: [props.deploymentRole],
           actions: [
             "kms:Encrypt",
-            "kms:GenerateDataKey*"
+            "kms:GenerateDataKey"
           ],
           resources:["*"]
         })
