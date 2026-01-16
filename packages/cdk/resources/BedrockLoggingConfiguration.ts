@@ -76,7 +76,6 @@ export class BedrockLoggingConfiguration extends Construct {
         "logs:DescribeLogStreams"
       ],
       resources: [
-        modelInvocationLogGroup.logGroupArn,
         `${modelInvocationLogGroup.logGroupArn}:*`
       ]
     }))
@@ -127,12 +126,7 @@ export class BedrockLoggingConfiguration extends Construct {
 
     // Create custom resource
     new CustomResource(this, "BedrockLoggingConfig", {
-      serviceToken: provider.serviceToken,
-      properties: {
-        TextDataDeliveryEnabled: "true",
-        ImageDataDeliveryEnabled: "true",
-        EmbeddingDataDeliveryEnabled: "true"
-      }
+      serviceToken: provider.serviceToken
     })
 
     this.modelInvocationLogGroup = modelInvocationLogGroup

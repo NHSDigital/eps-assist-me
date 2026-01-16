@@ -46,6 +46,7 @@ export class EpsAssistMeStack extends Stack {
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
     const logLevel: string = this.node.tryGetContext("logLevel")
     const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
+    const enableBedrockLogging: boolean = this.node.tryGetContext("enableBedrockLogging") === "true"
 
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
@@ -115,7 +116,7 @@ export class EpsAssistMeStack extends Stack {
       region,
       account,
       logRetentionInDays,
-      enableLogging: false // Set to true to enable model invocation logging
+      enableLogging: enableBedrockLogging
     })
 
     // Create VectorKnowledgeBase construct with Bedrock execution role
