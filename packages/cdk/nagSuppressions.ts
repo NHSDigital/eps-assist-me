@@ -110,7 +110,12 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation."
+        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation.",
+        appliesTo: [
+          "Resource::arn:aws:lambda:eu-west-2:<AWS::AccountId>:function:epsam*",
+          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam-pr-*",
+          "Resource::arn:aws:bedrock:*"
+        ]
       }
     ]
   )
