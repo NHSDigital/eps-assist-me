@@ -57,22 +57,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  // Suppress unauthenticated API route warnings
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/commands/POST/Resource",
-    [
-      {
-        id: "AwsSolutions-APIG4",
-        reason: "Slack command endpoint is intentionally unauthenticated."
-      },
-      {
-        id: "AwsSolutions-COG4",
-        reason: "Cognito not required for this public endpoint."
-      }
-    ]
-  )
-
   // Suppress missing WAF on API stage for Apis construct
   safeAddNagSuppression(
     stack,
@@ -96,9 +80,18 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Action::bedrock:Delete*",
           "Resource::arn:aws:bedrock:eu-west-2:<AWS::AccountId>:knowledge-base/*",
-          "Resource::arn:aws:aoss:eu-west-2:<AWS::AccountId>:collection/*",
-          "Resource::<StorageDocsBucketepsamDocsF25F63F1.Arn>/*"
+          "Resource::arn:aws:aoss:eu-west-2:<AWS::AccountId>:collection/*"
         ]
+      }
+    ]
+  )
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockExecutionRole/WildcardPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Bedrock Knowledge Base requires these wildcard permissions to access S3 documents and OpenSearch collection."
       }
     ]
   )

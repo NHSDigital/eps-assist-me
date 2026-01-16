@@ -104,7 +104,7 @@ cdk-deploy: guard-STACK_NAME
 
 cdk-synth: cdk-synth-pr cdk-synth-non-pr
 
-cdk-synth-pr:
+cdk-synth-non-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .local_config
@@ -121,7 +121,7 @@ cdk-synth-pr:
 		--quiet \
 		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
 
-cdk-synth-non-pr:
+cdk-synth-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .local_config

@@ -77,8 +77,14 @@ export class BedrockExecutionRole extends Construct {
         bedrockKBDeleteRolePolicy,
         bedrockOSSPolicyForKnowledgeBase,
         s3AccessListPolicy,
-        s3AccessGetPolicy,
         kmsAccessPolicy
+      ]
+    })
+    // Create managed policy for Bedrock execution role
+    const bedrockExecutionWildcardManagedPolicy = new ManagedPolicy(this, "WildcardPolicy", {
+      description: "Policy for Bedrock Knowledge Base to access S3 objects with wildcard",
+      statements: [
+        s3AccessGetPolicy
       ]
     })
 
@@ -86,7 +92,7 @@ export class BedrockExecutionRole extends Construct {
     this.role = new Role(this, "Role", {
       assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
       description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch",
-      managedPolicies: [bedrockExecutionManagedPolicy]
+      managedPolicies: [bedrockExecutionManagedPolicy, bedrockExecutionWildcardManagedPolicy]
     })
   }
 }
