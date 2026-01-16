@@ -300,6 +300,6 @@ export class EpsAssistMeStack extends Stack {
       })
     }
     // Final CDK Nag Suppressions
-    nagSuppressions(this)
+    nagSuppressions(this, account)
   }
 }

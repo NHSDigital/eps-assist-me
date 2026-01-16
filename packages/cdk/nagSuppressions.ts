@@ -3,7 +3,7 @@
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
-export const nagSuppressions = (stack: Stack) => {
+export const nagSuppressions = (stack: Stack, account: string) => {
   const stackName = stack.node.tryGetContext("stackName") || "epsam"
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
@@ -83,7 +83,12 @@ export const nagSuppressions = (stack: Stack) => {
           "Resource::arn:aws:aoss:eu-west-2:<AWS::AccountId>:collection/*",
           "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery-destination:*",
           "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery-source:*",
-          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery:*"
+          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery:*",
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
+          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
+          `Resource::arn:aws:logs:eu-west-2:${account}:delivery-destination:*`,
+          `Resource::arn:aws:logs:eu-west-2:${account}:delivery-source:*`,
+          `Resource::arn:aws:logs:eu-west-2:${account}:delivery:*`
         ]
       }
     ]
@@ -110,6 +115,8 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Resource::arn:aws:lambda:eu-west-2:<AWS::AccountId>:function:epsam*",
           "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam-pr-*",
+          `Resource::arn:aws:lambda:eu-west-2:${account}:function:epsam*`,
+          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam-pr-*`,
           "Resource::arn:aws:bedrock:*"
         ]
       }
