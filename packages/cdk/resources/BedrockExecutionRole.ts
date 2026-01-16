@@ -93,7 +93,6 @@ export class BedrockExecutionRole extends Construct {
         bedrockKBDeleteRolePolicy,
         bedrockOSSPolicyForKnowledgeBase,
         s3AccessListPolicy,
-        s3AccessGetPolicy,
         kmsAccessPolicy,
         logsDeliveryPolicy,
         allowVendedLogDeliveryPolicy

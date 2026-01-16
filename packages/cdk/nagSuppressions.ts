@@ -80,7 +80,10 @@ export const nagSuppressions = (stack: Stack) => {
         appliesTo: [
           "Action::bedrock:Delete*",
           "Resource::arn:aws:bedrock:eu-west-2:<AWS::AccountId>:knowledge-base/*",
-          "Resource::arn:aws:aoss:eu-west-2:<AWS::AccountId>:collection/*"
+          "Resource::arn:aws:aoss:eu-west-2:<AWS::AccountId>:collection/*",
+          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery-destination:*",
+          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery-source:*",
+          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery:*"
         ]
       }
     ]
