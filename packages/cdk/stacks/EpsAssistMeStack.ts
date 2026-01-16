@@ -45,6 +45,7 @@ export class EpsAssistMeStack extends Stack {
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
     const logLevel: string = this.node.tryGetContext("logLevel")
     const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
+    const runRegressionTests: boolean = this.node.tryGetContext("runRegressionTests")
 
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
@@ -184,34 +185,36 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // enable direct lambda testing — regression tests bypass slack infrastructure
-    const regressionTestRole = Role.fromRoleArn(
-      this,
-      "regressionTestRole",
-      regressionTestRoleArn, {
-        mutable: true
-      })
-
-    const regressionTestPolicy = new ManagedPolicy(this, "RegressionTestPolicy", {
-      description: "regression test cross-account invoke permission for direct ai validation",
-      statements: [
-        new PolicyStatement({
-          actions: [
-            "lambda:InvokeFunction"
-          ],
-          resources: [
-            functions.slackBotLambda.function.functionArn
-          ]
-        }),
-        new PolicyStatement({
-          actions: [
-            "cloudformation:ListStacks",
-            "cloudformation:DescribeStacks"
-          ],
-          resources: ["*"]
+    if (runRegressionTests) {
+      const regressionTestRole = Role.fromRoleArn(
+        this,
+        "regressionTestRole",
+        regressionTestRoleArn, {
+          mutable: true
         })
-      ]
-    })
-    regressionTestRole.addManagedPolicy(regressionTestPolicy)
+
+      const regressionTestPolicy = new ManagedPolicy(this, "RegressionTestPolicy", {
+        description: "regression test cross-account invoke permission for direct ai validation",
+        statements: [
+          new PolicyStatement({
+            actions: [
+              "lambda:InvokeFunction"
+            ],
+            resources: [
+              functions.slackBotLambda.function.functionArn
+            ]
+          }),
+          new PolicyStatement({
+            actions: [
+              "cloudformation:ListStacks",
+              "cloudformation:DescribeStacks"
+            ],
+            resources: ["*"]
+          })
+        ]
+      })
+      regressionTestRole.addManagedPolicy(regressionTestPolicy)
+    }
 
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {

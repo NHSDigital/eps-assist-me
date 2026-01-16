@@ -112,6 +112,7 @@ cdk-synth:
 	SLACK_SIGNING_SECRET=dummy_secret \
 	LOG_RETENTION_IN_DAYS=30 \
 	LOG_LEVEL=debug \
+	RUN_REGRESSION_TESTS=true \
 		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
 	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
 		--quiet \
