@@ -137,17 +137,6 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource",
-    [
-      {
-        id: "AwsSolutions-SMG4",
-        reason: "Slack signing secret rotation is handled manually as part of the Slack app configuration process."
-      }
-    ]
-  )
-
   // Suppress AWS managed policy usage in BucketNotificationsHandler (wildcard for any hash)
   const bucketNotificationHandlers = stack.node.findAll().filter(node =>
     node.node.id.startsWith("BucketNotificationsHandler")
