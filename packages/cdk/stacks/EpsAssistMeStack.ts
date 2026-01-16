@@ -20,6 +20,7 @@ import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
+import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -46,6 +47,7 @@ export class EpsAssistMeStack extends Stack {
     const logLevel: string = this.node.tryGetContext("logLevel")
     const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
     const runRegressionTests: boolean = this.node.tryGetContext("runRegressionTests")
+    const enableBedrockLogging: boolean = this.node.tryGetContext("enableBedrockLogging") === "true"
 
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
@@ -110,6 +112,15 @@ export class EpsAssistMeStack extends Stack {
     // and deleted after the VectorIndex is deleted to prevent deletion or deployment failures
     vectorIndex.node.addDependency(openSearchResources.deploymentPolicy)
 
+    // Create Bedrock logging configuration for model invocations
+    const bedrockLogging = new BedrockLoggingConfiguration(this, "BedrockLogging", {
+      stackName: props.stackName,
+      region,
+      account,
+      logRetentionInDays,
+      enableLogging: enableBedrockLogging
+    })
+
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
@@ -118,7 +129,8 @@ export class EpsAssistMeStack extends Stack {
       collectionArn: openSearchResources.collection.collectionArn,
       vectorIndexName: vectorIndex.indexName,
       region,
-      account
+      account,
+      logRetentionInDays
     })
 
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.indexReadyWait.customResource)
@@ -257,6 +269,16 @@ export class EpsAssistMeStack extends Stack {
     new CfnOutput(this, "SlackBotLambdaName", {
       value: functions.slackBotLambda.function.functionName,
       exportName: `${props.stackName}:lambda:SlackBot:FunctionName`
+    })
+
+    new CfnOutput(this, "ModelInvocationLogGroupName", {
+      value: bedrockLogging.modelInvocationLogGroup.logGroupName,
+      description: "CloudWatch Log Group for Bedrock model invocations"
+    })
+
+    new CfnOutput(this, "KnowledgeBaseLogGroupName", {
+      value: vectorKB.kbLogGroup.logGroupName,
+      description: "CloudWatch Log Group for Knowledge Base application logs"
     })
 
     if (isPullRequest) {
