@@ -48,9 +48,8 @@ export class BedrockLoggingConfiguration extends Construct {
       actions: [
         "kms:Encrypt",
         "kms:Decrypt",
-        "kms:ReEncrypt*",
-        "kms:GenerateDataKey*",
-        "kms:CreateGrant",
+        "kms:ReEncrypt",
+        "kms:GenerateDataKey",
         "kms:DescribeKey"
       ],
       resources: ["*"],

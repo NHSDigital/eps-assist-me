@@ -35,29 +35,15 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
-    // Compehensive Bedrock prompt policy - includes all prompt management permissions
+    // Bedrock prompt policy - includes all prompt management permissions
     const slackBotPromptPolicy = new PolicyStatement({
       sid: "PromptManagementPermissions",
       actions: [
-        "bedrock:CreatePrompt",
-        "bedrock:UpdatePrompt",
         "bedrock:GetPrompt",
         "bedrock:ListPrompts",
-        "bedrock:DeletePrompt",
-        "bedrock:CreatePromptVersion",
-        "bedrock:OptimizePrompt",
-        "bedrock:GetFoundationModel",
-        "bedrock:ListFoundationModels",
-        "bedrock:GetInferenceProfile",
-        "bedrock:ListInferenceProfiles",
-        "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream",
-        "bedrock:RenderPrompt",
-        "bedrock:TagResource",
-        "bedrock:UntagResource",
-        "bedrock:ListTagsForResource"
+        "bedrock:RenderPrompt"
       ],
-      resources: ["*"] // Use wildcard as recommended by AWS docs
+      resources: ["arn:aws:bedrock:*"] // Use wildcard as recommended by AWS docs
     })
 
     const slackBotKnowledgeBasePolicy = new PolicyStatement({
@@ -75,7 +61,7 @@ export class RuntimePolicies extends Construct {
 
     const slackBotLambdaPolicy = new PolicyStatement({
       actions: ["lambda:InvokeFunction"],
-      resources: [`arn:aws:lambda:${props.region}:${props.account}:function:*`]
+      resources: [`arn:aws:lambda:${props.region}:${props.account}:function:epsam*`]
     })
 
     const slackBotGuardrailPolicy = new PolicyStatement({
@@ -101,8 +87,8 @@ export class RuntimePolicies extends Construct {
       actions: [
         "kms:Encrypt",
         "kms:Decrypt",
-        "kms:ReEncrypt*",
-        "kms:GenerateDataKey*",
+        "kms:ReEncrypt",
+        "kms:GenerateDataKey",
         "kms:DescribeKey"
       ],
       resources: [props.slackBotStateTableKmsKeyArn]
