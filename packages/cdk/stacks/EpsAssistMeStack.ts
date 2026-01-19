@@ -20,6 +20,7 @@ import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
+import {StorageNotificationQueue} from "../resources/StorageNotificationQueue"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -162,13 +163,20 @@ export class EpsAssistMeStack extends Stack {
       ragModelId: bedrockPromptResources.ragModelId,
       queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
       isPullRequest: isPullRequest,
-      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
+      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy
     })
 
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
       bucket: storage.kbDocsBucket.bucket,
       lambdaFunction: functions.syncKnowledgeBaseFunction.function
+    })
+
+    new StorageNotificationQueue(this, "StorageNotificationQueue", {
+      stackName: props.stackName,
+      functions,
+      storage
     })
 
     // Create Apis and pass the Lambda function
