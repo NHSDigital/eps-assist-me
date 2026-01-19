@@ -48,6 +48,7 @@ lint-flake8:
 test:
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
+	cd packages/bedrockLoggingConfigFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
@@ -101,9 +102,13 @@ cdk-deploy: guard-STACK_NAME
 		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
 		--context slackBotToken=$$SLACK_BOT_TOKEN \
 		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
-cdk-synth:
+
+cdk-synth: cdk-synth-pr cdk-synth-non-pr
+
+cdk-synth-non-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam \
 	COMMIT_ID=undefined \
@@ -112,6 +117,25 @@ cdk-synth:
 	SLACK_SIGNING_SECRET=dummy_secret \
 	LOG_RETENTION_IN_DAYS=30 \
 	LOG_LEVEL=debug \
+	RUN_REGRESSION_TESTS=true \
+		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
+	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
+		--quiet \
+		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
+
+cdk-synth-pr:
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
+	mkdir -p .local_config
+	STACK_NAME=epsam-pr-123 \
+	COMMIT_ID=undefined \
+	VERSION_NUMBER=undefined \
+	SLACK_BOT_TOKEN=dummy_token \
+	SLACK_SIGNING_SECRET=dummy_secret \
+	LOG_RETENTION_IN_DAYS=30 \
+	LOG_LEVEL=debug \
+	RUN_REGRESSION_TESTS=true \
 		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
 	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
 		--quiet \
