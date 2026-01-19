@@ -19,7 +19,7 @@ runs:
   using: "composite"
   steps:
     - name: Connect to Source Account (INT)
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
       with:
         aws-region: eu-west-2
         role-to-assume: ${{ inputs.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
@@ -38,7 +38,7 @@ runs:
         aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }} ./s3-content
 
     - name: Connect to Target Account
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
       with:
         aws-region: eu-west-2
         role-to-assume: ${{ inputs.TARGET_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
