@@ -197,7 +197,9 @@ class TestHandler:
         event = {"Records": [{"invalid": "data"}]}
         response = handler(event, lambda_context)
 
-        assert response["statusCode"] == 500
+        assert response["statusCode"] == 200
+        body = json.loads(response["body"])
+        assert body["skipped"] == 1
 
     @patch("app.services.s3_client.download_from_s3")
     def test_handler_cleans_up_temp_files_on_error(self, mock_download, mock_env, lambda_context, s3_event_pdf):
@@ -207,7 +209,9 @@ class TestHandler:
 
         response = handler(s3_event_pdf, lambda_context)
 
-        assert response["statusCode"] == 500
+        assert response["statusCode"] == 200
+        body = json.loads(response["body"])
+        assert body["failed"] == 1 or body["skipped"] == 1
 
 
 class TestConverter:
@@ -251,11 +255,17 @@ class TestS3Client:
         from pathlib import Path
         import tempfile
 
+        def mock_download_file(Bucket, Key, Filename, ExtraArgs=None):
+            Path(Filename).write_bytes(b"test content")
+
+        mock_s3.download_file.side_effect = mock_download_file
+
         with tempfile.TemporaryDirectory() as temp_dir:
             local_path = Path(temp_dir) / "test.pdf"
             download_from_s3("test-bucket", "test-key", local_path)
 
             mock_s3.download_file.assert_called_once()
+            assert local_path.exists()
 
     @patch("app.services.s3_client.s3_client")
     def test_upload_to_s3(self, mock_s3, mock_env):

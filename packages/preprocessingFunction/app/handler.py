@@ -110,7 +110,7 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
             results.append(result)
 
         success_count = sum(1 for r in results if r["status"] == "success")
-        failed_count = sum(1 for r in results if r["status"] == "failed")
+        failed_count = sum(1 for r in results if r["status"] in ["failed", "error"])
         skipped_count = sum(1 for r in results if r["status"] == "skipped")
 
         logger.info(f"Processing complete: {success_count} success, {failed_count} failed, {skipped_count} skipped")
