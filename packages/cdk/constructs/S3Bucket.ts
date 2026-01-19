@@ -40,7 +40,7 @@ export class S3Bucket extends Construct {
     const bucket = new Bucket(this, props.bucketName, {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.KMS,
-      encryptionKey: this.kmsKey,
+      encryptionKey: kmsKey,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       enforceSSL: true,
@@ -69,6 +69,17 @@ export class S3Bucket extends Construct {
       ]
     })
 
+    const listBucketsPolicy = new PolicyStatement({
+      effect: Effect.ALLOW,
+      principals: [props.deploymentRole],
+      actions: [
+        "s3:ListAllMyBuckets"
+      ],
+      resources: [
+        "*"
+      ]
+    })
+
     const accountRootPrincipal = new AccountRootPrincipal()
     const kmsPolicy = new PolicyDocument({
       statements: [
@@ -91,6 +102,7 @@ export class S3Bucket extends Construct {
     })
 
     bucket.addToResourcePolicy(deploymentPolicy)
+    props.deploymentRole.addToPrincipalPolicy(listBucketsPolicy)
 
     const contentBucketKmsKey = (kmsKey.node.defaultChild as CfnKey)
     contentBucketKmsKey.keyPolicy = kmsPolicy.toJSON()
