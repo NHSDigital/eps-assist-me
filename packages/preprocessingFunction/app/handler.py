@@ -1,4 +1,6 @@
 import json
+import tempfile
+import shutil
 from pathlib import Path
 from typing import Dict, Any
 from aws_lambda_powertools import Logger
@@ -51,12 +53,15 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
         if converter.is_convertible_format(file_extension):
             logger.info(f"Converting file: {file_extension}")
 
-            temp_dir = Path("/tmp")
-            input_path = temp_dir / file_path.name
-            output_filename = file_path.stem + ".md"
-            output_path = temp_dir / output_filename
+            # Create secure temporary directory
+            temp_dir_path = tempfile.mkdtemp(prefix="preprocessing_")
+            temp_dir = Path(temp_dir_path)
 
             try:
+                input_path = temp_dir / file_path.name
+                output_filename = file_path.stem + ".md"
+                output_path = temp_dir / output_filename
+
                 s3_client.download_from_s3(bucket_name, object_key, input_path)
                 conversion_success = converter.convert_document_to_markdown(input_path, output_path)
 
@@ -71,10 +76,9 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
                 return {"status": "success", "message": f"Converted to {output_key}"}
 
             finally:
-                if input_path.exists():
-                    input_path.unlink()
-                if output_path.exists():
-                    output_path.unlink()
+                # Clean up entire temporary directory securely
+                if temp_dir.exists():
+                    shutil.rmtree(temp_dir_path, ignore_errors=True)
 
         return {"status": "skipped", "message": "Unknown processing path"}
 

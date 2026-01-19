@@ -176,6 +176,39 @@ class TestHandler:
         body = json.loads(response["body"])
         assert body["skipped"] == 1
 
+    @patch("app.services.converter.convert_document_to_markdown")
+    @patch("app.services.s3_client.download_from_s3")
+    def test_handler_handles_conversion_failure(
+        self, mock_download, mock_convert, mock_env, lambda_context, s3_event_pdf
+    ):
+        from app.handler import handler
+
+        mock_convert.return_value = False
+
+        response = handler(s3_event_pdf, lambda_context)
+
+        assert response["statusCode"] == 200
+        body = json.loads(response["body"])
+        assert body["failed"] == 1
+
+    def test_handler_handles_exception(self, mock_env, lambda_context):
+        from app.handler import handler
+
+        event = {"Records": [{"invalid": "data"}]}
+        response = handler(event, lambda_context)
+
+        assert response["statusCode"] == 500
+
+    @patch("app.services.s3_client.download_from_s3")
+    def test_handler_cleans_up_temp_files_on_error(self, mock_download, mock_env, lambda_context, s3_event_pdf):
+        from app.handler import handler
+
+        mock_download.side_effect = Exception("Download failed")
+
+        response = handler(s3_event_pdf, lambda_context)
+
+        assert response["statusCode"] == 500
+
 
 class TestConverter:
 
@@ -184,6 +217,10 @@ class TestConverter:
 
         assert is_convertible_format(".pdf") is True
         assert is_convertible_format(".docx") is True
+        assert is_convertible_format(".xlsx") is True
+        assert is_convertible_format(".csv") is True
+        assert is_convertible_format(".doc") is True
+        assert is_convertible_format(".xls") is True
         assert is_convertible_format(".md") is False
         assert is_convertible_format(".exe") is False
 
@@ -192,6 +229,8 @@ class TestConverter:
 
         assert is_passthrough_format(".md") is True
         assert is_passthrough_format(".txt") is True
+        assert is_passthrough_format(".html") is True
+        assert is_passthrough_format(".json") is True
         assert is_passthrough_format(".pdf") is False
 
     def test_is_supported_format(self, mock_env):
@@ -199,4 +238,47 @@ class TestConverter:
 
         assert is_supported_format(".pdf") is True
         assert is_supported_format(".md") is True
+        assert is_supported_format(".docx") is True
+        assert is_supported_format(".txt") is True
         assert is_supported_format(".exe") is False
+
+
+class TestS3Client:
+
+    @patch("app.services.s3_client.s3_client")
+    def test_download_from_s3(self, mock_s3, mock_env):
+        from app.services.s3_client import download_from_s3
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            local_path = Path(temp_dir) / "test.pdf"
+            download_from_s3("test-bucket", "test-key", local_path)
+
+            mock_s3.download_file.assert_called_once()
+
+    @patch("app.services.s3_client.s3_client")
+    def test_upload_to_s3(self, mock_s3, mock_env):
+        from app.services.s3_client import upload_to_s3
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            local_path = Path(temp_dir) / "test.md"
+            local_path.write_text("test content")
+            upload_to_s3(local_path, "test-bucket", "test-key")
+
+            mock_s3.upload_file.assert_called_once()
+
+    @patch("app.services.s3_client.s3_client")
+    def test_copy_s3_object(self, mock_s3, mock_env):
+        from app.services.s3_client import copy_s3_object
+
+        copy_s3_object("source-bucket", "source-key", "dest-bucket", "dest-key")
+
+        mock_s3.copy_object.assert_called_once()
+        call_args = mock_s3.copy_object.call_args[1]
+        assert call_args["Bucket"] == "dest-bucket"
+        assert call_args["Key"] == "dest-key"
+        assert call_args["CopySource"]["Bucket"] == "source-bucket"
+        assert call_args["CopySource"]["Key"] == "source-key"
