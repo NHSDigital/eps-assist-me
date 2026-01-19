@@ -141,11 +141,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Preprocessing Lambda needs wildcard permissions to read/write any file in raw/ and processed/ prefixes.",
-        appliesTo: [
-          "Resource::<StorageDocsBucket*.Arn>/processed/*",
-          "Resource::<StorageDocsBucket*.Arn>/raw/*"
-        ]
+        reason: "Preprocessing Lambda needs wildcard permissions to read/write any file in raw/ and processed/ prefixes."
       }
     ]
   )
@@ -404,8 +400,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
           "Action::kms:GenerateDataKey*",
           "Action::kms:ReEncrypt*",
           "Resource::arn:aws:s3:::cdk-hnb659fds-assets-<AWS::AccountId>-eu-west-2/*",
-          `Resource::arn:aws:s3:::cdk-hnb659fds-assets-${account}-eu-west-2/*`,
-          "Resource::<StorageDocsBucket*.Arn>/*"
+          `Resource::arn:aws:s3:::cdk-hnb659fds-assets-${account}-eu-west-2/*`
         ]
       }
     ]
