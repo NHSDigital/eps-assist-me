@@ -58,8 +58,8 @@ runs:
       id: compare
       shell: bash
       run: |
-        echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET }}..."
-        DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET }} --dryrun)
+        echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
+        DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --dryrun)
 
         if [ -z "$DIFFS" ]; then
           echo "No discrepancies found."
@@ -70,4 +70,5 @@ runs:
     - name: Upload Files to Target S3
       shell: bash
       run: |
-        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET }} --delete
+        echo "Updating s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
+        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --delete
