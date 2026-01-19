@@ -21,6 +21,8 @@ import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {StorageNotificationQueue} from "../resources/StorageNotificationQueue"
+import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
+import {Bucket} from "aws-cdk-lib/aws-s3"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -34,8 +36,10 @@ export class EpsAssistMeStack extends Stack {
 
     // imports
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
+    const deploymentRoleImport = Fn.importValue("ci-resources:CloudFormationDeployRole")
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
     const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
+    const auditLoggingBucketImport = Fn.importValue("account-resources:AuditLoggingBucket")
 
     // Get variables from context
     const region = Stack.of(this).region
@@ -45,12 +49,17 @@ export class EpsAssistMeStack extends Stack {
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
     const logLevel: string = this.node.tryGetContext("logLevel")
     const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
+    const runRegressionTests: boolean = this.node.tryGetContext("runRegressionTests")
+    const enableBedrockLogging: boolean = this.node.tryGetContext("enableBedrockLogging") === "true"
 
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
 
     const cdkExecRole = Role.fromRoleArn(this, "CdkExecRole", cdkExecRoleArn)
+    const deploymentRole = Role.fromRoleArn(this, "deploymentRole", deploymentRoleImport)
+    const auditLoggingBucket = Bucket.fromBucketArn(
+      this, "AuditLoggingBucket", auditLoggingBucketImport)
 
     if (!slackBotToken || !slackSigningSecret) {
       throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
@@ -79,14 +88,17 @@ export class EpsAssistMeStack extends Stack {
 
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
-      stackName: props.stackName
+      stackName: props.stackName,
+      deploymentRole: deploymentRole,
+      auditLoggingBucket: auditLoggingBucket
     })
 
     // Create Bedrock execution role without dependencies
     const bedrockExecutionRole = new BedrockExecutionRole(this, "BedrockExecutionRole", {
       region,
       account,
-      kbDocsBucket: storage.kbDocsBucket.bucket
+      kbDocsBucket: storage.kbDocsBucket,
+      kbDocsKmsKey: storage.kbDocsKmsKey
     })
 
     // Create OpenSearch Resources with Bedrock execution role
@@ -106,15 +118,25 @@ export class EpsAssistMeStack extends Stack {
     // and deleted after the VectorIndex is deleted to prevent deletion or deployment failures
     vectorIndex.node.addDependency(openSearchResources.deploymentPolicy)
 
+    // Create Bedrock logging configuration for model invocations
+    const bedrockLogging = new BedrockLoggingConfiguration(this, "BedrockLogging", {
+      stackName: props.stackName,
+      region,
+      account,
+      logRetentionInDays,
+      enableLogging: enableBedrockLogging
+    })
+
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
-      docsBucket: storage.kbDocsBucket.bucket,
+      docsBucket: storage.kbDocsBucket,
       bedrockExecutionRole: bedrockExecutionRole.role,
       collectionArn: openSearchResources.collection.collectionArn,
       vectorIndexName: vectorIndex.indexName,
       region,
-      account
+      account,
+      logRetentionInDays
     })
 
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.indexReadyWait.customResource)
@@ -169,7 +191,7 @@ export class EpsAssistMeStack extends Stack {
 
     // Add S3 notification to trigger sync Lambda function
     new S3LambdaNotification(this, "S3LambdaNotification", {
-      bucket: storage.kbDocsBucket.bucket,
+      bucket: storage.kbDocsBucket,
       lambdaFunction: functions.syncKnowledgeBaseFunction.function
     })
 
@@ -189,34 +211,36 @@ export class EpsAssistMeStack extends Stack {
     })
 
     // enable direct lambda testing — regression tests bypass slack infrastructure
-    const regressionTestRole = Role.fromRoleArn(
-      this,
-      "regressionTestRole",
-      regressionTestRoleArn, {
-        mutable: true
-      })
-
-    const regressionTestPolicy = new ManagedPolicy(this, "RegressionTestPolicy", {
-      description: "regression test cross-account invoke permission for direct ai validation",
-      statements: [
-        new PolicyStatement({
-          actions: [
-            "lambda:InvokeFunction"
-          ],
-          resources: [
-            functions.slackBotLambda.function.functionArn
-          ]
-        }),
-        new PolicyStatement({
-          actions: [
-            "cloudformation:ListStacks",
-            "cloudformation:DescribeStacks"
-          ],
-          resources: ["*"]
+    if (runRegressionTests) {
+      const regressionTestRole = Role.fromRoleArn(
+        this,
+        "regressionTestRole",
+        regressionTestRoleArn, {
+          mutable: true
         })
-      ]
-    })
-    regressionTestRole.addManagedPolicy(regressionTestPolicy)
+
+      const regressionTestPolicy = new ManagedPolicy(this, "RegressionTestPolicy", {
+        description: "regression test cross-account invoke permission for direct ai validation",
+        statements: [
+          new PolicyStatement({
+            actions: [
+              "lambda:InvokeFunction"
+            ],
+            resources: [
+              functions.slackBotLambda.function.functionArn
+            ]
+          }),
+          new PolicyStatement({
+            actions: [
+              "cloudformation:ListStacks",
+              "cloudformation:DescribeStacks"
+            ],
+            resources: [`arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`]
+          })
+        ]
+      })
+      regressionTestRole.addManagedPolicy(regressionTestPolicy)
+    }
 
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {
@@ -237,11 +261,11 @@ export class EpsAssistMeStack extends Stack {
     })
 
     new CfnOutput(this, "kbDocsBucketArn", {
-      value: storage.kbDocsBucket.bucket.bucketArn,
+      value: storage.kbDocsBucket.bucketArn,
       exportName: `${props.stackName}:kbDocsBucket:Arn`
     })
     new CfnOutput(this, "kbDocsBucketName", {
-      value: storage.kbDocsBucket.bucket.bucketName,
+      value: storage.kbDocsBucket.bucketName,
       exportName: `${props.stackName}:kbDocsBucket:Name`
     })
 
@@ -258,6 +282,16 @@ export class EpsAssistMeStack extends Stack {
     new CfnOutput(this, "SlackBotLambdaName", {
       value: functions.slackBotLambda.function.functionName,
       exportName: `${props.stackName}:lambda:SlackBot:FunctionName`
+    })
+
+    new CfnOutput(this, "ModelInvocationLogGroupName", {
+      value: bedrockLogging.modelInvocationLogGroup.logGroupName,
+      description: "CloudWatch Log Group for Bedrock model invocations"
+    })
+
+    new CfnOutput(this, "KnowledgeBaseLogGroupName", {
+      value: vectorKB.kbLogGroup.logGroupName,
+      description: "CloudWatch Log Group for Knowledge Base application logs"
     })
 
     if (isPullRequest) {
@@ -279,6 +313,6 @@ export class EpsAssistMeStack extends Stack {
       })
     }
     // Final CDK Nag Suppressions
-    nagSuppressions(this)
+    nagSuppressions(this, account)
   }
 }

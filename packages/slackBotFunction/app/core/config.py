@@ -168,7 +168,8 @@ bot_messages = BotMessages(
     ERROR_RESPONSE="Sorry, an error occurred while processing your request. Please try again later.",
     FEEDBACK_POSITIVE_THANKS="Thank you for your feedback.",
     FEEDBACK_NEGATIVE_THANKS=(
-        'Please let us know how the answer could be improved. Start your message with "feedback:"'
+        "Please let us know how the answer could be improved. Do not enter any personal data.\n"
+        + 'Start your message with "feedback:"'
     ),
     FEEDBACK_THANKS="Thank you for your feedback.",
     FEEDBACK_PROMPT="Was this helpful?",
