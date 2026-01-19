@@ -149,6 +149,7 @@ jobs:
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_APP_NAME: ${{ inputs.CDK_APP_NAME }}
           IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
+          RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
 
       - name: Show diff for stack
         run: |

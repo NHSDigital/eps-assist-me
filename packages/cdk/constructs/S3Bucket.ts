@@ -6,7 +6,8 @@ import {
   BlockPublicAccess,
   ObjectOwnership,
   CfnBucket,
-  CfnBucketPolicy
+  CfnBucketPolicy,
+  IBucket
 } from "aws-cdk-lib/aws-s3"
 import {CfnKey, Key} from "aws-cdk-lib/aws-kms"
 import {
@@ -21,6 +22,7 @@ export interface S3BucketProps {
   readonly bucketName: string
   readonly versioned: boolean
   readonly deploymentRole: IPrincipal
+  readonly auditLoggingBucket: IBucket
 }
 
 export class S3Bucket extends Construct {
@@ -40,12 +42,14 @@ export class S3Bucket extends Construct {
     const bucket = new Bucket(this, props.bucketName, {
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       encryption: BucketEncryption.KMS,
-      encryptionKey: this.kmsKey,
+      encryptionKey: kmsKey,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       enforceSSL: true,
       versioned: props.versioned ?? false,
-      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED
+      objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      serverAccessLogsBucket: props.auditLoggingBucket,
+      serverAccessLogsPrefix: "epsam-kb"
     })
 
     // Adding full deployment roles to this bucket
@@ -83,7 +87,7 @@ export class S3Bucket extends Construct {
           principals: [props.deploymentRole],
           actions: [
             "kms:Encrypt",
-            "kms:GenerateDataKey*"
+            "kms:GenerateDataKey"
           ],
           resources:["*"]
         })
