@@ -390,18 +390,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "BucketDeployment requires wildcard permissions for S3 and KMS operations to deploy assets.",
-        appliesTo: [
-          "Action::s3:GetBucket*",
-          "Action::s3:GetObject*",
-          "Action::s3:List*",
-          "Action::s3:Abort*",
-          "Action::s3:DeleteObject*",
-          "Action::kms:GenerateDataKey*",
-          "Action::kms:ReEncrypt*",
-          "Resource::arn:aws:s3:::cdk-hnb659fds-assets-<AWS::AccountId>-eu-west-2/*",
-          `Resource::arn:aws:s3:::cdk-hnb659fds-assets-${account}-eu-west-2/*`
-        ]
+        reason: "BucketDeployment requires wildcard permissions for S3 and KMS operations to deploy assets."
       }
     ]
   )
