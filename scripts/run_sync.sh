@@ -67,6 +67,8 @@ mkdir -p .dependencies
 poetry export --without-hashes --format=requirements.txt --with slackBotFunction > .dependencies/requirements_slackBotFunction
 poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > .dependencies/requirements_syncKnowledgeBaseFunction
 poetry export --without-hashes --format=requirements.txt --with preprocessingFunction > .dependencies/requirements_preprocessingFunction
+poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_slackBotFunction
+poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_syncKnowledgeBaseFunction
 pip3 install -r .dependencies/requirements_slackBotFunction -t .dependencies/slackBotFunction/python
 pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python

@@ -60,6 +60,22 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-APIG4",
+        reason: "Slack event endpoint is intentionally unauthenticated."
+      },
+      {
+        id: "AwsSolutions-COG4",
+        reason: "Cognito not required for this public endpoint."
+      }
+    ]
+  )
+
+  // Suppress unauthenticated API route warnings
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/commands/POST/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG4",
         reason: "Slack command endpoint is intentionally unauthenticated."
       },
       {
@@ -351,6 +367,53 @@ export const nagSuppressions = (stack: Stack) => {
       }
     ]
   )
+  // Suppress BedrockLogging KMS wildcard permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "KMS wildcard permissions (GenerateDataKey*, ReEncrypt*) are required for CloudWatch Logs encryption operations."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Lambda wildcard permissions for Bedrock API
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingConfigPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Bedrock logging configuration API requires wildcard resource permissions as it's account-level configuration."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Lambda log group and put logs permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework role using AWS managed policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+      }
+    ]
+  )
 
   safeAddNagSuppression(
     stack,
@@ -370,6 +433,17 @@ export const nagSuppressions = (stack: Stack) => {
           "Resource::arn:aws:s3:::cdk-hnb659fds-assets-591291862413-eu-west-2/*",
           "Resource::<StorageDocsBucketepsampr221Docs1E745B36.Arn>/*"
         ]
+      }
+    ]
+  )
+  // Suppress BedrockLogging Provider framework wildcard permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
       }
     ]
   )
@@ -397,6 +471,17 @@ export const nagSuppressions = (stack: Stack) => {
           "Action::kms:GenerateDataKey*",
           "Action::kms:ReEncrypt*"
         ]
+      }
+    ]
+  )
+  // Suppress BedrockLogging Provider framework runtime version
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "OnEvent uses Node22.x which is the latest stable runtime available for the onEvent functionality."
       }
     ]
   )

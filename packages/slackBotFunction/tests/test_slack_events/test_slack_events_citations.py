@@ -24,6 +24,7 @@ def test_citation_processing(
     """Test block builder is being called correctly"""
     # set up mocks
     mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": ""}
     mock_process_ai_query.return_value = {
         "text": "AI response",
         "session_id": "session-123",
@@ -640,6 +641,7 @@ def test_create_citation_logs_citations(
     with patch("app.core.config.get_logger", return_value=mock_logger):
         # set up mocks
         mock_client = Mock()
+        mock_client.chat_postMessage.return_value = {"ts": ""}
         raw_citation = "1||This is the Title||This is the excerpt/ citation||0.99"
         mock_process_ai_query.return_value = {
             "text": "AI response" + "------" + f"<cit>{raw_citation}</cit>",

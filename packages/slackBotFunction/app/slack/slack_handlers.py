@@ -8,10 +8,11 @@ Design goals:
 """
 
 import json
+import time
 from functools import lru_cache
 import traceback
 from typing import Any, Dict
-from slack_bolt import Ack, App
+from slack_bolt import Ack, App, Say
 from slack_sdk import WebClient
 from app.core.config import (
     get_logger,
@@ -19,13 +20,13 @@ from app.core.config import (
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_session_pull_request_id,
-    forward_action_to_pull_request_lambda,
-    forward_event_to_pull_request_lambda,
+    extract_test_command_params,
+    forward_to_pull_request_lambda,
     gate_common,
     respond_with_eyes,
     should_reply_to_message,
 )
-from app.slack.slack_events import process_async_slack_action, process_async_slack_event
+from app.slack.slack_events import process_async_slack_action, process_async_slack_event, process_async_slack_command
 
 logger = get_logger()
 
@@ -43,6 +44,7 @@ def setup_handlers(app: App) -> None:
     app.action("feedback_no")(ack=respond_to_action, lazy=[feedback_handler])
     for i in range(1, 10):
         app.action(f"cite_{i}")(ack=respond_to_action, lazy=[feedback_handler])
+    app.command("/test")(ack=respond_to_command, lazy=[command_handler])
 
 
 # ================================================================
@@ -54,13 +56,19 @@ def setup_handlers(app: App) -> None:
 def respond_to_events(event: Dict[str, Any], ack: Ack, client: WebClient):
     if should_reply_to_message(event, client):
         respond_with_eyes(event=event, client=client)
-    logger.debug("Sending ack response")
+    logger.debug("Sending ack response for event")
     ack()
 
 
 # ack function for actions where we just send an ack response back
 def respond_to_action(ack: Ack):
-    logger.debug("Sending ack response")
+    logger.debug("Sending ack response for action")
+    ack()
+
+
+# ack function for commands where we just send an ack response back
+def respond_to_command(ack: Ack, say: Say):
+    logger.debug("Sending ack response for command")
     ack()
 
 
@@ -77,7 +85,14 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
                 f"Feedback in pull request session {session_pull_request_id}",
                 extra={"session_pull_request_id": session_pull_request_id},
             )
-            forward_action_to_pull_request_lambda(body=body, pull_request_id=session_pull_request_id)
+            forward_to_pull_request_lambda(
+                body=body,
+                event=None,
+                event_id="",
+                store_pull_request_id=False,
+                pull_request_id=session_pull_request_id,
+                type="action",
+            )
             return
         process_async_slack_action(body=body, client=client)
     except Exception as e:
@@ -117,8 +132,13 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
             f"Message in pull request session {session_pull_request_id} from user {user_id}",
             extra={"session_pull_request_id": session_pull_request_id},
         )
-        forward_event_to_pull_request_lambda(
-            event=event, pull_request_id=session_pull_request_id, event_id=event_id, store_pull_request_id=False
+        forward_to_pull_request_lambda(
+            body=body,
+            event=event,
+            pull_request_id=session_pull_request_id,
+            event_id=event_id,
+            store_pull_request_id=False,
+            type="event",
         )
         return
 
@@ -126,4 +146,31 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
     try:
         process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
-        logger.error("Error triggering async processing", extra={"error": traceback.format_exc()})
+        logger.error("Error triggering async processing for event", extra={"error": traceback.format_exc()})
+
+
+def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebClient) -> None:
+    """Handle /test command to prompt the bot to respond."""
+    logger.info("Received command from user", extra={"body": body, "command": command, "client": client})
+    if not command:
+        logger.error("Invalid command payload")
+        return
+
+    user_id = command.get("user_id")
+    session_pull_request_id = extract_test_command_params(command.get("text")).get("pr")
+    if session_pull_request_id:
+        logger.info(f"Command in pull request session {session_pull_request_id} from user {user_id}")
+        forward_to_pull_request_lambda(
+            body=body,
+            event={**command, "channel": command.get("channel_id")},
+            pull_request_id=session_pull_request_id,
+            event_id=f"/command-{time.time()}",
+            store_pull_request_id=False,
+            type="command",
+        )
+        return
+
+    try:
+        process_async_slack_command(command, client)
+    except Exception:
+        logger.error("Error triggering async processing for command", extra={"error": traceback.format_exc()})

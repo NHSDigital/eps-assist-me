@@ -21,6 +21,7 @@ import {VectorIndex} from "../resources/VectorIndex"
 import {BucketDeployment, Source} from "aws-cdk-lib/aws-s3-deployment"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
+import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -34,6 +35,7 @@ export class EpsAssistMeStack extends Stack {
 
     // imports
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
+    const deploymentRoleImport = Fn.importValue("ci-resources:CloudFormationDeployRole")
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
     const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
 
@@ -45,12 +47,14 @@ export class EpsAssistMeStack extends Stack {
     const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
     const logLevel: string = this.node.tryGetContext("logLevel")
     const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
+    const enableBedrockLogging: boolean = this.node.tryGetContext("enableBedrockLogging") === "true"
 
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
     const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
 
     const cdkExecRole = Role.fromRoleArn(this, "CdkExecRole", cdkExecRoleArn)
+    const deploymentRole = Role.fromRoleArn(this, "deploymentRole", deploymentRoleImport)
 
     if (!slackBotToken || !slackSigningSecret) {
       throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
@@ -79,7 +83,8 @@ export class EpsAssistMeStack extends Stack {
 
     // Create Storage construct first as it has no dependencies
     const storage = new Storage(this, "Storage", {
-      stackName: props.stackName
+      stackName: props.stackName,
+      deploymentRole: deploymentRole
     })
 
     // initialize s3 folders for raw and processed documents
@@ -112,6 +117,15 @@ export class EpsAssistMeStack extends Stack {
     // and deleted after the VectorIndex is deleted to prevent deletion or deployment failures
     vectorIndex.node.addDependency(openSearchResources.deploymentPolicy)
 
+    // Create Bedrock logging configuration for model invocations
+    const bedrockLogging = new BedrockLoggingConfiguration(this, "BedrockLogging", {
+      stackName: props.stackName,
+      region,
+      account,
+      logRetentionInDays,
+      enableLogging: enableBedrockLogging
+    })
+
     // Create VectorKnowledgeBase construct with Bedrock execution role
     const vectorKB = new VectorKnowledgeBaseResources(this, "VectorKB", {
       stackName: props.stackName,
@@ -120,7 +134,8 @@ export class EpsAssistMeStack extends Stack {
       collectionArn: openSearchResources.collection.collectionArn,
       vectorIndexName: vectorIndex.indexName,
       region,
-      account
+      account,
+      logRetentionInDays
     })
 
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.indexReadyWait.customResource)
@@ -238,6 +253,12 @@ export class EpsAssistMeStack extends Stack {
       description: "Slack Events API endpoint for @mentions and direct messages"
     })
 
+    // Output: SlackBot Endpoint
+    new CfnOutput(this, "SlackBotCommandsEndpoint", {
+      value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/commands`,
+      description: "Slack Commands API endpoint for slash commands"
+    })
+
     // Output: Bedrock Prompt ARN
     new CfnOutput(this, "QueryReformulationPromptArn", {
       value: bedrockPromptResources.queryReformulationPrompt.promptArn,
@@ -266,6 +287,16 @@ export class EpsAssistMeStack extends Stack {
     new CfnOutput(this, "SlackBotLambdaName", {
       value: functions.slackBotLambda.function.functionName,
       exportName: `${props.stackName}:lambda:SlackBot:FunctionName`
+    })
+
+    new CfnOutput(this, "ModelInvocationLogGroupName", {
+      value: bedrockLogging.modelInvocationLogGroup.logGroupName,
+      description: "CloudWatch Log Group for Bedrock model invocations"
+    })
+
+    new CfnOutput(this, "KnowledgeBaseLogGroupName", {
+      value: vectorKB.kbLogGroup.logGroupName,
+      description: "CloudWatch Log Group for Knowledge Base application logs"
     })
 
     if (isPullRequest) {

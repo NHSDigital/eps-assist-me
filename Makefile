@@ -49,6 +49,7 @@ test:
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/preprocessingFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
+	cd packages/bedrockLoggingConfigFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
 clean:
 	rm -rf packages/cdk/coverage
@@ -66,6 +67,7 @@ clean:
 
 deep-clean: clean
 	rm -rf .venv
+	rm -rf .poetry
 	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
 
 check-licenses: check-licenses-node check-licenses-python
@@ -105,6 +107,7 @@ cdk-synth:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .dependencies/preprocessingFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam \
 	COMMIT_ID=undefined \
