@@ -36,13 +36,13 @@ export class StorageNotificationQueue extends Construct {
       resources: ["*"],
       conditions: {
         ArnLike: {
-          "aws:SourceArn": props.storage.kbDocsBucket.bucket.bucketArn
+          "aws:SourceArn": props.storage.kbDocsBucket.bucketArn
         }
       }
     }))
 
     // Add trigger for SQS queue to Lambda function
-    props.storage.kbDocsBucket.bucket.addEventNotification(
+    props.storage.kbDocsBucket.addEventNotification(
       EventType.OBJECT_CREATED,
       new SqsDestination(queue.queue)
     )
