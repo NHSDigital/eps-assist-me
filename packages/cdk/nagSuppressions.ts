@@ -134,6 +134,22 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress wildcard permissions for Preprocessing policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/RuntimePolicies/PreprocessingPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Preprocessing Lambda needs wildcard permissions to read/write any file in raw/ and processed/ prefixes.",
+        appliesTo: [
+          "Resource::<StorageDocsBucket*.Arn>/processed/*",
+          "Resource::<StorageDocsBucket*.Arn>/raw/*"
+        ]
+      }
+    ]
+  )
+
   // Suppress secrets without rotation
   safeAddNagSuppressionGroup(
     stack,
@@ -387,8 +403,9 @@ export const nagSuppressions = (stack: Stack, account: string) => {
           "Action::s3:DeleteObject*",
           "Action::kms:GenerateDataKey*",
           "Action::kms:ReEncrypt*",
-          "Resource::arn:aws:s3:::cdk-hnb659fds-assets-591291862413-eu-west-2/*",
-          "Resource::<StorageDocsBucketepsampr221Docs1E745B36.Arn>/*"
+          "Resource::arn:aws:s3:::cdk-hnb659fds-assets-<AWS::AccountId>-eu-west-2/*",
+          `Resource::arn:aws:s3:::cdk-hnb659fds-assets-${account}-eu-west-2/*`,
+          "Resource::<StorageDocsBucket*.Arn>/*"
         ]
       }
     ]
