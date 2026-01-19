@@ -111,7 +111,8 @@ export class Functions extends Construct {
       environmentVariables: {
         "DOCS_BUCKET_NAME": props.docsBucketName,
         "RAW_PREFIX": "raw/",
-        "PROCESSED_PREFIX": "processed/"
+        "PROCESSED_PREFIX": "processed/",
+        "AWS_ACCOUNT_ID": props.account
       },
       additionalPolicies: [props.preprocessingManagedPolicy]
     })

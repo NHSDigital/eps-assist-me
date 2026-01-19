@@ -11,6 +11,7 @@ def mock_env():
         "RAW_PREFIX": "raw/",
         "PROCESSED_PREFIX": "processed/",
         "AWS_REGION": "eu-west-2",
+        "AWS_ACCOUNT_ID": "123456789012",
     }
     with patch.dict(os.environ, env_vars):
         yield env_vars
