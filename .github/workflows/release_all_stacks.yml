@@ -185,7 +185,15 @@ jobs:
           cdk-utils-build-repo:latest
         shell: bash
 
-        # TODO - add if statement
+      - name: Sync Documents
+        uses: ./.github/actions/sync_documents
+        if: ${{ inputs.DEPLOY_CODE == true && inputs.IS_PULL_REQUEST == false && inputs.TARGET_ENVIRONMENT != 'int' }}
+        with: 
+          TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+          STACK: ${{ inputs.STACK_NAME }}
+          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}__CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.TARGET_ENVIRONMENT)] }}
+
       - name: Sync Documents
         uses: ./.github/actions/sync_documents
         with: 

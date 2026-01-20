@@ -29,7 +29,7 @@ runs:
       id: find-source-bucket
       shell: bash
       working-directory: .github/scripts
-      run: ./find_s3_bucket.sh "epsam-storagedocsbucketepsamdocs"
+      run: ./find_s3_bucket.sh
 
     - name: Download all Files from Source Bucket
       shell: bash
@@ -48,11 +48,7 @@ runs:
       id: find-destination-bucket
       shell: bash
       working-directory: .github/scripts
-      run: |
-        PATTERN="${{ inputs.STACK != '' && format('{0}-storagedocsbucketepsamdocs', inputs.STACK) || 'epsam-storagedocsbucketepsamdocs' }}"
-
-        echo "Searching for bucket with pattern: $PATTERN"
-        ./find_s3_bucket.sh "$PATTERN"
+      run: ./find_s3_bucket.sh
 
     - name: Check Discrepancies
       id: compare
