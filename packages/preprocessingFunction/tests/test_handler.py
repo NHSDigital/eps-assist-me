@@ -246,6 +246,147 @@ class TestConverter:
         assert is_supported_format(".txt") is True
         assert is_supported_format(".exe") is False
 
+    def test_remove_table_columns(self, mock_env):
+        from app.services.converter import remove_table_columns
+
+        markdown_table = """| Col1 | Col2 | Col3 | Col4 | Col5 | Col6 |
+| --- | --- | --- | --- | --- | --- |
+| A | B | C | D | E | F |"""
+
+        result = remove_table_columns(markdown_table)
+
+        # Should have 2 columns left after removing last 4
+        assert "| A | B |" in result
+        assert "Col5" not in result
+        assert "Col6" not in result
+
+    def test_filter_excel_sheets(self, mock_env):
+        from app.services.converter import filter_excel_sheets
+
+        markdown_content = """## EPS Dispensing Requirements
+Content 1
+## Other Sheet
+Content 2
+## Technical Conformance
+Content 3"""
+
+        result = filter_excel_sheets(markdown_content)
+
+        assert "EPS Dispensing Requirements" in result
+        assert "Technical Conformance" in result
+        assert "Other Sheet" not in result
+        assert "Content 1" in result
+        assert "Content 3" in result
+        assert "Content 2" not in result
+
+    def test_filter_excel_sheets_with_html_entities(self, mock_env):
+        from app.services.converter import filter_excel_sheets
+
+        markdown_content = """## EPS &amp; Dispensing Requirements
+Content"""
+
+        result = filter_excel_sheets(markdown_content)
+
+        # Should not match due to & not &amp;
+        assert result == ""
+
+    @patch("app.services.converter.MarkItDown")
+    def test_convert_document_to_markdown_success(self, mock_markitdown, mock_env):
+        from app.services.converter import convert_document_to_markdown
+        from pathlib import Path
+        import tempfile
+
+        mock_result = Mock()
+        mock_result.text_content = "# Test Document\nContent"
+        mock_markitdown.return_value.convert.return_value = mock_result
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "test.txt"
+            input_path.write_text("test")
+            output_path = Path(temp_dir) / "output.md"
+
+            result = convert_document_to_markdown(input_path, output_path)
+
+            assert result is True
+            assert output_path.exists()
+            assert "# Test Document" in output_path.read_text()
+
+    @patch("app.services.converter.MarkItDown")
+    def test_convert_document_to_markdown_excel_filtering(self, mock_markitdown, mock_env):
+        from app.services.converter import convert_document_to_markdown
+        from pathlib import Path
+        import tempfile
+
+        mock_result = Mock()
+        mock_result.text_content = """## EPS Dispensing Requirements
+| A | B | C | D | E | F |
+## Other Sheet
+Content"""
+        mock_markitdown.return_value.convert.return_value = mock_result
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "test.xlsx"
+            input_path.write_bytes(b"fake excel")
+            output_path = Path(temp_dir) / "output.md"
+
+            result = convert_document_to_markdown(input_path, output_path)
+
+            assert result is True
+            content = output_path.read_text()
+            assert "EPS Dispensing Requirements" in content
+            assert "Other Sheet" not in content
+
+    @patch("app.services.converter.MarkItDown")
+    def test_convert_document_to_markdown_unsupported_format(self, mock_markitdown, mock_env):
+        from app.services.converter import convert_document_to_markdown
+        from pathlib import Path
+        import tempfile
+
+        mock_markitdown.return_value.convert.side_effect = Exception("format not supported")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "test.xyz"
+            input_path.write_text("test")
+            output_path = Path(temp_dir) / "output.md"
+
+            result = convert_document_to_markdown(input_path, output_path)
+
+            assert result is False
+
+    @patch("app.services.converter.MarkItDown")
+    def test_convert_document_to_markdown_corrupted_file(self, mock_markitdown, mock_env):
+        from app.services.converter import convert_document_to_markdown
+        from pathlib import Path
+        import tempfile
+
+        mock_markitdown.return_value.convert.side_effect = Exception("not a zip file")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "corrupted.docx"
+            input_path.write_text("not a real docx")
+            output_path = Path(temp_dir) / "output.md"
+
+            result = convert_document_to_markdown(input_path, output_path)
+
+            assert result is False
+
+    @patch("app.services.converter.MarkItDown")
+    def test_convert_document_to_markdown_generic_error(self, mock_markitdown, mock_env):
+        from app.services.converter import convert_document_to_markdown
+        from pathlib import Path
+        import tempfile
+
+        mock_markitdown.return_value.convert.side_effect = Exception("Generic error")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / "test.pdf"
+            input_path.write_text("test")
+            output_path = Path(temp_dir) / "output.md"
+
+            result = convert_document_to_markdown(input_path, output_path)
+
+            assert result is False
+
 
 class TestS3Client:
 
