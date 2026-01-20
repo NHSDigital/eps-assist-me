@@ -8,6 +8,8 @@ export interface ApisProps {
   readonly stackName: string
   readonly logRetentionInDays: number
   functions: {[key: string]: LambdaFunction}
+  readonly forwardCsocLogs: boolean
+  readonly csocApiGatewayDestination: string
 }
 
 export class Apis extends Construct {
@@ -21,7 +23,9 @@ export class Apis extends Construct {
       stackName: props.stackName,
       logRetentionInDays: props.logRetentionInDays,
       trustStoreKey: "unused",
-      truststoreVersion: "unused"
+      truststoreVersion: "unused",
+      forwardCsocLogs: props.forwardCsocLogs,
+      csocApiGatewayDestination: props.csocApiGatewayDestination
     })
     // Create /slack resource path
     const slackResource = apiGateway.api.root.addResource("slack")
