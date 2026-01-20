@@ -27,6 +27,8 @@ export interface RestApiGatewayProps {
   readonly logRetentionInDays: number
   readonly trustStoreKey: string
   readonly truststoreVersion: string
+  readonly forwardCsocLogs: boolean
+  readonly csocApiGatewayDestination: string
 }
 
 export class RestApiGateway extends Construct {
@@ -68,6 +70,15 @@ export class RestApiGateway extends Construct {
       roleArn: splunkSubscriptionFilterRole.roleArn
 
     })
+
+    if (props.forwardCsocLogs) {
+      new CfnSubscriptionFilter(this, "ApiGatewayAccessLogsCSOCSubscriptionFilter", {
+        destinationArn: props.csocApiGatewayDestination,
+        filterPattern: "",
+        logGroupName: logGroup.logGroupName,
+        roleArn: splunkSubscriptionFilterRole.roleArn
+      })
+    }
 
     const certificate = new Certificate(this, "Certificate", {
       domainName: serviceDomainName,

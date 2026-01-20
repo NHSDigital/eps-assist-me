@@ -61,5 +61,7 @@ fix_string_key enableBedrockLogging "${ENABLE_BEDROCK_LOGGING:-false}"
 fix_string_key slackBotToken "${SLACK_BOT_TOKEN}"
 fix_string_key slackSigningSecret "${SLACK_SIGNING_SECRET}"
 fix_string_key cfnDriftDetectionGroup "${CFN_DRIFT_DETECTION_GROUP}"
+fix_string_key csocApiGatewayDestination "arn:aws:logs:eu-west-2:693466633220:destination:api_gateway_log_destination" # CSOC API GW log destination - do not change
+fix_boolean_number_key forwardCsocLogs "${FORWARD_CSOC_LOGS}"
 fix_boolean_number_key isPullRequest "${IS_PULL_REQUEST}"
 fix_boolean_number_key runRegressionTests "${RUN_REGRESSION_TESTS}"

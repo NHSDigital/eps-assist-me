@@ -51,6 +51,8 @@ export class EpsAssistMeStack extends Stack {
     const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
     const runRegressionTests: boolean = this.node.tryGetContext("runRegressionTests")
     const enableBedrockLogging: boolean = this.node.tryGetContext("enableBedrockLogging") === "true"
+    const forwardCsocLogs: boolean = this.node.tryGetContext("forwardCsocLogs")
+    const csocApiGatewayDestination: string = this.node.tryGetContext("csocApiGatewayDestination")
 
     // Get secrets from context or fail if not provided
     const slackBotToken: string = this.node.tryGetContext("slackBotToken")
@@ -221,7 +223,9 @@ export class EpsAssistMeStack extends Stack {
       logRetentionInDays,
       functions: {
         slackBot: functions.slackBotLambda
-      }
+      },
+      forwardCsocLogs,
+      csocApiGatewayDestination
     })
 
     // enable direct lambda testing — regression tests bypass slack infrastructure

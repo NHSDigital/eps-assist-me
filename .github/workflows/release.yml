@@ -69,6 +69,7 @@ jobs:
       MARK_JIRA_RELEASED: false
       CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
+      FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_DEPLOY_ROLE }}
@@ -98,6 +99,7 @@ jobs:
       MARK_JIRA_RELEASED: false
       CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
+      FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.QA_CLOUD_FORMATION_DEPLOY_ROLE }}
@@ -127,6 +129,7 @@ jobs:
       MARK_JIRA_RELEASED: false
       CREATE_INT_RC_RELEASE_NOTES: true
       IS_PULL_REQUEST: false
+      FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: false
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
@@ -156,6 +159,7 @@ jobs:
       MARK_JIRA_RELEASED: true
       CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
+      FORWARD_CSOC_LOGS: true
       RUN_REGRESSION_TESTS: false
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_DEPLOY_ROLE }}
@@ -167,4 +171,3 @@ jobs:
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
       SLACK_BOT_TOKEN: ${{ secrets.PROD_SLACK_BOT_TOKEN }}
       SLACK_SIGNING_SECRET: ${{ secrets.PROD_SLACK_SIGNING_SECRET }}
-  
