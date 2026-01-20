@@ -11,6 +11,7 @@ export interface StorageProps {
   readonly stackName: string
   readonly functions: Functions
   readonly storage: Storage
+  readonly eventType: EventType
 }
 
 export class StorageNotificationQueue extends Construct {
@@ -19,16 +20,30 @@ export class StorageNotificationQueue extends Construct {
   constructor(scope: Construct, id: string, props: StorageProps) {
     super(scope, id)
 
+    const eventTypeParts = props.eventType.toString().split(":")
+    let eventName = props.eventType.toString()
+
+    // Events follow format: s3:[service]:[method], so we can extract a friendly name
+    // If the method is "*" (any), we just use the service name
+    if (eventTypeParts.length > 1) {
+      const eventTypeService = eventTypeParts[1]
+      const eventTypeMethod = eventTypeParts[2] === "*" ? "" : `-${eventTypeParts[2]}`
+
+      eventName = `${eventTypeService}${eventTypeMethod}`
+    }
+
+    const queueName = `${props.stackName}-S3-${eventName}-SQS`
+
     // Add Queue to notify S3 updates
-    const queue = new SimpleQueueService(this, "S3UpdateQueue", {
+    const queue = new SimpleQueueService(this, queueName, {
       stackName: props.stackName,
-      queueName: "S3UpdateQueue",
+      queueName: queueName,
       deliveryDelay: 60, // Add a 1 minute debounce delay
       lambdaFunction: props.functions.notifyS3UploadFunction.function
     })
 
     // Subscribe to S3 bucket events to send notifications to the SQS queue
-    queue.kmsKey.addAlias(`alias/${queue.queue.queueName}-s3-key`)
+    queue.kmsKey.addAlias(`alias/${queueName}-key`)
     queue.kmsKey.addToResourcePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
       principals: [new ServicePrincipal("s3.amazonaws.com")],
@@ -43,7 +58,7 @@ export class StorageNotificationQueue extends Construct {
 
     // Add trigger for SQS queue to Lambda function
     props.storage.kbDocsBucket.addEventNotification(
-      EventType.OBJECT_CREATED,
+      props.eventType,
       new SqsDestination(queue.queue)
     )
   }

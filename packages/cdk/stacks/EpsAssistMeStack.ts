@@ -22,7 +22,7 @@ import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {StorageNotificationQueue} from "../resources/StorageNotificationQueue"
 import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
-import {Bucket} from "aws-cdk-lib/aws-s3"
+import {Bucket, EventType} from "aws-cdk-lib/aws-s3"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -198,7 +198,8 @@ export class EpsAssistMeStack extends Stack {
     new StorageNotificationQueue(this, "StorageNotificationQueue", {
       stackName: props.stackName,
       functions,
-      storage
+      storage,
+      eventType: EventType.OBJECT_CREATED
     })
 
     // Create Apis and pass the Lambda function
