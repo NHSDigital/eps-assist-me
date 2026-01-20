@@ -22,13 +22,15 @@ runs:
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
       with:
         aws-region: eu-west-2
-        role-to-assume: ${{ inputs.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+        role-to-assume: ${{ inputs.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
         role-session-name: epsam-document-sync-source
 
     - name: Find Source Bucket by Partial Name
       id: find-source-bucket
       shell: bash
       working-directory: .github/scripts
+      env:
+        STACK: "epsam"
       run: ./find_s3_bucket.sh
 
     - name: Download all Files from Source Bucket
@@ -41,13 +43,15 @@ runs:
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
       with:
         aws-region: eu-west-2
-        role-to-assume: ${{ inputs.TARGET_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+        role-to-assume: ${{ inputs.TARGET_CLOUD_FORMATION_DEPLOY_ROLE }}
         role-session-name: epsam-document-sync-target
 
     - name: Find Destination Bucket by Partial Name
       id: find-destination-bucket
       shell: bash
       working-directory: .github/scripts
+      env:
+        STACK: ${{ inputs.STACK }}
       run: ./find_s3_bucket.sh
 
     - name: Check Discrepancies

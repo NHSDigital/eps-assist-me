@@ -185,22 +185,23 @@ jobs:
           cdk-utils-build-repo:latest
         shell: bash
 
-      - name: Sync Documents
-        uses: ./.github/actions/sync_documents
-        if: ${{ inputs.DEPLOY_CODE == true && inputs.IS_PULL_REQUEST == false && inputs.TARGET_ENVIRONMENT != 'int' }}
-        with: 
+      - name: Normalize Environment Name
+        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        run: |
+          # Convert TARGET_ENVIRONMENT to Uppercase (e.g., 'prod' -> 'PROD')
+          VAL=$(echo "$TARGET_ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
+          echo "UPPER_TARGET_ENVIRONMENT=$VAL" >> "$GITHUB_OUTPUT"
+        env:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
-          STACK: ${{ inputs.STACK_NAME }}
-          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}__CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.TARGET_ENVIRONMENT)] }}
 
       - name: Sync Documents
         uses: ./.github/actions/sync_documents
+        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
         with: 
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
           INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}__CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.TARGET_ENVIRONMENT)] }}
+          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.UPPER_TARGET_ENVIRONMENT)] }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira
