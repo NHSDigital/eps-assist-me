@@ -58,14 +58,22 @@ runs:
       id: compare
       shell: bash
       run: |
+        printf "\n"
         echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
         DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --dryrun)
 
         if [ -z "$DIFFS" ]; then
-          echo "No discrepancies found."
+          echo -e "\033[0;32m✔ NO DISCREPANCIES FOUND.\033[0m"
         else
-          echo "::warning title=Discrepancy Found in ${{ inputs.TARGET_ENVIRONMENT }}::$DIFFS"
+          echo -e "\033[0;33m⚠ WARNING: DISCREPANCIES FOUND:" 
+
+          echo "$DIFFS" 
+          echo "--------------------------------------------------\033[0m"
+
+          CLEAN_DIFFS="${DIFFS//$'\n'/'%0A'}"
+          echo "::warning title=Discrepancy Found in ${{ inputs.TARGET_ENVIRONMENT }}::$CLEAN_DIFFS"
         fi
+        printf "\n"
 
     - name: Upload Files to Target S3
       shell: bash
