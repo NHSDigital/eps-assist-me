@@ -45,6 +45,9 @@ on:
       IS_PULL_REQUEST:
         type: boolean
         default: false
+      FORWARD_CSOC_LOGS:
+        type: boolean
+        required: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE:
         required: true
@@ -152,6 +155,7 @@ jobs:
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_APP_NAME: ${{ inputs.CDK_APP_NAME }}
+          FORWARD_CSOC_LOGS: ${{ inputs.FORWARD_CSOC_LOGS }}
           IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
           RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
 

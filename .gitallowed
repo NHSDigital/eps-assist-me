@@ -8,6 +8,7 @@ self.token = token
 --token="\$GITHUB-TOKEN"
 "accountId": "123456789012"
 accountId: "123456789012"
+"AWS_ACCOUNT_ID": "123456789012"
 console\.log\(`access token : \${access_token}`\)
 .*CidrBlock.*
 .*Gemfile\.lock.*
