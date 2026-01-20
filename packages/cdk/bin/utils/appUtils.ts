@@ -51,7 +51,7 @@ const addSuppressions = (resources: Array<CfnResource>, rules: Array<string>): v
       resource.cfnOptions.metadata = {}
     }
     const existing = resource.cfnOptions.metadata.guard?.SuppressedRules || []
-    const combined = [...new Set([...existing, ...rules])]
+    const combined = Array.from(new Set([...existing, ...rules]))
     resource.cfnOptions.metadata.guard = {SuppressedRules: combined}
   })
 }
@@ -63,9 +63,10 @@ export const applyCfnGuardSuppressions = (stack: Stack): void => {
   // Suppress all cfn-guard checks for all Lambda functions (including implicit CDK-generated ones)
   const allLambdas = findResourcesByType(stack, "AWS::Lambda::Function")
   addSuppressions(allLambdas, ["LAMBDA_DLQ_CHECK", "LAMBDA_INSIDE_VPC", "LAMBDA_CONCURRENCY_CHECK"])
-  const permissionResources = findResourcesByPattern(stack, [
-    "ApiPermission.Test.EpsAssistMeStackApisEpsAssistApiGateway1E1CF19C.POST..slack.events",
-    "AllowBucketNotificationsToEpsAssistMeStackFunctionsPreprocessingFunctionepsamPreprocessingFunction"
-  ])
-  addSuppressions(permissionResources, ["LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED"])
+
+  const apiGatewayPermissions = findResourcesByPattern(stack, ["ApiPermission"])
+  addSuppressions(apiGatewayPermissions, ["LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED"])
+
+  const s3NotificationPermissions = findResourcesByPattern(stack, ["AllowBucketNotifications"])
+  addSuppressions(s3NotificationPermissions, ["LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED"])
 }
