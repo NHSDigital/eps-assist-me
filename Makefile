@@ -127,6 +127,7 @@ cdk-synth-non-pr:
 cdk-synth-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/notifyS3UploadFunction
 	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam-pr-123 \
