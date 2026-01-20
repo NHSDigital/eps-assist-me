@@ -37,7 +37,7 @@ jobs:
           asdf_version: ${{ steps.asdf-version.outputs.version }}
 
       - name: Cache asdf
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7
         with:
           path: |
             ~/.asdf
@@ -68,6 +68,7 @@ jobs:
         run: |
           poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_slackBotFunction
           poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_syncKnowledgeBaseFunction
+          poetry show --only=bedrockLoggingConfigFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_bedrockLoggingConfigFunction
           if [ ! -s requirements_slackBotFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_slackBotFunction)" -eq 0 ]; then \
             echo "Error: requirements_slackBotFunction is empty or contains only blank lines"; \
             exit 1; \
@@ -76,10 +77,16 @@ jobs:
             echo "Error: requirements_syncKnowledgeBaseFunction is empty or contains only blank lines"; \
             exit 1; \
           fi
+          if [ ! -s requirements_bedrockLoggingConfigFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_bedrockLoggingConfigFunction)" -eq 0 ]; then \
+            echo "Error: requirements_bedrockLoggingConfigFunction is empty or contains only blank lines"; \
+            exit 1; \
+          fi
           mkdir -p .dependencies/slackBotFunction/python
           mkdir -p .dependencies/syncKnowledgeBaseFunction/python
+          mkdir -p .dependencies/bedrockLoggingConfigFunction/python
           pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
           pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
+          pip3 install -r requirements_bedrockLoggingConfigFunction -t .dependencies/bedrockLoggingConfigFunction/python
 
       - name: "Tar files"
         run: |

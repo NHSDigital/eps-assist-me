@@ -8,9 +8,9 @@ def mock_logger():
     return MagicMock()
 
 
-@patch("app.utils.handler_utils.forward_event_to_pull_request_lambda")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
 def test_process_async_slack_event_feedback(
-    mock_forward_event_to_pull_request_lambda: Mock,
+    mock_forward_to_pull_request_lambda: Mock,
     mock_get_parameter: Mock,
     mock_env: Mock,
 ):
@@ -34,7 +34,7 @@ def test_process_async_slack_event_feedback(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_event_to_pull_request_lambda.assert_not_called()
+        mock_forward_to_pull_request_lambda.assert_not_called()
         mock_process_feedback_event.assert_called_once_with(
             message_text="feedback: this is some feedback",
             conversation_key="thread#C789#1234567890.123",
@@ -134,7 +134,10 @@ def test_process_async_slack_action_negative(
         )
         mock_client.chat_postMessage.assert_called_once_with(
             channel="C123",
-            text='Please let us know how the answer could be improved. Start your message with "feedback:"',
+            text=(
+                "Please let us know how the answer could be improved. Do not enter any personal data.\n"
+                + 'Start your message with "feedback:"'
+            ),
             thread_ts="1759845114.407989",
         )
 

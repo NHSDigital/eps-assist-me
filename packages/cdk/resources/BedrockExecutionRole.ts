@@ -6,6 +6,7 @@ import {
   ManagedPolicy
 } from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
+import {Key} from "aws-cdk-lib/aws-kms"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -14,6 +15,7 @@ export interface BedrockExecutionRoleProps {
   readonly region: string
   readonly account: string
   readonly kbDocsBucket: Bucket
+   readonly kbDocsKmsKey: Key
 }
 
 export class BedrockExecutionRole extends Construct {
@@ -63,20 +65,44 @@ export class BedrockExecutionRole extends Construct {
     // KMS permissions for S3 bucket encryption
     const kmsAccessPolicy = new PolicyStatement({
       actions: ["kms:Decrypt", "kms:DescribeKey"],
-      resources: ["*"],
+      resources: [props.kbDocsKmsKey.keyArn],
       conditions: {"StringEquals": {"aws:ResourceAccount": props.account}}
+    })
+
+    // CloudWatch Logs delivery permissions for Knowledge Base logging
+    const logsDeliveryPolicy = new PolicyStatement({
+      actions: ["logs:CreateDelivery"],
+      resources: [
+        `arn:aws:logs:${props.region}:${props.account}:delivery-source:*`,
+        `arn:aws:logs:${props.region}:${props.account}:delivery:*`,
+        `arn:aws:logs:${props.region}:${props.account}:delivery-destination:*`
+      ]
+    })
+
+    // Permission for Bedrock to allow vended log delivery
+    const allowVendedLogDeliveryPolicy = new PolicyStatement({
+      actions: ["bedrock:AllowVendedLogDeliveryForResource"],
+      resources: [`arn:aws:bedrock:${props.region}:${props.account}:knowledge-base/*`]
     })
 
     // Create managed policy for Bedrock execution role
     const bedrockExecutionManagedPolicy = new ManagedPolicy(this, "Policy", {
-      description: "Policy for Bedrock Knowledge Base to access S3 and OpenSearch",
+      description: "Policy for Bedrock Knowledge Base to access S3, OpenSearch, and CloudWatch Logs",
       statements: [
         bedrockExecutionRolePolicy,
         bedrockKBDeleteRolePolicy,
         bedrockOSSPolicyForKnowledgeBase,
         s3AccessListPolicy,
-        s3AccessGetPolicy,
-        kmsAccessPolicy
+        kmsAccessPolicy,
+        logsDeliveryPolicy,
+        allowVendedLogDeliveryPolicy
+      ]
+    })
+    // Create managed policy for Bedrock execution role
+    const bedrockExecutionWildcardManagedPolicy = new ManagedPolicy(this, "WildcardPolicy", {
+      description: "Policy for Bedrock Knowledge Base to access S3 objects with wildcard",
+      statements: [
+        s3AccessGetPolicy
       ]
     })
 
@@ -84,7 +110,7 @@ export class BedrockExecutionRole extends Construct {
     this.role = new Role(this, "Role", {
       assumedBy: new ServicePrincipal("bedrock.amazonaws.com"),
       description: "Role for Bedrock Knowledge Base to access S3 and OpenSearch",
-      managedPolicies: [bedrockExecutionManagedPolicy]
+      managedPolicies: [bedrockExecutionManagedPolicy, bedrockExecutionWildcardManagedPolicy]
     })
   }
 }

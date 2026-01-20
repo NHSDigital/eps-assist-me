@@ -71,10 +71,6 @@ export class Functions extends Construct {
       }
     })
 
-    // Grant secrets access to SlackBot Lambda
-    props.slackBotTokenSecret.grantRead(slackBotLambda.function)
-    props.slackBotSigningSecret.grantRead(slackBotLambda.function)
-
     // pr environments need main bot to invoke pr-specific lambda
     if (props.isPullRequest) {
       const mainSlackBotLambdaExecutionRole = Role.fromRoleArn(

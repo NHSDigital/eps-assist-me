@@ -1,0 +1,36 @@
+{
+  "body": {
+    "token": "QxKSL5PxaCmAd9hhII4pIbCe",
+    "team_id": "TRK2Y2T1U",
+    "team_domain": "nhsdigital-platforms",
+    "channel_id": "D0A0BQDBCA0",
+    "channel_name": "directmessage",
+    "user_id": "U09TSP13P9P",
+    "user_name": "kieran.wilkinson4",
+    "command": "/test",
+    "text": "pr: 261",
+    "api_app_id": "A09FAPJQUG7",
+    "is_enterprise_install": "false",
+    "enterprise_id": "E02KFHR77DL",
+    "enterprise_name": "NHS England",
+    "response_url": "https://hooks.slack.com/commands/TRK2Y2T1U/10233876396961/KLkYSgUizMbBlRyUal0ZW5cc",
+    "trigger_id": "10224545323140.869100095062.9f251bf0cd683d4306291c2547a77e0f"
+  },
+  "command": {
+    "token": "QxKSL5PxaCmAd9hhII4pIbCe",
+    "team_id": "TRK2Y2T1U",
+    "team_domain": "nhsdigital-platforms",
+    "channel_id": "D0A0BQDBCA0",
+    "channel_name": "directmessage",
+    "user_id": "U09TSP13P9P",
+    "user_name": "kieran.wilkinson4",
+    "command": "/test",
+    "text": "pr: 261",
+    "api_app_id": "A09FAPJQUG7",
+    "is_enterprise_install": "false",
+    "enterprise_id": "E02KFHR77DL",
+    "enterprise_name": "NHS England",
+    "response_url": "https://hooks.slack.com/commands/TRK2Y2T1U/10233876396961/KLkYSgUizMbBlRyUal0ZW5cc",
+    "trigger_id": "10224545323140.869100095062.9f251bf0cd683d4306291c2547a77e0f"
+  }
+}

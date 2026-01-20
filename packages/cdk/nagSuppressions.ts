@@ -3,8 +3,7 @@
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
-export const nagSuppressions = (stack: Stack) => {
-  const stackName = stack.node.tryGetContext("stackName") || "epsam"
+export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress granular wildcard on log stream for SlackBot Lambda
   safeAddNagSuppression(
     stack,
@@ -48,7 +47,7 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-APIG4",
-        reason: "Slack command endpoint is intentionally unauthenticated."
+        reason: "Slack event endpoint is intentionally unauthenticated."
       },
       {
         id: "AwsSolutions-COG4",
@@ -76,7 +75,30 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection."
+        reason: "Bedrock Knowledge Base requires these permissions to access S3 documents and OpenSearch collection.",
+        appliesTo: [
+          "Action::bedrock:Delete*",
+          "Resource::arn:aws:bedrock:eu-west-2:<AWS::AccountId>:knowledge-base/*",
+          "Resource::arn:aws:aoss:eu-west-2:<AWS::AccountId>:collection/*",
+          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery-destination:*",
+          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery-source:*",
+          "Resource::arn:aws:logs:eu-west-2:<AWS::AccountId>:delivery:*",
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`,
+          `Resource::arn:aws:aoss:eu-west-2:${account}:collection/*`,
+          `Resource::arn:aws:logs:eu-west-2:${account}:delivery-destination:*`,
+          `Resource::arn:aws:logs:eu-west-2:${account}:delivery-source:*`,
+          `Resource::arn:aws:logs:eu-west-2:${account}:delivery:*`
+        ]
+      }
+    ]
+  )
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockExecutionRole/WildcardPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Bedrock Knowledge Base requires these wildcard permissions to access S3 documents and OpenSearch collection."
       }
     ]
   )
@@ -88,19 +110,14 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation."
-      }
-    ]
-  )
-
-  // Suppress S3 server access logs for knowledge base documents bucket
-  safeAddNagSuppression(
-    stack,
-    `/EpsAssistMeStack/Storage/DocsBucket/${stackName}-Docs/Resource`,
-    [
-      {
-        id: "AwsSolutions-S1",
-        reason: "Server access logging not required for knowledge base documents bucket."
+        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation.",
+        appliesTo: [
+          "Resource::arn:aws:lambda:eu-west-2:<AWS::AccountId>:function:epsam*",
+          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam-pr-*",
+          `Resource::arn:aws:lambda:eu-west-2:${account}:function:epsam*`,
+          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam-pr-*`,
+          "Resource::arn:aws:bedrock:*"
+        ]
       }
     ]
   )
@@ -120,17 +137,6 @@ export const nagSuppressions = (stack: Stack) => {
     ]
   )
 
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource",
-    [
-      {
-        id: "AwsSolutions-SMG4",
-        reason: "Slack signing secret rotation is handled manually as part of the Slack app configuration process."
-      }
-    ]
-  )
-
   // Suppress AWS managed policy usage in BucketNotificationsHandler (wildcard for any hash)
   const bucketNotificationHandlers = stack.node.findAll().filter(node =>
     node.node.id.startsWith("BucketNotificationsHandler")
@@ -143,47 +149,8 @@ export const nagSuppressions = (stack: Stack) => {
       [
         {
           id: "AwsSolutions-IAM4",
-          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution."
-        }
-      ]
-    )
-
-    safeAddNagSuppression(
-      stack,
-      `${handler.node.path}/Role/DefaultPolicy/Resource`,
-      [
-        {
-          id: "AwsSolutions-IAM5",
-          reason: "Auto-generated CDK role requires wildcard permissions for S3 bucket notifications."
-        }
-      ]
-    )
-  })
-
-  const logRetentionHandlers = stack.node.findAll().filter(node =>
-    node.node.id.startsWith("LogRetention") &&
-    !node.node.path.includes("DelayProvider")
-  )
-
-  logRetentionHandlers.forEach(handler => {
-    safeAddNagSuppression(
-      stack,
-      `${handler.node.path}/ServiceRole/Resource`,
-      [
-        {
-          id: "AwsSolutions-IAM4",
-          reason: "Auto-generated CDK log retention role uses AWS managed policy for basic Lambda execution."
-        }
-      ]
-    )
-
-    safeAddNagSuppression(
-      stack,
-      `${handler.node.path}/ServiceRole/DefaultPolicy/Resource`,
-      [
-        {
-          id: "AwsSolutions-IAM5",
-          reason: "Auto-generated CDK log retention role requires wildcard permissions for log management."
+          reason: "Auto-generated CDK role uses AWS managed policy for basic Lambda execution.",
+          appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
         }
       ]
     )
@@ -196,7 +163,8 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role."
+        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -207,7 +175,8 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role."
+        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -219,7 +188,8 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -230,7 +200,8 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
+        appliesTo: ["Resource::<VectorIndexPolicySyncWaitDelayFunctionBDE3D308.Arn>:*"]
       }
     ]
   )
@@ -241,7 +212,8 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution."
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
       }
     ]
   )
@@ -252,7 +224,8 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
+        appliesTo: ["Resource::<VectorIndexIndexReadyWaitDelayFunction56EB971B.Arn>:*"]
       }
     ]
   )
@@ -286,7 +259,11 @@ export const nagSuppressions = (stack: Stack) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for cloudformation stack listing."
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for cloudformation stack listing.",
+        appliesTo: [
+          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam*",
+          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`
+        ]
       }
     ]
   )
@@ -307,6 +284,86 @@ export const nagSuppressions = (stack: Stack) => {
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "OnEvent uses Node22.x which is the latest stable runtime available for the onEvent functionality."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging KMS wildcard permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "KMS wildcard permissions (GenerateDataKey*, ReEncrypt*) are required for CloudWatch Logs encryption operations.",
+        appliesTo: [
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*",
+          "Resource::<BedrockLoggingModelInvocationLogGroupC58FAE2D.Arn>:*"
+        ]
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Lambda wildcard permissions for Bedrock API
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingConfigPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Bedrock logging configuration API requires wildcard resource permissions as it's account-level configuration."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Lambda log group and put logs permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework role using AWS managed policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
+        appliesTo: [
+          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ]
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework wildcard permissions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework runtime version
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/Resource",
     [
       {
         id: "AwsSolutions-L1",
