@@ -17,6 +17,7 @@
 			"path": "../packages/syncKnowledgeBaseFunction"
 		},
 		{
+			"name": "packages/notifyS3UploadFunction",
 			"path": "../packages/notifyS3UploadFunction"
 		}
 	],
