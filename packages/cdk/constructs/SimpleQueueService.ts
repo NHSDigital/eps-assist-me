@@ -21,7 +21,7 @@ export class SimpleQueueService extends Construct {
   constructor(scope: Construct, id: string, props: SimpleQueueServiceProps) {
     super(scope, id)
 
-    const name = `${props.stackName}-${props.queueName}`
+    const name = `${props.stackName}-${props.queueName}`.toLocaleLowerCase()
 
     const kmsKey = new Key(this, `${name}-queue-key`, {
       enableKeyRotation: true,

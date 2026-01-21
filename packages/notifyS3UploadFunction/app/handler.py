@@ -2,19 +2,15 @@
 Lambda handler for notifying Slack channels of S3 uploads
 """
 
-from app.core.config import get_logger, get_ssm_params
+from app.core.config import SLACK_BOT_TOKEN_PARAMETER, logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 import json
 import urllib.request
 
 
-logger = get_logger()
-
-
 def get_bot_channels(slack_token):
     """
     Fetches all public and private channels the bot is a member of.
-    Handles pagination for bots in >100 channels.
     """
     url = "https://slack.com/api/users.conversations"
     channel_ids = []
@@ -81,10 +77,9 @@ def handler(event: dict, context: LambdaContext) -> dict:
     Parses the records, deduplicates file uploads, constructs a summary message,
     and broadcasts it to all Slack channels the bot is a member of.
     """
-    bot_token = get_ssm_params()
     default_error = {"status": "false", "processed_files": 0, "channels_notified": 0}
 
-    if not bot_token:
+    if not SLACK_BOT_TOKEN_PARAMETER:
         logger.error("SLACK_BOT_TOKEN_PARAMETER environment variable is missing.")
         return default_error
 
@@ -124,7 +119,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
 
     # Get Channels where the Bot is a member
     logger.info("Find bot channels...")
-    target_channels = get_bot_channels(bot_token)
+    target_channels = get_bot_channels(SLACK_BOT_TOKEN_PARAMETER)
 
     if not target_channels:
         logger.warning("Bot is not in any channels. No messages sent.")
@@ -134,7 +129,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
     logger.info(f"Broadcasting to {len(target_channels)} channels...")
 
     for channel_id in target_channels:
-        if post_message(bot_token, channel_id, blocks, "S3 Update Detected"):
+        if post_message(SLACK_BOT_TOKEN_PARAMETER, channel_id, blocks, "S3 Update Detected"):
             success_count += 1
 
     logger.info(f"Broadcast complete. Success: {success_count}/{len(target_channels)}")
