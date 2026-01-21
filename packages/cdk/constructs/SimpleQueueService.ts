@@ -4,6 +4,7 @@ import {Queue, QueueEncryption} from "aws-cdk-lib/aws-sqs"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {SqsEventSource} from "aws-cdk-lib/aws-lambda-event-sources"
 import {Functions} from "../resources/Functions"
+
 export interface SimpleQueueServiceProps {
   readonly stackName: string
   readonly queueName: string

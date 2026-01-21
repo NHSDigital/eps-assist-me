@@ -7,16 +7,16 @@ import {Effect, PolicyStatement, ServicePrincipal} from "aws-cdk-lib/aws-iam"
 import {EventType} from "aws-cdk-lib/aws-s3"
 import {SqsDestination} from "aws-cdk-lib/aws-s3-notifications"
 
-export interface StorageProps {
+export interface S3LambdaNotificationProps {
   readonly stackName: string
   readonly functions: Functions
   readonly storage: Storage
 }
 
-export class StorageNotificationQueue extends Construct {
+export class S3LambdaNotification extends Construct {
   public readonly kbDocsBucket: S3Bucket
 
-  constructor(scope: Construct, id: string, props: StorageProps) {
+  constructor(scope: Construct, id: string, props: S3LambdaNotificationProps) {
     super(scope, id)
 
     const queueName = `${props.stackName}-S3-SQS`
@@ -26,7 +26,7 @@ export class StorageNotificationQueue extends Construct {
       stackName: props.stackName,
       queueName: queueName,
       deliveryDelay: 60, // Add a 1 minute debounce delay
-      fuctions: props.functions
+      functions: props.functions
     })
 
     // Subscribe to S3 bucket events to send notifications to the SQS queue
