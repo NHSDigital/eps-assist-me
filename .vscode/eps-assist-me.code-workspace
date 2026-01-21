@@ -107,7 +107,10 @@
 		"jest.nodeEnv": {
 			"POWERTOOLS_DEV": true
 		},
-		"python.defaultInterpreterPath": "/workspaces/eps-assist-me/.venv/bin/python"
+		"python.defaultInterpreterPath": "/workspaces/eps-assist-me/.venv/bin/python",
+		"python.pyrefly.displayTypeErrors": "default",
+		"python.pyrefly.disableLanguageServices": false,
+		"python.analysis.showHoverGoToLinks": true
 	},
 	"extensions": {
 		"recommendations": [
@@ -115,6 +118,7 @@
 			"redhat.vscode-yaml",
 			"ms-python.python",
 			"ms-python.flake8",
+			"meta.pyrefly",
 			"eamodio.gitlens",
 			"github.vscode-pull-request-github",
 			"orta.vscode-jest",

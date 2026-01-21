@@ -10,6 +10,8 @@ import time
 import traceback
 import boto3
 from botocore.exceptions import ClientError
+
+# pyrefly: ignore [missing-import]
 from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID, SUPPORTED_FILE_TYPES, logger
 
 

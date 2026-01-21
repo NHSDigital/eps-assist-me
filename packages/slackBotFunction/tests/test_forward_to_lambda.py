@@ -175,6 +175,7 @@ def test_forward_action_to_pull_request_lambda_processing_error(
                 pull_request_id="123",
                 body=mock_body,
                 type="action",
+                # pyrefly: ignore [bad-argument-type]
                 event=None,
                 event_id="",
                 store_pull_request_id=False,
@@ -212,7 +213,14 @@ def test_forward_action_to_pull_request_lambda(
 
     with patch("app.utils.handler_utils.get_pull_request_lambda_arn", return_value="output_SlackBotLambdaArn"):
         forward_to_pull_request_lambda(
-            pull_request_id="123", body=mock_body, type="action", event=None, event_id="", store_pull_request_id=False
+            # pyrefly: ignore [bad-argument-type]
+            pull_request_id="123",
+            body=mock_body,
+            type="action",
+            # pyrefly: ignore [bad-argument-type]
+            event=None,
+            event_id="",
+            store_pull_request_id=False,
         )
 
         # assertions

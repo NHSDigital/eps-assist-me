@@ -273,8 +273,11 @@ def test_handle_direct_invocation_success(
 
     # verify response structure and ai service integration
     assert result["statusCode"] == 200
+    # pyrefly: ignore [bad-typed-dict-key]
     assert result["response"]["text"] == "Authentication requires OAuth 2.0..."
+    # pyrefly: ignore [bad-typed-dict-key]
     assert result["response"]["session_id"] == "new-session-456"
+    # pyrefly: ignore [bad-typed-dict-key]
     assert len(result["response"]["citations"]) == 1
     assert "timestamp" in result["response"]
     mock_process_ai_query.assert_called_once_with("How do I authenticate with EPS API?", None)
@@ -297,6 +300,7 @@ def test_handle_direct_invocation_missing_query(
 
     # verify validation error with proper http status
     assert result["statusCode"] == 400
+    # pyrefly: ignore [bad-typed-dict-key]
     assert "Missing required field: query" in result["response"]["error"]
     assert "timestamp" in result["response"]
 
@@ -323,5 +327,6 @@ def test_handle_direct_invocation_processing_error(
 
     # verify 500 error with generic message - no internal details leaked
     assert result["statusCode"] == 500
+    # pyrefly: ignore [bad-typed-dict-key]
     assert result["response"]["error"] == "Internal server error"
     assert "timestamp" in result["response"]

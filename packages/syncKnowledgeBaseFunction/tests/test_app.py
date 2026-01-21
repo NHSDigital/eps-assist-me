@@ -253,6 +253,7 @@ def test_handler_empty_records(mock_env, lambda_context):
 )
 def test_is_supported_file_type(filename, expected):
     """Test file type allowlist validation"""
+    # pyrefly: ignore [missing-module-attribute]
     from app.handler import is_supported_file_type
 
     assert is_supported_file_type(filename) is expected

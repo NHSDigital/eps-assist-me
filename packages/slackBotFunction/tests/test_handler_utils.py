@@ -482,6 +482,7 @@ def test_should_reply_to_message_channel_thread_no_client(mock_env: Mock):
     from app.utils.handler_utils import should_reply_to_message
 
     event = {"channel_type": "channel", "type": "message", "channel": "C123", "thread_ts": "1234567890.123456"}
+    # pyrefly: ignore [bad-argument-type]
     result = should_reply_to_message(event, None)
 
     assert result is True
