@@ -79,11 +79,17 @@ runs:
         fi
         printf "\n"
 
-    - name: Clear Target Environment (TEST)
+    - name: Clear Target Environment
       shell: bash
       run: |
-        echo "Purging s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
-        aws s3 rm s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --recursive
+        if [ "$PURGE_ENVIRONMENT" == "true" ]; then
+          echo "Purging s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
+          aws s3 rm s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --recursive
+        else
+          echo "Purge disabled. Skipping deletion of files in target bucket."
+          exit 0
+        fi
+        printf "\n"
 
     - name: Upload Files to Target S3
       shell: bash
