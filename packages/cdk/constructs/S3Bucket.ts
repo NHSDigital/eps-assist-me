@@ -65,7 +65,9 @@ export class S3Bucket extends Construct {
         "s3:PutObjectLegalHold",
         "s3:PutObjectRetention",
         "s3:PutObjectTagging",
-        "s3:PutObjectVersionTagging"
+        "s3:PutObjectVersionTagging",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion"
       ],
       resources: [
         bucket.bucketArn,

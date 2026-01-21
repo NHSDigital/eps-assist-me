@@ -207,7 +207,7 @@ jobs:
           STACK: ${{ inputs.STACK_NAME }}
           INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
           TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.UPPER_TARGET_ENVIRONMENT)] }}
-          PURGE_ENVIRONMENT: true # Set to true to test in PR environment - replace with "inputs.TARGET_ENVIRONMENT == 'prod'"
+          PURGE_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT == 'prod' }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira
