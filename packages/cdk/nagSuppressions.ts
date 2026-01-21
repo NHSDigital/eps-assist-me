@@ -31,7 +31,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress wildcard log permissions for NotifyS3UploadFunction Lambda
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Functions/notifyS3UploadFunction/LambdaPutLogsManagedPolicy/Resource",
+    "/EpsAssistMeStack/Functions/NotifyS3UploadFunction/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
