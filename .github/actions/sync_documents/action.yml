@@ -14,6 +14,10 @@ inputs:
   TARGET_CLOUD_FORMATION_DEPLOY_ROLE:
     required: true
     description: "The role to assume for the target account"
+  PURGE_ENVIRONMENT:
+    required: false
+    description: "Whether to remove all existing files in the target environment before syncing (true/false)"
+    default: "false"
 
 runs:
   using: "composite"
@@ -74,6 +78,13 @@ runs:
           echo "::warning title=Discrepancy Found in ${{ inputs.TARGET_ENVIRONMENT }}::$CLEAN_DIFFS"
         fi
         printf "\n"
+
+    - name: Clear Target Environment
+      if: ${{ inputs.CLEAR_ENVIRONMENT == 'true' }}
+      shell: bash
+      run: |
+        echo "Clearing s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
+        aws s3 rm s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --recursive
 
     - name: Upload Files to Target S3
       shell: bash
