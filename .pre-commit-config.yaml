@@ -28,6 +28,11 @@ repos:
         language_version: python3
         args: [--line-length=120]
 
+  # - repo: https://github.com/facebook/pyrefly-pre-commit
+  #   rev: v0.49.0
+  #   hooks:
+  #     - id: pyrefly
+
   - repo: local
     hooks:
       - id: lint-githubactions
