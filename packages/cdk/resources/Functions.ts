@@ -35,6 +35,7 @@ export interface FunctionsProps {
   readonly mainSlackBotLambdaExecutionRoleArn : string
   readonly ragModelId: string
   readonly queryReformulationModelId: string
+  readonly notifyS3UploadFunctionPolicy: ManagedPolicy
 }
 
 export class Functions extends Construct {
@@ -123,7 +124,8 @@ export class Functions extends Construct {
       dependencyLocation: ".dependencies/notifyS3UploadFunction",
       environmentVariables: {
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName
-      }
+      },
+      additionalPolicies: [props.notifyS3UploadFunctionPolicy]
     })
 
     this.slackBotLambda = slackBotLambda

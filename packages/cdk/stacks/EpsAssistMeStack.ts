@@ -184,7 +184,8 @@ export class EpsAssistMeStack extends Stack {
       ragModelId: bedrockPromptResources.ragModelId,
       queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
       isPullRequest: isPullRequest,
-      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
+      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy
     })
 
     new S3LambdaNotification(this, "StorageNotificationQueue", {
