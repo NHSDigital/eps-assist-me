@@ -34,3 +34,4 @@ client = WebClient\(token=slack_event_data\["bot_token"\]\)
 context accountId=123456789012
 .*:sample_docs/.*
 token = get_bot_token\(\)
+"AWS_ACCOUNT_ID": "123456789012"
