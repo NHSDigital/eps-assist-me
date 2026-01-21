@@ -20,7 +20,7 @@ import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
-import {StorageNotificationQueue} from "../resources/StorageNotificationQueue"
+import {StorageNotificationQueue} from "../resources/S3LambdaNotification"
 import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
 import {Bucket, EventType} from "aws-cdk-lib/aws-s3"
 

@@ -2,14 +2,14 @@ import {Construct} from "constructs"
 import {Duration, RemovalPolicy} from "aws-cdk-lib"
 import {Queue, QueueEncryption} from "aws-cdk-lib/aws-sqs"
 import {Key} from "aws-cdk-lib/aws-kms"
-import {Function} from "aws-cdk-lib/aws-lambda"
 import {SqsEventSource} from "aws-cdk-lib/aws-lambda-event-sources"
+import {Functions} from "../resources/Functions"
 export interface SimpleQueueServiceProps {
   readonly stackName: string
   readonly queueName: string
   //You can specify an integer value of 0 to 900 (15 minutes).
   readonly deliveryDelay: number
-  readonly lambdaFunction: Function
+  readonly functions: Functions
 }
 
 export class SimpleQueueService extends Construct {
@@ -52,16 +52,17 @@ export class SimpleQueueService extends Construct {
       }
     )
 
-    // Add queue as event source for the Lambda function
-    props.lambdaFunction.addEventSource(new SqsEventSource(queue, {
-      batchSize: 10,
-      enabled: true,
+    // Add queues as event source for the notify function and sync knowledge base function
+    props.functions.notifyS3UploadFunction.function.addEventSource(new SqsEventSource(queue, {
       maxBatchingWindow: Duration.seconds(60), // Wait up to 60 seconds to gather a full batch
       reportBatchItemFailures: true
     }))
 
+    props.functions.syncKnowledgeBaseFunction.function.addEventSource(new SqsEventSource(queue))
+
     // Grant the Lambda function permissions to consume messages from the queue
-    queue.grantConsumeMessages(props.lambdaFunction)
+    queue.grantConsumeMessages(props.functions.notifyS3UploadFunction.function)
+    queue.grantConsumeMessages(props.functions.syncKnowledgeBaseFunction.function)
 
     this.kmsKey = kmsKey
     this.queue = queue
