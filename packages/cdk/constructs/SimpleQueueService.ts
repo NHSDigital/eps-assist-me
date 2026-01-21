@@ -35,6 +35,7 @@ export class SimpleQueueService extends Construct {
       retentionPeriod: Duration.days(14), // Max 14
       encryption: QueueEncryption.KMS,
       encryptionMasterKey: kmsKey,
+      visibilityTimeout: Duration.seconds(60),
       enforceSSL: true
     })
 
@@ -49,6 +50,7 @@ export class SimpleQueueService extends Construct {
           maxReceiveCount: 3 // Move to DLQ after 3 failed attempts
         },
         deliveryDelay: Duration.seconds(props.deliveryDelay),
+        visibilityTimeout: Duration.seconds(60),
         enforceSSL: true
       }
     )
