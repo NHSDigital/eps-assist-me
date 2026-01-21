@@ -367,6 +367,7 @@ def test_create_response_body_creates_body_without_citations(
     # assertions
     assert len(response) > 0
     assert response[0]["type"] == "section"
+    # pyrefly: ignore [bad-index]
     assert "This is a response without a citation." in response[0]["text"]["text"]
 
 
@@ -399,9 +400,13 @@ def test_create_response_body_update_body_with_citations(
     assert response[1]["type"] == "actions"
     assert response[1]["block_id"] == "citation_actions"
 
+    # pyrefly: ignore [bad-typed-dict-key]
     citation_element = response[1]["elements"][0]
+    # pyrefly: ignore [bad-index]
     assert citation_element["type"] == "button"
+    # pyrefly: ignore [bad-index]
     assert citation_element["action_id"] == "cite_1"
+    # pyrefly: ignore [bad-index]
     assert "[1] Citation Title" in citation_element["text"]["text"]
 
 
@@ -440,14 +445,22 @@ def test_create_response_body_creates_body_with_multiple_citations(
     assert response[1]["type"] == "actions"
     assert response[1]["block_id"] == "citation_actions"
 
+    # pyrefly: ignore [bad-typed-dict-key]
     first_citation_element = response[1]["elements"][0]
+    # pyrefly: ignore [bad-index]
     assert first_citation_element["type"] == "button"
+    # pyrefly: ignore [bad-index]
     assert first_citation_element["action_id"] == "cite_1"
+    # pyrefly: ignore [bad-index]
     assert "[1] Citation Title" in first_citation_element["text"]["text"]
 
+    # pyrefly: ignore [bad-typed-dict-key]
     second_citation_element = response[1]["elements"][1]
+    # pyrefly: ignore [bad-index]
     assert second_citation_element["type"] == "button"
+    # pyrefly: ignore [bad-index]
     assert second_citation_element["action_id"] == "cite_2"
+    # pyrefly: ignore [bad-index]
     assert "[2] Citation Title" in second_citation_element["text"]["text"]
 
 
@@ -489,9 +502,13 @@ def test_create_response_body_creates_body_ignoring_low_score_citations(
     citation_elements = response[1]["elements"]
     assert len(citation_elements) == 1
 
+    # pyrefly: ignore [bad-typed-dict-key]
     citation_element = citation_elements[0]
+    # pyrefly: ignore [bad-index]
     assert citation_element["type"] == "button"
+    # pyrefly: ignore [bad-index]
     assert citation_element["action_id"] == "cite_2"
+    # pyrefly: ignore [bad-index]
     assert "[2] Citation Title" in citation_element["text"]["text"]
 
 
@@ -522,6 +539,7 @@ def test_create_response_body_update_body_with_reformatted_citations(
     # assertions
     assert len(response) > 1
     assert response[0]["type"] == "section"
+    # pyrefly: ignore [bad-index]
     assert "This is a response with a citation.[1]" in response[0]["text"]["text"]
 
 
@@ -554,7 +572,9 @@ def test_create_response_body_creates_body_with_markdown_formatting(
     assert response[1]["type"] == "actions"
     assert response[1]["block_id"] == "citation_actions"
 
+    # pyrefly: ignore [bad-typed-dict-key]
     citation_element = response[1]["elements"][0]
+    # pyrefly: ignore [bad-index]
     citation_value = json.loads(citation_element["value"])
 
     assert "*Bold*, _italics_, and `code`." in citation_value.get("body")
@@ -591,7 +611,9 @@ def test_create_response_body_creates_body_with_lists(
     assert response[1]["type"] == "actions"
     assert response[1]["block_id"] == "citation_actions"
 
+    # pyrefly: ignore [bad-typed-dict-key]
     citation_element = response[1]["elements"][0]
+    # pyrefly: ignore [bad-index]
     citation_value = json.loads(citation_element["value"])
 
     expected_output = "Header text\n- Standard Dash\n- No Space Dash\n- Standard Bullet\n- NoSpace-NoSpace"
@@ -627,7 +649,9 @@ def test_create_response_body_creates_body_without_encoding_errors(
     assert response[1]["type"] == "actions"
     assert response[1]["block_id"] == "citation_actions"
 
+    # pyrefly: ignore [bad-typed-dict-key]
     citation_element = response[1]["elements"][0]
+    # pyrefly: ignore [bad-index]
     citation_value = json.loads(citation_element["value"])
 
     assert "Tabbing Issue.\n- Bullet point issue." in citation_value.get("body")

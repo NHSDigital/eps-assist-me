@@ -12,6 +12,7 @@ from app.services.prompt_loader import load_prompt
 logger = get_logger()
 
 
+# pyrefly: ignore [bad-function-definition]
 def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerateResponseTypeDef:
     """
     Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
@@ -67,6 +68,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     if prompt_template:
         request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"][
             "promptTemplate"
+            # pyrefly: ignore [bad-typed-dict-key]
         ] = {"textPromptTemplate": prompt_template.get("prompt_text")}
         logger.info(
             "Using prompt template for RAG response generation", extra={"prompt_name": config.RAG_RESPONSE_PROMPT_NAME}
@@ -74,12 +76,14 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
 
     # Include session ID for conversation continuity across messages
     if session_id:
+        # pyrefly: ignore [bad-typed-dict-key]
         request_params["sessionId"] = session_id
         logger.info("Using existing session", extra={"session_id": session_id})
     else:
         logger.info("Starting new conversation")
 
     logger.debug("Retrieve and Generate", extra={"params": request_params})
+    # pyrefly: ignore [bad-argument-type]
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",

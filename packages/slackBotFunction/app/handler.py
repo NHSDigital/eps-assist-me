@@ -47,6 +47,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
     """
     # direct invocation bypasses slack infrastructure entirely
     if event.get("invocation_type") == "direct":
+        # pyrefly: ignore [bad-return]
         return handle_direct_invocation(event, context)
 
     app = get_app(logger=logger)

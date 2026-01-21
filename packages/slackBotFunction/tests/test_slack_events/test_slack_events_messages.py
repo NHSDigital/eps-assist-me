@@ -175,6 +175,7 @@ def test_process_slack_message_with_thread_ts(
         "ts": "1234567890.123",
         "thread_ts": "1234567888.111",  # Existing thread
     }
+    # pyrefly: ignore [unbound-name]
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # assertions
@@ -451,6 +452,7 @@ def test_create_response_body_creates_body_with_markdown_formatting(
     assert len(response) > 0
     assert response[0]["type"] == "section"
 
+    # pyrefly: ignore [bad-index]
     response_value = response[0]["text"]["text"]
 
     assert "*Bold*, _italics_, and `code`." in response_value
@@ -479,6 +481,7 @@ def test_create_response_body_creates_body_with_lists(
     assert len(response) > 0
     assert response[0]["type"] == "section"
 
+    # pyrefly: ignore [bad-index]
     response_value = response[0]["text"]["text"]
 
     expected_output = "Header text\n- Standard Dash\n- No Space Dash\n- Standard Bullet\n- NoSpace-NoSpace"
@@ -506,6 +509,7 @@ def test_create_response_body_creates_body_without_encoding_errors(
     assert len(response) > 0
     assert response[0]["type"] == "section"
 
+    # pyrefly: ignore [bad-index]
     response_value = response[0]["text"]["text"]
 
     assert "Tabbing Issue.\n- Bullet point issue." in response_value

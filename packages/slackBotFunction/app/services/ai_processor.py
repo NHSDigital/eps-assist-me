@@ -19,6 +19,7 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     reformulated_query = reformulate_query(user_query)
 
     # session_id enables conversation continuity across multiple queries
+    # pyrefly: ignore [bad-argument-type]
     kb_response = query_bedrock(reformulated_query, session_id)
 
     logger.info(
@@ -29,6 +30,8 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     return {
         "text": kb_response["output"]["text"],
         "session_id": kb_response.get("sessionId"),
+        # pyrefly: ignore [bad-typed-dict-key]
         "citations": kb_response.get("citations", []),
+        # pyrefly: ignore [bad-typed-dict-key]
         "kb_response": kb_response,  # slack needs raw bedrock data for session handling
     }

@@ -6,6 +6,8 @@ import json
 import os
 import pytest
 from unittest.mock import patch, MagicMock
+
+# pyrefly: ignore [missing-module-attribute]
 from app.handler import handler, send_response
 
 

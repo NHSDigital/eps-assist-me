@@ -46,6 +46,7 @@ def convert_document_to_markdown(input_path: Path, output_path: Path) -> bool:
         return False
 
 
+# pyrefly: ignore [bad-function-definition]
 def convert_all_documents(raw_docs_dir: Path, sample_docs_dir: Path, specific_file: str = None) -> tuple[int, int]:
     """
     batch-convert docs in raw_docs_dir into markdown
