@@ -16,10 +16,10 @@ import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
 import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
-import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
+import {S3LambdaNotification} from "../resources/S3LambdaNotification"
 import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
 import {Bucket} from "aws-cdk-lib/aws-s3"
 
@@ -186,13 +186,14 @@ export class EpsAssistMeStack extends Stack {
       ragModelId: bedrockPromptResources.ragModelId,
       queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
       isPullRequest: isPullRequest,
-      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn
+      mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
+      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy
     })
 
-    // Add S3 notification to trigger sync Lambda function
-    new S3LambdaNotification(this, "S3LambdaNotification", {
-      bucket: storage.kbDocsBucket,
-      lambdaFunction: functions.syncKnowledgeBaseFunction.function
+    new S3LambdaNotification(this, "StorageNotificationQueue", {
+      stackName: props.stackName,
+      functions,
+      storage
     })
 
     // Create Apis and pass the Lambda function
