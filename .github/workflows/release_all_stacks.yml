@@ -45,6 +45,9 @@ on:
       IS_PULL_REQUEST:
         type: boolean
         default: false
+      FORWARD_CSOC_LOGS:
+        type: boolean
+        required: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE:
         required: true
@@ -57,6 +60,10 @@ on:
       PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE:
         required: false
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
+        required: false
+      INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
+        required: false
+      PROD_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
         required: false
       REGRESSION_TESTS_PEM:
         required: false
@@ -148,6 +155,7 @@ jobs:
           SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
           SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_APP_NAME: ${{ inputs.CDK_APP_NAME }}
+          FORWARD_CSOC_LOGS: ${{ inputs.FORWARD_CSOC_LOGS }}
           IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
           RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
 
@@ -181,6 +189,24 @@ jobs:
           -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
           cdk-utils-build-repo:latest
         shell: bash
+
+      - name: Normalize Environment Name
+        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        run: |
+          # Convert TARGET_ENVIRONMENT to Uppercase (e.g., 'prod' -> 'PROD')
+          VAL=$(echo "$TARGET_ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
+          echo "UPPER_TARGET_ENVIRONMENT=$VAL" >> "$GITHUB_OUTPUT"
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+
+      - name: Sync Documents
+        uses: ./.github/actions/sync_documents
+        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        with: 
+          TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+          STACK: ${{ inputs.STACK_NAME }}
+          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.UPPER_TARGET_ENVIRONMENT)] }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira

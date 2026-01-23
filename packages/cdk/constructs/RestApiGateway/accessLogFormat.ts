@@ -16,6 +16,7 @@ export const accessLogFormat = () => {
     responseLatency: "$context.responseLatency",
     responseLength: "$context.responseLength",
     domainName: "$context.domainName",
+    api_key: "$context.identity.apiKey",
     identity: {
       sourceIp: "$context.identity.sourceIp",
       userAgent: "$context.identity.userAgent",
