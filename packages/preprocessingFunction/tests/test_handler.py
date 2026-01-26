@@ -396,8 +396,8 @@ class TestS3Client:
         from pathlib import Path
         import tempfile
 
-        def mock_download_file(Bucket, Key, Filename, ExtraArgs=None):
-            Path(Filename).write_bytes(b"test content")
+        def mock_download_file(**kwargs):
+            Path(kwargs["Filename"]).write_bytes(b"test content")
 
         mock_s3.download_file.side_effect = mock_download_file
 

@@ -6,9 +6,12 @@ returns failed status so markitdown falls back to file extension detection
 
 class Magika:
     def __init__(self, *args, **kwargs):
+        """
+        shim for Magika to prevent errors when it is not installed/needed
+        """
         pass
 
-    def identify_stream(self, stream):
+    def identify_stream(self, stream):  # NOSONAR
         return MagikaResult()
 
 
