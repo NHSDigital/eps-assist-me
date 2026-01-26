@@ -41,7 +41,7 @@ runs:
       shell: bash
       run: |
         mkdir -p ./s3-content
-        aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }} ./s3-content
+        aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }} ./s3-content --exclude "raw/*" --exclude "processed/*"
 
     - name: Connect to Target Account
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
@@ -69,9 +69,9 @@ runs:
         if [ -z "$DIFFS" ]; then
           echo -e "\033[0;32m✔ NO DISCREPANCIES FOUND.\033[0m"
         else
-          echo -e "\033[0;33m⚠ WARNING: DISCREPANCIES FOUND:" 
+          echo -e "\033[0;33m⚠ WARNING: DISCREPANCIES FOUND:"
 
-          echo "$DIFFS" 
+          echo "$DIFFS"
           echo "--------------------------------------------------\033[0m"
 
           CLEAN_DIFFS="${DIFFS//$'\n'/'%0A'}"
@@ -94,5 +94,5 @@ runs:
     - name: Upload Files to Target S3
       shell: bash
       run: |
-        echo "Updating s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
-        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --delete
+        echo "Updating s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/..."
+        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/ --delete

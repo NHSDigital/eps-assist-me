@@ -28,6 +28,18 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress wildcard log permissions for Preprocessing Lambda
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/PreprocessingFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions are required for log stream access under known paths."
+      }
+    ]
+  )
+
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
@@ -118,6 +130,18 @@ export const nagSuppressions = (stack: Stack, account: string) => {
           `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam-pr-*`,
           "Resource::arn:aws:bedrock:*"
         ]
+      }
+    ]
+  )
+
+  // Suppress wildcard permissions for Preprocessing policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/RuntimePolicies/PreprocessingPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Preprocessing Lambda needs wildcard permissions to read/write any file in raw/ and processed/ prefixes."
       }
     ]
   )
@@ -292,6 +316,18 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress BucketDeployment (S3 folder initializer) suppressions
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "BucketDeployment uses AWS managed policy for Lambda execution, required by CDK construct.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
+      }
+    ]
+  )
   // Suppress BedrockLogging KMS wildcard permissions
   safeAddNagSuppression(
     stack,
@@ -348,6 +384,16 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "BucketDeployment requires wildcard permissions for S3 and KMS operations to deploy assets."
+      }
+    ]
+  )
   // Suppress BedrockLogging Provider framework wildcard permissions
   safeAddNagSuppression(
     stack,
@@ -360,6 +406,32 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource",
+    [
+      {
+        id: "AwsSolutions-L1",
+        reason: "BucketDeployment uses CDK-managed Lambda runtime, updated by CDK library."
+      }
+    ]
+  )
+
+  // Suppress KMS wildcard permissions for Preprocessing Lambda role
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/PreprocessingFunction/LambdaRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Preprocessing Lambda requires KMS wildcard permissions for S3 encryption operations.",
+        appliesTo: [
+          "Action::kms:GenerateDataKey*",
+          "Action::kms:ReEncrypt*"
+        ]
+      }
+    ]
+  )
   // Suppress BedrockLogging Provider framework runtime version
   safeAddNagSuppression(
     stack,
