@@ -112,6 +112,36 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.QA_SLACK_BOT_TOKEN }}
       SLACK_SIGNING_SECRET: ${{ secrets.QA_SLACK_SIGNING_SECRET }}
 
+  release_ref:
+    needs: [tag_release, package_code, release_dev]
+    uses: ./.github/workflows/release_all_stacks.yml
+    with:
+      STACK_NAME: epsam
+      TARGET_ENVIRONMENT: ref
+      VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
+      COMMIT_ID: ${{ github.sha }}
+      CDK_APP_NAME: EpsAssistMeApp
+      DEPLOY_CODE: true
+      LOG_RETENTION_IN_DAYS: 30
+      LOG_LEVEL: "DEBUG"
+      CREATE_INT_RELEASE_NOTES: false
+      CREATE_PROD_RELEASE_NOTES: false
+      MARK_JIRA_RELEASED: false
+      CREATE_INT_RC_RELEASE_NOTES: false
+      IS_PULL_REQUEST: false
+      FORWARD_CSOC_LOGS: false
+      RUN_REGRESSION_TESTS: false
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.REF_CLOUD_FORMATION_DEPLOY_ROLE }}
+      CDK_PULL_IMAGE_ROLE: ${{ secrets.REF_CDK_PULL_IMAGE_ROLE }}
+      DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      INT_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
+      DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+      REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+      SLACK_BOT_TOKEN: ${{ secrets.REF_SLACK_BOT_TOKEN }}
+      SLACK_SIGNING_SECRET: ${{ secrets.REF_SLACK_SIGNING_SECRET }}
+
   release_int:
     needs: [tag_release, package_code, release_qa]
     uses: ./.github/workflows/release_all_stacks.yml
