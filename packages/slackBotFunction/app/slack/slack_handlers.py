@@ -160,14 +160,22 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
     session_pull_request_id = extract_test_command_params(command.get("text")).get("pr")
     if session_pull_request_id:
         logger.info(f"Command in pull request session {session_pull_request_id} from user {user_id}")
-        forward_to_pull_request_lambda(
-            body=body,
-            event={**command, "channel": command.get("channel_id")},
-            pull_request_id=session_pull_request_id,
-            event_id=f"/command-{time.time()}",
-            store_pull_request_id=False,
-            type="command",
-        )
+        try:
+            forward_to_pull_request_lambda(
+                body=body,
+                event={**command, "channel": command.get("channel_id")},
+                pull_request_id=session_pull_request_id,
+                event_id=f"/command-{time.time()}",
+                store_pull_request_id=False,
+                type="command",
+            )
+        except Exception as e:
+            logger.error(f"Failed to forward to PR lambda: {e}", extra={"error": traceback.format_exc()})
+            client.chat_postEphemeral(
+                channel=command.get("channel_id"),
+                user=user_id,
+                text=f"Failed to forward to PR {session_pull_request_id}. Does the stack exist?",
+            )
         return
 
     try:

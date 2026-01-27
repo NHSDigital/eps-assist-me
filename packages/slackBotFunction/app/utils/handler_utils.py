@@ -184,7 +184,7 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
     pr_pattern = rf"{prefix}\s*(\d+)\b"
     q_pattern = r"\bq-?(\d+)(?:-(\d+))?"
 
-    pr_match = re.match(pr_pattern, text, flags=re.IGNORECASE)
+    pr_match = re.search(pr_pattern, text, flags=re.IGNORECASE)
     if pr_match:
         params["pr"] = pr_match.group(1)
 
