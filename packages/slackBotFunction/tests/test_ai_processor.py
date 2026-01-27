@@ -11,7 +11,7 @@ class TestAIProcessor:
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_without_session(self, mock_reformulate, mock_bedrock):
         """new conversation: no session context passed to bedrock"""
-        mock_reformulate.return_value = "reformulated: How to authenticate EPS API?"
+        # mock_reformulate.return_value = "reformulated: How to authenticate EPS API?"
         mock_bedrock.return_value = {
             "output": {"text": "To authenticate with EPS API, you need..."},
             "sessionId": "new-session-abc123",
@@ -26,14 +26,14 @@ class TestAIProcessor:
         assert result["citations"][0]["title"] == "EPS Authentication Guide"
         assert "kb_response" in result
 
-        mock_reformulate.assert_called_once_with("How to authenticate EPS API?")
-        mock_bedrock.assert_called_once_with("reformulated: How to authenticate EPS API?", None)
+        # mock_reformulate.assert_called_once_with("How to authenticate EPS API?")
+        mock_bedrock.assert_called_once_with("How to authenticate EPS API?", None)
 
     @patch("app.services.ai_processor.query_bedrock")
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_with_session(self, mock_reformulate, mock_bedrock):
         """conversation continuity: existing session maintained across queries"""
-        mock_reformulate.return_value = "reformulated: What about rate limits?"
+        # mock_reformulate.return_value = "reformulated: What about rate limits?"
         mock_bedrock.return_value = {
             "output": {"text": "EPS API has rate limits of..."},
             "sessionId": "existing-session-456",
@@ -47,39 +47,42 @@ class TestAIProcessor:
         assert result["citations"] == []
         assert "kb_response" in result
 
-        mock_reformulate.assert_called_once_with("What about rate limits?")
-        mock_bedrock.assert_called_once_with("reformulated: What about rate limits?", "existing-session-456")
+        # mock_reformulate.assert_called_once_with("What about rate limits?")
+        mock_bedrock.assert_called_once_with("What about rate limits?", "existing-session-456")
 
     @patch("app.services.ai_processor.query_bedrock")
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_reformulate_error(self, mock_reformulate, mock_bedrock):
         """graceful degradation: reformulation failure bubbles up"""
-        mock_reformulate.side_effect = Exception("Query reformulation failed")
+        # Test disabled as reformulation is currently bypassed
+        pass
+        # mock_reformulate.side_effect = Exception("Query reformulation failed")
 
-        with pytest.raises(Exception) as exc_info:
-            process_ai_query("How to authenticate EPS API?")
+        # with pytest.raises(Exception) as exc_info:
+        #     process_ai_query("How to authenticate EPS API?")
 
-        assert "Query reformulation failed" in str(exc_info.value)
-        mock_bedrock.assert_not_called()
+        # assert "Query reformulation failed" in str(exc_info.value)
+        # mock_bedrock.assert_not_called()
 
     @patch("app.services.ai_processor.query_bedrock")
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_bedrock_error(self, mock_reformulate, mock_bedrock):
         """bedrock service failure: error propagated to caller"""
-        mock_reformulate.return_value = "reformulated query"
+        # mock_reformulate.return_value = "reformulated query"
         mock_bedrock.side_effect = Exception("Bedrock service error")
 
         with pytest.raises(Exception) as exc_info:
             process_ai_query("How to authenticate EPS API?")
 
         assert "Bedrock service error" in str(exc_info.value)
-        mock_reformulate.assert_called_once()
+        # mock_reformulate.assert_called_once()
 
     @patch("app.services.ai_processor.query_bedrock")
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_missing_citations(self, mock_reformulate, mock_bedrock):
         """bedrock response incomplete: citations default to empty list"""
-        mock_reformulate.return_value = "reformulated query"
+        """bedrock response incomplete: citations default to empty list"""
+        # mock_reformulate.return_value = "reformulated query"
         mock_bedrock.return_value = {
             "output": {"text": "Response without citations"},
             "sessionId": "session-123",
@@ -96,7 +99,8 @@ class TestAIProcessor:
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_missing_session_id(self, mock_reformulate, mock_bedrock):
         """bedrock response incomplete: session_id properly handles None"""
-        mock_reformulate.return_value = "reformulated query"
+        """bedrock response incomplete: session_id properly handles None"""
+        # mock_reformulate.return_value = "reformulated query"
         mock_bedrock.return_value = {
             "output": {"text": "Response without session"},
             "citations": [],
@@ -113,7 +117,7 @@ class TestAIProcessor:
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_empty_query(self, mock_reformulate, mock_bedrock):
         """edge case: empty query still processed through full pipeline"""
-        mock_reformulate.return_value = ""
+        # mock_reformulate.return_value = ""
         mock_bedrock.return_value = {
             "output": {"text": "Please provide a question"},
             "sessionId": "session-empty",
@@ -123,14 +127,15 @@ class TestAIProcessor:
         result = process_ai_query("")
 
         assert result["text"] == "Please provide a question"
-        mock_reformulate.assert_called_once_with("")
+        # mock_reformulate.assert_called_once_with("")
         mock_bedrock.assert_called_once_with("", None)
 
     @patch("app.services.ai_processor.query_bedrock")
     @patch("app.services.ai_processor.reformulate_query")
     def test_process_ai_query_includes_raw_response(self, mock_reformulate, mock_bedrock):
         """slack needs raw bedrock data: kb_response preserved for session handling"""
-        mock_reformulate.return_value = "reformulated query"
+        """slack needs raw bedrock data: kb_response preserved for session handling"""
+        # mock_reformulate.return_value = "reformulated query"
         raw_response = {
             "output": {"text": "Test response"},
             "sessionId": "test-123",
