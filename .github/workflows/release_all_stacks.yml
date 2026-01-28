@@ -135,6 +135,7 @@ jobs:
         env:
           CDK_APP_NAME: "EpsAssistMe_StatefulApp"
           CDK_CONFIG_stackName: "${{ inputs.STATEFUL_STACK_NAME }}"
+          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
           CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
           CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
           CDK_CONFIG_isPullRequest: "${{ inputs.IS_PULL_REQUEST }}"
