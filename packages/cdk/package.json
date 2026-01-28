@@ -2,12 +2,12 @@
   "name": "cdk",
   "version": "0.1.0",
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "test": "jest --passWithNoTests",
-    "cdk": "cdk",
+    "cdk-synth": "cdk synth --quiet --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\"",
+    "cdk-diff": "cdk diff --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\"",
+    "cdk-deploy": "cdk deploy --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\" --all --ci true --require-approval ${REQUIRE_APPROVAL}",
+    "cdk-watch": "cdk deploy --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\" --watch --all --ci true --require-approval ${REQUIRE_APPROVAL}",
     "lint": "eslint  --max-warnings 0 --fix --config ../../eslint.config.mjs .",
-    "check-licenses": "license-checker --failOn GPL --failOn LGPL --start ../.."
+    "tsx": "tsx"
   },
   "dependencies": {
     "@aws-cdk/aws-lambda-python-alpha": "^2.205.0-alpha.0",
