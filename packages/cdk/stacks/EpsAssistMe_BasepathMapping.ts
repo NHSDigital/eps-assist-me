@@ -1,9 +1,4 @@
-import {
-  App,
-  Stack,
-  StackProps,
-  Fn
-} from "aws-cdk-lib"
+import {App, Stack, StackProps} from "aws-cdk-lib"
 import {nagSuppressions} from "../nagSuppressions"
 import {BasePathMapping, RestApi, DomainName} from "aws-cdk-lib/aws-apigateway"
 
@@ -11,6 +6,8 @@ export interface EpsAssistMe_BasepathMappingProps extends StackProps {
   readonly stackName: string
   readonly version: string
   readonly commitId: string
+  readonly domainImport: string
+  readonly apiGatewayId: string
 }
 
 export class EpsAssistMe_BasepathMapping extends Stack {
@@ -18,15 +15,13 @@ export class EpsAssistMe_BasepathMapping extends Stack {
     super(scope, id, props)
 
     // imports
-    const domainImport = Fn.importValue("<CHANGE ME>")
-    const apiGatewayId = Fn.importValue("<CHANGE ME>")
 
     const domain = DomainName.fromDomainNameAttributes(this, "ApiDomainName", {
-      domainName: domainImport,
+      domainName: props.domainImport,
       domainNameAliasTarget: "", // not needed for base path mapping
       domainNameAliasHostedZoneId: "" // not needed for base path mapping
     })
-    const apiGateway = RestApi.fromRestApiId(this, "ImportedApiGateway", apiGatewayId)
+    const apiGateway = RestApi.fromRestApiId(this, "ImportedApiGateway", props.apiGatewayId)
 
     // Get variables from context
     const account = Stack.of(this).account

@@ -12,6 +12,7 @@
   "dependencies": {
     "@aws-cdk/aws-lambda-python-alpha": "^2.205.0-alpha.0",
     "@cdklabs/generative-ai-cdk-constructs": "^0.1.314",
+    "@nhsdigital/eps-cdk-constructs": "^1.1.5",
     "aws-cdk-lib": "^2.236.0",
     "cdk-nag": "^2.37.55",
     "constructs": "^10.4.5",

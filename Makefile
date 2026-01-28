@@ -174,3 +174,8 @@ convert-docs-file:
 
 compile:
 	echo "Does nothing currently"
+
+create-npmrc:
+	gh auth login --scopes "read:packages"; \
+	echo "//npm.pkg.github.com/:_authToken=$$(gh auth token)" > .npmrc
+	echo "@nhsdigital:registry=https://npm.pkg.github.com" >> .npmrc

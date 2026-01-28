@@ -25,6 +25,11 @@ export interface EpsAssistMe_StatefulProps extends StackProps {
   readonly stackName: string
   readonly version: string
   readonly commitId: string
+  readonly region: string
+  readonly logRetentionInDays: number
+  readonly logLevel: string
+  readonly isPullRequest: boolean
+  readonly enableBedrockLogging: boolean
 }
 
 export class EpsAssistMe_Stateful extends Stack {
@@ -37,27 +42,13 @@ export class EpsAssistMe_Stateful extends Stack {
     const auditLoggingBucketImport = Fn.importValue("account-resources:AuditLoggingBucket")
 
     // Get variables from context
-    const region = Stack.of(this).region
     const account = Stack.of(this).account
-    const cdkExecRoleArn = `arn:aws:iam::${account}:role/cdk-hnb659fds-cfn-exec-role-${account}-${region}`
-
-    const logRetentionInDays = Number(this.node.tryGetContext("logRetentionInDays"))
-    const logLevel: string = this.node.tryGetContext("logLevel")
-    const isPullRequest: boolean = this.node.tryGetContext("isPullRequest")
-    const enableBedrockLogging: boolean = this.node.tryGetContext("enableBedrockLogging") === "true"
-
-    // Get secrets from context or fail if not provided
-    const slackBotToken: string = this.node.tryGetContext("slackBotToken")
-    const slackSigningSecret: string = this.node.tryGetContext("slackSigningSecret")
+    const cdkExecRoleArn = `arn:aws:iam::${account}:role/cdk-hnb659fds-cfn-exec-role-${account}-${props.region}`
 
     const cdkExecRole = Role.fromRoleArn(this, "CdkExecRole", cdkExecRoleArn)
     const deploymentRole = Role.fromRoleArn(this, "deploymentRole", deploymentRoleImport)
     const auditLoggingBucket = Bucket.fromBucketArn(
       this, "AuditLoggingBucket", auditLoggingBucketImport)
-
-    if (!slackBotToken || !slackSigningSecret) {
-      throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
-    }
 
     // Create DatabaseTables
     const tables = new DatabaseTables(this, "DatabaseTables", {
@@ -79,7 +70,7 @@ export class EpsAssistMe_Stateful extends Stack {
 
     // Create Bedrock execution role without dependencies
     const bedrockExecutionRole = new BedrockExecutionRole(this, "BedrockExecutionRole", {
-      region,
+      region: props.region,
       account,
       kbDocsBucket: storage.kbDocsBucket,
       kbDocsKmsKey: storage.kbDocsKmsKey
@@ -90,7 +81,7 @@ export class EpsAssistMe_Stateful extends Stack {
       stackName: props.stackName,
       bedrockExecutionRole: bedrockExecutionRole.role,
       cdkExecutionRole: cdkExecRole,
-      region
+      region: props.region
     })
 
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
@@ -105,10 +96,10 @@ export class EpsAssistMe_Stateful extends Stack {
     // Create Bedrock logging configuration for model invocations
     const bedrockLogging = new BedrockLoggingConfiguration(this, "BedrockLogging", {
       stackName: props.stackName,
-      region,
+      region: props.region,
       account,
-      logRetentionInDays,
-      enableLogging: enableBedrockLogging
+      logRetentionInDays: props.logRetentionInDays,
+      enableLogging: props.enableBedrockLogging
     })
 
     // Create VectorKnowledgeBase construct with Bedrock execution role
@@ -118,9 +109,9 @@ export class EpsAssistMe_Stateful extends Stack {
       bedrockExecutionRole: bedrockExecutionRole.role,
       collectionArn: openSearchResources.collection.collectionArn,
       vectorIndexName: vectorIndex.indexName,
-      region,
+      region: props.region,
       account,
-      logRetentionInDays
+      logRetentionInDays: props.logRetentionInDays
     })
 
     vectorKB.knowledgeBase.node.addDependency(vectorIndex.indexReadyWait.customResource)
@@ -137,13 +128,13 @@ export class EpsAssistMe_Stateful extends Stack {
       stackName: props.stackName,
       version: props.version,
       commitId: props.commitId,
-      logRetentionInDays,
-      logLevel,
+      logRetentionInDays: props.logRetentionInDays,
+      logLevel: props.logLevel,
       syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
       preprocessingManagedPolicy: runtimePolicies.preprocessingPolicy,
       knowledgeBaseId: vectorKB.knowledgeBase.attrKnowledgeBaseId,
       dataSourceId: vectorKB.dataSource.attrDataSourceId,
-      region,
+      region: props.region,
       account,
       docsBucketName: storage.kbDocsBucket.bucketName
     })
@@ -194,7 +185,7 @@ export class EpsAssistMe_Stateful extends Stack {
       description: "CloudWatch Log Group for Knowledge Base application logs"
     })
 
-    if (isPullRequest) {
+    if (props.isPullRequest) {
       new CfnOutput(this, "VERSION_NUMBER", {
         value: props.version,
         exportName: `${props.stackName}:local:VERSION-NUMBER`
@@ -202,14 +193,6 @@ export class EpsAssistMe_Stateful extends Stack {
       new CfnOutput(this, "COMMIT_ID", {
         value: props.commitId,
         exportName: `${props.stackName}:local:COMMIT-ID`
-      })
-      new CfnOutput(this, "slackBotToken", {
-        value: slackBotToken,
-        exportName: `${props.stackName}:local:slackBotToken`
-      })
-      new CfnOutput(this, "slackSigningSecret", {
-        value: slackSigningSecret,
-        exportName: `${props.stackName}:local:slackSigningSecret`
       })
     }
 
