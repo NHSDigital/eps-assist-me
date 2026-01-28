@@ -44,13 +44,13 @@ export class ApiDomainName extends Construct {
     })
 
     new ARecord(this, "ARecord", {
-      recordName: props.stackName,
+      recordName: props.apiGatewayDomainName,
       target: RecordTarget.fromAlias(new ApiGatewayDomain(domain)),
       zone: hostedZone
     })
 
     new AaaaRecord(this, "AAAARecord", {
-      recordName: props.stackName,
+      recordName: props.apiGatewayDomainName,
       target: RecordTarget.fromAlias(new ApiGatewayDomain(domain)),
       zone: hostedZone
     })
