@@ -20,7 +20,8 @@ async function main() {
     region: props.env?.region || "eu-west-2",
     logRetentionInDays: getNumberConfigFromEnvVar("logRetentionInDays"),
     logLevel: getConfigFromEnvVar("logLevel"),
-    enableBedrockLogging: getBooleanConfigFromEnvVar("enableBedrockLogging")
+    enableBedrockLogging: getBooleanConfigFromEnvVar("enableBedrockLogging"),
+    apiGatewayDomainName: getConfigFromEnvVar("domainName")
   })
 }
 

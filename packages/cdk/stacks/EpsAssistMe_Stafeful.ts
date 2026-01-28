@@ -30,6 +30,7 @@ export interface EpsAssistMe_StatefulProps extends StackProps {
   readonly logLevel: string
   readonly isPullRequest: boolean
   readonly enableBedrockLogging: boolean
+  readonly apiGatewayDomainName: string
 }
 
 export class EpsAssistMe_Stateful extends Stack {
@@ -157,7 +158,7 @@ export class EpsAssistMe_Stateful extends Stack {
     })
 
     const domainName = new ApiDomainName(this, "ApiDomainName", {
-      stackName: props.stackName
+      apiGatewayDomainName: props.stackName
     })
 
     // Output: SlackBot Endpoint

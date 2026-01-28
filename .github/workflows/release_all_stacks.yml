@@ -12,6 +12,9 @@ on:
       BASE_PATH_MAPPING_STACK_NAME:
         required: true
         type: string
+      API_GATEWAY_DOMAIN_NAME:
+        required: true
+        type: string
       TARGET_ENVIRONMENT:
         required: true
         type: string

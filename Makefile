@@ -109,6 +109,7 @@ cdk-synth-stateful-pr:
 	mkdir -p .local_config
 	CDK_APP_NAME=EpsAssistMe_StatefulApp \
 	CDK_CONFIG_stackName=epsam-stateful \
+	CDK_CONFIG_domainName=epsam \
 	CDK_CONFIG_enableBedrockLogging=false \
 	CDK_CONFIG_isPullRequest=true \
 	npm run cdk-synth --workspace packages/cdk/
@@ -121,6 +122,7 @@ cdk-synth-stateful-non-pr:
 	mkdir -p .local_config
 	CDK_APP_NAME=EpsAssistMe_StatefulApp \
 	CDK_CONFIG_stackName=epsam-stateful \
+	CDK_CONFIG_domainName=epsam \
 	CDK_CONFIG_enableBedrockLogging=false \
 	CDK_CONFIG_isPullRequest=false \
 	npm run cdk-synth --workspace packages/cdk/

@@ -11,7 +11,7 @@ import {
 import {ApiGatewayDomain} from "aws-cdk-lib/aws-route53-targets"
 
 export interface ApiDomainNameProps {
-  readonly stackName: string
+  readonly apiGatewayDomainName: string
 }
 
 export class ApiDomainName extends Construct {
@@ -27,7 +27,7 @@ export class ApiDomainName extends Construct {
       hostedZoneId: Fn.importValue("eps-route53-resources:EPS-ZoneID"),
       zoneName: epsDomainName
     })
-    const serviceDomainName = `${props.stackName}.${epsDomainName}`
+    const serviceDomainName = `${props.apiGatewayDomainName}.${epsDomainName}`
 
     // Resources
 

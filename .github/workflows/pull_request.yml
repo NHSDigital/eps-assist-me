@@ -172,6 +172,7 @@ jobs:
       STATEFUL_STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}-stateful
       STATELESS_STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}-stateless
       BASE_PATH_MAPPING_STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}-bpm
+      API_GATEWAY_DOMAIN_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
       TARGET_ENVIRONMENT: dev-pr
       VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
       COMMIT_ID: ${{ github.sha }}
