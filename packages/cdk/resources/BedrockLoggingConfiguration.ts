@@ -10,7 +10,6 @@ import {LogGroup, RetentionDays} from "aws-cdk-lib/aws-logs"
 import {Provider} from "aws-cdk-lib/custom-resources"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {LambdaFunction} from "../constructs/LambdaFunction"
-import {resolve, join} from "path"
 
 export interface BedrockLoggingConfigurationProps {
   readonly stackName: string
@@ -103,7 +102,6 @@ export class BedrockLoggingConfiguration extends Construct {
     })
 
     // Create Lambda function for custom resource
-    const baseDir = resolve(__dirname, "../../..")
     const loggingConfigFunction = new LambdaFunction(this, "LoggingConfigFunction", {
       stackName: props.stackName,
       functionName: `${props.stackName}-BedrockLoggingConfig`,
@@ -112,7 +110,7 @@ export class BedrockLoggingConfiguration extends Construct {
       logRetentionInDays: props.logRetentionInDays,
       logLevel: "INFO",
       additionalPolicies: [bedrockLoggingConfigPolicy],
-      dependencyLocation: join(baseDir, ".dependencies/bedrockLoggingConfigFunction"),
+      dependencyLocation: ".dependencies/bedrockLoggingConfigFunction",
       environmentVariables: {
         ENABLE_LOGGING: props.enableLogging !== undefined ? props.enableLogging.toString() : "true",
         CLOUDWATCH_LOG_GROUP_NAME: modelInvocationLogGroup.logGroupName,

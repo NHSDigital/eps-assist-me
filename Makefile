@@ -68,7 +68,7 @@ clean:
 	rm -rf packages/slackBotFunction/.dependencies
 	rm -rf packages/syncKnowledgeBaseFunction/coverage
 	rm -rf .dependencies/
-	rm -rf cdk.out
+	find . -name 'cdk.out' -type d -prune -exec rm -rf '{}' +
 	rm -rf .build
 	rm -rf .local_config
 	rm -rf cfn_guard_output

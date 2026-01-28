@@ -119,16 +119,16 @@ export class LambdaFunction extends Construct {
     })
 
     const layers = [insightsLambdaLayer]
+    const baseDir = resolve(__dirname, "../../..")
     if (props.dependencyLocation) {
       const dependencyLayer = new LayerVersion(this, "DependencyLayer", {
         removalPolicy: RemovalPolicy.DESTROY,
-        code: Code.fromAsset(props.dependencyLocation),
+        code: Code.fromAsset(join(baseDir, props.dependencyLocation)),
         compatibleArchitectures: [Architecture.X86_64]
       })
       layers.push(dependencyLayer)
     }
 
-    const baseDir = resolve(__dirname, "../../..")
     // Create Lambda function with Python runtime and monitoring
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
       runtime: Runtime.PYTHON_3_14,
