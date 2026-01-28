@@ -11,7 +11,7 @@ async function main() {
     productName: "EpsAssistMe",
     appName: "EpsAssistMe_Stateless",
     repoName: "eps-assist-me",
-    driftDetectionGroup: getConfigFromEnvVar("cfnDriftDetectionGroup"),
+    driftDetectionGroup: "epsam",
     isStateless: true
   })
 

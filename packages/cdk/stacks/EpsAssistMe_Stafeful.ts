@@ -166,6 +166,11 @@ export class EpsAssistMe_Stateful extends Stack {
       description: "Slack Events API endpoint for @mentions and direct messages"
     })
 
+    new CfnOutput(this, "domainName", {
+      value: domainName.domain.domainName,
+      exportName: `${props.stackName}:domain:Name`
+    })
+
     new CfnOutput(this, "kbDocsBucketArn", {
       value: storage.kbDocsBucket.bucketArn,
       exportName: `${props.stackName}:kbDocsBucket:Arn`

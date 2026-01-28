@@ -56,7 +56,9 @@ jobs:
     needs: [tag_release, package_code]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STATEFUL_STACK_NAME: epsam-stateful
+      STATELESS_STACK_NAME: epsam-stateless
+      BASE_PATH_MAPPING_STACK_NAME: epsam-bpm
       TARGET_ENVIRONMENT: dev
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
@@ -86,7 +88,9 @@ jobs:
     needs: [tag_release, package_code, release_dev]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STATEFUL_STACK_NAME: epsam-stateful
+      STATELESS_STACK_NAME: epsam-stateless
+      BASE_PATH_MAPPING_STACK_NAME: epsam-bpm
       TARGET_ENVIRONMENT: qa
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
@@ -116,7 +120,9 @@ jobs:
     needs: [tag_release, package_code, release_dev]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STATEFUL_STACK_NAME: epsam-stateful
+      STATELESS_STACK_NAME: epsam-stateless
+      BASE_PATH_MAPPING_STACK_NAME: epsam-bpm
       TARGET_ENVIRONMENT: ref
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
@@ -146,7 +152,9 @@ jobs:
     needs: [tag_release, package_code, release_qa]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STATEFUL_STACK_NAME: epsam-stateful
+      STATELESS_STACK_NAME: epsam-stateless
+      BASE_PATH_MAPPING_STACK_NAME: epsam-bpm
       TARGET_ENVIRONMENT: int
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
@@ -176,7 +184,9 @@ jobs:
     needs: [tag_release, package_code, release_int]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STATEFUL_STACK_NAME: epsam-stateful
+      STATELESS_STACK_NAME: epsam-stateless
+      BASE_PATH_MAPPING_STACK_NAME: epsam-bpm
       TARGET_ENVIRONMENT: prod
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
