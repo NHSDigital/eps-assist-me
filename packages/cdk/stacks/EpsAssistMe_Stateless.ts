@@ -5,7 +5,7 @@ import {
   CfnOutput,
   Fn
 } from "aws-cdk-lib"
-import {nagSuppressions} from "../nagSuppressions"
+import {statelessNagSuppressions} from "../nagSuppressions"
 import {Apis} from "../resources/Apis"
 import {Secrets} from "../resources/Secrets"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
@@ -208,6 +208,6 @@ export class EpsAssistMe_Stateless extends Stack {
     })
 
     // Final CDK Nag Suppressions
-    nagSuppressions(this, account)
+    statelessNagSuppressions(this, account)
   }
 }

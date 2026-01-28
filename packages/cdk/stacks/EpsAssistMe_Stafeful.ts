@@ -5,7 +5,7 @@ import {
   CfnOutput,
   Fn
 } from "aws-cdk-lib"
-import {nagSuppressions} from "../nagSuppressions"
+import {statefulNagSuppressions} from "../nagSuppressions"
 import {StatefulFunctions} from "../resources/StatefulFunctions"
 import {Storage} from "../resources/Storage"
 import {OpenSearchResources} from "../resources/OpenSearchResources"
@@ -64,7 +64,7 @@ export class EpsAssistMe_Stateful extends Stack {
 
     // initialize s3 folders for raw and processed documents
     new BucketDeployment(this, "S3FolderInitializer", {
-      sources: [Source.asset("packages/cdk/assets/s3-folders")],
+      sources: [Source.asset("assets/s3-folders")],
       destinationBucket: storage.kbDocsBucket
     })
 
@@ -227,6 +227,6 @@ export class EpsAssistMe_Stateful extends Stack {
     })
 
     // Final CDK Nag Suppressions
-    nagSuppressions(this, account)
+    statefulNagSuppressions(this, account)
   }
 }

@@ -3,23 +3,11 @@
 import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
-export const nagSuppressions = (stack: Stack, account: string) => {
-  // Suppress granular wildcard on log stream for SlackBot Lambda
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
-      }
-    ]
-  )
-
+export const statefulNagSuppressions = (stack: Stack, account: string) => {
   // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Functions/SyncKnowledgeBaseFunction/LambdaPutLogsManagedPolicy/Resource",
+    "/EpsAssistMeStateful/StatefulFunctions/SyncKnowledgeBaseFunction/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -31,7 +19,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress wildcard log permissions for Preprocessing Lambda
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Functions/PreprocessingFunction/LambdaPutLogsManagedPolicy/Resource",
+    "/EpsAssistMeStateful/StatefulFunctions/PreprocessingFunction/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -40,50 +28,10 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  // Suppress API Gateway validation warning for Apis construct
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Resource",
-    [
-      {
-        id: "AwsSolutions-APIG2",
-        reason: "Validation is handled within Lambda; request validation is intentionally omitted."
-      }
-    ]
-  )
-
-  // Suppress unauthenticated API route warnings
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/events/POST/Resource",
-    [
-      {
-        id: "AwsSolutions-APIG4",
-        reason: "Slack event endpoint is intentionally unauthenticated."
-      },
-      {
-        id: "AwsSolutions-COG4",
-        reason: "Cognito not required for this public endpoint."
-      }
-    ]
-  )
-
-  // Suppress missing WAF on API stage for Apis construct
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
-    [
-      {
-        id: "AwsSolutions-APIG3",
-        reason: "WAF not in current scope; may be added later."
-      }
-    ]
-  )
-
   // Suppress IAM wildcard permissions for Bedrock execution role policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockExecutionRole/Policy/Resource",
+    "/EpsAssistMeStateful/BedrockExecutionRole/Policy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -106,7 +54,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   )
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockExecutionRole/WildcardPolicy/Resource",
+    "/EpsAssistMeStateful/BedrockExecutionRole/WildcardPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -115,48 +63,14 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  // Suppress wildcard permissions for SlackBot policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/RuntimePolicies/SlackBotPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation.",
-        appliesTo: [
-          "Resource::arn:aws:lambda:eu-west-2:<AWS::AccountId>:function:epsam*",
-          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam-pr-*",
-          `Resource::arn:aws:lambda:eu-west-2:${account}:function:epsam*`,
-          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam-pr-*`,
-          "Resource::arn:aws:bedrock:*"
-        ]
-      }
-    ]
-  )
-
   // Suppress wildcard permissions for Preprocessing policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/RuntimePolicies/PreprocessingPolicy/Resource",
+    "/EpsAssistMeStateful/StatefulRuntimePolicies/PreprocessingPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
         reason: "Preprocessing Lambda needs wildcard permissions to read/write any file in raw/ and processed/ prefixes."
-      }
-    ]
-  )
-
-  // Suppress secrets without rotation
-  safeAddNagSuppressionGroup(
-    stack,
-    [
-      "/EpsAssistMeStack/Secrets/SlackBotToken/Secret/Resource",
-      "/EpsAssistMeStack/Secrets/SlackBotSigning/Secret/Resource"
-    ],
-    [
-      {
-        id: "AwsSolutions-SMG4",
-        reason: "Slack secrets rotation is handled manually as part of the Slack app configuration process."
       }
     ]
   )
@@ -183,7 +97,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress DelayResource IAM and runtime issues
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/LambdaExecutionRole/Resource",
+    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/LambdaExecutionRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -195,7 +109,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/LambdaExecutionRole/Resource",
+    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/LambdaExecutionRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -208,7 +122,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress DelayProvider framework ServiceRole issues
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
+    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -220,7 +134,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -232,7 +146,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
+    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -244,7 +158,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -257,7 +171,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress DelayFunction runtime version warnings
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayFunction/Resource",
+    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayFunction/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -268,26 +182,11 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayFunction/Resource",
+    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayFunction/Resource",
     [
       {
         id: "AwsSolutions-L1",
         reason: "DelayResource uses Python 3.12 which is the latest stable runtime available for the delay functionality."
-      }
-    ]
-  )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/RegressionTestPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for cloudformation stack listing.",
-        appliesTo: [
-          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam*",
-          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`
-        ]
       }
     ]
   )
@@ -296,7 +195,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // see https://github.com/aws/aws-cdk/issues/36269 for issue raised with CDK team
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/Resource",
+    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -307,7 +206,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/Resource",
+    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -319,7 +218,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress BucketDeployment (S3 folder initializer) suppressions
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource",
+    "/EpsAssistMeStateful/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -331,7 +230,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress BedrockLogging KMS wildcard permissions
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStateful/BedrockLogging/BedrockLoggingRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -348,7 +247,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress BedrockLogging Lambda wildcard permissions for Bedrock API
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/BedrockLoggingConfigPolicy/Resource",
+    "/EpsAssistMeStateful/BedrockLogging/BedrockLoggingConfigPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -360,7 +259,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress BedrockLogging Lambda log group and put logs permissions
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigFunction/LambdaPutLogsManagedPolicy/Resource",
+    "/EpsAssistMeStateful/BedrockLogging/LoggingConfigFunction/LambdaPutLogsManagedPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -372,7 +271,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress BedrockLogging Provider framework role using AWS managed policy
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/Resource",
+    "/EpsAssistMeStateful/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/Resource",
     [
       {
         id: "AwsSolutions-IAM4",
@@ -386,7 +285,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStateful/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -397,7 +296,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress BedrockLogging Provider framework wildcard permissions
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStateful/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -408,7 +307,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource",
+    "/EpsAssistMeStateful/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -420,7 +319,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress KMS wildcard permissions for Preprocessing Lambda role
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/Functions/PreprocessingFunction/LambdaRole/DefaultPolicy/Resource",
+    "/EpsAssistMeStateful/StatefulFunctions/PreprocessingFunction/LambdaRole/DefaultPolicy/Resource",
     [
       {
         id: "AwsSolutions-IAM5",
@@ -435,7 +334,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   // Suppress BedrockLogging Provider framework runtime version
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigProvider/framework-onEvent/Resource",
+    "/EpsAssistMeStateful/BedrockLogging/LoggingConfigProvider/framework-onEvent/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -445,6 +344,125 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   )
 
 }
+
+export const statelessNagSuppressions = (stack: Stack, account: string) => {
+  // Suppress granular wildcard on log stream for SlackBot Lambda
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateless/Functions/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
+      }
+    ]
+  )
+
+  // Suppress API Gateway validation warning for Apis construct
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateless/Apis/EpsAssistApiGateway/ApiGateway/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG2",
+        reason: "Validation is handled within Lambda; request validation is intentionally omitted."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateless/Apis/EpsAssistApiGateway/ApiGateway/CloudWatchRole/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM4",
+        reason: "Validation is handled within Lambda; request validation is intentionally omitted.",
+        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"]
+      }
+    ]
+  )
+
+  // Suppress unauthenticated API route warnings
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateless/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/events/POST/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG4",
+        reason: "Slack event endpoint is intentionally unauthenticated."
+      },
+      {
+        id: "AwsSolutions-COG4",
+        reason: "Cognito not required for this public endpoint."
+      }
+    ]
+  )
+
+  // Suppress missing WAF on API stage for Apis construct
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateless/Apis/EpsAssistApiGateway/ApiGateway/DeploymentStage.prod/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG3",
+        reason: "WAF not in current scope; may be added later."
+      }
+    ]
+  )
+
+  // Suppress wildcard permissions for SlackBot policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateless/RuntimePolicies/SlackBotPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "SlackBot Lambda needs wildcard permissions for guardrails, knowledge bases, and function invocation.",
+        appliesTo: [
+          "Resource::arn:aws:lambda:eu-west-2:<AWS::AccountId>:function:epsam*",
+          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam-pr-*",
+          `Resource::arn:aws:lambda:eu-west-2:${account}:function:epsam*`,
+          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam-pr-*`,
+          "Resource::arn:aws:bedrock:*"
+        ]
+      }
+    ]
+  )
+
+  // Suppress secrets without rotation
+  safeAddNagSuppressionGroup(
+    stack,
+    [
+      "/EpsAssistMeStateless/Secrets/SlackBotToken/Secret/Resource",
+      "/EpsAssistMeStateless/Secrets/SlackBotSigning/Secret/Resource"
+    ],
+    [
+      {
+        id: "AwsSolutions-SMG4",
+        reason: "Slack secrets rotation is handled manually as part of the Slack app configuration process."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateless/RegressionTestPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for cloudformation stack listing.",
+        appliesTo: [
+          "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam*",
+          `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`
+        ]
+      }
+    ]
+  )
+
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const basePathMappingNagSuppressions = (stack: Stack, account: string) => {}
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
   try {

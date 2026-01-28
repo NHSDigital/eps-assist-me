@@ -4,7 +4,7 @@ import {
   Stack,
   StackProps
 } from "aws-cdk-lib"
-import {nagSuppressions} from "../nagSuppressions"
+import {basePathMappingNagSuppressions} from "../nagSuppressions"
 import {BasePathMapping, RestApi, DomainName} from "aws-cdk-lib/aws-apigateway"
 
 export interface EpsAssistMe_BasepathMappingProps extends StackProps {
@@ -39,6 +39,6 @@ export class EpsAssistMe_BasepathMapping extends Stack {
       stage: apiGateway.deploymentStage
     })
     // Final CDK Nag Suppressions
-    nagSuppressions(this, account)
+    basePathMappingNagSuppressions(this, account)
   }
 }

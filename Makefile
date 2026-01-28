@@ -1,3 +1,12 @@
+SHELL = /bin/bash
+.SHELLFLAGS = -o pipefail -c
+export CDK_CONFIG_versionNumber=undefined
+export CDK_CONFIG_commitId=undefined
+export CDK_CONFIG_logRetentionInDays=30
+export CDK_CONFIG_logLevel=DEBUG
+export CDK_CONFIG_forwardCsocLogs=false
+export CDK_CONFIG_environment=dev
+
 guard-%:
 	@ if [ "${${*}}" = "" ]; then \
 		echo "Environment variable $* not set"; \
@@ -87,73 +96,79 @@ aws-login:
 cfn-guard:
 	./scripts/run_cfn_guard.sh
 
-cdk-deploy: guard-STACK_NAME
-	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
-	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
-	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
-		npx cdk deploy \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--all \
-		--ci true \
-		--require-approval $${REQUIRE_APPROVAL} \
-		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$STACK_NAME \
-		--context versionNumber=$$VERSION_NUMBER \
-		--context commitId=$$COMMIT_ID \
-		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS \
-		--context slackBotToken=$$SLACK_BOT_TOKEN \
-		--context slackSigningSecret=$$SLACK_SIGNING_SECRET
+cdk-synth: cdk-synth-stateful cdk-synth-stateless cdk-synth-basepath-mapping
 
-cdk-synth: cdk-synth-pr cdk-synth-non-pr
+cdk-synth-stateful: cdk-synth-stateful-pr cdk-synth-stateful-non-pr
+cdk-synth-stateless: cdk-synth-stateless-pr cdk-synth-stateless-non-pr
 
-cdk-synth-non-pr:
+cdk-synth-stateful-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .dependencies/preprocessingFunction
 	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
-	STACK_NAME=epsam \
-	COMMIT_ID=undefined \
-	VERSION_NUMBER=undefined \
-	SLACK_BOT_TOKEN=dummy_token \
-	SLACK_SIGNING_SECRET=dummy_secret \
-	LOG_RETENTION_IN_DAYS=30 \
-	LOG_LEVEL=debug \
-	FORWARD_CSOC_LOGS=false \
-	RUN_REGRESSION_TESTS=true \
-		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
-	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
-		--quiet \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
+	CDK_APP_NAME=EpsAssistMe_StatefulApp \
+	CDK_CONFIG_stackName=epsam-stateful \
+	CDK_CONFIG_enableBedrockLogging=false \
+	CDK_CONFIG_isPullRequest=true \
+	npm run cdk-synth --workspace packages/cdk/
 
-cdk-synth-pr:
+cdk-synth-stateful-non-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .dependencies/preprocessingFunction
 	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
-	STACK_NAME=epsam-pr-123 \
-	COMMIT_ID=undefined \
-	VERSION_NUMBER=undefined \
-	SLACK_BOT_TOKEN=dummy_token \
-	SLACK_SIGNING_SECRET=dummy_secret \
-	LOG_RETENTION_IN_DAYS=30 \
-	LOG_LEVEL=debug \
-	FORWARD_CSOC_LOGS=false \
-	RUN_REGRESSION_TESTS=true \
-		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
-	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
-		--quiet \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
+	CDK_APP_NAME=EpsAssistMe_StatefulApp \
+	CDK_CONFIG_stackName=epsam-stateful \
+	CDK_CONFIG_enableBedrockLogging=false \
+	CDK_CONFIG_isPullRequest=false \
+	npm run cdk-synth --workspace packages/cdk/
 
-cdk-diff:
-	npx cdk diff \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
-		--context accountId=$$ACCOUNT_ID \
-		--context stackName=$$STACK_NAME \
-		--context versionNumber=$$VERSION_NUMBER \
-		--context commitId=$$COMMIT_ID \
-		--context logRetentionInDays=$$LOG_RETENTION_IN_DAYS
+cdk-synth-stateless-pr:
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/preprocessingFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
+	mkdir -p .local_config
+	CDK_APP_NAME=EpsAssistMe_StatelessApp \
+	CDK_CONFIG_stackName=epsam-stateless \
+	CDK_CONFIG_isPullRequest=true \
+	CDK_CONFIG_runRegressionTests=true \
+	CDK_CONFIG_forwardCsocLogs=true \
+	CDK_CONFIG_slackBotToken=foo \
+	CDK_CONFIG_slackSigningSecret=bar \
+	CDK_CONFIG_statefulStackName=epsam-stateful \
+	npm run cdk-synth --workspace packages/cdk/
+
+cdk-synth-stateless-non-pr:
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/preprocessingFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
+	mkdir -p .local_config
+	CDK_APP_NAME=EpsAssistMe_StatelessApp \
+	CDK_CONFIG_stackName=epsam-stateless \
+	CDK_CONFIG_isPullRequest=false \
+	CDK_CONFIG_runRegressionTests=true \
+	CDK_CONFIG_forwardCsocLogs=true \
+	CDK_CONFIG_slackBotToken=foo \
+	CDK_CONFIG_slackSigningSecret=bar \
+	CDK_CONFIG_statefulStackName=epsam-stateful \
+	npm run cdk-synth --workspace packages/cdk/
+
+cdk-synth-basepath-mapping:
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/preprocessingFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
+	mkdir -p .local_config
+	CDK_APP_NAME=EpsAssistMe_BasepathMappingApp \
+	CDK_CONFIG_stackName=epsam-bpm \
+	CDK_CONFIG_isPullRequest=false \
+	CDK_CONFIG_statefulStackName=epsam-stateful \
+	CDK_CONFIG_statelessStackName=epsam-stateless \
+	npm run cdk-synth --workspace packages/cdk/
 
 cdk-watch:
 	./scripts/run_sync.sh

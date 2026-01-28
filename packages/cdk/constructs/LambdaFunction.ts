@@ -18,6 +18,7 @@ import {
   Code
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
+import {resolve, join} from "path"
 
 export interface LambdaFunctionProps {
   readonly stackName: string
@@ -127,6 +128,7 @@ export class LambdaFunction extends Construct {
       layers.push(dependencyLayer)
     }
 
+    const baseDir = resolve(__dirname, "../../..")
     // Create Lambda function with Python runtime and monitoring
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
       runtime: Runtime.PYTHON_3_14,
@@ -134,7 +136,7 @@ export class LambdaFunction extends Construct {
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
       handler: props.handler,
-      code: Code.fromAsset(props.packageBasePath),
+      code: Code.fromAsset(join(baseDir, props.packageBasePath)),
       role,
       environment: {
         ...props.environmentVariables,
