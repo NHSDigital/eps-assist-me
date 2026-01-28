@@ -10,7 +10,7 @@ async function main() {
     isStateless: true
   })
 
-  new EpsAssistMe_BasepathMapping(app, "EpsAssistMeStateful", {
+  new EpsAssistMe_BasepathMapping(app, "EpsAssistMeBasepathMapping", {
     ...props,
     statefulStackName: getConfigFromEnvVar("statefulStackName"),
     statelessStackName: getConfigFromEnvVar("statelessStackName")
