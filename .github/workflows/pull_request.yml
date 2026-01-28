@@ -170,7 +170,7 @@ jobs:
     uses: ./.github/workflows/release_all_stacks.yml
     with:
       STATEFUL_STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}-stateful
-      STATELESS_STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}-stateless
+      STATELESS_STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}-stateless-new
       BASE_PATH_MAPPING_STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}-bpm
       API_GATEWAY_DOMAIN_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
       TARGET_ENVIRONMENT: dev-pr
