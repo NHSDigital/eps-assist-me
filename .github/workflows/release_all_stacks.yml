@@ -130,24 +130,30 @@ jobs:
           output-credentials: false
   
       - name: Deploy stateful app
-        run: npm run cdk-deploy --workspace packages/cdk
+        run: npm run cdk-deploy --workspace packages/cdk "${CDK_STACK_NAME}"
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
           CDK_STACK_NAME: "EpsAssistMeStateful"
           CDK_CONFIG_stackName: "${{ inputs.STATEFUL_STACK_NAME }}"
-          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
           CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
           CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
           CDK_CONFIG_isPullRequest: "${{ inputs.IS_PULL_REQUEST }}"
           CDK_CONFIG_environment: "${{ inputs.TARGET_ENVIRONMENT }}"
           CDK_CONFIG_logRetentionInDays: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
           CDK_CONFIG_logLevel: "${{ inputs.LOG_LEVEL }}"
+          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
           CDK_CONFIG_enableBedrockLogging: false
+          CDK_CONFIG_runRegressionTests: "${{ inputs.RUN_REGRESSION_TESTS }}"
+          CDK_CONFIG_forwardCsocLogs: "${{ inputs.FORWARD_CSOC_LOGS }}"
+          CDK_CONFIG_slackBotToken: "${{ secrets.SLACK_BOT_TOKEN }}"
+          CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
+          CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
+          CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
           REQUIRE_APPROVAL: "never"
   
       - name: Deploy stateless app
-        run: npm run cdk-deploy --workspace packages/cdk
+        run: npm run cdk-deploy --workspace packages/cdk "${CDK_STACK_NAME}"
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
@@ -159,14 +165,17 @@ jobs:
           CDK_CONFIG_environment: "${{ inputs.TARGET_ENVIRONMENT }}"
           CDK_CONFIG_logRetentionInDays: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
           CDK_CONFIG_logLevel: "${{ inputs.LOG_LEVEL }}"
+          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
+          CDK_CONFIG_enableBedrockLogging: false
           CDK_CONFIG_runRegressionTests: "${{ inputs.RUN_REGRESSION_TESTS }}"
           CDK_CONFIG_forwardCsocLogs: "${{ inputs.FORWARD_CSOC_LOGS }}"
           CDK_CONFIG_slackBotToken: "${{ secrets.SLACK_BOT_TOKEN }}"
           CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
+          CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
           REQUIRE_APPROVAL: "never"
       - name: Deploy basepath mapping app
-        run: npm run cdk-deploy --workspace packages/cdk
+        run: npm run cdk-deploy --workspace packages/cdk "${CDK_STACK_NAME}"
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
@@ -176,6 +185,14 @@ jobs:
           CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
           CDK_CONFIG_isPullRequest: "${{ inputs.IS_PULL_REQUEST }}"
           CDK_CONFIG_environment: "${{ inputs.TARGET_ENVIRONMENT }}"
+          CDK_CONFIG_logRetentionInDays: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
+          CDK_CONFIG_logLevel: "${{ inputs.LOG_LEVEL }}"
+          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
+          CDK_CONFIG_enableBedrockLogging: false
+          CDK_CONFIG_runRegressionTests: "${{ inputs.RUN_REGRESSION_TESTS }}"
+          CDK_CONFIG_forwardCsocLogs: "${{ inputs.FORWARD_CSOC_LOGS }}"
+          CDK_CONFIG_slackBotToken: "${{ secrets.SLACK_BOT_TOKEN }}"
+          CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
           CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
           REQUIRE_APPROVAL: "never"
