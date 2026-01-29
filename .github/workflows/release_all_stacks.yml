@@ -133,7 +133,8 @@ jobs:
         run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
         env:
-          CDK_APP_NAME: "EpsAssistMe_StatefulApp"
+          CDK_APP_NAME: "EpsAssistMeApp"
+          CDK_STACK_NAME: "EpsAssistMeStateful"
           CDK_CONFIG_stackName: "${{ inputs.STATEFUL_STACK_NAME }}"
           CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
           CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
@@ -149,7 +150,8 @@ jobs:
         run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
         env:
-          CDK_APP_NAME: "EpsAssistMe_StatelessApp"
+          CDK_APP_NAME: "EpsAssistMeApp"
+          CDK_STACK_NAME: "EpsAssistMeStateless"
           CDK_CONFIG_stackName: "${{ inputs.STATELESS_STACK_NAME }}"
           CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
           CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
@@ -167,7 +169,8 @@ jobs:
         run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
         env:
-          CDK_APP_NAME: "EpsAssistMe_BasepathMappingApp"
+          CDK_APP_NAME: "EpsAssistMeApp"
+          CDK_STACK_NAME: "EpsAssistMeBasepathMapping"
           CDK_CONFIG_stackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
           CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
           CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"

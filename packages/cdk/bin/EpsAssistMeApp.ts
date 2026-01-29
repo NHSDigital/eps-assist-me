@@ -4,6 +4,8 @@ import {
   getConfigFromEnvVar,
   getNumberConfigFromEnvVar
 } from "@nhsdigital/eps-cdk-constructs"
+import {EpsAssistMe_Stateful} from "../stacks/EpsAssistMe_Stafeful"
+import {EpsAssistMe_BasepathMapping} from "../stacks/EpsAssistMe_BasepathMapping"
 import {EpsAssistMe_Stateless} from "../stacks/EpsAssistMe_Stateless"
 
 async function main() {
@@ -13,6 +15,15 @@ async function main() {
     repoName: "eps-assist-me",
     driftDetectionGroup: "epsam",
     isStateless: true
+  })
+
+  new EpsAssistMe_Stateful(app, "EpsAssistMeStateful", {
+    ...props,
+    region: props.env?.region || "eu-west-2",
+    logRetentionInDays: getNumberConfigFromEnvVar("logRetentionInDays"),
+    logLevel: getConfigFromEnvVar("logLevel"),
+    enableBedrockLogging: getBooleanConfigFromEnvVar("enableBedrockLogging"),
+    apiGatewayDomainName: getConfigFromEnvVar("domainName")
   })
 
   new EpsAssistMe_Stateless(app, "EpsAssistMeStateless", {
@@ -27,6 +38,12 @@ async function main() {
     slackBotToken: getConfigFromEnvVar("slackBotToken"),
     slackSigningSecret: getConfigFromEnvVar("slackSigningSecret"),
     statefulStackName: getConfigFromEnvVar("statefulStackName")
+  })
+
+  new EpsAssistMe_BasepathMapping(app, "EpsAssistMeBasepathMapping", {
+    ...props,
+    statefulStackName: getConfigFromEnvVar("statefulStackName"),
+    statelessStackName: getConfigFromEnvVar("statelessStackName")
   })
 }
 

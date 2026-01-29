@@ -2,9 +2,9 @@
   "name": "cdk",
   "version": "0.1.0",
   "scripts": {
-    "cdk-synth": "cdk synth --output ../../cdk.out --quiet --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\"",
+    "cdk-synth": "cdk synth ${CDK_STACK_NAME} --output ../../cdk.out --quiet --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\"",
     "cdk-diff": "cdk diff --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\"",
-    "cdk-deploy": "cdk deploy --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\" --all --ci true --require-approval ${REQUIRE_APPROVAL}",
+    "cdk-deploy": "cdk deploy ${CDK_STACK_NAME} --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\" --all --ci true --require-approval ${REQUIRE_APPROVAL}",
     "cdk-watch": "cdk deploy --app \"npm run tsx -- bin/${CDK_APP_NAME}.ts\" --watch --all --ci true --require-approval ${REQUIRE_APPROVAL}",
     "lint": "eslint  --max-warnings 0 --fix --config ../../eslint.config.mjs .",
     "tsx": "tsx"
