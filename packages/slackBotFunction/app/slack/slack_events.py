@@ -3,6 +3,7 @@ Slack event processing
 Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
+import os
 import re
 import time
 import traceback
@@ -547,6 +548,8 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
         try:
+            stack_name = os.environ["STACK_NAME"]
+            response_text = f"RESPONSE FROM STACK ${stack_name}\n${response_text}"
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(

@@ -57,7 +57,8 @@ export class StatelessFunctions extends Construct {
         "QUERY_REFORMULATION_PROMPT_NAME": props.reformulationPromptName,
         "RAG_RESPONSE_PROMPT_NAME": props.ragResponsePromptName,
         "QUERY_REFORMULATION_PROMPT_VERSION": props.reformulationPromptVersion,
-        "RAG_RESPONSE_PROMPT_VERSION": props.ragResponsePromptVersion
+        "RAG_RESPONSE_PROMPT_VERSION": props.ragResponsePromptVersion,
+        "STACK_NAME": props.stackName
       }
     })
 
