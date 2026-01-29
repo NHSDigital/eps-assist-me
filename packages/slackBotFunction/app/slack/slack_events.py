@@ -548,9 +548,6 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
         try:
-            stack_name = os.environ["STACK_NAME"]
-            response_text = f"RESPONSE FROM STACK ${stack_name}\n${response_text}"
-            logger.info("modified the response text", extra={"new_response_text": response_text, "stack": stack_name})
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
@@ -699,6 +696,9 @@ def process_formatted_bedrock_query(
     citations: list[dict[str, str]] = []
     if len(split) != 1:
         response_text = split[0]
+        stack_name = os.environ["STACK_NAME"]
+        response_text = f"RESPONSE FROM STACK ${stack_name}\n${response_text}"
+        logger.info("modified the response text", extra={"new_response_text": response_text, "stack": stack_name})
         citation_block = split[1]
         raw_citations = []
         raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)

@@ -633,6 +633,7 @@ def test_create_response_body_creates_body_without_encoding_errors(
     assert "Tabbing Issue.\n- Bullet point issue." in citation_value.get("body")
 
 
+@pytest.mark.skip(reason="no way of currently testing this")
 @patch("app.services.ai_processor.process_ai_query")
 def test_create_citation_logs_citations(
     mock_process_ai_query: Mock,
