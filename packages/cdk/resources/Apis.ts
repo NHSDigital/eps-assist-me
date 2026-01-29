@@ -13,7 +13,7 @@ export interface ApisProps {
 }
 
 export class Apis extends Construct {
-  public apis: {[key: string]: RestApiGateway}
+  public apiGateway: RestApiGateway
 
   public constructor(scope: Construct, id: string, props: ApisProps) {
     super(scope, id)
@@ -41,8 +41,6 @@ export class Apis extends Construct {
       lambdaFunction: props.functions.slackBot
     })
 
-    this.apis = {
-      api: apiGateway
-    }
+    this.apiGateway = apiGateway
   }
 }

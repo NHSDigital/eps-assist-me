@@ -18,6 +18,7 @@ import {
   Code
 } from "aws-cdk-lib/aws-lambda"
 import {CfnLogGroup, CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
+import {resolve, join} from "path"
 
 export interface LambdaFunctionProps {
   readonly stackName: string
@@ -118,10 +119,11 @@ export class LambdaFunction extends Construct {
     })
 
     const layers = [insightsLambdaLayer]
+    const baseDir = resolve(__dirname, "../../..")
     if (props.dependencyLocation) {
       const dependencyLayer = new LayerVersion(this, "DependencyLayer", {
         removalPolicy: RemovalPolicy.DESTROY,
-        code: Code.fromAsset(props.dependencyLocation),
+        code: Code.fromAsset(join(baseDir, props.dependencyLocation)),
         compatibleArchitectures: [Architecture.X86_64]
       })
       layers.push(dependencyLayer)
@@ -134,7 +136,7 @@ export class LambdaFunction extends Construct {
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
       handler: props.handler,
-      code: Code.fromAsset(props.packageBasePath),
+      code: Code.fromAsset(join(baseDir, props.packageBasePath)),
       role,
       environment: {
         ...props.environmentVariables,
