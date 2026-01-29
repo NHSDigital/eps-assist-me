@@ -550,7 +550,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         try:
             stack_name = os.environ["STACK_NAME"]
             response_text = f"RESPONSE FROM STACK ${stack_name}\n${response_text}"
-            logger.info("modified the response text", extra={"new_response_text": response_text})
+            logger.info("modified the response text", extra={"new_response_text": response_text, "stack": stack_name})
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
