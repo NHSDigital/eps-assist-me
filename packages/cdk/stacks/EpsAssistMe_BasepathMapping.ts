@@ -25,7 +25,7 @@ export class EpsAssistMe_BasepathMapping extends Stack {
     //const apiGatewayId = Fn.importValue(`${props.statelessStackName}:apiGateway:api:RestApiId`)
     const apiGatewayId = StringParameter.valueForStringParameter(
       this,
-      `${props.statelessStackName}/apiGateway/restApiId`
+      `/${props.statelessStackName}/apiGateway/restApiId`
     )
     const domain = DomainName.fromDomainNameAttributes(this, "ApiDomainName", {
       domainName: domainImport,

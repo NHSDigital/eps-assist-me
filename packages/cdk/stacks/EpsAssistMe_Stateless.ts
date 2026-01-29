@@ -153,7 +153,7 @@ export class EpsAssistMe_Stateless extends Stack {
     }
 
     new StringParameter(this, "ApiUrlParam", {
-      parameterName: `${props.stackName}/apiGateway/restApiId`,
+      parameterName: `/${props.stackName}/apiGateway/restApiId`,
       stringValue: apis.apiGateway.api.restApiId
     })
     // Output: SlackBot Endpoint
