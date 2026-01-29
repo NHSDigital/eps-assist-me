@@ -31,6 +31,7 @@ from app.services.slack import get_friendly_channel_name, post_error_message
 from app.utils.handler_utils import (
     conversation_key_and_root,
     extract_pull_request_id,
+    extract_session_pull_request_id,
     extract_test_command_params,
     forward_to_pull_request_lambda,
     is_duplicate_event,
@@ -347,6 +348,19 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         if str(action_id or "").startswith("cite"):
             # Update message to include citation content
             open_citation(channel_id, timestamp, message, action_data, client)
+            return
+
+        # Check if this is a PR conversation and forward if needed
+        pr_id = extract_session_pull_request_id(conversation_key)
+        if pr_id:
+            forward_to_pull_request_lambda(
+                body=body,
+                pull_request_id=pr_id,
+                event=None,
+                event_id=None,
+                store_pull_request_id=False,
+                type="action",
+            )
             return
 
         if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
