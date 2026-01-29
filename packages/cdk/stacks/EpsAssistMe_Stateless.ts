@@ -14,6 +14,7 @@ import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {StatelessRuntimePolicies} from "../resources/StatelessRuntimePolicies"
 import {GuardRailResources} from "../resources/GuardRailResources"
 import {StatelessFunctions} from "../resources/StatelessFunctions"
+import {StringParameter} from "aws-cdk-lib/aws-ssm"
 
 export interface EpsAssistMeStatelessProps extends StackProps {
   readonly stackName: string
@@ -151,6 +152,10 @@ export class EpsAssistMe_Stateless extends Stack {
       regressionTestRole.addManagedPolicy(regressionTestPolicy)
     }
 
+    new StringParameter(this, "ApiUrlParam", {
+      parameterName: `${props.stackName}/apiGateway/restApiId`,
+      stringValue: apis.apiGateway.api.restApiId
+    })
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {
       value: `https://${apis.apiGateway.api.domainName?.domainName}/slack/events`,

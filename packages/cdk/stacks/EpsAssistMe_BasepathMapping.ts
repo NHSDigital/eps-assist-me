@@ -6,6 +6,7 @@ import {
 } from "aws-cdk-lib"
 import {basePathMappingNagSuppressions} from "../nagSuppressions"
 import {BasePathMapping, RestApi, DomainName} from "aws-cdk-lib/aws-apigateway"
+import {StringParameter} from "aws-cdk-lib/aws-ssm"
 
 export interface EpsAssistMe_BasepathMappingProps extends StackProps {
   readonly stackName: string
@@ -21,8 +22,11 @@ export class EpsAssistMe_BasepathMapping extends Stack {
 
     // imports
     const domainImport = Fn.importValue(`${props.statefulStackName}:domain:Name`)
-    const apiGatewayId = Fn.importValue(`${props.statelessStackName}:apiGateway:api:RestApiId`)
-
+    //const apiGatewayId = Fn.importValue(`${props.statelessStackName}:apiGateway:api:RestApiId`)
+    const apiGatewayId = StringParameter.valueForStringParameter(
+      this,
+      `${props.statelessStackName}/apiGateway/restApiId`
+    )
     const domain = DomainName.fromDomainNameAttributes(this, "ApiDomainName", {
       domainName: domainImport,
       domainNameAliasTarget: "", // not needed for base path mapping

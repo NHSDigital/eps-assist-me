@@ -12,7 +12,7 @@ import {applyCfnGuardSuppressions} from "./utils/appUtils"
 async function main() {
   const {app, props} = createApp({
     productName: "EpsAssistMe",
-    appName: "EpsAssistMe_Stateless",
+    appName: "EpsAssistMe",
     repoName: "eps-assist-me",
     driftDetectionGroup: "epsam",
     isStateless: true
