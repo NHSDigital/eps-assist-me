@@ -158,7 +158,7 @@ export class EpsAssistMe_Stateful extends Stack {
     })
 
     const domainName = new ApiDomainName(this, "ApiDomainName", {
-      apiGatewayDomainName: props.stackName
+      apiGatewayDomainName: props.apiGatewayDomainName
     })
 
     // Output: SlackBot Endpoint
