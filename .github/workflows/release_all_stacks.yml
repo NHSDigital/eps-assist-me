@@ -130,7 +130,7 @@ jobs:
           output-credentials: false
   
       - name: Deploy stateful app
-        run: npm run cdk-deploy --workspace packages/cdk "${CDK_STACK_NAME}"
+        run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
@@ -153,7 +153,7 @@ jobs:
           REQUIRE_APPROVAL: "never"
   
       - name: Deploy stateless app
-        run: npm run cdk-deploy --workspace packages/cdk "${CDK_STACK_NAME}"
+        run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
@@ -175,7 +175,7 @@ jobs:
           CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
           REQUIRE_APPROVAL: "never"
       - name: Deploy basepath mapping app
-        run: npm run cdk-deploy --workspace packages/cdk "${CDK_STACK_NAME}"
+        run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
