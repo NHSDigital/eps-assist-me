@@ -1,5 +1,6 @@
 import {
   App,
+  CfnOutput,
   Fn,
   Stack,
   StackProps
@@ -22,6 +23,7 @@ export class EpsAssistMe_BasepathMapping extends Stack {
 
     // imports
     const domainImport = Fn.importValue(`${props.statefulStackName}:domain:Name`)
+    const slackBotLambdaArn = Fn.importValue(`${props.statefulStackName}:lambda:SlackBot:Arn`)
     //const apiGatewayId = Fn.importValue(`${props.statelessStackName}:apiGateway:api:RestApiId`)
     const apiGatewayId = StringParameter.valueForStringParameter(
       this,
@@ -42,6 +44,12 @@ export class EpsAssistMe_BasepathMapping extends Stack {
       restApi: apiGateway,
       stage: apiGateway.deploymentStage
     })
+
+    new CfnOutput(this, "SlackBotLambdaArn", {
+      value: slackBotLambdaArn,
+      exportName: `${props.stackName}:lambda:SlackBot:Arn`
+    })
+
     // Final CDK Nag Suppressions
     basePathMappingNagSuppressions(this, account)
   }
