@@ -370,18 +370,6 @@ export const statelessNagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateless/Apis/EpsAssistApiGateway/ApiGateway/CloudWatchRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Validation is handled within Lambda; request validation is intentionally omitted.",
-        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"]
-      }
-    ]
-  )
-
   // Suppress unauthenticated API route warnings
   safeAddNagSuppression(
     stack,

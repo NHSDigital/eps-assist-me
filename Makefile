@@ -136,6 +136,25 @@ cdk-synth-non-pr:
 	CDK_CONFIG_statelessStackName=epsam-stateless \
 	npm run cdk-synth --workspace packages/cdk/
 
+cdk-flags:
+	mkdir -p .dependencies/slackBotFunction
+	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/preprocessingFunction
+	mkdir -p .dependencies/bedrockLoggingConfigFunction
+	mkdir -p .local_config
+	CDK_APP_NAME=EpsAssistMeApp \
+	CDK_CONFIG_stackName=epsam-bpm \
+	CDK_CONFIG_isPullRequest=false \
+	CDK_CONFIG_domainName=epsam \
+	CDK_CONFIG_enableBedrockLogging=false \
+	CDK_CONFIG_runRegressionTests=true \
+	CDK_CONFIG_forwardCsocLogs=true \
+	CDK_CONFIG_slackBotToken=foo \
+	CDK_CONFIG_slackSigningSecret=bar \
+	CDK_CONFIG_statefulStackName=epsam-stateful \
+	CDK_CONFIG_statelessStackName=epsam-stateless \
+	npm run cdk-flags --workspace packages/cdk/
+
 cdk-watch:
 	./scripts/run_sync.sh
 
