@@ -79,4 +79,4 @@ runs:
       shell: bash
       run: |
         echo "Updating s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/..."
-        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/ --delete
+        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/
