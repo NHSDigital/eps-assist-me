@@ -115,6 +115,7 @@ cdk-synth-pr:
 	CDK_CONFIG_slackSigningSecret=bar \
 	CDK_CONFIG_statefulStackName=epsam-stateful \
 	CDK_CONFIG_statelessStackName=epsam-stateless \
+	CDK_CONFIG_basePathMappingStackName=epsam-basepathmapping \
 	npm run cdk-synth --workspace packages/cdk/
 
 cdk-synth-non-pr:
@@ -134,6 +135,7 @@ cdk-synth-non-pr:
 	CDK_CONFIG_slackSigningSecret=bar \
 	CDK_CONFIG_statefulStackName=epsam-stateful \
 	CDK_CONFIG_statelessStackName=epsam-stateless \
+	CDK_CONFIG_basePathMappingStackName=epsam-basepathmapping \
 	npm run cdk-synth --workspace packages/cdk/
 
 cdk-flags:

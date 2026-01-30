@@ -150,6 +150,7 @@ jobs:
           CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
           CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
+          CDK_CONFIG_basePathMappingStackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
           REQUIRE_APPROVAL: "never"
   
       - name: Deploy stateless app
@@ -173,13 +174,13 @@ jobs:
           CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
           CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
+          CDK_CONFIG_basePathMappingStackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
           REQUIRE_APPROVAL: "never"
       - name: Deploy basepath mapping app
         run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
-          CDK_STACK_NAME: "EpsAssistMeBasepathMapping"
           CDK_CONFIG_stackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
           CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
           CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
@@ -195,6 +196,7 @@ jobs:
           CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
           CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
           CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
+          CDK_CONFIG_basePathMappingStackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
           REQUIRE_APPROVAL: "never"
 
       - name: Normalize Environment Name

@@ -1,6 +1,7 @@
 import {Construct} from "constructs"
-import {LambdaFunction} from "../constructs/LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
 import {ManagedPolicy} from "aws-cdk-lib/aws-iam"
+import {resolve} from "path"
 
 export interface StatefulFunctionsProps {
   readonly stackName: string
@@ -18,16 +19,16 @@ export interface StatefulFunctionsProps {
 }
 
 export class StatefulFunctions extends Construct {
-  public readonly syncKnowledgeBaseFunction: LambdaFunction
-  public readonly preprocessingFunction: LambdaFunction
+  public readonly syncKnowledgeBaseFunction: PythonLambdaFunction
+  public readonly preprocessingFunction: PythonLambdaFunction
 
   constructor(scope: Construct, id: string, props: StatefulFunctionsProps) {
     super(scope, id)
 
     // Lambda function to preprocess documents (convert to markdown)
-    const preprocessingFunction = new LambdaFunction(this, "PreprocessingFunction", {
-      stackName: props.stackName,
+    const preprocessingFunction = new PythonLambdaFunction(this, "PreprocessingFunction", {
       functionName: `${props.stackName}-PreprocessingFunction`,
+      projectBaseDir: resolve(__dirname, "../../.."),
       packageBasePath: "packages/preprocessingFunction",
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,
@@ -43,9 +44,9 @@ export class StatefulFunctions extends Construct {
     })
 
     // Lambda function to sync knowledge base on S3 events
-    const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {
-      stackName: props.stackName,
+    const syncKnowledgeBaseFunction = new PythonLambdaFunction(this, "SyncKnowledgeBaseFunction", {
       functionName: `${props.stackName}-SyncKnowledgeBaseFunction`,
+      projectBaseDir: resolve(__dirname, "../../.."),
       packageBasePath: "packages/syncKnowledgeBaseFunction",
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,

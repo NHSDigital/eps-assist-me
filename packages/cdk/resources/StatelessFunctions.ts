@@ -1,7 +1,8 @@
 import {Construct} from "constructs"
-import {LambdaFunction} from "../constructs/LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
+import {resolve} from "path"
 
 const LAMBDA_MEMORY_SIZE = "265"
 
@@ -29,15 +30,15 @@ export interface StatelessFunctionsProps {
 }
 
 export class StatelessFunctions extends Construct {
-  public readonly slackBotLambda: LambdaFunction
+  public readonly slackBotLambda: PythonLambdaFunction
 
   constructor(scope: Construct, id: string, props: StatelessFunctionsProps) {
     super(scope, id)
 
     // Lambda function to handle Slack bot interactions (events and @mentions)
-    const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
-      stackName: props.stackName,
+    const slackBotLambda = new PythonLambdaFunction(this, "SlackBotLambda", {
       functionName: `${props.stackName}-SlackBotFunction`,
+      projectBaseDir: resolve(__dirname, "../../.."),
       packageBasePath: "packages/slackBotFunction",
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,

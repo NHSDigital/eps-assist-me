@@ -1,4 +1,5 @@
 import {
+  calculateVersionedStackName,
   createApp,
   getBooleanConfigFromEnvVar,
   getConfigFromEnvVar,
@@ -14,12 +15,12 @@ async function main() {
     productName: "EpsAssistMe",
     appName: "EpsAssistMe",
     repoName: "eps-assist-me",
-    driftDetectionGroup: "epsam",
-    isStateless: true
+    driftDetectionGroup: "epsam"
   })
 
   const statefulStack = new EpsAssistMe_Stateful(app, "EpsAssistMeStateful", {
     ...props,
+    stackName: getConfigFromEnvVar("statefulStackName"),
     region: props.env?.region || "eu-west-2",
     logRetentionInDays: getNumberConfigFromEnvVar("logRetentionInDays"),
     logLevel: getConfigFromEnvVar("logLevel"),
@@ -27,8 +28,10 @@ async function main() {
     apiGatewayDomainName: getConfigFromEnvVar("domainName")
   })
 
+  const statelessStackName = calculateVersionedStackName(getConfigFromEnvVar("statelessStackName"), props.version)
   const statelessStack = new EpsAssistMe_Stateless(app, "EpsAssistMeStateless", {
     ...props,
+    stackName: statelessStackName,
     region: props.env?.region || "eu-west-2",
     logRetentionInDays: getNumberConfigFromEnvVar("logRetentionInDays"),
     logLevel: getConfigFromEnvVar("logLevel"),
@@ -43,8 +46,9 @@ async function main() {
 
   const basePathMapping = new EpsAssistMe_BasepathMapping(app, "EpsAssistMeBasepathMapping", {
     ...props,
+    stackName: getConfigFromEnvVar("basePathMappingStackName"),
     statefulStackName: getConfigFromEnvVar("statefulStackName"),
-    statelessStackName: getConfigFromEnvVar("statelessStackName")
+    statelessStackName: statelessStackName
   })
 
   applyCfnGuardSuppressions(statefulStack)

@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 
 import {Stack} from "aws-cdk-lib"
-import {NagPackSuppression, NagSuppressions} from "cdk-nag"
+import {safeAddNagSuppressionGroup, safeAddNagSuppression} from "@nhsdigital/eps-cdk-constructs"
 
 export const statefulNagSuppressions = (stack: Stack, account: string) => {
   // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
@@ -451,15 +451,3 @@ export const statelessNagSuppressions = (stack: Stack, account: string) => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const basePathMappingNagSuppressions = (stack: Stack, account: string) => {}
-
-const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
-  try {
-    NagSuppressions.addResourceSuppressionsByPath(stack, path, suppressions)
-  } catch (err) {
-    console.log(`Could not find path ${path}: ${err}`)
-  }
-}
-
-const safeAddNagSuppressionGroup = (stack: Stack, paths: Array<string>, suppressions: Array<NagPackSuppression>) => {
-  paths.forEach(path => safeAddNagSuppression(stack, path, suppressions))
-}
