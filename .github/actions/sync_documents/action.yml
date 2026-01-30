@@ -37,7 +37,7 @@ runs:
       shell: bash
       run: |
         mkdir -p ./s3-content
-        aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }} ./s3-content --exclude "raw/*" --exclude "processed/*"
+        aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }}/processed ./s3-content
 
     - name: Connect to Target Account
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
