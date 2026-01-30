@@ -181,6 +181,7 @@ jobs:
         shell: bash
         env:
           CDK_APP_NAME: "EpsAssistMeApp"
+          CDK_STACK_NAME: "EpsAssistMeBasepathMapping"
           CDK_CONFIG_stackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
           CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
           CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
