@@ -1,13 +1,13 @@
 import {Construct} from "constructs"
 import {RestApiGateway} from "../constructs/RestApiGateway"
 import {LambdaEndpoint} from "../constructs/RestApiGateway/LambdaEndpoint"
-import {LambdaFunction} from "../constructs/LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
 import {HttpMethod} from "aws-cdk-lib/aws-lambda"
 
 export interface ApisProps {
   readonly stackName: string
   readonly logRetentionInDays: number
-  functions: {[key: string]: LambdaFunction}
+  functions: {[key: string]: PythonLambdaFunction}
   readonly forwardCsocLogs: boolean
   readonly csocApiGatewayDestination: string
 }
