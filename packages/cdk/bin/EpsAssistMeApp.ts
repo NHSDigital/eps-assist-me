@@ -50,7 +50,6 @@ async function main() {
   applyCfnGuardSuppressions(statefulStack)
   applyCfnGuardSuppressions(statelessStack)
   applyCfnGuardSuppressions(basePathMapping)
-
 }
 
 main().catch((error) => {

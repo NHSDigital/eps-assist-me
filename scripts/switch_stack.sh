@@ -23,14 +23,14 @@ CDK_CONFIG_logRetentionInDays=30
 CDK_CONFIG_logLevel=DEBUG
 
 # these should be set to show rollback happened
-CDK_CONFIG_versionNumber=change_me
-CDK_CONFIG_commitId=change_me
+CDK_CONFIG_versionNumber=pr-336
+CDK_CONFIG_commitId=pr-336
 
 # change these to match the environment
 CDK_CONFIG_environment=dev
 
 # this is the name of the bpm stack that we are going to deploy an updated version
-CDK_CONFIG_stackName=epsam-pr-336
+CDK_CONFIG_stackName=epsam
 
 # this is the name of the stateful stack - should not change
 CDK_CONFIG_statefulStackName=epsam-pr-336-stateful

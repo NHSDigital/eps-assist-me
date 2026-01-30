@@ -43,6 +43,29 @@ const findResourcesByType = (construct: IConstruct, type: string): Array<CfnReso
 }
 
 /**
+ * Find all CfnResources with a metadata aws:cdk:path that matches any provided path.
+ */
+const findResourcesByPath = (construct: IConstruct, paths: Array<string>): Array<CfnResource> => {
+  const matches: Array<CfnResource> = []
+  const targetPaths = new Set(paths)
+  const seen = new Set<string>()
+  const search = (node: IConstruct): void => {
+    if (node instanceof CfnResource) {
+      const resourcePath = node.cfnOptions.metadata?.["aws:cdk:path"]
+      if (typeof resourcePath === "string" && targetPaths.has(resourcePath) && !seen.has(node.logicalId)) {
+        matches.push(node)
+        seen.add(node.logicalId)
+      }
+    }
+    for (const child of node.node.children) {
+      search(child)
+    }
+  }
+  search(construct)
+  return matches
+}
+
+/**
  * Add/merge cfn-guard suppressions to resources for the given rules.
  */
 const addSuppressions = (resources: Array<CfnResource>, rules: Array<string>): void => {
@@ -69,4 +92,15 @@ export const applyCfnGuardSuppressions = (stack: Stack): void => {
 
   const s3NotificationPermissions = findResourcesByPattern(stack, ["AllowBucketNotifications"])
   addSuppressions(s3NotificationPermissions, ["LAMBDA_FUNCTION_PUBLIC_ACCESS_PROHIBITED"])
+
+  const aws_created_resources = findResourcesByPath(stack, [
+    "EpsAssistMeStateful/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/LogGroup/Resource",
+    "EpsAssistMeStateful/BedrockLogging/LoggingConfigProvider/framework-onEvent/LogGroup/Resource",
+    "EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/LogGroup/Resource",
+    "EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayFunction/LogGroup/Resource",
+    "EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayFunction/LogGroup/Resource",
+    "EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/LogGroup/Resource"
+  ])
+  addSuppressions(aws_created_resources, ["CLOUDWATCH_LOG_GROUP_ENCRYPTED"])
+
 }
