@@ -44,7 +44,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
                 "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
                 "retrievalConfiguration": {
-                    "vectorSearchConfiguration": {"numberOfResults": 5, "overrideSearchType": "SEMANTIC"}
+                    "vectorSearchConfiguration": {"numberOfResults": 3, "overrideSearchType": "SEMANTIC"}
                 },
                 "generationConfiguration": {
                     "guardrailConfiguration": {
