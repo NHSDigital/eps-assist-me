@@ -57,7 +57,10 @@ jobs:
     needs: [tag_release, package_code]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STATEFUL_STACK_NAME: epsam-stateful
+      STATELESS_STACK_NAME: epsam-stateless
+      BASE_PATH_MAPPING_STACK_NAME: epsam-bpm
+      API_GATEWAY_DOMAIN_NAME: epsam
       TARGET_ENVIRONMENT: dev
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}
@@ -87,7 +90,10 @@ jobs:
     needs: [tag_release, package_code, release_dev]
     uses: ./.github/workflows/release_all_stacks.yml
     with:
-      STACK_NAME: epsam
+      STATEFUL_STACK_NAME: epsam-stateful
+      STATELESS_STACK_NAME: epsam-stateless
+      BASE_PATH_MAPPING_STACK_NAME: epsam-bpm
+      API_GATEWAY_DOMAIN_NAME: epsam
       TARGET_ENVIRONMENT: qa
       VERSION_NUMBER: ${{ needs.tag_release.outputs.version_tag }}
       COMMIT_ID: ${{ github.sha }}

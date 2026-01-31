@@ -3,7 +3,16 @@ name: release all stacks
 on:
   workflow_call:
     inputs:
-      STACK_NAME:
+      STATEFUL_STACK_NAME:
+        required: true
+        type: string
+      STATELESS_STACK_NAME:
+        required: true
+        type: string
+      BASE_PATH_MAPPING_STACK_NAME:
+        required: true
+        type: string
+      API_GATEWAY_DOMAIN_NAME:
         required: true
         type: string
       TARGET_ENVIRONMENT:
@@ -101,14 +110,6 @@ jobs:
           TARGET_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
           DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
 
-      - name: Configure AWS Credentials
-        id: connect_aws_pull_image
-        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
-        with:
-          aws-region: eu-west-2
-          role-to-assume: ${{ secrets.CDK_PULL_IMAGE_ROLE }}
-          role-session-name: eps-assist-me-pull-image
-
       - name: build_artifact download
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
@@ -117,21 +118,7 @@ jobs:
       - name: extract build_artifact
         run: |
           mkdir -p .build
-          tar -xf artifact.tar -C .build
-
-      - name: Retrieve AWS Account ID
-        id: retrieve_aws_account_id
-        run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_ENV"
-
-      - name: Login to Amazon ECR
-        id: login_ecr
-        run: |
-          aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com
-
-      - name: Pull cdk-utils-build from Amazon ECR
-        run: |
-          docker pull "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest"
-          docker tag "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest" cdk-utils-build-repo:latest
+          tar -xf artifact.tar
 
       - name: Configure AWS Credentials
         id: connect_aws_for_deployment
@@ -140,55 +127,78 @@ jobs:
           aws-region: eu-west-2
           role-to-assume: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
           role-session-name: eps-assist-me-deployment
-          output-credentials: true
-
-      - name: fix cdk.json for deployment
-        run: |
-          ./.github/scripts/fix_cdk_json.sh .build/epsam_app.json
+          output-credentials: false
+  
+      - name: Deploy stateful app
+        run: npm run cdk-deploy --workspace packages/cdk
+        shell: bash
         env:
-          ACCOUNT_ID: "${{ env.ACCOUNT_ID }}"
-          STACK_NAME: "${{ inputs.STACK_NAME }}"
-          VERSION_NUMBER: "${{ inputs.VERSION_NUMBER }}"
-          COMMIT_ID: "${{ inputs.COMMIT_ID }}"
-          LOG_RETENTION_IN_DAYS: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
-          LOG_LEVEL: "${{ inputs.LOG_LEVEL }}"
-          SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
-          SLACK_SIGNING_SECRET: "${{ secrets.SLACK_SIGNING_SECRET }}"
-          CDK_APP_NAME: ${{ inputs.CDK_APP_NAME }}
-          FORWARD_CSOC_LOGS: ${{ inputs.FORWARD_CSOC_LOGS }}
-          IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
-          RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
-
-      - name: Show diff for stack
-        run: |
-          docker run \
-          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect_aws_for_deployment.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect_aws_for_deployment.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect_aws_for_deployment.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e SHOW_DIFF="true" \
-          -e DEPLOY_CODE="false" \
-          -e CONFIG_FILE_NAME="epsam_app.json" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
+          CDK_APP_NAME: "EpsAssistMeApp"
+          CDK_STACK_NAME: "EpsAssistMeStateful"
+          CDK_CONFIG_stackName: "${{ inputs.STATEFUL_STACK_NAME }}"
+          CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
+          CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
+          CDK_CONFIG_isPullRequest: "${{ inputs.IS_PULL_REQUEST }}"
+          CDK_CONFIG_environment: "${{ inputs.TARGET_ENVIRONMENT }}"
+          CDK_CONFIG_logRetentionInDays: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
+          CDK_CONFIG_logLevel: "${{ inputs.LOG_LEVEL }}"
+          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
+          CDK_CONFIG_enableBedrockLogging: false
+          CDK_CONFIG_runRegressionTests: "${{ inputs.RUN_REGRESSION_TESTS }}"
+          CDK_CONFIG_forwardCsocLogs: "${{ inputs.FORWARD_CSOC_LOGS }}"
+          CDK_CONFIG_slackBotToken: "${{ secrets.SLACK_BOT_TOKEN }}"
+          CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
+          CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
+          CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
+          CDK_CONFIG_basePathMappingStackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
+          REQUIRE_APPROVAL: "never"
+  
+      - name: Deploy stateless app
+        run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
-
-      - name: Deploy code for stack
-        if: ${{ inputs.DEPLOY_CODE == true }}
-        run: |
-          docker run \
-          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect_aws_for_deployment.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect_aws_for_deployment.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect_aws_for_deployment.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e SHOW_DIFF="false" \
-          -e DEPLOY_CODE="true" \
-          -e CONFIG_FILE_NAME="epsam_app.json" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
+        env:
+          CDK_APP_NAME: "EpsAssistMeApp"
+          CDK_STACK_NAME: "EpsAssistMeStateless"
+          CDK_CONFIG_stackName: "${{ inputs.STATELESS_STACK_NAME }}"
+          CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
+          CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
+          CDK_CONFIG_isPullRequest: "${{ inputs.IS_PULL_REQUEST }}"
+          CDK_CONFIG_environment: "${{ inputs.TARGET_ENVIRONMENT }}"
+          CDK_CONFIG_logRetentionInDays: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
+          CDK_CONFIG_logLevel: "${{ inputs.LOG_LEVEL }}"
+          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
+          CDK_CONFIG_enableBedrockLogging: false
+          CDK_CONFIG_runRegressionTests: "${{ inputs.RUN_REGRESSION_TESTS }}"
+          CDK_CONFIG_forwardCsocLogs: "${{ inputs.FORWARD_CSOC_LOGS }}"
+          CDK_CONFIG_slackBotToken: "${{ secrets.SLACK_BOT_TOKEN }}"
+          CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
+          CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
+          CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
+          CDK_CONFIG_basePathMappingStackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
+          REQUIRE_APPROVAL: "never"
+      - name: Deploy basepath mapping app
+        run: npm run cdk-deploy --workspace packages/cdk
         shell: bash
+        env:
+          CDK_APP_NAME: "EpsAssistMeApp"
+          CDK_STACK_NAME: "EpsAssistMeBasepathMapping"
+          CDK_CONFIG_stackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
+          CDK_CONFIG_versionNumber: "${{ inputs.VERSION_NUMBER }}"
+          CDK_CONFIG_commitId: "${{ inputs.COMMIT_ID }}"
+          CDK_CONFIG_isPullRequest: "${{ inputs.IS_PULL_REQUEST }}"
+          CDK_CONFIG_environment: "${{ inputs.TARGET_ENVIRONMENT }}"
+          CDK_CONFIG_logRetentionInDays: "${{ inputs.LOG_RETENTION_IN_DAYS }}"
+          CDK_CONFIG_logLevel: "${{ inputs.LOG_LEVEL }}"
+          CDK_CONFIG_domainName: "${{ inputs.API_GATEWAY_DOMAIN_NAME }}"
+          CDK_CONFIG_enableBedrockLogging: false
+          CDK_CONFIG_runRegressionTests: "${{ inputs.RUN_REGRESSION_TESTS }}"
+          CDK_CONFIG_forwardCsocLogs: "${{ inputs.FORWARD_CSOC_LOGS }}"
+          CDK_CONFIG_slackBotToken: "${{ secrets.SLACK_BOT_TOKEN }}"
+          CDK_CONFIG_slackSigningSecret: "${{ secrets.SLACK_SIGNING_SECRET }}"
+          CDK_CONFIG_statefulStackName: "${{ inputs.STATEFUL_STACK_NAME }}"
+          CDK_CONFIG_statelessStackName: "${{ inputs.STATELESS_STACK_NAME }}"
+          CDK_CONFIG_basePathMappingStackName: "${{ inputs.BASE_PATH_MAPPING_STACK_NAME }}"
+          REQUIRE_APPROVAL: "never"
 
       - name: Normalize Environment Name
         if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
@@ -199,14 +209,14 @@ jobs:
         env:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
 
-      - name: Sync Documents
-        uses: ./.github/actions/sync_documents
-        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
-        with: 
-          TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
-          STACK: ${{ inputs.STACK_NAME }}
-          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.UPPER_TARGET_ENVIRONMENT)] }}
+      # - name: Sync Documents
+      #   uses: ./.github/actions/sync_documents
+      #   if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+      #   with: 
+      #     TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+      #     STACK: ${{ inputs.STACK_NAME }}
+      #     INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+      #     TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.UPPER_TARGET_ENVIRONMENT)] }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira

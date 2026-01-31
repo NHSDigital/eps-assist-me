@@ -116,7 +116,6 @@ jobs:
             package-lock.json \
             tsconfig.defaults.json \
             Makefile \
-            cdk.json \
             .dependencies
 
       - uses: actions/upload-artifact@v6

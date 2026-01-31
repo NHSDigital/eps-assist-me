@@ -1,19 +1,19 @@
 import {Construct} from "constructs"
 import {RestApiGateway} from "../constructs/RestApiGateway"
 import {LambdaEndpoint} from "../constructs/RestApiGateway/LambdaEndpoint"
-import {LambdaFunction} from "../constructs/LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
 import {HttpMethod} from "aws-cdk-lib/aws-lambda"
 
 export interface ApisProps {
   readonly stackName: string
   readonly logRetentionInDays: number
-  functions: {[key: string]: LambdaFunction}
+  functions: {[key: string]: PythonLambdaFunction}
   readonly forwardCsocLogs: boolean
   readonly csocApiGatewayDestination: string
 }
 
 export class Apis extends Construct {
-  public apis: {[key: string]: RestApiGateway}
+  public apiGateway: RestApiGateway
 
   public constructor(scope: Construct, id: string, props: ApisProps) {
     super(scope, id)
@@ -41,8 +41,6 @@ export class Apis extends Construct {
       lambdaFunction: props.functions.slackBot
     })
 
-    this.apis = {
-      api: apiGateway
-    }
+    this.apiGateway = apiGateway
   }
 }
