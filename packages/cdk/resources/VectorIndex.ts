@@ -55,7 +55,7 @@ export class VectorIndex extends Construct {
       }
     }
 
-    const cfnIndex = new CfnIndex(this, "MyCfnIndex", {
+    const cfnIndex = new CfnIndex(this, "OpenSearchIndex", {
       collectionEndpoint: props.collection.collectionEndpoint,
       indexName: this.indexName,
       mappings: indexMapping,
