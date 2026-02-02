@@ -16,7 +16,7 @@ def get_bot_channels(client):
     """
     channel_ids = []
     try:
-        for result in client.conversations_list():
+        for result in client.conversations_list("private_channel", limit=1000):
             for channel in result["channels"]:
                 channel_ids.append(channel["id"])
     except Exception as e:
@@ -94,7 +94,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
 
     # Get Channels where the Bot is a member
     logger.info("Find bot channels...")
-    target_channels = get_bot_channels(SLACK_BOT_TOKEN_PARAMETER)
+    target_channels = get_bot_channels(client)
 
     if not target_channels:
         logger.warning("Bot is not in any channels. No messages sent.")
