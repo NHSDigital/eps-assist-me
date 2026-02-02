@@ -14,12 +14,15 @@ export interface RuntimePoliciesProps {
   readonly promptName: string
   readonly ragModelId: string
   readonly queryReformulationModelId: string
+  readonly docsBucketArn: string
+  readonly docsBucketKmsKeyArn: string
 }
 
 export class RuntimePolicies extends Construct {
   public readonly slackBotPolicy: ManagedPolicy
   public readonly syncKnowledgeBasePolicy: ManagedPolicy
   public readonly notifyS3UploadFunctionPolicy: ManagedPolicy
+  public readonly preprocessingPolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string, props: RuntimePoliciesProps) {
     super(scope, id)
@@ -148,6 +151,32 @@ export class RuntimePolicies extends Construct {
     this.notifyS3UploadFunctionPolicy = new ManagedPolicy(this, "notifyS3UploadFunctionPolicy", {
       description: "Policy for S3UpdateNotification Lambda to access SSM parameters",
       statements: [notifyS3UploadFunctionPolicy]
+    })
+
+    //policy for the preprocessing lambda
+    const preprocessingS3Policy = new PolicyStatement({
+      actions: [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      resources: [
+        `${props.docsBucketArn}/raw/*`,
+        `${props.docsBucketArn}/processed/*`
+      ]
+    })
+
+    const preprocessingKmsPolicy = new PolicyStatement({
+      actions: [
+        "kms:Decrypt",
+        "kms:Encrypt",
+        "kms:GenerateDataKey"
+      ],
+      resources: [props.docsBucketKmsKeyArn]
+    })
+
+    this.preprocessingPolicy = new ManagedPolicy(this, "PreprocessingPolicy", {
+      description: "Policy for Preprocessing Lambda to read from raw/ and write to processed/",
+      statements: [preprocessingS3Policy, preprocessingKmsPolicy]
     })
   }
 }

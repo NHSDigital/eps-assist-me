@@ -17,37 +17,35 @@ python = "^3.14"
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
 pre-commit = "^4.5.1"
-cfn-lint = "^1.43.3"
-black = "^25.12.0"
+cfn-lint = "^1.43.4"
+black = "^26.1.0"
 flake8 = "^7.3.0"
 jinja2 = "^3.1.6"
-pip-licenses = "^5.0.0"
+pip-licenses = "^5.5.1"
 click = "^8.3.0"
-rich = "^14.1.0"
+rich = "^14.3.1"
 pytest-mock = "^3.15.1"
 pytest-cov = "^7.0.0"
-moto = {extras = ["ssm"], version = "^5.1.19"}
-markitdown = {extras = ["pdf", "docx", "pptx", "xlsx"], version = "^0.0.2"}
+moto = {extras = ["ssm"], version = "^5.1.20"}
 
 
 [tool.poetry.group.slackBotFunction.dependencies]
 slack-bolt = "^1.25.0"
 slack-sdk = "^3.39.0"
-boto3 = "^1.42.30"
+boto3 = "^1.42.38"
 requests = "^2.32.5"
-opensearch-py = "^3.1.0"
 urllib3 = "^2.6.3"
 aws-lambda-powertools = "^3.23.0"
-boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runtime", "cloudformation", "dynamodb", "lambda"], version = "^1.42.30"}
+boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runtime", "cloudformation", "dynamodb", "lambda"], version = "^1.42.38"}
 
 
 [tool.poetry.group.syncKnowledgeBaseFunction.dependencies]
-boto3 = "^1.42.30"
+boto3 = "^1.42.38"
 aws-lambda-powertools = "^3.23.0"
 
 
 [tool.poetry.group.bedrockLoggingConfigFunction.dependencies]
-boto3 = "^1.42.30"
+boto3 = "^1.42.38"
 urllib3 = "^2.6.2"
 aws-lambda-powertools = "^3.23.0"
 
@@ -58,6 +56,10 @@ urllib3 = "^2.6.3"
 slack-bolt = "^1.25.0"
 slack-sdk = "^3.39.0"
 
+[tool.poetry.group.preprocessingFunction.dependencies]
+boto3 = "^1.42.38"
+aws-lambda-powertools = "^3.23.0"
+markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.0.1a12"}
 
 [tool.black]
 line-length = 120

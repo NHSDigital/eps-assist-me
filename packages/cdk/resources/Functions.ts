@@ -16,6 +16,7 @@ export interface FunctionsProps {
   readonly slackBotManagedPolicy: ManagedPolicy
   readonly slackBotTokenParameter: StringParameter
   readonly syncKnowledgeBaseManagedPolicy: ManagedPolicy
+  readonly preprocessingManagedPolicy: ManagedPolicy
   readonly slackSigningSecretParameter: StringParameter
   readonly guardrailId: string
   readonly guardrailVersion: string
@@ -36,12 +37,14 @@ export interface FunctionsProps {
   readonly ragModelId: string
   readonly queryReformulationModelId: string
   readonly notifyS3UploadFunctionPolicy: ManagedPolicy
+  readonly docsBucketName: string
 }
 
 export class Functions extends Construct {
   public readonly slackBotLambda: LambdaFunction
   public readonly syncKnowledgeBaseFunction: LambdaFunction
   public readonly notifyS3UploadFunction: LambdaFunction
+  public readonly preprocessingFunction: LambdaFunction
 
   constructor(scope: Construct, id: string, props: FunctionsProps) {
     super(scope, id)
@@ -98,6 +101,24 @@ export class Functions extends Construct {
       mainSlackBotLambdaExecutionRole.addManagedPolicy(executeSlackBotPolicy)
     }
 
+    // Lambda function to preprocess documents (convert to markdown)
+    const preprocessingFunction = new LambdaFunction(this, "PreprocessingFunction", {
+      stackName: props.stackName,
+      functionName: `${props.stackName}-PreprocessingFunction`,
+      packageBasePath: "packages/preprocessingFunction",
+      handler: "app.handler.handler",
+      logRetentionInDays: props.logRetentionInDays,
+      logLevel: props.logLevel,
+      dependencyLocation: ".dependencies/preprocessingFunction",
+      environmentVariables: {
+        "DOCS_BUCKET_NAME": props.docsBucketName,
+        "RAW_PREFIX": "raw/",
+        "PROCESSED_PREFIX": "processed/",
+        "AWS_ACCOUNT_ID": props.account
+      },
+      additionalPolicies: [props.preprocessingManagedPolicy]
+    })
+
     // Lambda function to sync knowledge base on S3 events
     const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {
       stackName: props.stackName,
@@ -129,6 +150,7 @@ export class Functions extends Construct {
     })
 
     this.slackBotLambda = slackBotLambda
+    this.preprocessingFunction = preprocessingFunction
     this.syncKnowledgeBaseFunction = syncKnowledgeBaseFunction
     this.notifyS3UploadFunction = notifyS3UploadFunction
   }

@@ -48,6 +48,7 @@ lint-flake8:
 test:
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
+	cd packages/preprocessingFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/bedrockLoggingConfigFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
 clean:
@@ -109,6 +110,7 @@ cdk-synth-non-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .dependencies/notifyS3UploadFunction
+	mkdir -p .dependencies/preprocessingFunction
 	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam \
@@ -129,6 +131,7 @@ cdk-synth-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
 	mkdir -p .dependencies/notifyS3UploadFunction
+	mkdir -p .dependencies/preprocessingFunction
 	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
 	STACK_NAME=epsam-pr-123 \
@@ -161,14 +164,14 @@ sync-docs:
 	./scripts/sync_docs.sh
 
 convert-docs:
-	poetry run python scripts/convert_docs_to_markdown.py
+	cd packages/preprocessingFunction && poetry run python -m app.cli
 
 convert-docs-file:
 	@if [ -z "$$FILE" ]; then \
 		echo "usage: FILE=your_doc.pdf make convert-docs-file"; \
 		exit 1; \
 	fi
-	poetry run python scripts/convert_docs_to_markdown.py --file "$$FILE"
+	cd packages/preprocessingFunction && poetry run python -m app.cli --file "$$FILE"
 
 
 compile:

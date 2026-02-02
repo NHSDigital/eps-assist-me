@@ -17,6 +17,7 @@ import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {VectorIndex} from "../resources/VectorIndex"
+import {BucketDeployment, Source} from "aws-cdk-lib/aws-s3-deployment"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {S3LambdaNotification} from "../resources/S3LambdaNotification"
@@ -94,6 +95,12 @@ export class EpsAssistMeStack extends Stack {
       auditLoggingBucket: auditLoggingBucket
     })
 
+    // initialize s3 folders for raw and processed documents
+    new BucketDeployment(this, "S3FolderInitializer", {
+      sources: [Source.asset("packages/cdk/assets/s3-folders")],
+      destinationBucket: storage.kbDocsBucket
+    })
+
     // Create Bedrock execution role without dependencies
     const bedrockExecutionRole = new BedrockExecutionRole(this, "BedrockExecutionRole", {
       region,
@@ -155,7 +162,9 @@ export class EpsAssistMeStack extends Stack {
       dataSourceArn: vectorKB.dataSourceArn,
       promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
       ragModelId: bedrockPromptResources.ragModelId,
-      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId
+      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
+      docsBucketArn: storage.kbDocsBucket.bucketArn,
+      docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn
     })
 
     // Create Functions construct with actual values from VectorKB
@@ -167,6 +176,7 @@ export class EpsAssistMeStack extends Stack {
       logLevel,
       slackBotManagedPolicy: runtimePolicies.slackBotPolicy,
       syncKnowledgeBaseManagedPolicy: runtimePolicies.syncKnowledgeBasePolicy,
+      preprocessingManagedPolicy: runtimePolicies.preprocessingPolicy,
       slackBotTokenParameter: secrets.slackBotTokenParameter,
       slackSigningSecretParameter: secrets.slackSigningSecretParameter,
       guardrailId: vectorKB.guardrail.guardrailId,
@@ -187,9 +197,28 @@ export class EpsAssistMeStack extends Stack {
       queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
-      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy
+      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy,
+      docsBucketName: storage.kbDocsBucket.bucketName
     })
 
+    // Grant preprocessing Lambda access to the KMS key for S3 bucket
+    storage.kbDocsKmsKey.grantEncryptDecrypt(functions.preprocessingFunction.executionRole)
+
+    //S3 notification for raw/ prefix to trigger preprocessing Lambda
+    new S3LambdaNotification(this, "S3RawNotification", {
+      bucket: storage.kbDocsBucket,
+      lambdaFunction: functions.preprocessingFunction.function,
+      prefix: "raw/"
+    })
+
+    // S3 notification for processed/ prefix to trigger sync Lambda function
+    new S3LambdaNotification(this, "S3ProcessedNotification", {
+      bucket: storage.kbDocsBucket,
+      lambdaFunction: functions.syncKnowledgeBaseFunction.function,
+      prefix: "processed/"
+    })
+
+    // Create S3LambdaNotification to link S3 and NotifyS3UploadFunction
     new S3LambdaNotification(this, "StorageNotificationQueue", {
       stackName: props.stackName,
       functions,
