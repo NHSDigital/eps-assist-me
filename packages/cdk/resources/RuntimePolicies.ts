@@ -140,13 +140,14 @@ export class RuntimePolicies extends Construct {
     // Create managed policy for S3UpdateNotification Lambda function
     const notifyS3UploadFunctionPolicy = new PolicyStatement({
       actions: [
-        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
-        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`,
+        "ssm:GetParameter",
         "sqs:ReceiveMessage",
         "sqs:DeleteMessage"
       ],
       resources: [
-        props.knowledgeBaseArn
+        props.knowledgeBaseArn,
+        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
+        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`
       ]
     })
 
