@@ -2,7 +2,7 @@
 Lambda handler for notifying Slack channels of S3 uploads
 """
 
-from app.core.config import SLACK_BOT_TOKEN_PARAMETER, logger
+from app.core.config import get_bot_token, logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -90,7 +90,11 @@ def handler(event: dict, context: LambdaContext) -> dict:
     blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": message_text}}]
 
     # Create new client
-    client = WebClient(SLACK_BOT_TOKEN_PARAMETER)
+    token = get_bot_token()
+    client = WebClient(token=token)
+    response = client.auth_test()
+
+    logger.info(f"Authenticated as bot user: {response.get('user_id', 'unknown')}", extra={"response": response})
 
     # Get Channels where the Bot is a member
     logger.info("Find bot channels...")
