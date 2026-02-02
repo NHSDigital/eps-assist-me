@@ -204,20 +204,6 @@ export class EpsAssistMeStack extends Stack {
     // Grant preprocessing Lambda access to the KMS key for S3 bucket
     storage.kbDocsKmsKey.grantEncryptDecrypt(functions.preprocessingFunction.executionRole)
 
-    //S3 notification for raw/ prefix to trigger preprocessing Lambda
-    new S3LambdaNotification(this, "S3RawNotification", {
-      bucket: storage.kbDocsBucket,
-      lambdaFunction: functions.preprocessingFunction.function,
-      prefix: "raw/"
-    })
-
-    // S3 notification for processed/ prefix to trigger sync Lambda function
-    new S3LambdaNotification(this, "S3ProcessedNotification", {
-      bucket: storage.kbDocsBucket,
-      lambdaFunction: functions.syncKnowledgeBaseFunction.function,
-      prefix: "processed/"
-    })
-
     // Create S3LambdaNotification to link S3 and NotifyS3UploadFunction
     new S3LambdaNotification(this, "StorageNotificationQueue", {
       stackName: props.stackName,

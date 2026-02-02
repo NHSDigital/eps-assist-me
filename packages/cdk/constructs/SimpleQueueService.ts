@@ -40,7 +40,7 @@ export class SimpleQueueService extends Construct {
     })
 
     // Create the main SQS Queue with DLQ configured
-    const queue = new Queue(this, `${name}-sqs`,
+    const queue = new Queue(this, name,
       {
         queueName: `${name}-sqs`,
         encryption: QueueEncryption.KMS,
@@ -62,10 +62,12 @@ export class SimpleQueueService extends Construct {
     }))
 
     props.functions.syncKnowledgeBaseFunction.function.addEventSource(new SqsEventSource(queue))
+    props.functions.preprocessingFunction.function.addEventSource(new SqsEventSource(queue))
 
     // Grant the Lambda function permissions to consume messages from the queue
     queue.grantConsumeMessages(props.functions.notifyS3UploadFunction.function)
     queue.grantConsumeMessages(props.functions.syncKnowledgeBaseFunction.function)
+    queue.grantConsumeMessages(props.functions.preprocessingFunction.function)
 
     this.kmsKey = kmsKey
     this.queue = queue
