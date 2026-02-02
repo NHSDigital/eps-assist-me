@@ -60,7 +60,6 @@ runs:
       run: |
         printf "\n"
         echo "listing s3-content for debugging..."
-        ls -R ./s3-content
         
         echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/..."
         DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/ --dryrun)
