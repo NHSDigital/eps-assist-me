@@ -8,7 +8,6 @@ from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateRespon
 from app.core.config import get_retrieve_generate_config, get_logger
 from app.services.prompt_loader import load_prompt
 
-
 logger = get_logger()
 
 

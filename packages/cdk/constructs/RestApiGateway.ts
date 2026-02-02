@@ -12,6 +12,7 @@ import {Key} from "aws-cdk-lib/aws-kms"
 import {CfnSubscriptionFilter, LogGroup} from "aws-cdk-lib/aws-logs"
 import {Construct} from "constructs"
 import {accessLogFormat} from "./RestApiGateway/accessLogFormat"
+import {addSuppressions} from "@nhsdigital/eps-cdk-constructs"
 
 export interface RestApiGatewayProps {
   readonly stackName: string
@@ -84,13 +85,9 @@ export class RestApiGateway extends Construct {
     })
 
     const cfnStage = apiGateway.deploymentStage.node.defaultChild as CfnStage
-    cfnStage.cfnOptions.metadata = {
-      guard: {
-        SuppressedRules: [
-          "API_GW_CACHE_ENABLED_AND_ENCRYPTED"
-        ]
-      }
-    }
+    addSuppressions([cfnStage], [
+      "API_GW_CACHE_ENABLED_AND_ENCRYPTED"
+    ])
 
     // Outputs
     this.api = apiGateway

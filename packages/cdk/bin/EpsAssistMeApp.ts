@@ -28,7 +28,7 @@ async function main() {
     apiGatewayDomainName: getConfigFromEnvVar("domainName")
   })
 
-  const statelessStackName = calculateVersionedStackName(getConfigFromEnvVar("statelessStackName"), props.version)
+  const statelessStackName = calculateVersionedStackName(getConfigFromEnvVar("statelessStackName"), props)
   const statelessStack = new EpsAssistMe_Stateless(app, "EpsAssistMeStateless", {
     ...props,
     stackName: statelessStackName,

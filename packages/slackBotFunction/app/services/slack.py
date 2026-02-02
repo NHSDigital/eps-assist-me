@@ -3,7 +3,6 @@ import traceback
 from slack_sdk import WebClient
 from app.core.config import bot_messages, get_logger
 
-
 logger = get_logger()
 
 

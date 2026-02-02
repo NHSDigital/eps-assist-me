@@ -71,7 +71,8 @@ export class VectorIndex extends Construct {
     // to ensure data access policies are synced before index creation
     const policySyncWait = new DelayResource(this, "PolicySyncWait", {
       delaySeconds: 60,
-      description: "Wait for OpenSearch data access policies to sync"
+      description: "Wait for OpenSearch data access policies to sync",
+      name: `${props.stackName}-policy-sync-wait`
     })
 
     policySyncWait.customResource.node.addDependency(props.collection.dataAccessPolicy)
@@ -85,7 +86,8 @@ export class VectorIndex extends Construct {
     // to ensure index is actually available for Bedrock
     const indexReadyWait = new DelayResource(this, "IndexReadyWait", {
       delaySeconds: 60,
-      description: "Wait for OpenSearch index to be fully available"
+      description: "Wait for OpenSearch index to be fully available",
+      name: `${props.stackName}-index-ready-wait`
     })
 
     indexReadyWait.customResource.node.addDependency(cfnIndex)

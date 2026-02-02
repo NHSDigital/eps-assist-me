@@ -140,9 +140,6 @@ export class EpsAssistMe_Stateful extends Stack {
       docsBucketName: storage.kbDocsBucket.bucketName
     })
 
-    // Grant preprocessing Lambda access to the KMS key for S3 bucket
-    storage.kbDocsKmsKey.grantEncryptDecrypt(functions.preprocessingFunction.executionRole)
-
     //S3 notification for raw/ prefix to trigger preprocessing Lambda
     new S3LambdaNotification(this, "S3RawNotification", {
       bucket: storage.kbDocsBucket,

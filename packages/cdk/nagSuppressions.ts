@@ -75,6 +75,28 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateful/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource",
+    [
+      {
+        id: "EpsNagPack-EPS10",
+        reason: "Role created by CDK lib uses inline policies."
+      }
+    ]
+  )
+
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateful/ApiDomainName/ApiDomain/Resource",
+    [
+      {
+        id: "EpsNagPack-EPS1",
+        reason: "API Gateway does not have mutual TLS in this application."
+      }
+    ]
+  )
+
   // Suppress AWS managed policy usage in BucketNotificationsHandler (wildcard for any hash)
   const bucketNotificationHandlers = stack.node.findAll().filter(node =>
     node.node.id.startsWith("BucketNotificationsHandler")
@@ -94,84 +116,10 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
     )
   })
 
-  // Suppress DelayResource IAM and runtime issues
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/LambdaExecutionRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
-        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
-      }
-    ]
-  )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/LambdaExecutionRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
-        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
-      }
-    ]
-  )
-
-  // Suppress DelayProvider framework ServiceRole issues
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
-        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
-      }
-    ]
-  )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
-        appliesTo: ["Resource::<VectorIndexPolicySyncWaitDelayFunctionBDE3D308.Arn>:*"]
-      }
-    ]
-  )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
-        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
-      }
-    ]
-  )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
-        appliesTo: ["Resource::<VectorIndexIndexReadyWaitDelayFunction56EB971B.Arn>:*"]
-      }
-    ]
-  )
-
   // Suppress DelayFunction runtime version warnings
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayFunction/Resource",
+    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/epsam-stateful-policy-sync-waitDelayFunction/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -182,7 +130,7 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayFunction/Resource",
+    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/epsam-stateful-index-ready-waitDelayFunction/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -195,7 +143,7 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
   // see https://github.com/aws/aws-cdk/issues/36269 for issue raised with CDK team
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/DelayProvider/framework-onEvent/Resource",
+    "/EpsAssistMeStateful/VectorIndex/PolicySyncWait/epsam-stateful-policy-sync-waitDelayProvider/framework-onEvent/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -206,7 +154,7 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
 
   safeAddNagSuppression(
     stack,
-    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/DelayProvider/framework-onEvent/Resource",
+    "/EpsAssistMeStateful/VectorIndex/IndexReadyWait/epsam-stateful-index-ready-waitDelayProvider/framework-onEvent/Resource",
     [
       {
         id: "AwsSolutions-L1",
@@ -224,22 +172,6 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
         id: "AwsSolutions-IAM4",
         reason: "BucketDeployment uses AWS managed policy for Lambda execution, required by CDK construct.",
         appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
-      }
-    ]
-  )
-  // Suppress BedrockLogging KMS wildcard permissions
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/BedrockLogging/BedrockLoggingRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "KMS wildcard permissions (GenerateDataKey*, ReEncrypt*) are required for CloudWatch Logs encryption operations.",
-        appliesTo: [
-          "Action::kms:GenerateDataKey*",
-          "Action::kms:ReEncrypt*",
-          "Resource::<BedrockLoggingModelInvocationLogGroupC58FAE2D.Arn>:*"
-        ]
       }
     ]
   )
@@ -268,21 +200,6 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  // Suppress BedrockLogging Provider framework role using AWS managed policy
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "Auto-generated CDK Provider role uses AWS managed policy for Lambda execution.",
-        appliesTo: [
-          "Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        ]
-      }
-    ]
-  )
-
   safeAddNagSuppression(
     stack,
     "/EpsAssistMeStateful/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource",
@@ -290,17 +207,6 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
       {
         id: "AwsSolutions-IAM5",
         reason: "BucketDeployment requires wildcard permissions for S3 and KMS operations to deploy assets."
-      }
-    ]
-  )
-  // Suppress BedrockLogging Provider framework wildcard permissions
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/BedrockLogging/LoggingConfigProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
       }
     ]
   )
@@ -316,21 +222,6 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  // Suppress KMS wildcard permissions for Preprocessing Lambda role
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStateful/StatefulFunctions/PreprocessingFunction/LambdaRole/DefaultPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Preprocessing Lambda requires KMS wildcard permissions for S3 encryption operations.",
-        appliesTo: [
-          "Action::kms:GenerateDataKey*",
-          "Action::kms:ReEncrypt*"
-        ]
-      }
-    ]
-  )
   // Suppress BedrockLogging Provider framework runtime version
   safeAddNagSuppression(
     stack,
@@ -343,6 +234,29 @@ export const statefulNagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress BedrockLogging Provider framework runtime version
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateful/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource",
+    [
+      {
+        id: "EpsNagPack-EPS10",
+        reason: "Bucket notification role uses inline policies."
+      }
+    ]
+  )
+
+  // Suppress BedrockLogging Provider framework runtime version
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStateful/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/LogGroup/Resource",
+    [
+      {
+        id: "EpsNagPack-EPS3",
+        reason: "Cloudwatch log group for bucket sync not encrypted by KMS."
+      }
+    ]
+  )
 }
 
 export const statelessNagSuppressions = (stack: Stack, account: string) => {
