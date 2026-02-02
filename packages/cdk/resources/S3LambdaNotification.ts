@@ -19,10 +19,10 @@ export class S3LambdaNotification extends Construct {
   constructor(scope: Construct, id: string, props: S3LambdaNotificationProps) {
     super(scope, id)
 
-    const queueName = `${props.stackName}-S3-SQS`
+    const queueName = `S3-SQS`
 
     // Add Queue to notify S3 updates
-    const queue = new SimpleQueueService(this, queueName, {
+    const queue = new SimpleQueueService(this, `${props.stackName}-${queueName}`, {
       stackName: props.stackName,
       queueName: queueName,
       deliveryDelay: 60, // Add a 1 minute debounce delay

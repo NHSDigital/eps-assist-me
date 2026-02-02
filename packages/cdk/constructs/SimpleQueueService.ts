@@ -42,7 +42,7 @@ export class SimpleQueueService extends Construct {
     // Create the main SQS Queue with DLQ configured
     const queue = new Queue(this, name,
       {
-        queueName: `${name}-sqs`,
+        queueName: name,
         encryption: QueueEncryption.KMS,
         encryptionMasterKey: kmsKey,
         deadLetterQueue: {
