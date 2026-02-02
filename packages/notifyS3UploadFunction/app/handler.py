@@ -16,7 +16,7 @@ def get_bot_channels(client):
     """
     channel_ids = []
     try:
-        for result in client.conversations_list("private_channel", limit=1000):
+        for result in client.conversations_list(types=["private_channel", "public_channel"], limit=1000):
             for channel in result["channels"]:
                 channel_ids.append(channel["id"])
     except Exception as e:
