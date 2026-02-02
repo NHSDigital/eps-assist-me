@@ -48,14 +48,9 @@ def handler(event: dict, context: LambdaContext) -> dict:
     and broadcasts it to all Slack channels the bot is a member of.
     """
     default_error = {"status": "false", "processed_files": 0, "channels_notified": 0}
-
-    if not SLACK_BOT_TOKEN_PARAMETER:
-        logger.error("SLACK_BOT_TOKEN_PARAMETER environment variable is missing.")
-        return default_error
-
     uploaded_files = []
 
-    # Parse SQS Records (Your existing logic)
+    # Parse SQS Records
     for sqs_record in event.get("Records", []):
         try:
             s3_event_body = json.loads(sqs_record["body"])
@@ -83,7 +78,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
     display_list = unique_files[:max_display]
     more_count = total_count - max_display
 
-    message_text = f"📄 *{total_count} New Document(s) Uploaded*:\n" + "\n".join(display_list)
+    message_text = f":page_facing_up: *{total_count} New Document(s) Uploaded*:\n" + "\n".join(display_list)
     if more_count > 0:
         message_text += f"\n...and {more_count} more."
 
