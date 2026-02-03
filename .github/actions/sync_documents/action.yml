@@ -37,8 +37,7 @@ runs:
       shell: bash
       run: |
         mkdir -p ./s3-content
-        aws s3 cp s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }}/processed ./s3-content --recursive
-        ls -la ./s3-content
+        aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }} ./s3-content --exclude "raw/*" --exclude "processed/*"
 
     - name: Connect to Target Account
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
@@ -60,10 +59,8 @@ runs:
       shell: bash
       run: |
         printf "\n"
-        echo "listing s3-content for debugging..."
-        
-        echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/..."
-        DIFFS=$(aws s3 cp ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed --dryrun --recursive)
+        echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
+        DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --dryrun)
 
         if [ -z "$DIFFS" ]; then
           echo -e "\033[0;32m✔ NO DISCREPANCIES FOUND.\033[0m"
@@ -82,4 +79,4 @@ runs:
       shell: bash
       run: |
         echo "Updating s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/..."
-        aws s3 cp ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed --recursive
+        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/ --delete
