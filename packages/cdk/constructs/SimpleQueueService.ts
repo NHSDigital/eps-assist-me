@@ -8,8 +8,7 @@ import {Functions} from "../resources/Functions"
 export interface SimpleQueueServiceProps {
   readonly stackName: string
   readonly queueName: string
-  //You can specify an integer value of 0 to 900 (15 minutes).
-  readonly deliveryDelay: number
+  readonly batchDelay: number
   readonly functions: Functions
 }
 
@@ -49,20 +48,21 @@ export class SimpleQueueService extends Construct {
           queue: deadLetterQueue,
           maxReceiveCount: 3 // Move to DLQ after 3 failed attempts
         },
-        deliveryDelay: Duration.seconds(props.deliveryDelay),
+        deliveryDelay: Duration.seconds(10),
         visibilityTimeout: Duration.seconds(60),
         enforceSSL: true
       }
     )
 
     // Add queues as event source for the notify function and sync knowledge base function
-    props.functions.notifyS3UploadFunction.function.addEventSource(new SqsEventSource(queue, {
-      maxBatchingWindow: Duration.seconds(60), // Wait up to 60 seconds to gather a full batch
+    const eventSource = new SqsEventSource(queue, {
+      maxBatchingWindow: Duration.seconds(props.batchDelay),
       reportBatchItemFailures: true
-    }))
+    })
 
-    props.functions.syncKnowledgeBaseFunction.function.addEventSource(new SqsEventSource(queue))
-    props.functions.preprocessingFunction.function.addEventSource(new SqsEventSource(queue))
+    props.functions.notifyS3UploadFunction.function.addEventSource(eventSource)
+    props.functions.syncKnowledgeBaseFunction.function.addEventSource(eventSource)
+    props.functions.preprocessingFunction.function.addEventSource(eventSource)
 
     // Grant the Lambda function permissions to consume messages from the queue
     queue.grantConsumeMessages(props.functions.notifyS3UploadFunction.function)

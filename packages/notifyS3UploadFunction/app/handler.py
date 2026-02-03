@@ -32,6 +32,7 @@ def post_message(client, channel_id, blocks, text_fallback):
     """
     try:
         client.chat_postMessage(channel=channel_id, text=text_fallback, blocks=blocks)
+        return True
     except SlackApiError as e:
         logger.error(f"Error posting to {channel_id}: {str(e)}")
         return False

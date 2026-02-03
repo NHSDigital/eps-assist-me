@@ -25,7 +25,7 @@ export class S3LambdaNotification extends Construct {
     const queue = new SimpleQueueService(this, `${props.stackName}-${queueName}`, {
       stackName: props.stackName,
       queueName: queueName,
-      deliveryDelay: 60, // Add a 1 minute debounce delay
+      batchDelay: 60,
       functions: props.functions
     })
 

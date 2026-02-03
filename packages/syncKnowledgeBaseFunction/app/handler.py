@@ -9,6 +9,7 @@ has access to the latest documentation for answering user queries.
 import time
 import traceback
 import boto3
+import json
 from botocore.exceptions import ClientError
 from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID, SUPPORTED_FILE_TYPES, logger
 
@@ -18,6 +19,42 @@ def is_supported_file_type(file_key):
     Check if file type is supported for Bedrock Knowledge Base ingestion
     """
     return any(file_key.lower().endswith(ext) for ext in SUPPORTED_FILE_TYPES)
+
+
+def process_sqs_record(record, record_index):
+    """
+    Process a single Simple Queue Service record and prepare processing
+    of a S3 record.
+    """
+    processed_files = []  # Track successfully processed file keys
+    job_ids = []  # Track started ingestion job IDs
+
+    body = json.loads(record.get("body", "{}"))
+
+    s3_records = body.get("Records", [])
+
+    if not s3_records:
+        logger.warning("Skipping SQS event - no S3 events found.")
+        return {"processed_files": [], "job_ids": []}
+
+    for record_index, record in enumerate(s3_records):
+        if record.get("eventSource") == "aws:s3":
+            # Process S3 event and start ingestion if valid
+            success, file_key, job_id = process_s3_record(record, record_index)
+            if success:
+                processed_files.append(file_key)
+                job_ids.append(job_id)
+        else:
+            # Skip non-S3 events
+            logger.warning(
+                "Skipping non-S3 event",
+                extra={
+                    "event_source": record.get("eventSource"),
+                    "record_index": record_index + 1,
+                },
+            )
+
+    return {"processed_files": processed_files, "job_ids": job_ids}
 
 
 def process_s3_record(record, record_index):
@@ -178,7 +215,7 @@ def handle_client_error(e, start_time):
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
     """
-    Main Lambda handler for S3-triggered knowledge base synchronization
+    Main Lambda handler for a queue-service (S3-triggered) knowledge base synchronization
     """
     start_time = time.time()
 
@@ -206,23 +243,27 @@ def handler(event, context):
         processed_files = []  # Track successfully processed file keys
         job_ids = []  # Track started ingestion job IDs
 
-        # Process each record in the Lambda event
-        for record_index, record in enumerate(event.get("Records", [])):
-            if record.get("eventSource") == "aws:s3":
-                # Process S3 event and start ingestion if valid
-                success, file_key, job_id = process_s3_record(record, record_index)
-                if success:
-                    processed_files.append(file_key)
-                    job_ids.append(job_id)
-            else:
-                # Skip non-S3 events
-                logger.warning(
-                    "Skipping non-S3 event",
-                    extra={
-                        "event_source": record.get("eventSource"),
-                        "record_index": record_index + 1,
-                    },
-                )
+        # Process each S3 event record in the SQS batch
+        for sqs_index, sqs_record in enumerate(event.get("Records", [])):
+            try:
+                if sqs_record.get("eventSource") != "aws:sqs":
+                    logger.warning(
+                        "Skipping non-SQS event",
+                        extra={
+                            "event_source": sqs_record.get("eventSource"),
+                            "record_index": sqs_index + 1,
+                        },
+                    )
+                    continue
+
+                logger.info("Processing SQS record", extra={"record_index": sqs_index + 1})
+                results = process_sqs_record(sqs_record, sqs_index)
+                processed_files.extend(results["processed_files"])
+                job_ids.extend(results["job_ids"])
+
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error(f"Failed to parse SQS body: {str(e)}")
+                continue
 
         total_duration = time.time() - start_time
 
