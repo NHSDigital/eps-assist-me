@@ -157,6 +157,10 @@ def _create_feedback_blocks(
     """Create Slack blocks with feedback buttons"""
     if feedback_data.get("thread_ts"):  # Only include thread_ts for channel threads, not DMs
         feedback_data["tt"] = feedback_data["thread_ts"]
+    if feedback_data.get("message_ts"):
+        feedback_data["mt"] = feedback_data["message_ts"]
+    if feedback_data.get("channel"):
+        feedback_data["ch"] = feedback_data["channel"]
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
 
     # Main response block
@@ -345,7 +349,6 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
         channel_id = body["channel"]["id"]
         timestamp = body["message"]["ts"]
 
-        # Check if the action is for a citation (safely)
         if str(action_id or "").startswith("cite"):
             # Update message to include citation content
             open_citation(channel_id, timestamp, message, action_data, client)

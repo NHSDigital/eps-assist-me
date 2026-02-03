@@ -22,7 +22,7 @@ jobs:
       packages: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ env.BRANCH_NAME }}
 
@@ -37,7 +37,7 @@ jobs:
           asdf_version: ${{ steps.asdf-version.outputs.version }}
 
       - name: Cache asdf
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: |
             ~/.asdf
@@ -68,6 +68,7 @@ jobs:
         run: |
           poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_slackBotFunction
           poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_syncKnowledgeBaseFunction
+          poetry show --only=preprocessingFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_preprocessingFunction
           poetry show --only=bedrockLoggingConfigFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_bedrockLoggingConfigFunction
           if [ ! -s requirements_slackBotFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_slackBotFunction)" -eq 0 ]; then \
             echo "Error: requirements_slackBotFunction is empty or contains only blank lines"; \
@@ -77,12 +78,29 @@ jobs:
             echo "Error: requirements_syncKnowledgeBaseFunction is empty or contains only blank lines"; \
             exit 1; \
           fi
+          if [ ! -s requirements_preprocessingFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_preprocessingFunction)" -eq 0 ]; then \
+            echo "Error: requirements_preprocessingFunction is empty or contains only blank lines"; \
+            exit 1; \
+          fi
           if [ ! -s requirements_bedrockLoggingConfigFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_bedrockLoggingConfigFunction)" -eq 0 ]; then \
             echo "Error: requirements_bedrockLoggingConfigFunction is empty or contains only blank lines"; \
             exit 1; \
           fi
           mkdir -p .dependencies/slackBotFunction/python
           mkdir -p .dependencies/syncKnowledgeBaseFunction/python
+          mkdir -p .dependencies/preprocessingFunction/python
+          pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
+          pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
+          pip3 install -r requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
+          rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
+          cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
+          find .dependencies/preprocessingFunction/python -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
+          find .dependencies/preprocessingFunction/python -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
+          find .dependencies/preprocessingFunction/python -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          find .dependencies/preprocessingFunction/python -type d -name "examples" -exec rm -rf {} + 2>/dev/null || true
+          find .dependencies/preprocessingFunction/python -type f \( -name "*.pyc" -o -name "*.pyo" -o -name "*.so.debug" \) -delete
+          find .dependencies/preprocessingFunction/python -type f -name "*.md" ! -name "README.md" -delete
+          find .dependencies/preprocessingFunction/python -name "*.txt" -size +10k -delete
           mkdir -p .dependencies/bedrockLoggingConfigFunction/python
           pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
           pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
