@@ -48,14 +48,22 @@ def handler(event: dict, context: LambdaContext) -> dict:
     Parses the records, deduplicates file uploads, constructs a summary message,
     and broadcasts it to all Slack channels the bot is a member of.
     """
-    default_error = {"status": "false", "processed_files": 0, "channels_notified": 0}
+    default_error = {"status": "failed", "processed_files": 0, "channels_notified": 0}
     uploaded_files = []
 
     # Parse SQS Records
     for sqs_record in event.get("Records", []):
+        logger.info(f"Processing SQS record ID: {sqs_record.get('messageId', 'unknown')}")
         try:
             s3_event_body = json.loads(sqs_record["body"])
             for s3_record in s3_event_body.get("Records", []):
+                bucket_name = s3_record["s3"].get("bucket", {}).get("name", None)
+
+                if bucket_name is None or "-pr-" in bucket_name:
+                    # Ignore PR buckets
+                    logger.info(f"Ignoring PR bucket: {bucket_name}")
+                    continue
+
                 file_key = s3_record["s3"]["object"]["key"]
                 file_key = urllib.parse.unquote_plus(file_key)
                 file_key = file_key.split("/")[-1]
@@ -64,13 +72,12 @@ def handler(event: dict, context: LambdaContext) -> dict:
             logger.error(f"Error parsing record: {e}")
         except Exception as e:
             logger.error(f"Error parsing record: {e}")
-            continue
 
     # Find unique uploads
     unique_files = list(set(uploaded_files))
     if not unique_files:
         logger.info("No valid S3 records found in this batch.")
-        return default_error
+        return {**default_error, "status": "skipped"}
 
     # Build blocks for Slack message
     max_display = 10
@@ -98,7 +105,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
 
     if not target_channels:
         logger.warning("Bot is not in any channels. No messages sent.")
-        return {"status": "false", "processed_files": total_count, "channels_notified": success_count}
+        return {"status": "failed", "processed_files": total_count, "channels_notified": success_count}
 
     # Broadcast Loop
     logger.info(f"Broadcasting to {len(target_channels)} channels...")

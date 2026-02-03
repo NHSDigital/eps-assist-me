@@ -21,8 +21,8 @@ def test_handler_successful_processing(mock_env, mock_get_parameter, mock_web_cl
                 "body": json.dumps(
                     {
                         "Records": [
-                            {"s3": {"object": {"key": "file1.pdf"}}},
-                            {"s3": {"object": {"key": "folder/file2.txt"}}},
+                            {"s3": {"bucket": {"name": "pr-123"}, "object": {"key": "file1.pdf"}}},
+                            {"s3": {"bucket": {"name": "pr-456"}, "object": {"key": "folder/file2.txt"}}},
                         ]
                     }
                 )
@@ -57,12 +57,51 @@ def test_handler_no_files(mock_env, mock_get_parameter, mock_web_client, lambda_
 
     result = handler(event, lambda_context)
 
-    assert result["status"] == "false"
+    assert result["status"] == "skipped"
     assert result["processed_files"] == 0
     assert result["channels_notified"] == 0
 
     # Should not attempt to post messages
     mock_web_client.chat_postMessage.assert_not_called()
+
+
+def test_handler_pr_branch(mock_env, mock_get_parameter, mock_web_client, lambda_context):
+    """Test skips processing of S3 upload events when bucket name indicates a PR branch"""
+    # Mock Slack client responses
+    mock_web_client.auth_test.return_value = {"user_id": "bot-user"}
+    mock_web_client.conversations_list.return_value = [{"channels": [{"id": "C123"}, {"id": "C456"}]}]
+    mock_web_client.chat_postMessage.return_value = None
+
+    # Import after patching
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    # Test event with S3 records
+    event = {
+        "Records": [
+            {
+                "body": json.dumps(
+                    {
+                        "Records": [
+                            {"s3": {"bucket": {"name": "epsam-pr-123"}, "object": {"key": "file1.pdf"}}},
+                            {"s3": {"bucket": {"name": "epsam-pr-456"}, "object": {"key": "folder/file2.txt"}}},
+                        ]
+                    }
+                )
+            }
+        ]
+    }
+
+    result = handler(event, lambda_context)
+
+    # Assertions
+    assert result["status"] == "skipped"
+    assert result["processed_files"] == 0
+    assert result["channels_notified"] == 0
+
+    # Verify Slack API calls
+    mock_web_client.conversations_list.assert_not_called()
 
 
 def test_handler_parsing_error(mock_env, mock_get_parameter, mock_web_client, lambda_context):
@@ -80,7 +119,11 @@ def test_handler_parsing_error(mock_env, mock_get_parameter, mock_web_client, la
     event = {
         "Records": [
             {"body": "invalid json"},
-            {"body": json.dumps({"Records": [{"s3": {"object": {"key": "folder/file1.pdf"}}}]})},
+            {
+                "body": json.dumps(
+                    {"Records": [{"s3": {"bucket": {"name": "test"}, "object": {"key": "folder/file1.pdf"}}}]}
+                )
+            },
         ]
     }
 
@@ -110,9 +153,9 @@ def test_handler_deduplication(mock_env, mock_get_parameter, mock_web_client, la
                 "body": json.dumps(
                     {
                         "Records": [
-                            {"s3": {"object": {"key": "folder/file1.pdf"}}},
-                            {"s3": {"object": {"key": "folder/file1.pdf"}}},  # duplicate
-                            {"s3": {"object": {"key": "folder/file2.txt"}}},
+                            {"s3": {"bucket": {"name": "pr-123"}, "object": {"key": "folder/file1.pdf"}}},
+                            {"s3": {"bucket": {"name": "pr-123"}, "object": {"key": "folder/file1.pdf"}}},  # duplicate
+                            {"s3": {"bucket": {"name": "pr-511"}, "object": {"key": "folder/file2.txt"}}},
                         ]
                     }
                 )
@@ -142,7 +185,15 @@ def test_handler_posting_failure(mock_env, mock_get_parameter, mock_web_client, 
         del sys.modules["app.handler"]
     from app.handler import handler
 
-    event = {"Records": [{"body": json.dumps({"Records": [{"s3": {"object": {"key": "folder/file1.pdf"}}}]})}]}
+    event = {
+        "Records": [
+            {
+                "body": json.dumps(
+                    {"Records": [{"s3": {"bucket": {"name": "pr-123"}, "object": {"key": "folder/file1.pdf"}}}]}
+                )
+            }
+        ]
+    }
 
     result = handler(event, lambda_context)
 
@@ -164,11 +215,19 @@ def test_handler_no_channels(mock_env, mock_get_parameter, mock_web_client, lamb
         del sys.modules["app.handler"]
     from app.handler import handler
 
-    event = {"Records": [{"body": json.dumps({"Records": [{"s3": {"object": {"key": "folder/file1.pdf"}}}]})}]}
+    event = {
+        "Records": [
+            {
+                "body": json.dumps(
+                    {"Records": [{"s3": {"bucket": {"name": "test"}, "object": {"key": "folder/file1.pdf"}}}]}
+                )
+            }
+        ]
+    }
 
     result = handler(event, lambda_context)
 
-    assert result["status"] == "false"
+    assert result["status"] == "failed"
     assert result["processed_files"] == 1
     assert result["channels_notified"] == 0
 
@@ -187,7 +246,7 @@ def test_handler_many_files_truncation(mock_env, mock_get_parameter, mock_web_cl
     from app.handler import handler
 
     # Create 15 files
-    files = [{"s3": {"object": {"key": f"folder/file{i}.pdf"}}} for i in range(15)]
+    files = [{"s3": {"bucket": {"name": "pr-123"}, "object": {"key": f"folder/file{i}.pdf"}}} for i in range(15)]
     event = {"Records": [{"body": json.dumps({"Records": files})}]}
 
     result = handler(event, lambda_context)
@@ -214,12 +273,20 @@ def test_handler_conversations_list_error(mock_env, mock_get_parameter, mock_web
         del sys.modules["app.handler"]
     from app.handler import handler
 
-    event = {"Records": [{"body": json.dumps({"Records": [{"s3": {"object": {"key": "folder/file1.pdf"}}}]})}]}
+    event = {
+        "Records": [
+            {
+                "body": json.dumps(
+                    {"Records": [{"s3": {"bucket": {"name": "pr-123"}, "object": {"key": "folder/file1.pdf"}}}]}
+                )
+            }
+        ]
+    }
 
     result = handler(event, lambda_context)
 
     # Should return false since no channels found
-    assert result["status"] == "false"
+    assert result["status"] == "failed"
     assert result["processed_files"] == 1
     assert result["channels_notified"] == 0
 
