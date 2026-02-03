@@ -61,7 +61,7 @@ on:
         required: false
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
         required: false
-      INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
+      INT_CLOUD_FORMATION_DEPLOY_ROLE:
         required: false
       PROD_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
         required: false
@@ -199,14 +199,14 @@ jobs:
         env:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
 
-      - name: Sync Documents
+      - name: Sync Documents - INT to lower environments
         uses: ./.github/actions/sync_documents
-        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
-        with: 
+        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && inputs.TARGET_ENVIRONMENT != 'prod' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        with:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
-          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets[format('{0}_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE', github.event.inputs.UPPER_TARGET_ENVIRONMENT)] }}
+          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
+          TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira
