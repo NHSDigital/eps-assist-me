@@ -5,7 +5,7 @@ import {Functions} from "./Functions"
 import {Storage} from "./Storage"
 import {Effect, PolicyStatement, ServicePrincipal} from "aws-cdk-lib/aws-iam"
 import {EventType} from "aws-cdk-lib/aws-s3"
-import {SqsDestination} from "aws-cdk-lib/aws-s3-notifications"
+import {LambdaDestination, SqsDestination} from "aws-cdk-lib/aws-s3-notifications"
 
 export interface S3LambdaNotificationProps {
   readonly stackName: string
@@ -26,7 +26,10 @@ export class S3LambdaNotification extends Construct {
       stackName: props.stackName,
       queueName: queueName,
       batchDelay: 60,
-      functions: props.functions
+      functions: [
+        props.functions.notifyS3UploadFunction,
+        props.functions.syncKnowledgeBaseFunction
+      ]
     })
 
     // Subscribe to S3 bucket events to send notifications to the SQS queue
@@ -44,25 +47,47 @@ export class S3LambdaNotification extends Construct {
     }))
 
     // Add trigger for SQS queue to Lambda function
-    const destination = new SqsDestination(queue.queue)
+    const processedDestination = new SqsDestination(queue.queue)
+    const rawDestination = new LambdaDestination(props.functions.preprocessingFunction.function)
 
     // Trigger knowledge base sync only for supported document types
     const supportedExtensions = [".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"]
 
+    // Add triggers for supported document types
     supportedExtensions.forEach(ext => {
       // Handle all file creation/modification events
-      props.storage.kbDocsBucket.addEventNotification(
-        EventType.OBJECT_CREATED,
-        destination,
-        {suffix: ext}
-      )
-
-      // Handle all file deletion events
-      props.storage.kbDocsBucket.addEventNotification(
-        EventType.OBJECT_REMOVED,
-        destination,
-        {suffix: ext}
-      )
+      this.subscribeToProcessed(props, processedDestination, ext)
+      this.subscribeToUploaded(props, rawDestination, ext)
     })
+  }
+
+  private subscribeToProcessed(props: S3LambdaNotificationProps, destination: SqsDestination, ext: string) {
+    props.storage.kbDocsBucket.addEventNotification(
+      EventType.OBJECT_CREATED,
+      destination,
+      {prefix: "processed/", suffix: ext}
+    )
+
+    // Handle all file deletion events
+    props.storage.kbDocsBucket.addEventNotification(
+      EventType.OBJECT_REMOVED,
+      destination,
+      {prefix: "processed/", suffix: ext}
+    )
+  }
+
+  private subscribeToUploaded(props: S3LambdaNotificationProps, destination: LambdaDestination, ext: string) {
+    props.storage.kbDocsBucket.addEventNotification(
+      EventType.OBJECT_CREATED,
+      destination,
+      {prefix: "raw/", suffix: ext}
+    )
+
+    // Handle all file deletion events
+    props.storage.kbDocsBucket.addEventNotification(
+      EventType.OBJECT_REMOVED,
+      destination,
+      {prefix: "raw/", suffix: ext}
+    )
   }
 }

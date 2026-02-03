@@ -3,13 +3,13 @@ import {Duration, RemovalPolicy} from "aws-cdk-lib"
 import {Queue, QueueEncryption} from "aws-cdk-lib/aws-sqs"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {SqsEventSource} from "aws-cdk-lib/aws-lambda-event-sources"
-import {Functions} from "../resources/Functions"
+import {LambdaFunction} from "./LambdaFunction"
 
 export interface SimpleQueueServiceProps {
   readonly stackName: string
   readonly queueName: string
   readonly batchDelay: number
-  readonly functions: Functions
+  readonly functions: Array<LambdaFunction>
 }
 
 export class SimpleQueueService extends Construct {
@@ -60,14 +60,12 @@ export class SimpleQueueService extends Construct {
       reportBatchItemFailures: true
     })
 
-    props.functions.notifyS3UploadFunction.function.addEventSource(eventSource)
-    props.functions.syncKnowledgeBaseFunction.function.addEventSource(eventSource)
-    props.functions.preprocessingFunction.function.addEventSource(eventSource)
+    props.functions.forEach(fn => {
+      fn.function.addEventSource(eventSource)
+      queue.grantConsumeMessages(fn.function)
+    })
 
     // Grant the Lambda function permissions to consume messages from the queue
-    queue.grantConsumeMessages(props.functions.notifyS3UploadFunction.function)
-    queue.grantConsumeMessages(props.functions.syncKnowledgeBaseFunction.function)
-    queue.grantConsumeMessages(props.functions.preprocessingFunction.function)
 
     this.kmsKey = kmsKey
     this.queue = queue
