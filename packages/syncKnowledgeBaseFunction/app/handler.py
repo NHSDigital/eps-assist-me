@@ -21,7 +21,7 @@ def is_supported_file_type(file_key):
     return any(file_key.lower().endswith(ext) for ext in SUPPORTED_FILE_TYPES)
 
 
-def process_sqs_record(record, record_index):
+def process_sqs_record(s3_record):
     """
     Process a single Simple Queue Service record and prepare processing
     of a S3 record.
@@ -29,7 +29,7 @@ def process_sqs_record(record, record_index):
     processed_files = []  # Track successfully processed file keys
     job_ids = []  # Track started ingestion job IDs
 
-    body = json.loads(record.get("body", "{}"))
+    body = json.loads(s3_record.get("body", "{}"))
 
     s3_records = body.get("Records", [])
 
@@ -37,10 +37,10 @@ def process_sqs_record(record, record_index):
         logger.warning("Skipping SQS event - no S3 events found.")
         return {"processed_files": [], "job_ids": []}
 
-    for record_index, record in enumerate(s3_records):
-        if record.get("eventSource") == "aws:s3":
+    for s3_index, s3_record in enumerate(s3_records):
+        if s3_record.get("eventSource") == "aws:s3":
             # Process S3 event and start ingestion if valid
-            success, file_key, job_id = process_s3_record(record, record_index)
+            success, file_key, job_id = process_s3_record(s3_record, s3_index)
             if success:
                 processed_files.append(file_key)
                 job_ids.append(job_id)
@@ -49,8 +49,8 @@ def process_sqs_record(record, record_index):
             logger.warning(
                 "Skipping non-S3 event",
                 extra={
-                    "event_source": record.get("eventSource"),
-                    "record_index": record_index + 1,
+                    "event_source": s3_record.get("eventSource"),
+                    "record_index": s3_index + 1,
                 },
             )
 
@@ -257,7 +257,7 @@ def handler(event, context):
                     continue
 
                 logger.info("Processing SQS record", extra={"record_index": sqs_index + 1})
-                results = process_sqs_record(sqs_record, sqs_index)
+                results = process_sqs_record(sqs_record)
                 processed_files.extend(results["processed_files"])
                 job_ids.extend(results["job_ids"])
 
