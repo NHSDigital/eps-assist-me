@@ -55,10 +55,10 @@ def handler(event: dict, context: LambdaContext) -> dict:
         try:
             s3_event_body = json.loads(sqs_record["body"])
             for s3_record in s3_event_body.get("Records", []):
-                bucket_name = s3_record["s3"]["bucket"]["name"]
                 file_key = s3_record["s3"]["object"]["key"]
                 file_key = urllib.parse.unquote_plus(file_key)
-                uploaded_files.append(f"• *{file_key}* (in `{bucket_name}`)")
+                file_key = file_key.split("/")[-1]
+                uploaded_files.append(f"\t - *{file_key}*")
         except SlackApiError as e:
             logger.error(f"Error parsing record: {e}")
         except Exception as e:
