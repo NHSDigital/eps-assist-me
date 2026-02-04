@@ -9,10 +9,13 @@ readme = "README.md"
 repository = "https://github.com/NHSDigital/eps-assist-me"
 package-mode = false
 
+
 [tool.poetry.dependencies]
 python = "^3.14"
 
+
 [tool.poetry.scripts]
+
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
@@ -43,15 +46,25 @@ boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runt
 boto3 = "^1.42.38"
 aws-lambda-powertools = "^3.23.0"
 
+
 [tool.poetry.group.bedrockLoggingConfigFunction.dependencies]
 boto3 = "^1.42.38"
 urllib3 = "^2.6.2"
 aws-lambda-powertools = "^3.23.0"
 
+
 [tool.poetry.group.preprocessingFunction.dependencies]
 boto3 = "^1.42.38"
 aws-lambda-powertools = "^3.23.0"
 markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.0.1a12"}
+
+
+[tool.poetry.group.notifyS3UploadFunction.dependencies]
+aws-lambda-powertools = "^3.23.0"
+urllib3 = "^2.6.3"
+slack-bolt = "^1.25.0"
+slack-sdk = "^3.39.0"
+
 
 [tool.black]
 line-length = 120

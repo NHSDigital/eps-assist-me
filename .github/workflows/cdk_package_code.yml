@@ -68,6 +68,7 @@ jobs:
         run: |
           poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_slackBotFunction
           poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_syncKnowledgeBaseFunction
+          poetry show --only=notifyS3UploadFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_notifyS3UploadFunction
           poetry show --only=preprocessingFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_preprocessingFunction
           poetry show --only=bedrockLoggingConfigFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > requirements_bedrockLoggingConfigFunction
           if [ ! -s requirements_slackBotFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_slackBotFunction)" -eq 0 ]; then \
@@ -76,6 +77,10 @@ jobs:
           fi
           if [ ! -s requirements_syncKnowledgeBaseFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_syncKnowledgeBaseFunction)" -eq 0 ]; then \
             echo "Error: requirements_syncKnowledgeBaseFunction is empty or contains only blank lines"; \
+            exit 1; \
+          fi
+          if [ ! -s requirements_notifyS3UploadFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_notifyS3UploadFunction)" -eq 0 ]; then \
+            echo "Error: requirements_notifyS3UploadFunction is empty or contains only blank lines"; \
             exit 1; \
           fi
           if [ ! -s requirements_preprocessingFunction ] || [ "$(grep -c -v '^[[:space:]]*$' requirements_preprocessingFunction)" -eq 0 ]; then \
@@ -88,10 +93,14 @@ jobs:
           fi
           mkdir -p .dependencies/slackBotFunction/python
           mkdir -p .dependencies/syncKnowledgeBaseFunction/python
+          mkdir -p .dependencies/notifyS3UploadFunction/python
           mkdir -p .dependencies/preprocessingFunction/python
+          mkdir -p .dependencies/bedrockLoggingConfigFunction/python
           pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
           pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
           pip3 install -r requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
+          pip3 install -r requirements_notifyS3UploadFunction -t .dependencies/notifyS3UploadFunction/python
+          pip3 install -r requirements_bedrockLoggingConfigFunction -t .dependencies/bedrockLoggingConfigFunction/python
           rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
           cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
           find .dependencies/preprocessingFunction/python -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
@@ -101,10 +110,6 @@ jobs:
           find .dependencies/preprocessingFunction/python -type f \( -name "*.pyc" -o -name "*.pyo" -o -name "*.so.debug" \) -delete
           find .dependencies/preprocessingFunction/python -type f -name "*.md" ! -name "README.md" -delete
           find .dependencies/preprocessingFunction/python -name "*.txt" -size +10k -delete
-          mkdir -p .dependencies/bedrockLoggingConfigFunction/python
-          pip3 install -r requirements_slackBotFunction -t .dependencies/slackBotFunction/python
-          pip3 install -r requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
-          pip3 install -r requirements_bedrockLoggingConfigFunction -t .dependencies/bedrockLoggingConfigFunction/python
 
       - name: "Tar files"
         run: |
