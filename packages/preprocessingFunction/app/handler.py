@@ -88,31 +88,6 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
         return {"status": "error", "message": str(e)}
 
 
-def process_sqs_record(record: Dict[str, Any], record_index: int) -> Dict[str, Any]:
-    """
-    Process a single Simple Queue Service record and prepare processing
-    of a S3 record.
-    """
-    results = []
-    count = 0
-    try:
-        s3_event_body = json.loads(record.get("body", "{}"))
-        s3_records = s3_event_body.get("Records", [])
-        count = len(s3_records)
-
-        for s3_index, s3_record in enumerate(s3_records):
-            logger.info(f"Processing S3 record {s3_index + 1} of {len(s3_records)} in SQS record {record_index + 1}")
-            result = process_s3_record(s3_record, s3_index + 1)
-            logger.info(f"SQS: S3 record {s3_index + 1} result: {result}")
-            results.append(result)
-
-        return {"status": "success", "processed_files": results, "count": count}
-
-    except Exception as e:
-        logger.error(f"Error processing SQS record {record_index}: {str(e)}")
-        return {"status": "error", "processed_files": results, "count": count}
-
-
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """
@@ -133,7 +108,7 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
         results = []
         count = 0
         for index, record in enumerate(records):
-            result = process_sqs_record(record, index)
+            result = process_s3_record(record, index)
             logger.info(f"Record {index + 1} result: {result}")
             results.extend(result["processed_files"])
             count += result["count"]
