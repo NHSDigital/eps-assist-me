@@ -52,11 +52,15 @@ export class RuntimePolicies extends Construct {
       resources: [props.knowledgeBaseArn]
     })
 
+    const slackBotPolicyResources = [
+      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
+      `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`
+    ]
+
     const slackBotSSMPolicy = new PolicyStatement({
       actions: ["ssm:GetParameter"],
       resources: [
-        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
-        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`
+        ...slackBotPolicyResources
       ]
     })
 
@@ -146,8 +150,7 @@ export class RuntimePolicies extends Construct {
       ],
       resources: [
         props.knowledgeBaseArn,
-        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackBotTokenParameterName}`,
-        `arn:aws:ssm:${props.region}:${props.account}:parameter${props.slackSigningSecretParameterName}`
+        ...slackBotPolicyResources
       ]
     })
 

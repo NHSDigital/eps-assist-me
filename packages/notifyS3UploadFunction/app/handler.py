@@ -2,7 +2,7 @@
 Lambda handler for notifying Slack channels of S3 uploads
 """
 
-from app.core.config import get_bot_token, logger
+from app.core.config import get_bot_on_prs, get_bot_token, logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -41,6 +41,25 @@ def post_message(client, channel_id, blocks, text_fallback):
         return False
 
 
+def process_records(uploaded_files, s3_event_body):
+    for s3_record in s3_event_body.get("Records", []):
+        bucket_name = s3_record["s3"].get("bucket", {}).get("name", None)
+
+        run_on_pr = get_bot_on_prs()
+        if bucket_name is None:
+            # Ignore PR buckets
+            logger.info("Cannot find bucket name in record, skipping.")
+            continue
+        elif run_on_pr and "pr-" in bucket_name:
+            logger.info(f'Skipping notification for PR bucket "{bucket_name}"')
+            continue
+
+        file_key = s3_record["s3"]["object"]["key"]
+        file_key = urllib.parse.unquote_plus(file_key)
+        file_key = file_key.split("/")[-1]
+        uploaded_files.append(f"\t - *{file_key}*")
+
+
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event: dict, context: LambdaContext) -> dict:
     """
@@ -56,20 +75,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
         logger.info(f"Processing SQS record ID: {sqs_record.get('messageId', 'unknown')}")
         try:
             s3_event_body = json.loads(sqs_record["body"])
-            for s3_record in s3_event_body.get("Records", []):
-                bucket_name = s3_record["s3"].get("bucket", {}).get("name", None)
-
-                # Skip if no bucket name (e.g., PR buckets)
-                # PR Lambdas will post to DEV channels
-                if bucket_name is None:
-                    # Ignore PR buckets
-                    logger.info(f'Cannot find bucket with name "{bucket_name}"')
-                    continue
-
-                file_key = s3_record["s3"]["object"]["key"]
-                file_key = urllib.parse.unquote_plus(file_key)
-                file_key = file_key.split("/")[-1]
-                uploaded_files.append(f"\t - *{file_key}*")
+            process_records(uploaded_files, s3_event_body)
         except SlackApiError as e:
             logger.error(f"Error parsing record: {e}")
         except Exception as e:

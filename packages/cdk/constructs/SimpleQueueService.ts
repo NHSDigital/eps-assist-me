@@ -48,15 +48,18 @@ export class SimpleQueueService extends Construct {
           queue: deadLetterQueue,
           maxReceiveCount: 3 // Move to DLQ after 3 failed attempts
         },
-        deliveryDelay: Duration.seconds(10),
+        deliveryDelay: Duration.seconds(0),
         visibilityTimeout: Duration.seconds(60),
         enforceSSL: true
       }
     )
 
     // Add queues as event source for the notify function and sync knowledge base function
+    // While batching, the messages will be sent if maxBatchingWindow is reached or batchSize is reached
+    // Set (very) large batch size to improve wait efficiency of batching window
     const eventSource = new SqsEventSource(queue, {
       maxBatchingWindow: Duration.seconds(props.batchDelay),
+      batchSize: 1000,
       reportBatchItemFailures: true
     })
 

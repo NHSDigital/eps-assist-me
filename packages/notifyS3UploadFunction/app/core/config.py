@@ -33,6 +33,12 @@ def get_bot_token() -> Tuple[str, str]:
     return bot_token
 
 
+@lru_cache()
+def get_bot_on_prs() -> bool:
+    is_active_on_prs_str = os.environ.get("SLACK_BOT_ACTIVE_ON_PRS", "false").lower()
+    return is_active_on_prs_str == "true"
+
+
 @dataclass
 class SlackBotConfig:
     SLACK_BOT_TOKEN_PARAMETER: str

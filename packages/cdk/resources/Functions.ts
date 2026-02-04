@@ -144,7 +144,8 @@ export class Functions extends Construct {
       logLevel: props.logLevel,
       dependencyLocation: ".dependencies/notifyS3UploadFunction",
       environmentVariables: {
-        "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName
+        "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
+        "SLACK_BOT_ACTIVE_ON_PRS": "false"
       },
       additionalPolicies: [props.notifyS3UploadFunctionPolicy]
     })
