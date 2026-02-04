@@ -59,9 +59,11 @@ def handler(event: dict, context: LambdaContext) -> dict:
             for s3_record in s3_event_body.get("Records", []):
                 bucket_name = s3_record["s3"].get("bucket", {}).get("name", None)
 
-                if bucket_name is None or "-pr-" in bucket_name:
+                # Skip if no bucket name (e.g., PR buckets)
+                # PR Lambdas will post to DEV channels
+                if bucket_name is None:
                     # Ignore PR buckets
-                    logger.info(f"Ignoring PR bucket: {bucket_name}")
+                    logger.info(f'Cannot find bucket with name "{bucket_name}"')
                     continue
 
                 file_key = s3_record["s3"]["object"]["key"]
