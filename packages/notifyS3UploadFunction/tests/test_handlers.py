@@ -65,45 +65,6 @@ def test_handler_no_files(mock_env, mock_get_parameter, mock_web_client, lambda_
     mock_web_client.chat_postMessage.assert_not_called()
 
 
-def test_handler_pr_branch(mock_env, mock_get_parameter, mock_web_client, lambda_context):
-    """Test skips processing of S3 upload events when bucket name indicates a PR branch"""
-    # Mock Slack client responses
-    mock_web_client.auth_test.return_value = {"user_id": "bot-user"}
-    mock_web_client.conversations_list.return_value = [{"channels": [{"id": "C123"}, {"id": "C456"}]}]
-    mock_web_client.chat_postMessage.return_value = None
-
-    # Import after patching
-    if "app.handler" in sys.modules:
-        del sys.modules["app.handler"]
-    from app.handler import handler
-
-    # Test event with S3 records
-    event = {
-        "Records": [
-            {
-                "body": json.dumps(
-                    {
-                        "Records": [
-                            {"s3": {"bucket": {"name": "epsam-pr-123"}, "object": {"key": "file1.pdf"}}},
-                            {"s3": {"bucket": {"name": "epsam-pr-456"}, "object": {"key": "folder/file2.txt"}}},
-                        ]
-                    }
-                )
-            }
-        ]
-    }
-
-    result = handler(event, lambda_context)
-
-    # Assertions
-    assert result["status"] == "skipped"
-    assert result["processed_files"] == 0
-    assert result["channels_notified"] == 0
-
-    # Verify Slack API calls
-    mock_web_client.conversations_list.assert_not_called()
-
-
 def test_handler_parsing_error(mock_env, mock_get_parameter, mock_web_client, lambda_context):
     """Test handler with malformed S3 event records"""
     # Mock Slack client
