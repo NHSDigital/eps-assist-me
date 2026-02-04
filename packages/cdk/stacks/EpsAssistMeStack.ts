@@ -41,6 +41,9 @@ export class EpsAssistMeStack extends Stack {
     const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
     const auditLoggingBucketImport = Fn.importValue("account-resources:AuditLoggingBucket")
 
+    // document sync role
+    const assistMeDocumentSyncRoleArn = Fn.importValue("ci-resources:AssistMeDocumentSyncRole")
+
     // Get variables from context
     const region = Stack.of(this).region
     const account = Stack.of(this).account
@@ -259,6 +262,16 @@ export class EpsAssistMeStack extends Stack {
       })
       regressionTestRole.addManagedPolicy(regressionTestPolicy)
     }
+
+    // Grant Access to Document Sync Role
+    const assistMeDocumentSyncRole = Role.fromRoleArn(
+      this,
+      "AssistMeDocumentSyncRole",
+      assistMeDocumentSyncRoleArn
+    )
+
+    storage.kbDocsBucket.grantRead(assistMeDocumentSyncRole)
+    storage.kbDocsKmsKey.grantDecrypt(assistMeDocumentSyncRole)
 
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {

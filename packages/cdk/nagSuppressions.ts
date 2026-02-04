@@ -444,6 +444,21 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress DocumentSyncRole wildcard permissions
+  const docSyncRole = stack.node.tryFindChild("AssistMeDocumentSyncRole")
+  if (docSyncRole) {
+    NagSuppressions.addResourceSuppressions(
+      docSyncRole,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Document Sync Role requires wildcard permissions for S3 sync operations."
+        }
+      ],
+      true
+    )
+  }
+
 }
 
 const safeAddNagSuppression = (stack: Stack, path: string, suppressions: Array<NagPackSuppression>) => {
