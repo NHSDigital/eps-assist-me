@@ -106,15 +106,10 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
         logger.info(f"Processing {len(records)} record(s)")
 
         results = []
-        count = 0
         for index, record in enumerate(records):
             result = process_s3_record(record, index)
+            results.append(result)
             logger.info(f"Record {index + 1} result: {result}")
-            results.extend(result["processed_files"])
-            count += result["count"]
-
-        for result in results:
-            logger.info(f"File processing result: {result}")
 
         success_count = sum(1 for r in results if r["status"] == "success")
         failed_count = sum(1 for r in results if r["status"] in ["failed", "error"])
@@ -127,7 +122,7 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
             "body": json.dumps(
                 {
                     "message": "Processing complete",
-                    "total": count,
+                    "total": len(records),
                     "success": success_count,
                     "failed": failed_count,
                     "skipped": skipped_count,

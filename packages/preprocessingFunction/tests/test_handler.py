@@ -30,20 +30,12 @@ def s3_event_pdf():
     return {
         "Records": [
             {
-                "body": json.dumps(
-                    {
-                        "Records": [
-                            {
-                                "eventSource": "aws:s3",
-                                "eventName": "ObjectCreated:Put",
-                                "s3": {
-                                    "bucket": {"name": "test-bucket"},
-                                    "object": {"key": "raw/test-document.pdf", "size": 1024},
-                                },
-                            }
-                        ]
-                    }
-                )
+                "eventSource": "aws:s3",
+                "eventName": "ObjectCreated:Put",
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "raw/test-document.pdf", "size": 1024},
+                },
             }
         ]
     }
@@ -54,20 +46,12 @@ def s3_event_markdown():
     return {
         "Records": [
             {
-                "body": json.dumps(
-                    {
-                        "Records": [
-                            {
-                                "eventSource": "aws:s3",
-                                "eventName": "ObjectCreated:Put",
-                                "s3": {
-                                    "bucket": {"name": "test-bucket"},
-                                    "object": {"key": "raw/test-document.md", "size": 512},
-                                },
-                            }
-                        ]
-                    }
-                )
+                "eventSource": "aws:s3",
+                "eventName": "ObjectCreated:Put",
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "raw/test-document.md", "size": 512},
+                },
             }
         ]
     }
@@ -78,20 +62,12 @@ def s3_event_unsupported():
     return {
         "Records": [
             {
-                "body": json.dumps(
-                    {
-                        "Records": [
-                            {
-                                "eventSource": "aws:s3",
-                                "eventName": "ObjectCreated:Put",
-                                "s3": {
-                                    "bucket": {"name": "test-bucket"},
-                                    "object": {"key": "raw/test-file.exe", "size": 2048},
-                                },
-                            }
-                        ]
-                    }
-                )
+                "eventSource": "aws:s3",
+                "eventName": "ObjectCreated:Put",
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "raw/test-file.exe", "size": 2048},
+                },
             }
         ]
     }
@@ -102,29 +78,21 @@ def multiple_s3_event():
     return {
         "Records": [
             {
-                "body": json.dumps(
-                    {
-                        "Records": [
-                            {
-                                "eventSource": "aws:s3",
-                                "eventName": "ObjectCreated:Put",
-                                "s3": {
-                                    "bucket": {"name": "test-bucket"},
-                                    "object": {"key": "raw/document1.pdf", "size": 1024},
-                                },
-                            },
-                            {
-                                "eventSource": "aws:s3",
-                                "eventName": "ObjectCreated:Put",
-                                "s3": {
-                                    "bucket": {"name": "test-bucket"},
-                                    "object": {"key": "raw/document2.md", "size": 512},
-                                },
-                            },
-                        ]
-                    }
-                )
-            }
+                "eventSource": "aws:s3",
+                "eventName": "ObjectCreated:Put",
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "raw/document1.pdf", "size": 1024},
+                },
+            },
+            {
+                "eventSource": "aws:s3",
+                "eventName": "ObjectCreated:Put",
+                "s3": {
+                    "bucket": {"name": "test-bucket"},
+                    "object": {"key": "raw/document2.md", "size": 512},
+                },
+            },
         ]
     }
 
@@ -200,7 +168,7 @@ class TestHandler:
     def test_handler_handles_malformed_event(self, mock_env, lambda_context):
         from app.handler import handler
 
-        event = {"Records": [{"body": json.dumps({"Records": [{"Records": [{"eventSource": "aws:s3", "s3": {}}]}]})}]}
+        event = {"Records": [{"eventSource": "aws:s3", "s3": {}}]}
 
         response = handler(event, lambda_context)
 
@@ -226,7 +194,7 @@ class TestHandler:
     def test_handler_handles_exception(self, mock_env, lambda_context):
         from app.handler import handler
 
-        event = {"Records": [{"body": json.dumps({"Records": [{"invalid": "data"}]})}]}
+        event = {"Records": [{"invalid": "data"}]}
         response = handler(event, lambda_context)
 
         assert response["statusCode"] == 200
