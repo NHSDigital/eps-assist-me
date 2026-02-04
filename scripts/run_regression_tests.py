@@ -27,6 +27,7 @@ ENVIRONMENT_NAMES = {
 }
 
 
+# pyrefly: ignore [implicit-import]
 class BearerAuth(requests.auth.AuthBase):
     def __init__(self, token):
         self.token = token

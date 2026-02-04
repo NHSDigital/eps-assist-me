@@ -71,6 +71,7 @@ def parse_system_message(chat_cfg: dict) -> str:
     return "\n\n".join(parts)
 
 
+# pyrefly: ignore [bad-function-definition]
 def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
     """
     Load a prompt template from Amazon Bedrock Prompt Management.
@@ -106,6 +107,7 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
 
         # Extract and render the prompt template
         template_config = variant["templateConfiguration"]
+        # pyrefly: ignore [bad-argument-type]
         prompt_text = _render_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
 

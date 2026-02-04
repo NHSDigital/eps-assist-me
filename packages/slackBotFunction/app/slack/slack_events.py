@@ -69,6 +69,7 @@ def cleanup_previous_unfeedback_qa(
 
     except ClientError as e:
         if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            # pyrefly: ignore [unbound-name]
             logger.info("Q&A has feedback - keeping for user", extra={"message_ts": previous_message_ts})
         else:
             logger.error("Error cleaning up Q&A", extra={"error": traceback.format_exc()})
@@ -167,8 +168,10 @@ def _create_feedback_blocks(
 
     # Feedback buttons
     blocks.append({"type": "divider", "block_id": "feedback-divider"})
+    # pyrefly: ignore [bad-argument-type]
     blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": "Was this response helpful?"}]})
     blocks.append(
+        # pyrefly: ignore [bad-argument-type]
         {
             "type": "actions",
             "block_id": "feedback_block",
@@ -205,6 +208,7 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
             result = _create_citation(citation, feedback_data, response_text)
 
             action_buttons += result.get("action_buttons", [])
+            # pyrefly: ignore [bad-assignment]
             response_text = result.get("response_text", response_text)
 
     # Remove any citations that have not been returned
@@ -217,6 +221,7 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
     # Citation action block
     if action_buttons:
         blocks.append(
+            # pyrefly: ignore [bad-argument-type]
             {
                 "type": "actions",
                 "block_id": "citation_actions",
@@ -403,6 +408,7 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
             pull_request_id, _ = extract_pull_request_id(text=message_text)
             forward_to_pull_request_lambda(
                 body={},
+                # pyrefly: ignore [bad-argument-type]
                 pull_request_id=pull_request_id,
                 event=event,
                 event_id=event_id,
@@ -456,6 +462,7 @@ def process_pull_request_slack_event(slack_event_data: Dict[str, Any]) -> None:
         process_async_slack_event(event=event, event_id=event_id, client=client)
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
+        # pyrefly: ignore [unbound-name]
         logger.error(processing_error_message, extra={"event_id": event_id, "error": traceback.format_exc()})
 
 
@@ -538,18 +545,23 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         )
 
         _handle_session_management(
+            # pyrefly: ignore [bad-argument-type]
             **feedback_data,
             session_data=session_data,
+            # pyrefly: ignore [bad-argument-type]
             session_id=session_id,
+            # pyrefly: ignore [bad-argument-type]
             kb_response=kb_response,
             user_id=user_id,
             conversation_key=conversation_key,
         )
 
         # Store Q&A pair for feedback correlation
+        # pyrefly: ignore [bad-argument-type, missing-attribute]
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
         try:
+            # pyrefly: ignore [bad-argument-type]
             client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
         except Exception as e:
             logger.error(
@@ -561,6 +573,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         logger.error(f"Error processing message: {e}", extra={"event_id": event_id, "error": traceback.format_exc()})
 
         # Try to notify user of error via Slack
+        # pyrefly: ignore [unbound-name]
         post_error_message(channel=channel, thread_ts=thread_ts, client=client)
 
 
@@ -653,6 +666,7 @@ def store_feedback(
         if feedback_text:
             feedback_item["feedback_text"] = feedback_text[:4000]
 
+        # pyrefly: ignore [bad-argument-type]
         store_state_information(item=feedback_item, condition=condition)
 
         # Mark Q&A as having received feedback to prevent deletion
@@ -708,6 +722,7 @@ def process_formatted_bedrock_query(
 
     blocks = _create_feedback_blocks(response_text, citations, feedback_data)
 
+    # pyrefly: ignore [bad-return]
     return kb_response, response_text, blocks
 
 
@@ -718,6 +733,7 @@ def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, 
         # Citation details
         title: str = params.get("title", "No title available.").strip()
         body: str = params.get("body", "No citation text available.").strip()
+        # pyrefly: ignore [bad-assignment]
         source_number: str = params.get("source_number")
 
         # Remove any existing citation block/divider
@@ -795,6 +811,7 @@ def _toggle_button_style(element: dict) -> bool:
 
 
 def process_command_test_request(command: Dict[str, Any], client: WebClient) -> None:
+    # pyrefly: ignore [not-iterable]
     if "help" in command.get("text"):
         process_command_test_help(command=command, client=client)
     else:
@@ -809,6 +826,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         logger.info(acknowledgement_msg, extra={"command": command})
 
         # Extract parameters
+        # pyrefly: ignore [bad-argument-type]
         params = extract_test_command_params(command.get("text"))
 
         # Is the command targeting a PR
@@ -839,6 +857,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
             "channel": command["channel_id"],
             "text": acknowledgement_msg,
         }
+        # pyrefly: ignore [bad-argument-type]
         client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
         # Retrieve sample questions
@@ -860,12 +879,14 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
                     process_command_test_ai_request,
                     question=question,
                     response=response,  # Pass the response object we just got
+                    # pyrefly: ignore [bad-argument-type]
                     output=output,
                     client=client,
                 )
                 futures.append(future)
 
         post_params["text"] = "Testing complete, generating file..."
+        # pyrefly: ignore [bad-argument-type]
         client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
         aggregated_results = []
@@ -977,9 +998,11 @@ def get_conversation_session_data(conversation_key: str) -> Dict[str, Any]:
         if "Item" in response:
             logger.info("Found existing session", extra={"conversation_key": conversation_key})
             return response["Item"]
+        # pyrefly: ignore [bad-return]
         return None
     except Exception:
         logger.error("Error getting session", extra={"error": traceback.format_exc()})
+        # pyrefly: ignore [bad-return]
         return None
 
 
@@ -990,6 +1013,7 @@ def get_latest_message_ts(conversation_key: str) -> str | None:
     try:
         response = get_state_information(key={"pk": conversation_key, "sk": constants.SESSION_SK})
         if "Item" in response:
+            # pyrefly: ignore [bad-return]
             return response["Item"].get("latest_message_ts")
         return None
     except Exception:
@@ -1002,7 +1026,9 @@ def store_conversation_session(
     session_id: str,
     user_id: str,
     channel_id: str,
+    # pyrefly: ignore [bad-function-definition]
     thread_ts: str = None,
+    # pyrefly: ignore [bad-function-definition]
     latest_message_ts: str = None,
 ) -> None:
     """

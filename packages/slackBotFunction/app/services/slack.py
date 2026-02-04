@@ -12,6 +12,7 @@ def get_friendly_channel_name(channel_id: str, client: WebClient) -> str:
     try:
         conversations_info_response = client.conversations_info(channel=channel_id)
         if conversations_info_response["ok"]:
+            # pyrefly: ignore [unsupported-operation]
             friendly_channel_name = conversations_info_response["channel"]["name"]
         else:
             logger.warning(

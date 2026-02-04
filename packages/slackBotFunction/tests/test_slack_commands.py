@@ -92,6 +92,7 @@ def test_process_slack_command_handler_no_command(
             del sys.modules["app.slack.slack_handlers"]
         from app.slack.slack_handlers import command_handler
 
+        # pyrefly: ignore [bad-argument-type]
         command_handler(slack_command_data, slack_command_data, mock_client)
 
         # assertions

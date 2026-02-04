@@ -87,6 +87,7 @@ def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
             )
             forward_to_pull_request_lambda(
                 body=body,
+                # pyrefly: ignore [bad-argument-type]
                 event=None,
                 event_id="",
                 store_pull_request_id=False,
@@ -157,6 +158,7 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
         return
 
     user_id = command.get("user_id")
+    # pyrefly: ignore [bad-argument-type]
     session_pull_request_id = extract_test_command_params(command.get("text")).get("pr")
     if session_pull_request_id:
         logger.info(f"Command in pull request session {session_pull_request_id} from user {user_id}")

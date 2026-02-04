@@ -22,11 +22,15 @@ class TestDirectInvocation:
 
         event: DirectInvocationRequest = {"invocation_type": "direct", "query": "How do I authenticate with EPS API?"}
 
+        # pyrefly: ignore [bad-argument-type]
         result: DirectInvocationResponse = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 200
+        # pyrefly: ignore [bad-typed-dict-key]
         assert result["response"]["text"] == "AI response about EPS API authentication"
+        # pyrefly: ignore [bad-typed-dict-key]
         assert result["response"]["session_id"] == "new-session-123"
+        # pyrefly: ignore [bad-typed-dict-key]
         assert len(result["response"]["citations"]) == 1
         assert "timestamp" in result["response"]
 
@@ -47,8 +51,11 @@ class TestDirectInvocation:
         result: DirectInvocationResponse = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 200
+        # pyrefly: ignore [bad-typed-dict-key]
         assert result["response"]["text"] == "Follow-up response"
+        # pyrefly: ignore [bad-typed-dict-key]
         assert result["response"]["session_id"] == "existing-session-456"
+        # pyrefly: ignore [bad-typed-dict-key]
         assert result["response"]["citations"] == []
         assert "timestamp" in result["response"]
 
@@ -61,6 +68,7 @@ class TestDirectInvocation:
         result = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 400
+        # pyrefly: ignore [bad-typed-dict-key]
         assert "Missing required field: query" in result["response"]["error"]
         assert "timestamp" in result["response"]
 
@@ -71,6 +79,7 @@ class TestDirectInvocation:
         result = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 400
+        # pyrefly: ignore [bad-typed-dict-key]
         assert "Missing required field: query" in result["response"]["error"]
         assert "timestamp" in result["response"]
 
@@ -84,6 +93,7 @@ class TestDirectInvocation:
         result = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 500
+        # pyrefly: ignore [bad-typed-dict-key]
         assert result["response"]["error"] == "Internal server error"
         assert "timestamp" in result["response"]
 
@@ -95,6 +105,7 @@ class TestDirectInvocation:
         result = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 400
+        # pyrefly: ignore [bad-typed-dict-key]
         assert "Missing required field: query" in result["response"]["error"]
 
     @patch("app.services.ai_processor.process_ai_query")
@@ -105,6 +116,7 @@ class TestDirectInvocation:
         result = handle_direct_invocation(event, Mock())
 
         assert result["statusCode"] == 400
+        # pyrefly: ignore [bad-typed-dict-key]
         assert "Missing required field: query" in result["response"]["error"]
 
     @patch("app.services.ai_processor.process_ai_query")
@@ -133,6 +145,7 @@ class TestDirectInvocation:
         assert "timestamp" in result["response"]
 
         # citation passthrough: bedrock data structure preserved
+        # pyrefly: ignore [bad-typed-dict-key]
         assert len(result["response"]["citations"]) == 2
         assert result["response"]["citations"][0]["title"] == "Doc 1"
         assert result["response"]["citations"][1]["uri"] == "https://example.com/2"

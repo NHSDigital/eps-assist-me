@@ -61,6 +61,7 @@ def get_pull_request_lambda_arn(pull_request_id: str) -> str:
         response = cloudformation_client.describe_stacks(StackName=f"epsam-pr-{pull_request_id}")
         outputs = {o["OutputKey"]: o["OutputValue"] for o in response["Stacks"][0]["Outputs"]}
         pull_request_lambda_arn = outputs.get("SlackBotLambdaArn")
+        # pyrefly: ignore [bad-return]
         return pull_request_lambda_arn
     except Exception as e:
         logger.error("Failed to get pull request lambda arn", extra={"error": traceback.format_exc()})
@@ -104,6 +105,7 @@ def get_forward_payload(body: Dict[str, Any], event: Dict[str, Any], event_id: s
 
     if event_id is None or event["text"] is None:
         logger.error("Missing required fields to forward pull request event")
+        # pyrefly: ignore [bad-return]
         return None
 
     message_text = event["text"]
@@ -214,7 +216,9 @@ def conversation_key_and_root(event: Dict[str, Any]) -> Tuple[str, str]:
     channel_id = event["channel"]
     root = event.get("thread_ts") or event.get("ts")
     if event.get("channel_type") == constants.CHANNEL_TYPE_IM:
+        # pyrefly: ignore [bad-return]
         return f"{constants.DM_PREFIX}{channel_id}#{root}", root
+    # pyrefly: ignore [bad-return]
     return f"{constants.THREAD_PREFIX}{channel_id}#{root}", root
 
 
@@ -226,6 +230,7 @@ def extract_session_pull_request_id(conversation_key: str) -> str | None:
         if "Item" in response:
             logger.info("Found existing pull request session", extra={"conversation_key": conversation_key})
             logger.debug("response", extra={"response": response})
+            # pyrefly: ignore [bad-return]
             return response["Item"]["pull_request_id"]
         return None
     except Exception as e:
@@ -239,17 +244,21 @@ def get_bot_user_id(client: WebClient) -> str | None:
     This is cached to avoid repeated API calls.
     """
     if not hasattr(get_bot_user_id, "_cache"):
+        # pyrefly: ignore [missing-attribute]
         get_bot_user_id._cache = {}
 
     cache_key = id(client)
 
+    # pyrefly: ignore [missing-attribute]
     if cache_key in get_bot_user_id._cache:
+        # pyrefly: ignore [missing-attribute]
         return get_bot_user_id._cache[cache_key]
 
     try:
         auth_response = client.auth_test()
         if auth_response.get("ok"):
             bot_user_id = auth_response.get("user_id")
+            # pyrefly: ignore [missing-attribute]
             get_bot_user_id._cache[cache_key] = bot_user_id
             logger.info("Cached bot user ID", extra={"bot_user_id": bot_user_id})
             return bot_user_id
@@ -282,6 +291,7 @@ def was_bot_mentioned_in_thread_root(channel: str, thread_ts: str, client: WebCl
         # check if THIS bot is mentioned in any message in the thread
         bot_mention_pattern = rf"<@{re.escape(bot_user_id)}(?:\|[^>]+)?>"
 
+        # pyrefly: ignore [not-iterable]
         for message in response["messages"]:
             message_text = message.get("text", "")
             if re.search(bot_mention_pattern, message_text):
@@ -307,6 +317,7 @@ def was_bot_mentioned_in_thread_root(channel: str, thread_ts: str, client: WebCl
         return True
 
 
+# pyrefly: ignore [bad-function-definition]
 def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> bool:
     """
     Determine if the bot should reply to the message.
@@ -331,6 +342,7 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
         channel = event.get("channel")
         thread_ts = event.get("thread_ts")
 
+        # pyrefly: ignore [bad-argument-type]
         if not was_bot_mentioned_in_thread_root(channel, thread_ts, client):
             logger.debug(
                 "Bot not mentioned in thread, ignoring message", extra={"channel": channel, "thread_ts": thread_ts}

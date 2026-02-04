@@ -29,6 +29,7 @@ def get_state_information(key: dict[str, Any]) -> GetItemOutputTableTypeDef:
     return results
 
 
+# pyrefly: ignore [bad-function-definition]
 def store_state_information(item: dict[str, Any], condition: str = None) -> None:
     start_time = time()
     table = get_slack_bot_state_table()
