@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from markitdown import MarkItDown
 
 try:
