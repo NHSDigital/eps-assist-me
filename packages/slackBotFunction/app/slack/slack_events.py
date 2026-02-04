@@ -3,6 +3,7 @@ Slack event processing
 Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
+import os
 import re
 import time
 import traceback
@@ -39,7 +40,6 @@ from app.utils.handler_utils import (
 )
 
 from app.services.ai_processor import process_ai_query
-
 
 logger = get_logger()
 
@@ -698,6 +698,9 @@ def process_formatted_bedrock_query(
     citations: list[dict[str, str]] = []
     if len(split) != 1:
         response_text = split[0]
+        stack_name = os.environ["STACK_NAME"]
+        response_text = f"RESPONSE FROM STACK ${stack_name}\n${response_text}"
+        logger.info("modified the response text", extra={"new_response_text": response_text, "stack": stack_name})
         citation_block = split[1]
         raw_citations = []
         raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
