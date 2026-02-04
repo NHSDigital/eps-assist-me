@@ -452,13 +452,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
       [
         {
           id: "AwsSolutions-IAM5",
-          reason: "Document Sync Role requires wildcard permissions for S3 sync operations.",
-          appliesTo: [
-            "Action::s3:GetBucket*",
-            "Action::s3:GetObject*",
-            "Action::s3:List*",
-            "Resource::<StorageDocsBucket*.Arn>/*"
-          ]
+          reason: "Document Sync Role requires wildcard permissions for S3 sync operations."
         }
       ],
       true
