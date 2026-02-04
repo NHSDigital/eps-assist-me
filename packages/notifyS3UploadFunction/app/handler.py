@@ -41,23 +41,33 @@ def post_message(client, channel_id, blocks, text_fallback):
         return False
 
 
-def process_records(uploaded_files, s3_event_body):
-    for s3_record in s3_event_body.get("Records", []):
-        bucket_name = s3_record["s3"].get("bucket", {}).get("name", None)
+def process_records(s3_event_body):
+    """
+    Processes S3 event records to extract uploaded file names,
+    ignoring PR buckets if configured.
+    """
+    uploaded_files = []
+    try:
+        for s3_record in s3_event_body.get("Records", []):
+            bucket_name = s3_record["s3"].get("bucket", {}).get("name", None)
 
-        run_on_pr = get_bot_on_prs()
-        if bucket_name is None:
-            # Ignore PR buckets
-            logger.info("Cannot find bucket name in record, skipping.")
-            continue
-        elif run_on_pr and "pr-" in bucket_name:
-            logger.info(f'Skipping notification for PR bucket "{bucket_name}"')
-            continue
+            run_on_pr = get_bot_on_prs()
+            if bucket_name is None:
+                # Ignore PR buckets
+                logger.info("Cannot find bucket name in record, skipping.")
+                continue
+            elif not run_on_pr and "pr-" in bucket_name:
+                logger.info(f'Skipping notification for PR bucket "{bucket_name}"')
+                continue
 
-        file_key = s3_record["s3"]["object"]["key"]
-        file_key = urllib.parse.unquote_plus(file_key)
-        file_key = file_key.split("/")[-1]
-        uploaded_files.append(f"\t - *{file_key}*")
+            file_key = s3_record["s3"]["object"]["key"]
+            file_key = urllib.parse.unquote_plus(file_key)
+            file_key = file_key.split("/")[-1]
+            uploaded_files.append(f"\t - *{file_key}*")
+    except Exception as e:
+        logger.error(f"Error processing records: {str(e)}")
+
+    return uploaded_files
 
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)
@@ -75,7 +85,8 @@ def handler(event: dict, context: LambdaContext) -> dict:
         logger.info(f"Processing SQS record ID: {sqs_record.get('messageId', 'unknown')}")
         try:
             s3_event_body = json.loads(sqs_record["body"])
-            process_records(uploaded_files, s3_event_body)
+            result = process_records(s3_event_body)
+            uploaded_files.extend(result)
         except SlackApiError as e:
             logger.error(f"Error parsing record: {e}")
         except Exception as e:
@@ -89,7 +100,6 @@ def handler(event: dict, context: LambdaContext) -> dict:
 
     # Build blocks for Slack message
     max_display = 10
-    success_count = 0
     total_count = len(unique_files)
     display_list = unique_files[:max_display]
     more_count = total_count - max_display
@@ -111,6 +121,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
     logger.info("Find bot channels...")
     target_channels = get_bot_channels(client)
 
+    success_count = 0
     if not target_channels:
         logger.warning("Bot is not in any channels. No messages sent.")
         return {"status": "failed", "processed_files": total_count, "channels_notified": success_count}
