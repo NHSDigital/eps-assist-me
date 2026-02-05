@@ -1,3 +1,4 @@
+import json
 import pytest
 import os
 from unittest.mock import Mock, patch
@@ -27,12 +28,21 @@ def s3_event():
     return {
         "Records": [
             {
-                "eventSource": "aws:s3",
-                "eventName": "ObjectCreated:Put",
-                "s3": {
-                    "bucket": {"name": "test-bucket"},
-                    "object": {"key": "test-file.pdf", "size": 1024},
-                },
+                "eventSource": "aws:sqs",
+                "body": json.dumps(
+                    {
+                        "Records": [
+                            {
+                                "eventSource": "aws:s3",
+                                "eventName": "ObjectCreated:Put",
+                                "s3": {
+                                    "bucket": {"name": "test-bucket"},
+                                    "object": {"key": "test-file.pdf", "size": 1024},
+                                },
+                            }
+                        ]
+                    }
+                ),
             }
         ]
     }
@@ -44,21 +54,30 @@ def multiple_s3_event():
     return {
         "Records": [
             {
-                "eventSource": "aws:s3",
-                "eventName": "ObjectCreated:Put",
-                "s3": {
-                    "bucket": {"name": "test-bucket"},
-                    "object": {"key": "file1.pdf", "size": 1024},
-                },
-            },
-            {
-                "eventSource": "aws:s3",
-                "eventName": "ObjectRemoved:Delete",
-                "s3": {
-                    "bucket": {"name": "test-bucket"},
-                    "object": {"key": "file2.pdf", "size": 2048},
-                },
-            },
+                "eventSource": "aws:sqs",
+                "body": json.dumps(
+                    {
+                        "Records": [
+                            {
+                                "eventSource": "aws:s3",
+                                "eventName": "ObjectCreated:Put",
+                                "s3": {
+                                    "bucket": {"name": "test-bucket"},
+                                    "object": {"key": "file1.pdf", "size": 1024},
+                                },
+                            },
+                            {
+                                "eventSource": "aws:s3",
+                                "eventName": "ObjectRemoved:Delete",
+                                "s3": {
+                                    "bucket": {"name": "test-bucket"},
+                                    "object": {"key": "file2.pdf", "size": 2048},
+                                },
+                            },
+                        ]
+                    }
+                ),
+            }
         ]
     }
 
@@ -294,12 +313,21 @@ def test_handler_unknown_event_type(mock_time, mock_boto_client, mock_env, lambd
     unknown_event = {
         "Records": [
             {
-                "eventSource": "aws:s3",
-                "eventName": "ObjectRestore:Completed",  # Unknown event type
-                "s3": {
-                    "bucket": {"name": "test-bucket"},
-                    "object": {"key": "test-file.pdf", "size": 1024},
-                },
+                "eventSource": "aws:sqs",
+                "body": json.dumps(
+                    {
+                        "Records": [
+                            {
+                                "eventSource": "aws:s3",
+                                "eventName": "ObjectRestore:Completed",
+                                "s3": {
+                                    "bucket": {"name": "test-bucket"},
+                                    "object": {"key": "test-file.pdf", "size": 1024},
+                                },
+                            }
+                        ]
+                    }
+                ),
             }
         ]
     }
