@@ -86,23 +86,23 @@ def convert_document_to_markdown(input_path: Path, output_path: Path) -> bool:
             logger.info(f"Applied Excel filtering: {original_size} -> {len(markdown_content)} chars")
             logger.info(f"Filtered to sheets: {', '.join(EXCEL_SHEET_FILTER)}")
 
-            # Create logical chunks based on code blocks and headings
-            markdown_chunks = re.split(r"(`.*`\n+.*\n+## Overview)", markdown_content)
-            if len(markdown_chunks) > 1:
-                for i, chunk in enumerate(markdown_chunks):
-                    # name = chunk.split("\n", 1)[0]
-                    chunk_path = output_path.with_name(f"{output_path.stem}_{i + 1}{output_path.suffix}")
-                    chunk_path.write_text(chunk, encoding="utf-8")
-                    logger.info(f"Created chunk: {chunk_path.name} ({chunk_path.stat().st_size} bytes)")
+        # Create logical chunks based on code blocks and headings
+        markdown_chunks = re.split(r"(`.*`\n+.*\n+## Overview)", markdown_content)
+        if len(markdown_chunks) > 1:
+            for i, chunk in enumerate(markdown_chunks):
+                # name = chunk.split("\n", 1)[0]
+                chunk_path = output_path.with_name(f"{output_path.stem}_{i + 1}{output_path.suffix}")
+                chunk_path.write_text(chunk, encoding="utf-8")
+                logger.info(f"Created chunk: {chunk_path.name} ({chunk_path.stat().st_size} bytes)")
 
-                    output_path.parent.mkdir(parents=True, exist_ok=True)
-                    output_path.write_text(markdown_content, encoding="utf-8")
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(markdown_content, encoding="utf-8")
 
-                logger.info(
-                    f"Conversion successful: {output_path.name} - in {len(markdown_chunks)} chunks"
-                    + f"({output_path.stat().st_size} bytes)"
-                )
-                return True
+            logger.info(
+                f"Conversion successful: {output_path.name} - in {len(markdown_chunks)} chunks"
+                + f"({output_path.stat().st_size} bytes)"
+            )
+            return True
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(markdown_content, encoding="utf-8")
