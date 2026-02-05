@@ -61,7 +61,7 @@ on:
         required: false
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
         required: false
-      INT_CLOUD_FORMATION_DEPLOY_ROLE:
+      INT_ASSIST_ME_DOCUMENT_SYNC_ROLE:
         required: false
       PROD_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE:
         required: false
@@ -201,11 +201,11 @@ jobs:
 
       - name: Sync Documents - INT to lower environments
         uses: ./.github/actions/sync_documents
-        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && inputs.TARGET_ENVIRONMENT != 'prod' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        if: ${{ (inputs.TARGET_ENVIRONMENT == 'dev' || inputs.TARGET_ENVIRONMENT == 'qa' || inputs.TARGET_ENVIRONMENT == 'dev-pr') && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
         with:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
-          INT_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
+          INT_ASSIST_ME_DOCUMENT_SYNC_ROLE: ${{ secrets.INT_ASSIST_ME_DOCUMENT_SYNC_ROLE }}
           TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
 
       - name: create_int_release_notes
