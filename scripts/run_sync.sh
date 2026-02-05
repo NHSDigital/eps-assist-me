@@ -71,6 +71,7 @@ poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2
 poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_syncKnowledgeBaseFunction
 pip3 install -r .dependencies/requirements_slackBotFunction -t .dependencies/slackBotFunction/python
 pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
+pip3 install -r .dependencies/requirements_notifyS3UploadFunction -t .dependencies/notifyS3UploadFunction/python
 pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
 rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
 cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
