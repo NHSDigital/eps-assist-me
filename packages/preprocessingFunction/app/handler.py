@@ -45,13 +45,13 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
         else:
             relative_key = object_key
 
-        if converter.is_passthrough_format(file_extension):
+        passthrough = converter.is_passthrough_format(file_extension)
+        convertible = converter.is_convertible_format(file_extension)
+
+        if passthrough or convertible:
             logger.info(f"Pass-through file: {file_extension}")
             output_key = f"{config.PROCESSED_PREFIX}{relative_key}"
-            s3_client.copy_s3_object(bucket_name, object_key, bucket_name, output_key)
-            return {"status": "success", "message": f"Copied to {output_key}"}
 
-        if converter.is_convertible_format(file_extension):
             logger.info(f"Converting file: {file_extension}")
 
             # Create secure temporary directory
@@ -64,7 +64,13 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
                 output_path = temp_dir / output_filename
 
                 s3_client.download_from_s3(bucket_name, object_key, input_path)
-                conversion_success = converter.convert_document_to_markdown(input_path, output_path)
+
+                if convertible:
+                    conversion_success = converter.convert_document_to_markdown(input_path, output_path)
+                elif passthrough:
+                    chunks = converter.chunk_markdown_content(output_path.read_text(encoding="utf-8"), output_path)
+                    converter.save_markdown_chunks(chunks, output_path)
+                    conversion_success = True
 
                 if not conversion_success:
                     logger.error(f"Conversion failed for {object_key}")

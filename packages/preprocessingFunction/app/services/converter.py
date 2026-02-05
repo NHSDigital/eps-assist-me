@@ -17,6 +17,21 @@ except ImportError:
 EXCEL_SHEET_FILTER = ["EPS Dispensing Requirements", "Technical Conformance"]
 
 
+def chunk_markdown_content(markdown_content: str, output_path: str) -> list:
+    # Create logical chunks based on code blocks and headings
+    markdown_chunks = re.split(r"(`.*`\n+.*\n+## Overview)", markdown_content)
+    content = []
+    if len(markdown_chunks) > 1:
+        for i, chunk in enumerate(markdown_chunks):
+            chunk_path = output_path.with_name(f"{output_path.stem}_{i + 1}{output_path.suffix}")
+            chunk_path.write_text(chunk, encoding="utf-8")
+            logger.info(f"Created chunk: {chunk_path.name} ({chunk_path.stat().st_size} bytes)")
+            content.append({"chunk": chunk, "path": chunk_path})
+
+        return content
+    return markdown_content
+
+
 def remove_table_columns(markdown_content: str) -> str:
     """
     strips last 4 columns from scal tables
@@ -70,6 +85,18 @@ def filter_excel_sheets(markdown_content: str) -> str:
     return "\n".join(filtered_lines)
 
 
+def save_markdown_chunks(chunks: list, output_path: Path) -> None:
+    logger.info(f"Document split into {len(chunks)} chunks")
+    for chunk in chunks:
+        logger.info(f"Chunk {chunk['path'].name}: {len(chunk['chunk'])} chars")
+        save_markdown_content(chunk, output_path)
+
+
+def save_markdown_content(markdown_content: str, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(markdown_content, encoding="utf-8")
+
+
 def convert_document_to_markdown(input_path: Path, output_path: Path) -> bool:
     """converts document to markdown, applies excel filtering if needed"""
     try:
@@ -86,26 +113,12 @@ def convert_document_to_markdown(input_path: Path, output_path: Path) -> bool:
             logger.info(f"Applied Excel filtering: {original_size} -> {len(markdown_content)} chars")
             logger.info(f"Filtered to sheets: {', '.join(EXCEL_SHEET_FILTER)}")
 
-        # Create logical chunks based on code blocks and headings
-        markdown_chunks = re.split(r"(`.*`\n+.*\n+## Overview)", markdown_content)
-        if len(markdown_chunks) > 1:
-            for i, chunk in enumerate(markdown_chunks):
-                # name = chunk.split("\n", 1)[0]
-                chunk_path = output_path.with_name(f"{output_path.stem}_{i + 1}{output_path.suffix}")
-                chunk_path.write_text(chunk, encoding="utf-8")
-                logger.info(f"Created chunk: {chunk_path.name} ({chunk_path.stat().st_size} bytes)")
-
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                output_path.write_text(markdown_content, encoding="utf-8")
-
-            logger.info(
-                f"Conversion successful: {output_path.name} - in {len(markdown_chunks)} chunks"
-                + f"({output_path.stat().st_size} bytes)"
-            )
+        chunked_content = chunk_markdown_content(markdown_content, output_path)
+        if len(chunked_content) > 1:
+            save_markdown_chunks(chunked_content, output_path)
             return True
 
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(markdown_content, encoding="utf-8")
+        save_markdown_content(markdown_content, output_path)
 
         logger.info(f"Conversion successful: {output_path.name} ({output_path.stat().st_size} bytes)")
         return True
