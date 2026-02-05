@@ -33,7 +33,7 @@ export class S3LambdaNotification extends Construct {
     })
 
     // Subscribe to S3 bucket events to send notifications to the SQS queue
-    queue.kmsKey.addAlias(`alias/${queueName}-key`)
+    queue.kmsKey.addAlias(`alias/${props.stackName}-${queueName}-key`)
     queue.kmsKey.addToResourcePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
       principals: [new ServicePrincipal("s3.amazonaws.com")],
