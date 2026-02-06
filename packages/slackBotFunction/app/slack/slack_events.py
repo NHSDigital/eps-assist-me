@@ -40,7 +40,6 @@ from app.utils.handler_utils import (
 
 from app.services.ai_processor import process_ai_query
 
-
 logger = get_logger()
 
 processing_error_message = "Error processing message"
@@ -506,7 +505,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()
 
         logger.info(
-            f"Processing message from user {user_id}",
+            "Processing message",
             extra={"user_query": user_query, "conversation_key": conversation_key, "event_id": event_id},
         )
 
@@ -570,7 +569,11 @@ def log_query_stats(user_query: str, event: Dict[str, Any], channel: str, client
     end_time = time.time()
     duration = end_time - start_time
     is_direct_message = event.get("channel_type") == constants.CHANNEL_TYPE_IM
-    friendly_channel_name = get_friendly_channel_name(channel_id=channel, client=client)
+    if is_direct_message:
+        friendly_channel_name = "Direct Message"
+    else:
+        friendly_channel_name = get_friendly_channel_name(channel_id=channel, client=client)
+
     reporting_info = {
         "query_length": query_length,
         "start_time": start_time,
