@@ -15,6 +15,14 @@
 		{
 			"name": "packages/syncKnowledgeBaseFunction",
 			"path": "../packages/syncKnowledgeBaseFunction"
+		},
+		{
+			"name": "packages/notifyS3UploadFunction",
+			"path": "../packages/notifyS3UploadFunction"
+		},
+		{
+			"name": "packages/preprocessingFunction",
+			"path": "../packages/preprocessingFunction"
 		}
 	],
 	"settings": {

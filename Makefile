@@ -48,6 +48,7 @@ lint-flake8:
 test:
 	cd packages/slackBotFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/syncKnowledgeBaseFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
+	cd packages/notifyS3UploadFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/preprocessingFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/bedrockLoggingConfigFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
@@ -109,6 +110,7 @@ cdk-synth: cdk-synth-pr cdk-synth-non-pr
 cdk-synth-non-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/notifyS3UploadFunction
 	mkdir -p .dependencies/preprocessingFunction
 	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config
@@ -129,6 +131,7 @@ cdk-synth-non-pr:
 cdk-synth-pr:
 	mkdir -p .dependencies/slackBotFunction
 	mkdir -p .dependencies/syncKnowledgeBaseFunction
+	mkdir -p .dependencies/notifyS3UploadFunction
 	mkdir -p .dependencies/preprocessingFunction
 	mkdir -p .dependencies/bedrockLoggingConfigFunction
 	mkdir -p .local_config

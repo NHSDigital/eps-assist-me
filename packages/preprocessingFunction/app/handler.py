@@ -34,6 +34,7 @@ def process_s3_record(record: Dict[str, Any], record_index: int) -> Dict[str, st
 
         file_path = Path(object_key)
         file_extension = file_path.suffix.lower()
+        logger.info(f"File extension: {file_extension}")
 
         if not converter.is_supported_format(file_extension):
             logger.warning(f"Unsupported file type: {file_extension}")
@@ -105,9 +106,10 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
         logger.info(f"Processing {len(records)} record(s)")
 
         results = []
-        for idx, record in enumerate(records):
-            result = process_s3_record(record, idx)
+        for index, record in enumerate(records):
+            result = process_s3_record(record, index)
             results.append(result)
+            logger.info(f"Record {index + 1} result: {result}")
 
         success_count = sum(1 for r in results if r["status"] == "success")
         failed_count = sum(1 for r in results if r["status"] in ["failed", "error"])
