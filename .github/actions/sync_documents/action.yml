@@ -8,7 +8,7 @@ inputs:
     required: false
     description: "The stack being deployed (ie., 'epsam' or 'epsam-pr-123')"
     default: "epsam"
-  INT_CLOUD_FORMATION_DEPLOY_ROLE:
+  INT_ASSIST_ME_DOCUMENT_SYNC_ROLE:
     required: true
     description: "The role to assume for the source (INT) account"
   TARGET_CLOUD_FORMATION_DEPLOY_ROLE:
@@ -22,7 +22,7 @@ runs:
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
       with:
         aws-region: eu-west-2
-        role-to-assume: ${{ inputs.INT_CLOUD_FORMATION_DEPLOY_ROLE }}
+        role-to-assume: ${{ inputs.INT_ASSIST_ME_DOCUMENT_SYNC_ROLE }}
         role-session-name: epsam-document-sync-source
 
     - name: Find Source Bucket by Partial Name
@@ -37,7 +37,8 @@ runs:
       shell: bash
       run: |
         mkdir -p ./s3-content
-        aws s3 sync s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }} ./s3-content --exclude "raw/*" --exclude "processed/*"
+        aws s3 cp s3://${{ steps.find-source-bucket.outputs.BUCKET_NAME }}/processed ./s3-content --recursive --debug
+        ls -la ./s3-content
 
     - name: Connect to Target Account
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708
@@ -79,4 +80,4 @@ runs:
       shell: bash
       run: |
         echo "Updating s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/..."
-        aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/ --delete
+        aws s3 cp ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}/processed/ --recursive --debug
