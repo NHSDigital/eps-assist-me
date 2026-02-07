@@ -16,11 +16,11 @@ import {BedrockExecutionRole} from "../resources/BedrockExecutionRole"
 import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
-import {S3LambdaNotification} from "../constructs/S3LambdaNotification"
 import {VectorIndex} from "../resources/VectorIndex"
 import {BucketDeployment, Source} from "aws-cdk-lib/aws-s3-deployment"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
+import {S3LambdaNotification} from "../resources/S3LambdaNotification"
 import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
 import {Bucket} from "aws-cdk-lib/aws-s3"
 
@@ -40,6 +40,9 @@ export class EpsAssistMeStack extends Stack {
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
     const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
     const auditLoggingBucketImport = Fn.importValue("account-resources:AuditLoggingBucket")
+
+    // document sync role
+    const assistMeDocumentSyncRoleArn = Fn.importValue("ci-resources:AssistMeDocumentSyncRole")
 
     // Get variables from context
     const region = Stack.of(this).region
@@ -197,24 +200,18 @@ export class EpsAssistMeStack extends Stack {
       queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
+      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy,
       docsBucketName: storage.kbDocsBucket.bucketName
     })
 
     // Grant preprocessing Lambda access to the KMS key for S3 bucket
     storage.kbDocsKmsKey.grantEncryptDecrypt(functions.preprocessingFunction.executionRole)
 
-    //S3 notification for raw/ prefix to trigger preprocessing Lambda
-    new S3LambdaNotification(this, "S3RawNotification", {
-      bucket: storage.kbDocsBucket,
-      lambdaFunction: functions.preprocessingFunction.function,
-      prefix: "raw/"
-    })
-
-    // S3 notification for processed/ prefix to trigger sync Lambda function
-    new S3LambdaNotification(this, "S3ProcessedNotification", {
-      bucket: storage.kbDocsBucket,
-      lambdaFunction: functions.syncKnowledgeBaseFunction.function,
-      prefix: "processed/"
+    // Create S3LambdaNotification to link S3 and NotifyS3UploadFunction
+    new S3LambdaNotification(this, "StorageNotificationQueue", {
+      stackName: props.stackName,
+      functions,
+      storage
     })
 
     // Create Apis and pass the Lambda function
@@ -259,6 +256,16 @@ export class EpsAssistMeStack extends Stack {
       })
       regressionTestRole.addManagedPolicy(regressionTestPolicy)
     }
+
+    // Grant Access to Document Sync Role
+    const assistMeDocumentSyncRole = Role.fromRoleArn(
+      this,
+      "AssistMeDocumentSyncRole",
+      assistMeDocumentSyncRoleArn
+    )
+
+    storage.kbDocsBucket.grantRead(assistMeDocumentSyncRole)
+    storage.kbDocsKmsKey.grantDecrypt(assistMeDocumentSyncRole)
 
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {
