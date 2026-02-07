@@ -45,7 +45,7 @@ const findResourcesByType = (construct: IConstruct, type: string): Array<CfnReso
 /**
  * Add/merge cfn-guard suppressions to resources for the given rules.
  */
-const addSuppressions = (resources: Array<CfnResource>, rules: Array<string>): void => {
+export const addSuppressions = (resources: Array<CfnResource>, rules: Array<string>): void => {
   resources.forEach(resource => {
     if (!resource.cfnOptions.metadata) {
       resource.cfnOptions.metadata = {}
