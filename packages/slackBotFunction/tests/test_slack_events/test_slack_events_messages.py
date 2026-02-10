@@ -442,8 +442,6 @@ def test_create_response_body_creates_body_with_markdown_formatting(
 
     # perform operation
     response = _create_response_body(
-        citations=[],
-        feedback_data={},
         response_text="**Bold**, __italics__, and `code`.",
     )
 
@@ -470,8 +468,6 @@ def test_create_response_body_creates_body_with_lists(
 
     # perform operation
     response = _create_response_body(
-        citations=[],
-        feedback_data={},
         response_text=dirty_input,
     )
 
@@ -497,8 +493,6 @@ def test_create_response_body_creates_body_without_encoding_errors(
 
     # perform operation
     response = _create_response_body(
-        citations=[],
-        feedback_data={},
         response_text="» Tabbing Issue. â¢ Bullet point issue.",
     )
 

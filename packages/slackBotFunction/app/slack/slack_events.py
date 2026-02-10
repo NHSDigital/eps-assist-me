@@ -163,7 +163,7 @@ def _create_feedback_blocks(
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
 
     # Main response block
-    blocks = _create_response_body(citations, feedback_data, response_text)
+    blocks = _create_response_body(response_text)
 
     # Feedback buttons
     blocks.append({"type": "divider", "block_id": "feedback-divider"})
@@ -193,78 +193,14 @@ def _create_feedback_blocks(
     return blocks
 
 
-def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[str, str], response_text: str):
+def _create_response_body(response_text: str):
     blocks = []
-    action_buttons = []
-
-    # Create citation buttons
-    if citations is None or len(citations) == 0:
-        logger.info("No citations")
-    else:
-        for i, citation in enumerate(citations):
-            result = _create_citation(citation, feedback_data, response_text)
-
-            action_buttons += result.get("action_buttons", [])
-            response_text = result.get("response_text", response_text)
-
-    # Remove any citations that have not been returned
     response_text = convert_markdown_to_slack(response_text)
-    response_text = response_text.replace("cit_", "")
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
 
-    # Citation action block
-    if action_buttons:
-        blocks.append(
-            {
-                "type": "actions",
-                "block_id": "citation_actions",
-                "elements": action_buttons,
-            }
-        )
-
     return blocks
-
-
-def _create_citation(citation: dict[str, str], feedback_data: dict, response_text: str):
-    invalid_body = "No document excerpt available."
-    action_buttons = []
-
-    # Create citation blocks ["source_number", "title", "excerpt", "relevance_score"]
-    source_number: str = (citation.get("source_number", "0")).replace("\n", "")
-    title: str = citation.get("title") or citation.get("filename") or "Source"
-    body: str = citation.get("excerpt") or invalid_body
-    score: float = float(citation.get("relevance_score") or "0")
-
-    # Format body
-    body = convert_markdown_to_slack(body)
-
-    if score < 0.6:  # low relevance score, skip citation
-        logger.info("Skipping low relevance citation", extra={"source_number": source_number, "score": score})
-    else:
-        # Buttons can only be 75 characters long, truncate to be safe
-        button_text = f"[{source_number}] {title}"
-        button_value = {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": score}
-        button = {
-            "type": "button",
-            "text": {
-                "type": "plain_text",
-                "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
-            },
-            "action_id": f"cite_{source_number}",
-            "value": json.dumps(
-                button_value,
-                separators=(",", ":"),
-            ),
-        }
-        action_buttons.append(button)
-
-        # Update inline citations to remove "cit_" prefix
-        response_text = response_text.replace(f"[cit_{source_number}]", f"[{source_number}]")
-        logger.info("Created citation", extra=button_value)
-
-    return {"action_buttons": action_buttons, "response_text": response_text}
 
 
 def convert_markdown_to_slack(body: str) -> str:
