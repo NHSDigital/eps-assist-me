@@ -166,13 +166,10 @@ export class VectorKnowledgeBaseResources extends Construct {
       },
       vectorIngestionConfiguration: {
         chunkingConfiguration: {
-          ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
-          hierarchicalChunkingConfiguration: {
-            overlapTokens: 60,
-            levelConfigurations: [
-              {maxTokens: 1000}, // Parent chunk configuration,
-              {maxTokens: 300} // Child chunk configuration
-            ]
+          ...ChunkingStrategy.FIXED_SIZE.configuration,
+          fixedSizeChunkingConfiguration: {
+            maxTokens: 600,
+            overlapPercentage: 20
           }
         }
       }
