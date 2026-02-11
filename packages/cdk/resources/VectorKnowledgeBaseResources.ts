@@ -169,7 +169,7 @@ export class VectorKnowledgeBaseResources extends Construct {
           ...ChunkingStrategy.SEMANTIC.configuration,
           semanticChunkingConfiguration: {
             breakpointPercentileThreshold: 60,
-            bufferSize: 2,
+            bufferSize: 1,
             maxTokens: 300
           }
         }
