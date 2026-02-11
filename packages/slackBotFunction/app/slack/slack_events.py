@@ -195,7 +195,6 @@ def _create_feedback_blocks(
 
 def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[str, str], response_text: str):
     blocks = []
-    response_text = convert_markdown_to_slack(response_text)
     action_buttons = []
 
     # Create citation buttons
@@ -207,9 +206,10 @@ def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[s
 
             action_buttons += result.get("action_buttons", [])
             response_text = result.get("response_text", response_text)
-            response_text = response_text.replace("cit_", "")
 
     # Remove any citations that have not been returned
+    response_text = convert_markdown_to_slack(response_text)
+    response_text = response_text.replace("cit_", "")
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
@@ -803,6 +803,7 @@ def process_command_test_request(command: Dict[str, Any], client: WebClient) -> 
 
 def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
     # Prepare response
+
     try:
         acknowledgement_msg = f"<@{command.get("user_id")}> has initiated testing."
         logger.info(acknowledgement_msg, extra={"command": command})
