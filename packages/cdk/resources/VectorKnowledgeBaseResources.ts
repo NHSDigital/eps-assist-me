@@ -3,6 +3,7 @@ import {Role} from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
 import {CfnKnowledgeBase, CfnDataSource} from "aws-cdk-lib/aws-bedrock"
 import {
+  ChunkingStrategy,
   ContentFilterStrength,
   ContentFilterType,
   Guardrail,
@@ -161,6 +162,18 @@ export class VectorKnowledgeBaseResources extends Construct {
         s3Configuration: {
           bucketArn: props.docsBucket.bucketArn,
           inclusionPrefixes: ["processed/"]
+        }
+      },
+      vectorIngestionConfiguration: {
+        chunkingConfiguration: {
+          ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
+          hierarchicalChunkingConfiguration: {
+            overlapTokens: 60,
+            levelConfigurations: [
+              {maxTokens: 1000}, // Parent chunk configuration,
+              {maxTokens: 300} // Child chunk configuration
+            ]
+          }
         }
       }
     })
