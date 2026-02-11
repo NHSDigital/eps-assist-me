@@ -150,6 +150,7 @@ def _handle_session_management(
 
 def _create_feedback_blocks(
     response_text: str,
+    citations: list[dict[str, str]],
     feedback_data: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
@@ -162,7 +163,7 @@ def _create_feedback_blocks(
     feedback_value = json.dumps(feedback_data, separators=(",", ":"))
 
     # Main response block
-    blocks = _create_response_body(response_text)
+    blocks = _create_response_body(citations, feedback_data, response_text)
 
     # Feedback buttons
     blocks.append({"type": "divider", "block_id": "feedback-divider"})
@@ -192,14 +193,78 @@ def _create_feedback_blocks(
     return blocks
 
 
-def _create_response_body(response_text: str):
+def _create_response_body(citations: list[dict[str, str]], feedback_data: dict[str, str], response_text: str):
     blocks = []
+    action_buttons = []
+
+    # Create citation buttons
+    if citations is None or len(citations) == 0:
+        logger.info("No citations")
+    else:
+        for i, citation in enumerate(citations):
+            result = _create_citation(citation, feedback_data, response_text)
+
+            action_buttons += result.get("action_buttons", [])
+            response_text = result.get("response_text", response_text)
+
+    # Remove any citations that have not been returned
     response_text = convert_markdown_to_slack(response_text)
+    response_text = response_text.replace("cit_", "")
 
     # Main body
     blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": response_text}})
 
+    # Citation action block
+    if action_buttons:
+        blocks.append(
+            {
+                "type": "actions",
+                "block_id": "citation_actions",
+                "elements": action_buttons,
+            }
+        )
+
     return blocks
+
+
+def _create_citation(citation: dict[str, str], feedback_data: dict, response_text: str):
+    invalid_body = "No document excerpt available."
+    action_buttons = []
+
+    # Create citation blocks ["source_number", "title", "excerpt", "relevance_score"]
+    source_number: str = (citation.get("source_number", "0")).replace("\n", "")
+    title: str = citation.get("title") or citation.get("filename") or "Source"
+    body: str = citation.get("excerpt") or invalid_body
+    score: float = float(citation.get("relevance_score") or "0")
+
+    # Format body
+    body = convert_markdown_to_slack(body)
+
+    if score < 0.6:  # low relevance score, skip citation
+        logger.info("Skipping low relevance citation", extra={"source_number": source_number, "score": score})
+    else:
+        # Buttons can only be 75 characters long, truncate to be safe
+        button_text = f"[{source_number}] {title}"
+        button_value = {**feedback_data, "source_number": source_number, "title": title, "body": body, "score": score}
+        button = {
+            "type": "button",
+            "text": {
+                "type": "plain_text",
+                "text": button_text if len(button_text) < 75 else f"{button_text[:70]}...",
+            },
+            "action_id": f"cite_{source_number}",
+            "value": json.dumps(
+                button_value,
+                separators=(",", ":"),
+            ),
+        }
+        action_buttons.append(button)
+
+        # Update inline citations to remove "cit_" prefix
+        response_text = response_text.replace(f"[cit_{source_number}]", f"[{source_number}]")
+        logger.info("Created citation", extra=button_value)
+
+    return {"action_buttons": action_buttons, "response_text": response_text}
 
 
 def convert_markdown_to_slack(body: str) -> str:
@@ -264,6 +329,9 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
     logger.info("Processing slack action", extra={"body": body})
     try:
         # Extract necessary information from the action payload
+        message = body[
+            "message"
+        ]  # The original message object is sent back on an action, so we don't need to fetch it again
         action = body["actions"][0]
         action_id = action["action_id"]
         action_data = json.loads(action["value"])
@@ -274,6 +342,12 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
 
         # Required for updating
         channel_id = body["channel"]["id"]
+        timestamp = body["message"]["ts"]
+
+        if str(action_id or "").startswith("cite"):
+            # Update message to include citation content
+            open_citation(channel_id, timestamp, message, action_data, client)
+            return
 
         if message_ts and not is_latest_message(conversation_key=conversation_key, message_ts=message_ts):
             logger.info(f"Feedback ignored - not latest message: {message_ts}")
@@ -615,9 +689,104 @@ def process_formatted_bedrock_query(
     kb_response = ai_response["kb_response"]
     response_text = ai_response["text"]
 
-    blocks = _create_feedback_blocks(response_text, feedback_data)
+    # Split out citation block if present
+    # Citations are not returned in the object without using `$output_format_instructions$` which overrides the
+    # system prompt. Instead, pull out and format the citations in the prompt manually
+    prompt_value_keys = ["source_number", "title", "excerpt", "relevance_score"]
+    split = response_text.split("------")  # Citations are separated from main body by ------
+
+    citations: list[dict[str, str]] = []
+    if len(split) != 1:
+        response_text = split[0]
+        citation_block = split[1]
+        raw_citations = []
+        raw_citations = re.compile(r"<cit\b[^>]*>(.*?)</cit>", re.DOTALL | re.IGNORECASE).findall(citation_block)
+        if len(raw_citations) > 0:
+            logger.info("Found citation(s)", extra={"Raw Citations": raw_citations})
+            citations = [dict(zip(prompt_value_keys, citation.split("||"))) for citation in raw_citations]
+    logger.info("Parsed citation(s)", extra={"citations": citations})
+
+    blocks = _create_feedback_blocks(response_text, citations, feedback_data)
 
     return kb_response, response_text, blocks
+
+
+def open_citation(channel: str, timestamp: str, message: Any, params: Dict[str, Any], client: WebClient) -> None:
+    """Open citation - update/replace message to include citation content"""
+    logger.info("Opening citation", extra={"channel": channel, "timestamp": timestamp})
+    try:
+        # Citation details
+        title: str = params.get("title", "No title available.").strip()
+        body: str = params.get("body", "No citation text available.").strip()
+        source_number: str = params.get("source_number")
+
+        # Remove any existing citation block/divider
+        blocks = message.get("blocks", [])
+        blocks = [b for b in blocks if b.get("block_id") not in ["citation_block", "citation_divider"]]
+
+        # Format text
+        title = f"*{title.replace('\n', '')}*"
+        if body and len(body) > 0:
+            body = f"> {body.replace('\n', '\n> ')}"  # Block quote
+            body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\1|\2>", body)  # Convert links
+            body = body.replace("»", "")  # Remove double chevrons
+
+        current_id = f"cite_{source_number}".strip()
+
+        # Reset all button styles, then set the clicked one
+        result = format_blocks(blocks, current_id)
+        selected = result["selected"]
+        blocks = result["blocks"]
+
+        # If selected, insert citation block before feedback
+        if selected:
+            citation_block = {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"{title}\n\n{body}"},
+                "block_id": "citation_block",
+            }
+            feedback_index = next(
+                (i for i, b in enumerate(blocks) if b.get("block_id") == "feedback-divider"),
+                len(blocks),
+            )
+            blocks.insert(feedback_index, citation_block)
+
+        # Update Slack message
+        logger.info("Updated message body", extra={"blocks": blocks})
+        client.chat_update(channel=channel, ts=timestamp, blocks=blocks)
+
+    except Exception as e:
+        logger.error(f"Error updating message for citation: {e}", extra={"error": traceback.format_exc()})
+
+
+def format_blocks(blocks: Any, current_id: str):
+    """Format blocks by styling the selected citation button and unstyle others"""
+    selected = False
+
+    for block in blocks:
+        if block.get("type") != "actions":
+            continue
+
+        for element in block.get("elements", []):
+            if element.get("type") != "button":
+                continue
+
+            if element.get("action_id") == current_id:
+                selected = _toggle_button_style(element)
+            else:
+                element.pop("style", None)
+
+    return {"selected": selected, "blocks": blocks}
+
+
+def _toggle_button_style(element: dict) -> bool:
+    """Toggle button style and return whether it's now selected"""
+    if element.get("style") == "primary":
+        element.pop("style", None)
+        return False
+    else:
+        element["style"] = "primary"
+        return True
 
 
 # ================================================================
@@ -634,6 +803,7 @@ def process_command_test_request(command: Dict[str, Any], client: WebClient) -> 
 
 def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
     # Prepare response
+
     try:
         acknowledgement_msg = f"<@{command.get("user_id")}> has initiated testing."
         logger.info(acknowledgement_msg, extra={"command": command})
