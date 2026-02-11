@@ -199,14 +199,15 @@ jobs:
         env:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
 
-      - name: Sync Documents - INT to lower environments
+      - name: Sync Documents
         uses: ./.github/actions/sync_documents
-        if: ${{ (inputs.TARGET_ENVIRONMENT == 'dev' || inputs.TARGET_ENVIRONMENT == 'qa' || inputs.TARGET_ENVIRONMENT == 'dev-pr') && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        if: ${{ (inputs.TARGET_ENVIRONMENT != 'int') && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
         with:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
           INT_ASSIST_ME_DOCUMENT_SYNC_ROLE: ${{ secrets.INT_ASSIST_ME_DOCUMENT_SYNC_ROLE }}
           TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
+          PURGE_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT == 'prod' }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira
