@@ -182,7 +182,8 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
     params = {}
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
     pr_pattern = rf"{prefix}\s*(\d+)\b"
-    q_pattern = r"\bq-?(\d+)(?:-(\d+))?"
+    q_pattern = r"q-?(\d+)(?:-(\d+))?"
+    tag_pattern = r"\[[^\]]*\]"
 
     pr_match = re.match(pr_pattern, text, flags=re.IGNORECASE)
     if pr_match:
@@ -192,6 +193,11 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
     if q_match:
         params["start"] = q_match.group(1)
         params["end"] = q_match.group(2) if q_match.group(2) else q_match.group(1)
+
+    tag_match = re.search(tag_pattern, text)
+    if tag_match:
+        tags_str = tag_match.group(0)[1:-1]  # remove brackets
+        params["tags"] = [tag.strip() for tag in tags_str.split(",") if tag.strip()]
 
     if ".output" in text.lower():
         params["output"] = True

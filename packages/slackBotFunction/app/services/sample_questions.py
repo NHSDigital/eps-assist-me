@@ -1,5 +1,10 @@
 import json
 from pathlib import Path
+from app.core.config import (
+    get_logger,
+)
+
+logger = get_logger()
 
 
 class SampleQuestionBank:
@@ -20,9 +25,24 @@ class SampleQuestionBank:
 
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            self.questions = [(q.get("id"), q.get("text")) for q in data.get("questions", [])]
+            self.questions = [(q.get("id"), q.get("text"), q.get("tags", [])) for q in data.get("questions", [])]
 
-    def get_questions(self, start, end) -> list[tuple[int, str]]:
+    def filter_by_tags(self, tags: list[str]) -> list[tuple[int, str, list[dict[str, str]]]]:
+        """Returns questions that match any of the provided tags."""
+        if not tags:
+            # If no tags provided, return all prompt-engineering questions by default
+            tags = ["engineering"]
+
+        filtered = []
+        for q in self.questions:
+            q_tags = q[2]
+            q_tags = [q_tag["tag"] for q_tag in q_tags]
+            if any(tag in q_tags for tag in tags):
+                filtered.append(q)
+
+        return filtered
+
+    def get_questions(self, start, end, tags=None) -> list[tuple[int, str]]:
         """
         Pulls a selection of questions
         """
@@ -42,11 +62,17 @@ class SampleQuestionBank:
         if end < 0 or end < start:
             raise ValueError(f"'end' {default_info} greater than or equal to 'start'")
 
-        if end > len(self.questions):
-            raise ValueError(f"'end' {default_info} less than {len(self.questions) + 1}")
+        filtered = self.filter_by_tags(tags=tags)
+
+        if start >= len(filtered):
+            raise ValueError(f"'start' {default_info} less than total questions available ({len(filtered)})")
+
+        if end > len(filtered):
+            end = len(filtered) - 1
+            logger.warning(f"'end' {default_info} less than {len(filtered) + 1}. Returning all available questions.")
 
         # Extract only the text (index 1) from the tuple
-        return list(self.questions[start : end + 1])
+        return filtered[start : end + 1]
 
     def add_questions(self, question_text: str):
         self.questions.append((len(self.questions), question_text))

@@ -2,81 +2,109 @@
   "questions": [
     {
       "id": 1,
-      "text": "can a prescribed item have more than one endorsement or is it expected that a single item has no more than one endorsement?"
+      "text": "can a prescribed item have more than one endorsement or is it expected that a single item has no more than one endorsement?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 2,
-      "text": "for the non-repudiation screen, Note - is this the note to pharmacy? note to patient?"
+      "text": "for the non-repudiation screen, Note - is this the note to pharmacy? note to patient?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 3,
-      "text": "We are getting an error from DSS 'Unauthorised'. We have checked the credentials and they appear to be correct. What could be the cause? Note that, the CIS2 key is different to the key used in the EPS application (which has the signing api attached to it)"
+      "text": "We are getting an error from DSS 'Unauthorised'. We have checked the credentials and they appear to be correct. What could be the cause? Note that, the CIS2 key is different to the key used in the EPS application (which has the signing api attached to it)",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 4,
-      "text": "Can you clarify this requirement?\n\n\"The connecting system must monitor the sending of prescription order request and alert the NHSE service desk if requests fail to send as expected\"a)Is this meant to be an automated process, or should an option be given to the user to send an e-mail?\nb)What will be the e-mail used?\nc)Any certain format needed for the report?\nd)Should this be done only after 2 hours of retries that failed?"
+      "text": "Can you clarify this requirement?\n\n\"The connecting system must monitor the sending of prescription order request and alert the NHSE service desk if requests fail to send as expected\"a)Is this meant to be an automated process, or should an option be given to the user to send an e-mail?\nb)What will be the e-mail used?\nc)Any certain format needed for the report?\nd)Should this be done only after 2 hours of retries that failed?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 5,
-      "text": "how do we find if a patient is a cross-border patient?"
+      "text": "how do we find if a patient is a cross-border patient?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 6,
-      "text": "When a prescription has only one prescribed item and the prescriber cancels the prescribed item will the prescription be downloaded when a bulk download request is made to /FHIR/R4/Task/$release?"
+      "text": "When a prescription has only one prescribed item and the prescriber cancels the prescribed item will the prescription be downloaded when a bulk download request is made to /FHIR/R4/Task/$release?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 7,
-      "text": "When I have authenticated with a smartcard using CIS2 over an HSCN connection what happens when the smartcard is removed?"
+      "text": "When I have authenticated with a smartcard using CIS2 over an HSCN connection what happens when the smartcard is removed?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 8,
-      "text": "direct me to the web page that has the details on how to uninstall Oberthur SR1"
+      "text": "direct me to the web page that has the details on how to uninstall Oberthur SR1",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 9,
-      "text": "Should the Dispensing system send a Claim notification message when all the prescription items on the prescription have expired, and if it should then what value should be sent for the overall prescription form status for the FHIAR API extension \"https://fhir.nhs.uk/StructureDefinition/Extension-EPS-TaskBusinessStatus\"?"
+      "text": "Should the Dispensing system send a Claim notification message when all the prescription items on the prescription have expired, and if it should then what value should be sent for the overall prescription form status for the FHIAR API extension \"https://fhir.nhs.uk/StructureDefinition/Extension-EPS-TaskBusinessStatus\"?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 10,
-      "text": "For an EPS FHIR API Dispense Notification message, when should the value \"on-hold\" be used for resource: { \"resourceType\": \"MedicationDispense\", \"status\"} for a prescription item ?"
+      "text": "For an EPS FHIR API Dispense Notification message, when should the value \"on-hold\" be used for resource: { \"resourceType\": \"MedicationDispense\", \"status\"} for a prescription item ?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 11,
-      "text": "confirm if dispensing systems are required to include an option for the user to select the MedicationDispenseReasoncodes of 004, 005, and 009"
+      "text": "confirm if dispensing systems are required to include an option for the user to select the MedicationDispenseReasoncodes of 004, 005, and 009",
+      "tags": [{ "tag": "engineering" }]
     },
     { "id": 12, "text": "how many lines can a prescription have?" },
     {
       "id": 13,
-      "text": "Is extension:controlledDrugSchedule.value.userSelected. used for EPS?"
+      "text": "Is extension:controlledDrugSchedule.value.userSelected. used for EPS?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 14,
-      "text": "Can we use dosageInstruction.timing.repeat.boundsPeriod.start or ...dosageInstruction.timing.repeat.boundsPeriod.end?"
+      "text": "Can we use dosageInstruction.timing.repeat.boundsPeriod.start or ...dosageInstruction.timing.repeat.boundsPeriod.end?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 15,
-      "text": "show me example of prescription successfully created response within the Electronic Prescribing System (EPS), where a unique identifier for the prescription, often referred to as the prescription ID is shown"
+      "text": "show me example of prescription successfully created response within the Electronic Prescribing System (EPS), where a unique identifier for the prescription, often referred to as the prescription ID is shown",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 16,
-      "text": "please provide a documentation link where i find the specific format of prescribing token?"
+      "text": "please provide a documentation link where i find the specific format of prescribing token?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 17,
-      "text": "I have a query related to cancelling Repeat Dispensing (RD) courses. We would like to know what the Spine allows in terms of cancelling particular issues of a RD course.For example, let's say a patient has an ongoing RD course which originally had 6 issues. Let's say that issue 1 has been dispensed (status 'Dispensed'), and issue 2 has been pulled down from the Spine by the pharmacist (status 'With dispenser'). The remaining issues 3-6 are still on spine.Can the 'Cancel' request sent to Spine handle the following scenarios? And what will happen if so?\n\nDoctor requests to cancel all issues, 1-6\nDoctor requests to cancel all remaining issues on Spine, 3-6"
+      "text": "I have a query related to cancelling Repeat Dispensing (RD) courses. We would like to know what the Spine allows in terms of cancelling particular issues of a RD course.For example, let's say a patient has an ongoing RD course which originally had 6 issues. Let's say that issue 1 has been dispensed (status 'Dispensed'), and issue 2 has been pulled down from the Spine by the pharmacist (status 'With dispenser'). The remaining issues 3-6 are still on spine.Can the 'Cancel' request sent to Spine handle the following scenarios? And what will happen if so?\n\nDoctor requests to cancel all issues, 1-6\nDoctor requests to cancel all remaining issues on Spine, 3-6",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 18,
-      "text": "Does a Cancel request for a medication that has been downloaded include the pharmacy details of the pharmacy that had downloaded the medication in the response"
+      "text": "Does a Cancel request for a medication that has been downloaded include the pharmacy details of the pharmacy that had downloaded the medication in the response",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 19,
-      "text": "For MedicationRequest \"entry. resource. groupIdentifier. extension. valueIdentifier\" what is the Long-form Prescription ID?"
+      "text": "For MedicationRequest \"entry. resource. groupIdentifier. extension. valueIdentifier\" what is the Long-form Prescription ID?",
+      "tags": [{ "tag": "engineering" }]
     },
     {
       "id": 20,
-      "text": "for the non-repudiation screen, do we use the patient friendly text for dosage information?"
+      "text": "for the non-repudiation screen, do we use the patient friendly text for dosage information?",
+      "tags": [{ "tag": "engineering" }]
     },
-    { "id": 21, "text": "Can an API have multiple callback URLs" }
+    {
+      "id": 21,
+      "text": "Can an API have multiple callback URLs",
+      "tags": [{ "tag": "engineering" }]
+    },
+    {
+      "id": 22,
+      "text": "SCAL 1.16.3 states that \"Prescribers must be able to see the prescription ID and copy it to their clipboard.\" Should this be the short-form or long-form prescription ID?",
+      "tags": [{ "tag": "performance" }]
+    }
   ]
 }

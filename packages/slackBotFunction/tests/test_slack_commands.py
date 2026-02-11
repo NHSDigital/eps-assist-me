@@ -168,7 +168,7 @@ def test_process_slack_command_test_questions_default_to_file(
     # assertions
     mock_client.chat_postMessage.assert_called_once()
     mock_client.files_upload_v2.assert_called_once()
-    assert mock_process_command_test_ai_request.call_count == 21
+    assert mock_process_command_test_ai_request.call_count == 20
 
 
 @patch("app.services.ai_processor.process_ai_query")
@@ -312,9 +312,9 @@ def test_process_slack_command_test_questions_default_to_slack(
 
     # assertions
     mock_client.chat_postMessage.assert_called()
-    assert mock_client.chat_postMessage.call_count == 43
+    assert mock_client.chat_postMessage.call_count == 41
     # Initial response to notify user/ channel
-    # + 21 Tests - Posts once with question information, then replies with answer
+    # + 20 Tests - Posts once with question information, then replies with answer
 
 
 @patch("app.services.ai_processor.process_ai_query")
@@ -465,3 +465,155 @@ def test_process_slack_command_test_help(
     # assertions
     mock_client.chat_postMessage.assert_not_called()
     mock_client.chat_postEphemeral.assert_called()
+
+
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.process_command_test_ai_request")
+def test_process_slack_command_test_questions_tags(
+    mock_process_command_test_ai_request: Mock,
+    mock_process_ai_query: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "[performance]",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    mock_client.chat_postMessage.assert_called_once()
+    mock_client.files_upload_v2.assert_called_once()
+    assert mock_process_command_test_ai_request.call_count == 1
+
+
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.process_command_test_ai_request")
+def test_process_slack_command_test_questions_tags_in_command(
+    mock_process_command_test_ai_request: Mock,
+    mock_process_ai_query: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "pr: 123 [engineering] q1-2",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    mock_client.chat_postMessage.assert_called_once()
+    mock_client.files_upload_v2.assert_called_once()
+    assert mock_process_command_test_ai_request.call_count == 2
+
+
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.process_command_test_ai_request")
+def test_process_slack_command_test_questions_tag_filtering_resets_end(
+    mock_process_command_test_ai_request: Mock,
+    mock_process_ai_query: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "pr: 123 [performance] q1-15",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    mock_client.chat_postMessage.assert_called_once()
+    mock_client.files_upload_v2.assert_called_once()
+    assert mock_process_command_test_ai_request.call_count == 1
+
+
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.process_command_test_ai_request")
+def test_process_slack_command_test_questions_tag_filtering_failed_on_greater_start(
+    mock_process_command_test_ai_request: Mock,
+    mock_process_ai_query: Mock,
+):
+    """Test successful command processing"""
+    # set up mocks
+    mock_client = Mock()
+
+    # import module to test
+    from app.slack.slack_events import process_async_slack_command
+
+    # perform operation
+    slack_command_data = {
+        "text": "pr: 123 [performance] q15",
+        "user_id": "U456",
+        "channel_id": "C789",
+        "ts": "1234567890.123",
+        "command": "/test",
+    }
+
+    mock_response = MagicMock()
+    mock_response.data = {}
+    mock_response.get.side_effect = lambda k: {"thread_ts": "1234567890.123456", "channel": "C12345678"}.get(k)
+    mock_client.chat_postMessage.return_value = mock_response
+
+    mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
+
+    # perform operation
+    process_async_slack_command(command=slack_command_data, client=mock_client)
+
+    # assertions
+    mock_client.chat_postMessage.assert_called_once()
+    mock_client.files_upload_v2.assert_not_called()
+    assert mock_process_command_test_ai_request.call_count == 0

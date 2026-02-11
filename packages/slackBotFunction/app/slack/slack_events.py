@@ -834,6 +834,12 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         logger.info("Test command parameters", extra={"pr": pr, "start": start, "end": end})
         acknowledgement_msg += " and printing results to channel" if output else ""
 
+        # Filter by tags
+        tags = params.get("tags", [])
+        if tags:
+            acknowledgement_msg += f" with tags: {', '.join(tags)}"
+            logger.info("Will filter test questions by tags", extra={"tags": tags})
+
         # Post query information (for reflection in future)
         post_params = {
             "channel": command["channel_id"],
@@ -842,7 +848,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
         client.chat_postEphemeral(**post_params, user=command.get("user_id"))
 
         # Retrieve sample questions
-        test_questions = SampleQuestionBank().get_questions(start=start - 1, end=end - 1)
+        test_questions = SampleQuestionBank().get_questions(start=start - 1, end=end - 1, tags=tags)
         logger.info("Retrieved test questions", extra={"count": len(test_questions)})
 
         with ThreadPoolExecutor(max_workers=20) as executor:
