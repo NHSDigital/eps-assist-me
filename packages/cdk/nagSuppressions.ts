@@ -28,6 +28,18 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress wildcard log permissions for NotifyS3UploadFunction Lambda
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Functions/NotifyS3UploadFunction/LambdaPutLogsManagedPolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Wildcard permissions are required for log stream access under known paths."
+      }
+    ]
+  )
+
   // Suppress wildcard log permissions for Preprocessing Lambda
   safeAddNagSuppression(
     stack,
@@ -443,6 +455,21 @@ export const nagSuppressions = (stack: Stack, account: string) => {
       }
     ]
   )
+
+  // Suppress DocumentSyncRole wildcard permissions
+  const docSyncRole = stack.node.tryFindChild("AssistMeDocumentSyncRole")
+  if (docSyncRole) {
+    NagSuppressions.addResourceSuppressions(
+      docSyncRole,
+      [
+        {
+          id: "AwsSolutions-IAM5",
+          reason: "Document Sync Role requires wildcard permissions for S3 sync operations."
+        }
+      ],
+      true
+    )
+  }
 
 }
 
