@@ -1,4 +1,4 @@
-<user_query>{{user_query}}<user_query>
 
-# CONTEXT
 <search_results>$search_results$<search_results>
+
+<user_query>{{user_query}}<user_query>
