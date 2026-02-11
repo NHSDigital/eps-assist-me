@@ -1,10 +1,5 @@
 import json
 from pathlib import Path
-from app.core.config import (
-    get_logger,
-)
-
-logger = get_logger()
 
 
 class SampleQuestionBank:
@@ -69,7 +64,6 @@ class SampleQuestionBank:
 
         if end > len(filtered):
             end = len(filtered) - 1
-            logger.warning(f"'end' {default_info} less than {len(filtered) + 1}. Returning all available questions.")
 
         # Extract only the text (index 1) from the tuple
         return filtered[start : end + 1]
