@@ -150,7 +150,6 @@ def _handle_session_management(
 
 def _create_feedback_blocks(
     response_text: str,
-    citations: list[dict[str, str]],
     feedback_data: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Create Slack blocks with feedback buttons"""
