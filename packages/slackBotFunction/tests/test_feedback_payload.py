@@ -12,6 +12,7 @@ def test_feedback_button_payload_has_required_keys():
 
     # setup
     response_text = "Here is an answer."
+    citations = []
     feedback_data = {
         "channel": "C12345",
         "message_ts": "1700000000.000000",
@@ -20,7 +21,7 @@ def test_feedback_button_payload_has_required_keys():
     }
 
     # execute
-    blocks = _create_feedback_blocks(response_text, feedback_data)
+    blocks = _create_feedback_blocks(response_text, citations, feedback_data)
 
     # locate the feedback actions block
     action_block = next(

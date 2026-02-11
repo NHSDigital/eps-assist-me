@@ -210,3 +210,44 @@ def test_feedback_handler_pull_request(
         store_pull_request_id=False,
     )
     mock_process_async_slack_action.assert_not_called()
+
+
+@patch("app.slack.slack_events.open_citation")
+@patch("app.utils.handler_utils.extract_session_pull_request_id")
+@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
+def test_citation(
+    mock_forward_to_pull_request_lambda: Mock,
+    mock_extract_session_pull_request_id: Mock,
+    mock_open_citation: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test citations action handler"""
+    # setup mocks
+    mock_extract_session_pull_request_id.return_value = None
+
+    mock_body = {
+        "user": {"id": "U123"},
+        "actions": [
+            {
+                "action_id": "cite",
+                "value": '{"ck": "conv-key", "ch": "C123", "tt": "123", "mt": "456", "title": "title", "body": "body",'
+                + '"link": "citation_link"}',
+            }
+        ],
+        "channel": {"id": "C123"},
+        "message": {"ts": "123", "blocks": []},
+    }
+    mock_client = Mock()
+
+    # delete and import module to test
+    if "app.slack.slack_handlers" in sys.modules:
+        del sys.modules["app.slack.slack_handlers"]
+    from app.slack.slack_handlers import feedback_handler
+
+    # perform operation
+    feedback_handler(body=mock_body, client=mock_client)
+
+    # assertions
+    mock_open_citation.assert_called_once()
+    mock_forward_to_pull_request_lambda.assert_not_called()
