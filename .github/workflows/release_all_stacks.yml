@@ -207,6 +207,7 @@ jobs:
           STACK: ${{ inputs.STACK_NAME }}
           INT_ASSIST_ME_DOCUMENT_SYNC_ROLE: ${{ secrets.INT_ASSIST_ME_DOCUMENT_SYNC_ROLE }}
           TARGET_CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
+          PURGE_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT == 'prod' }}
 
       - name: create_int_release_notes
         uses: ./.github/actions/update_confluence_jira
