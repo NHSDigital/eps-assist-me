@@ -166,10 +166,11 @@ export class VectorKnowledgeBaseResources extends Construct {
       },
       vectorIngestionConfiguration: {
         chunkingConfiguration: {
-          ...ChunkingStrategy.FIXED_SIZE.configuration,
-          fixedSizeChunkingConfiguration: {
-            maxTokens: 600,
-            overlapPercentage: 20
+          ...ChunkingStrategy.SEMANTIC.configuration,
+          semanticChunkingConfiguration: {
+            breakpointPercentileThreshold: 60,
+            bufferSize: 2,
+            maxTokens: 300
           }
         }
       }
