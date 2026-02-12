@@ -156,7 +156,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     // prefix pointed to processed/ to only ingest converted markdown documents
     const dataSource = new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: knowledgeBase.attrKnowledgeBaseId,
-      name: `${props.stackName}-s3-datasource`,
+      name: `${props.stackName}-s3-datasource-${knowledgeBase.attrKnowledgeBaseId}`,
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
