@@ -3,7 +3,6 @@ import traceback
 from slack_sdk import WebClient
 from app.core.config import bot_messages, get_logger
 
-
 logger = get_logger()
 
 
@@ -12,7 +11,10 @@ def get_friendly_channel_name(channel_id: str, client: WebClient) -> str:
     try:
         conversations_info_response = client.conversations_info(channel=channel_id)
         if conversations_info_response["ok"]:
-            friendly_channel_name = conversations_info_response["channel"]["name"]
+            channel_info = conversations_info_response["channel"]
+            if channel_info.get("is_im"):
+                return "Direct Message"
+            friendly_channel_name = channel_info.get("name", channel_id)
         else:
             logger.warning(
                 "There was a problem getting the friendly channel name",
