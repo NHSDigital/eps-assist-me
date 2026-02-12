@@ -162,9 +162,9 @@ export class VectorKnowledgeBaseResources extends Construct {
       //   overlapTokens: 150
       // }
       semanticChunkingConfiguration: {
-        breakpointPercentileThreshold: 60,
+        breakpointPercentileThreshold: 90,
         bufferSize: 1,
-        maxTokens: 300
+        maxTokens: 600
       }
     }
 
