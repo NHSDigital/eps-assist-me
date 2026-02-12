@@ -152,11 +152,31 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     knowledgeBase.applyRemovalPolicy(RemovalPolicy.DESTROY)
 
+    const chunkingStrategyConfiguration = {
+      ...ChunkingStrategy.SEMANTIC.configuration,
+      // hierarchicalChunkingConfiguration: {
+      //   levelConfigurations: [
+      //     {maxTokens: 1000},
+      //     {maxTokens: 400}
+      //   ],
+      //   overlapTokens: 150
+      // }
+      semanticChunkingConfiguration: {
+        breakpointPercentileThreshold: 60,
+        bufferSize: 1,
+        maxTokens: 300
+      }
+    }
+
+    let chunkingStrategyId = chunkingStrategyConfiguration === ChunkingStrategy.NONE.configuration
+      ? "default"
+      : chunkingStrategyConfiguration.chunkingStrategy.replace("_", "-").toLocaleLowerCase()
+
     // Create S3 data source for knowledge base documents
     // prefix pointed to processed/ to only ingest converted markdown documents
     const dataSource = new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: knowledgeBase.attrKnowledgeBaseId,
-      name: `${props.stackName}-s3-datasource`,
+      name: `${props.stackName}-s3-datasource-${chunkingStrategyId}`,
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
@@ -165,16 +185,7 @@ export class VectorKnowledgeBaseResources extends Construct {
         }
       },
       vectorIngestionConfiguration: {
-        chunkingConfiguration: {
-          ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
-          hierarchicalChunkingConfiguration: {
-            overlapTokens: 60,
-            levelConfigurations: [
-              {maxTokens: 1000}, // Parent chunk configuration,
-              {maxTokens: 300} // Child chunk configuration
-            ]
-          }
-        }
+        chunkingConfiguration: chunkingStrategyConfiguration
       }
     })
 
