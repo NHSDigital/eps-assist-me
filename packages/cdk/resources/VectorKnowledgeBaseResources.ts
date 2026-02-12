@@ -169,10 +169,10 @@ export class VectorKnowledgeBaseResources extends Construct {
           ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
           hierarchicalChunkingConfiguration: {
             levelConfigurations: [
-              {maxTokens: 1500},
-              {maxTokens: 300}
+              {maxTokens: 1000},
+              {maxTokens: 400}
             ],
-            overlapTokens: 300
+            overlapTokens: 150
           }
           // semanticChunkingConfiguration: {
           //   breakpointPercentileThreshold: 60,
