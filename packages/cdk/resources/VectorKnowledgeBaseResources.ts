@@ -157,7 +157,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     // prefix pointed to processed/ to only ingest converted markdown documents
 
     const chunkingConfiguration = {
-      ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
+      ...ChunkingStrategy.SEMANTIC.configuration,
       hierarchicalChunkingConfiguration: {
         overlapTokens: 60,
         levelConfigurations: [
