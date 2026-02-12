@@ -1,8 +1,10 @@
 import {Construct} from "constructs"
+import * as crypto from "crypto"
 import {Role} from "aws-cdk-lib/aws-iam"
 import {Bucket} from "aws-cdk-lib/aws-s3"
 import {CfnKnowledgeBase, CfnDataSource} from "aws-cdk-lib/aws-bedrock"
 import {
+  ChunkingStrategy,
   ContentFilterStrength,
   ContentFilterType,
   Guardrail,
@@ -153,15 +155,37 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     // Create S3 data source for knowledge base documents
     // prefix pointed to processed/ to only ingest converted markdown documents
+
+    const chunkingConfiguration = {
+      ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
+      hierarchicalChunkingConfiguration: {
+        overlapTokens: 60,
+        levelConfigurations: [
+          {maxTokens: 1000}, // Parent chunk configuration,
+          {maxTokens: 300} // Child chunk configuration
+        ]
+      }
+    }
+
+    const hash = crypto.createHash("md5")
+      .update(JSON.stringify(chunkingConfiguration))
+      .digest("hex")
+      .substring(0, 6)
+
+    // TODO: migrate to L2 constructs to avoid duplicating code thats already available in the
+    // @cdklabs/generative-ai-cdk-constructs library
     const dataSource = new CfnDataSource(this, "S3DataSource", {
       knowledgeBaseId: knowledgeBase.attrKnowledgeBaseId,
-      name: `${props.stackName}-s3-datasource`,
+      name: `${props.stackName}-s3-datasource-${hash}`,
       dataSourceConfiguration: {
         type: "S3",
         s3Configuration: {
           bucketArn: props.docsBucket.bucketArn,
           inclusionPrefixes: ["processed/"]
         }
+      },
+      vectorIngestionConfiguration: {
+        chunkingConfiguration: chunkingConfiguration
       }
     })
 
