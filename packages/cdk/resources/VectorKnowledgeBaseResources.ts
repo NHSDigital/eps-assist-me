@@ -159,7 +159,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     const chunkingConfiguration = {
       ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
       hierarchicalChunkingConfiguration: {
-        overlapTokens: 20,
+        overlapTokens: 60,
         levelConfigurations: [
           {maxTokens: 1000}, // Parent chunk configuration,
           {maxTokens: 300} // Child chunk configuration
