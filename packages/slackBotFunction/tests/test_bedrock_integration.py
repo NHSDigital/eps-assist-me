@@ -114,7 +114,7 @@ def test_query_bedrock_check_config(mock_boto_client: Mock, mock_load_prompt: Mo
     mock_client.retrieve_and_generate.return_value = {"output": {"text": "response"}}
     mock_load_prompt.return_value = {
         "prompt_text": "Test prompt template",
-        "inference_config": {"temperature": "0", "maxTokens": "1500", "topP": "1"},
+        "inference_config": {"temperature": "0", "maxTokens": "1024", "topP": "0.1"},
     }
 
     # delete and import module to test
