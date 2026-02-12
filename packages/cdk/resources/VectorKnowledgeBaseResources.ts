@@ -166,12 +166,19 @@ export class VectorKnowledgeBaseResources extends Construct {
       },
       vectorIngestionConfiguration: {
         chunkingConfiguration: {
-          ...ChunkingStrategy.SEMANTIC.configuration,
-          semanticChunkingConfiguration: {
-            breakpointPercentileThreshold: 60,
-            bufferSize: 1,
-            maxTokens: 300
+          ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
+          hierarchicalChunkingConfiguration: {
+            levelConfigurations: [
+              {maxTokens: 1500},
+              {maxTokens: 300}
+            ],
+            overlapTokens: 300
           }
+          // semanticChunkingConfiguration: {
+          //   breakpointPercentileThreshold: 60,
+          //   bufferSize: 1,
+          //   maxTokens: 300
+          // }
         }
       }
     })

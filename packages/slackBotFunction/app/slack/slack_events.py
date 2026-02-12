@@ -950,12 +950,14 @@ def process_command_test_help(command: Dict[str, Any], client: WebClient) -> Non
     - Parameters:
        - <start_index>: (optional) The starting and ending index of the sample questions (default is 1-{length}).
        - <end-index>: (optional) The ending index of the sample questions (default is {length}).
+       - <tags>: (optional) Filter questions by tags, e.g. "security", "performance". Multiple tags can be separated by commas.
        - <output> (optional) If provided, will post questions and answers to slack (this won't effect if the file is returned)
-
     - Examples:
         - /test --> Sends questions 1 to {length}
         - /test q15 --> Sends question 15 only
         - /test q10-16 --> Sends questions 10 to 16
+        - /test [engineering] --> Sends questions with the engineering tag
+        - /test [security, performance] .output -> Sends questions with tags "security" and "performance"
         - /test .output -> Sends questions 1 to {length} and posts them to Slack
     """  # noqa: E501
     client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
