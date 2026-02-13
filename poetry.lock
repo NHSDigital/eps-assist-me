@@ -2545,7 +2545,7 @@ version = "12.1.1"
 description = "Python Imaging Library (fork)"
 optional = false
 python-versions = ">=3.10"
-groups = ["dev", "preprocessingfunction"]
+groups = ["preprocessingfunction"]
 files = [
     {file = "pillow-12.1.1-cp310-cp310-macosx_10_10_x86_64.whl", hash = "sha256:1f1625b72740fdda5d77b4def688eb8fd6490975d06b909fd19f13f391e077e0"},
     {file = "pillow-12.1.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:178aa072084bd88ec759052feca8e56cbb14a60b39322b99a049e58090479713"},
@@ -3610,14 +3610,14 @@ slack_sdk = ">=3.38.0,<4"
 
 [[package]]
 name = "slack-sdk"
-version = "3.39.0"
+version = "3.40.0"
 description = "The Slack API Platform SDK for Python"
 optional = false
 python-versions = ">=3.7"
 groups = ["notifys3uploadfunction", "slackbotfunction"]
 files = [
-    {file = "slack_sdk-3.39.0-py2.py3-none-any.whl", hash = "sha256:b1556b2f5b8b12b94e5ea3f56c4f2c7f04462e4e1013d325c5764ff118044fa8"},
-    {file = "slack_sdk-3.39.0.tar.gz", hash = "sha256:6a56be10dc155c436ff658c6b776e1c082e29eae6a771fccf8b0a235822bbcb1"},
+    {file = "slack_sdk-3.40.0-py2.py3-none-any.whl", hash = "sha256:f2bada5ed3adb10a01e154e90db01d6d8938d0461b5790c12bcb807b2d28bbe2"},
+    {file = "slack_sdk-3.40.0.tar.gz", hash = "sha256:87b9a79d1d6e19a2b1877727a0ec6f016d82d30a6a410389fba87c221c99f10e"},
 ]
 
 [package.extras]
@@ -3939,4 +3939,4 @@ requests = "*"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.14"
-content-hash = "7f084cfe2d35be785548ac0d7aaff7495184be46f3b70ba984e91e0aa14bea48"
+content-hash = "8bb5737e870d181e66994e6e2826cbedeacdc3eab07198d76c0452fa94a15584"

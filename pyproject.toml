@@ -34,7 +34,7 @@ moto = {extras = ["ssm"], version = "^5.1.20"}
 
 [tool.poetry.group.slackBotFunction.dependencies]
 slack-bolt = "^1.25.0"
-slack-sdk = "^3.39.0"
+slack-sdk = "^3.40.0"
 boto3 = "^1.42.44"
 requests = "^2.32.5"
 urllib3 = "^2.6.3"
@@ -63,7 +63,7 @@ markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.0.1a12"}
 aws-lambda-powertools = "^3.23.0"
 urllib3 = "^2.6.3"
 slack-bolt = "^1.25.0"
-slack-sdk = "^3.39.0"
+slack-sdk = "^3.40.0"
 
 
 [tool.black]
