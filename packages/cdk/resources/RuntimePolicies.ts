@@ -13,7 +13,7 @@ export interface RuntimePoliciesProps {
   readonly dataSourceArn: string
   readonly promptName: string
   readonly ragModelId: string
-  readonly queryReformulationModelId: string
+  readonly orchestrationModelId: string
   readonly docsBucketArn: string
   readonly docsBucketKmsKeyArn: string
 }
@@ -32,7 +32,7 @@ export class RuntimePolicies extends Construct {
       actions: ["bedrock:InvokeModel"],
       resources: [
         `arn:aws:bedrock:${props.region}::foundation-model/${props.ragModelId}`,
-        `arn:aws:bedrock:${props.region}::foundation-model/${props.queryReformulationModelId}`
+        `arn:aws:bedrock:${props.region}::foundation-model/${props.orchestrationModelId}`
       ]
     })
 

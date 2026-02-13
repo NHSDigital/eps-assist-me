@@ -156,15 +156,13 @@ export class VectorKnowledgeBaseResources extends Construct {
     // Create S3 data source for knowledge base documents
     // prefix pointed to processed/ to only ingest converted markdown documents
 
-    const chunkingConfiguration = {
-      ...ChunkingStrategy.HIERARCHICAL_TITAN.configuration,
-      hierarchicalChunkingConfiguration: {
-        overlapTokens: 60,
-        levelConfigurations: [
-          {maxTokens: 1000}, // Parent chunk configuration,
-          {maxTokens: 300} // Child chunk configuration
-        ]
-      }
+    const chunkingConfiguration: CfnDataSource.ChunkingConfigurationProperty = {
+      ...ChunkingStrategy.SEMANTIC.configuration,
+      semanticChunkingConfiguration: {
+        breakpointPercentileThreshold: 80,
+        bufferSize: 1,
+        maxTokens: 350
+      } satisfies CfnDataSource.SemanticChunkingConfigurationProperty
     }
 
     const hash = crypto.createHash("md5")

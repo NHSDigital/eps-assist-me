@@ -1,10 +1,13 @@
 import {Construct} from "constructs"
+import * as crypto from "crypto"
 import {
   BedrockFoundationModel,
+  ChatMessage,
   Prompt,
   PromptVariant
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
 import {BedrockPromptSettings} from "./BedrockPromptSettings"
+import {CfnPrompt} from "aws-cdk-lib/aws-bedrock"
 
 export interface BedrockPromptResourcesProps {
   readonly stackName: string
@@ -12,55 +15,71 @@ export interface BedrockPromptResourcesProps {
 }
 
 export class BedrockPromptResources extends Construct {
-  public readonly queryReformulationPrompt: Prompt
+  public readonly orchestrationPrompt: Prompt
   public readonly ragResponsePrompt: Prompt
-  public readonly ragModelId: string
-  public readonly queryReformulationModelId: string
+  public readonly modelId: string
 
   constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
 
-    const ragModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
-    const reformulationModel = BedrockFoundationModel.AMAZON_NOVA_LITE_V1
+    const aiModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
 
-    const queryReformulationPromptVariant = PromptVariant.text({
+    // Create Prompts
+    this.orchestrationPrompt = this.createPrompt(
+      "OrchestrationPrompt",
+      `${props.stackName}-Orchestration`,
+      "Prompt for orchestrating queries to improve RAG inference",
+      aiModel,
+      "",
+      [props.settings.orchestrationPrompt],
+      props.settings.orchestrationInferenceConfig
+    )
+
+    this.ragResponsePrompt = this.createPrompt(
+      "RagResponsePrompt",
+      `${props.stackName}-ragResponse`,
+      "Prompt for generating RAG responses with knowledge base context and system instructions",
+      aiModel,
+      props.settings.systemPrompt.text,
+      [props.settings.userPrompt],
+      props.settings.ragInferenceConfig
+    )
+
+    this.modelId = aiModel.modelId
+  }
+
+  private createPrompt(
+    id: string,
+    promptName: string,
+    description: string,
+    model: BedrockFoundationModel,
+    systemPromptText: string,
+    messages: [ChatMessage],
+    inferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
+  ): Prompt {
+
+    const variant = PromptVariant.chat({
       variantName: "default",
-      model: reformulationModel,
-      promptVariables: ["topic"],
-      promptText: props.settings.reformulationPrompt.text
+      model: model,
+      promptVariables: ["prompt", "search_results"],
+      system: systemPromptText,
+      messages: messages
     })
 
-    const queryReformulationPrompt = new Prompt(this, "QueryReformulationPrompt", {
-      promptName: `${props.stackName}-queryReformulation`,
-      description: "Prompt for reformulating user queries to improve RAG retrieval",
-      defaultVariant: queryReformulationPromptVariant,
-      variants: [queryReformulationPromptVariant]
-    })
-
-    const ragResponsePromptVariant = PromptVariant.chat({
-      variantName: "default",
-      model: ragModel,
-      promptVariables: ["query", "search_results"],
-      system: props.settings.systemPrompt.text,
-      messages: [props.settings.userPrompt]
-    })
-
-    ragResponsePromptVariant.inferenceConfiguration = {
-      text: props.settings.inferenceConfig
+    variant.inferenceConfiguration = {
+      text: inferenceConfig
     }
 
-    const ragPrompt = new Prompt(this, "ragResponsePrompt", {
-      promptName: `${props.stackName}-ragResponse`,
-      description: "Prompt for generating RAG responses with knowledge base context and system instructions",
-      defaultVariant: ragResponsePromptVariant,
-      variants: [ragResponsePromptVariant]
+    const hash = crypto.createHash("md5")
+      .update(JSON.stringify(variant))
+      .digest("hex")
+      .substring(0, 6)
+
+    return new Prompt(this, id, {
+      promptName: `${promptName}-${hash}`,
+      description,
+      defaultVariant: variant,
+      variants: [variant]
     })
-
-    // expose model IDs for use in Lambda environment variables
-    this.ragModelId = ragModel.modelId
-    this.queryReformulationModelId = reformulationModel.modelId
-
-    this.queryReformulationPrompt = queryReformulationPrompt
-    this.ragResponsePrompt = ragPrompt
   }
 }

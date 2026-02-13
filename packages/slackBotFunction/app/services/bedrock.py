@@ -5,14 +5,18 @@ from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
 from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateResponseTypeDef
 
-from app.core.config import get_retrieve_generate_config, get_logger
-from app.services.prompt_loader import load_prompt
+from app.core.config import get_logger
 
 
 logger = get_logger()
 
 
-def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerateResponseTypeDef:
+def query_bedrock(
+    user_query: str,
+    prompt_template: dict,
+    config: BedrockConfig,
+    session_id: str = None,
+) -> RetrieveAndGenerateResponseTypeDef:
     """
     Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
 
@@ -20,12 +24,10 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     a response using the configured LLM model with guardrails for safety.
     """
 
-    config = get_retrieve_generate_config()
-    prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
     inference_config = prompt_template.get("inference_config")
 
     if not inference_config:
-        default_values = {"temperature": 0, "maxTokens": 1500, "topP": 1}
+        default_values = {"temperature": 0, "maxTokens": 1024, "topP": 0.1}
         inference_config = default_values
         logger.warning(
             "No inference configuration found in prompt template; using default values",
@@ -43,9 +45,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
                 "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
-                "retrievalConfiguration": {
-                    "vectorSearchConfiguration": {"numberOfResults": 5, "overrideSearchType": "SEMANTIC"}
-                },
+                "retrievalConfiguration": {"vectorSearchConfiguration": {"numberOfResults": 5}},
                 "generationConfiguration": {
                     "guardrailConfiguration": {
                         "guardrailId": config.GUARD_RAIL_ID,

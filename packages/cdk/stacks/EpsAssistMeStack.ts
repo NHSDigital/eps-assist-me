@@ -163,9 +163,9 @@ export class EpsAssistMeStack extends Stack {
       knowledgeBaseArn: vectorKB.knowledgeBase.attrKnowledgeBaseArn,
       guardrailArn: vectorKB.guardrail.guardrailArn,
       dataSourceArn: vectorKB.dataSourceArn,
-      promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
-      ragModelId: bedrockPromptResources.ragModelId,
-      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
+      promptName: bedrockPromptResources.orchestrationPrompt.promptName,
+      ragModelId: bedrockPromptResources.modelId,
+      orchestrationModelId: bedrockPromptResources.modelId,
       docsBucketArn: storage.kbDocsBucket.bucketArn,
       docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn
     })
@@ -192,12 +192,12 @@ export class EpsAssistMeStack extends Stack {
       slackBotTokenSecret: secrets.slackBotTokenSecret,
       slackBotSigningSecret: secrets.slackBotSigningSecret,
       slackBotStateTable: tables.slackBotStateTable.table,
-      reformulationPromptName: bedrockPromptResources.queryReformulationPrompt.promptName,
+      orchestrationPromptName: bedrockPromptResources.orchestrationPrompt.promptName,
       ragResponsePromptName: bedrockPromptResources.ragResponsePrompt.promptName,
-      reformulationPromptVersion: bedrockPromptResources.queryReformulationPrompt.promptVersion,
+      orchestrationPromptVersion: bedrockPromptResources.orchestrationPrompt.promptVersion,
       ragResponsePromptVersion: bedrockPromptResources.ragResponsePrompt.promptVersion,
-      ragModelId: bedrockPromptResources.ragModelId,
-      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
+      ragModelId: bedrockPromptResources.modelId,
+      orchestrationModelId: bedrockPromptResources.modelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
       notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy,
@@ -276,13 +276,7 @@ export class EpsAssistMeStack extends Stack {
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotCommandsEndpoint", {
       value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/commands`,
-      description: "Slack Commands API endpoint for slash commands"
-    })
-
-    // Output: Bedrock Prompt ARN
-    new CfnOutput(this, "QueryReformulationPromptArn", {
-      value: bedrockPromptResources.queryReformulationPrompt.promptArn,
-      description: "ARN of the query reformulation prompt in Bedrock"
+      description: "Slack Commands API endpoint for /slash commands"
     })
 
     new CfnOutput(this, "kbDocsBucketArn", {

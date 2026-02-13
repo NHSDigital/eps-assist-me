@@ -1,0 +1,33 @@
+# Query Optimization Task
+
+## Instructions
+Analyze the user query, detect all questions and sub-questions, and optimize each one for better search results. Use the search results provided to enhance the query with relevant terminology, context, and a better structure for search algorithms.
+
+<search_context>
+$search_results$
+</search_context>
+
+<user_query>
+{{user_query}}
+</user_query>
+
+## Examples for Reference
+<fewshot_examples>
+### Example 1
+#### Input
+I have a ferrari and my key battery has run out, is it possible that I can unlock it any other way?"
++ "Can I use the key physically?"
++ "Is there a number I can ring?"
+
+#### Output
+<query>
+* Provide all possible ways of unlocking a farrari besides using a wireless key.
+1. Inform physical key possibilities.
+2. Provide Farrarri contact number.
+</query>
+</fewshot_examples>
+
+## Constraints (CRITICAL)
+- You must wrap your final optimized query inside <query> and </query> tags.
+- DO NOT output any headings, introductions, or conversational text outside of these tags.
+- DO NOT wrap the actual query in quotation marks.

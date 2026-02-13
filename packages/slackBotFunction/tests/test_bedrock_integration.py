@@ -20,7 +20,7 @@ def test_get_bedrock_knowledgebase_response(mock_boto_client: Mock, mock_load_pr
     result = query_bedrock("test query")
 
     # assertions
-    mock_load_prompt.assert_called_once_with("test-rag-prompt", "DRAFT")
+    mock_load_prompt.assert_called_with("test-prompt", "DRAFT")
     mock_boto_client.assert_called_once_with(service_name="bedrock-agent-runtime", region_name="eu-west-2")
     mock_client.retrieve_and_generate.assert_called_once()
     assert result["output"]["text"] == "bedrock response"
@@ -45,7 +45,7 @@ def test_query_bedrock_with_session(mock_boto_client: Mock, mock_load_prompt: Mo
     result = query_bedrock("test query", session_id="existing_session")
 
     # assertions
-    mock_load_prompt.assert_called_once_with("test-rag-prompt", "DRAFT")
+    mock_load_prompt.assert_called_with("test-prompt", "DRAFT")
     assert result == mock_response
     call_args = mock_client.retrieve_and_generate.call_args[1]
     assert call_args["sessionId"] == "existing_session"
@@ -70,7 +70,7 @@ def test_query_bedrock_without_session(mock_boto_client: Mock, mock_load_prompt:
     result = query_bedrock("test query")
 
     # assertions
-    mock_load_prompt.assert_called_once_with("test-rag-prompt", "DRAFT")
+    mock_load_prompt.assert_called_with("test-prompt", "DRAFT")
     assert result == mock_response
     call_args = mock_client.retrieve_and_generate.call_args[1]
     assert "sessionId" not in call_args
@@ -95,7 +95,7 @@ def test_query_bedrock_check_prompt(mock_boto_client: Mock, mock_load_prompt: Mo
     result = query_bedrock("test query")
 
     # assertions
-    mock_load_prompt.assert_called_once_with("test-rag-prompt", "DRAFT")
+    mock_load_prompt.assert_called_with("test-prompt", "DRAFT")
     call_args = mock_client.retrieve_and_generate.call_args[1]
     prompt_template = call_args["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"][
         "generationConfiguration"
@@ -114,7 +114,7 @@ def test_query_bedrock_check_config(mock_boto_client: Mock, mock_load_prompt: Mo
     mock_client.retrieve_and_generate.return_value = {"output": {"text": "response"}}
     mock_load_prompt.return_value = {
         "prompt_text": "Test prompt template",
-        "inference_config": {"temperature": "0", "maxTokens": "1500", "topP": "1"},
+        "inference_config": {"temperature": "0", "maxTokens": "1024", "topP": "0.1"},
     }
 
     # delete and import module to test
@@ -132,5 +132,5 @@ def test_query_bedrock_check_config(mock_boto_client: Mock, mock_load_prompt: Mo
     ]["inferenceConfig"]["textInferenceConfig"]
 
     assert prompt_config["temperature"] == "0"
-    assert prompt_config["maxTokens"] == "1500"
-    assert prompt_config["topP"] == "1"
+    assert prompt_config["maxTokens"] == "1024"
+    assert prompt_config["topP"] == "0.1"
