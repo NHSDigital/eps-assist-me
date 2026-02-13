@@ -21,7 +21,7 @@ export class BedrockPromptResources extends Construct {
     super(scope, id)
 
     const ragModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
-    const reformulationModel = BedrockFoundationModel.AMAZON_NOVA_LITE_V1
+    const reformulationModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
 
     const queryReformulationPromptVariant = PromptVariant.text({
       variantName: "default",
