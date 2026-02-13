@@ -1,4 +1,4 @@
-"""shared ai processor - validates query reformulation and bedrock integration"""
+"""shared ai processor - validates query orchestration and bedrock integration"""
 
 import pytest
 from unittest.mock import patch

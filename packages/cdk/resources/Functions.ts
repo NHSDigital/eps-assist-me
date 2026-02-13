@@ -35,7 +35,7 @@ export interface FunctionsProps {
   readonly isPullRequest: boolean
   readonly mainSlackBotLambdaExecutionRoleArn : string
   readonly ragModelId: string
-  readonly queryReformulationModelId: string
+  readonly orchestrationModelId: string
   readonly notifyS3UploadFunctionPolicy: ManagedPolicy
   readonly docsBucketName: string
 }
@@ -61,7 +61,7 @@ export class Functions extends Construct {
       dependencyLocation: ".dependencies/slackBotFunction",
       environmentVariables: {
         "RAG_MODEL_ID": props.ragModelId,
-        "QUERY_REFORMULATION_MODEL_ID": props.queryReformulationModelId,
+        "ORCHESTRATION_MODEL_ID": props.orchestrationModelId,
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,

@@ -2,7 +2,7 @@
 shared AI processing service - extracted to avoid duplication
 
 both slack handlers and direct invocation use identical logic for query
-reformulation and bedrock interaction. single source of truth for AI flows.
+orchestration and bedrock interaction. single source of truth for AI flows.
 """
 
 from app.services.bedrock import query_bedrock

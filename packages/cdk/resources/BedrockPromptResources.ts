@@ -15,7 +15,7 @@ export interface BedrockPromptResourcesProps {
 }
 
 export class BedrockPromptResources extends Construct {
-  public readonly orchestrationReformulationPrompt: Prompt
+  public readonly orchestrationPrompt: Prompt
   public readonly ragResponsePrompt: Prompt
   public readonly modelId: string
 
@@ -25,14 +25,14 @@ export class BedrockPromptResources extends Construct {
     const aiModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
 
     // Create Prompts
-    this.orchestrationReformulationPrompt = this.createPrompt(
-      "OrchestrationReformulationPrompt",
-      `${props.stackName}-OrchestrationReformulation`,
+    this.orchestrationPrompt = this.createPrompt(
+      "OrchestrationPrompt",
+      `${props.stackName}-Orchestration`,
       "Prompt for orchestrating queries to improve RAG inference",
       aiModel,
       "",
-      [props.settings.reformulationPrompt],
-      props.settings.reformulationInferenceConfig
+      [props.settings.orchestrationPrompt],
+      props.settings.orchestrationInferenceConfig
     )
 
     this.ragResponsePrompt = this.createPrompt(
