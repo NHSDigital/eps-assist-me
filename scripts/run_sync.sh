@@ -48,6 +48,8 @@ SLACK_SIGNING_SECRET=$(echo "$CF_LONDON_EXPORTS" | \
     -r '.Exports[] | select(.Name == $EXPORT_NAME) | .Value')
 LOG_RETENTION_IN_DAYS=30
 LOG_LEVEL=debug
+FORWARD_CSOC_LOGS=false
+RUN_REGRESSION_TESTS=false
 
 # export all the vars so they can be picked up by external programs
 export STACK_NAME
@@ -57,22 +59,25 @@ export SLACK_BOT_TOKEN
 export SLACK_SIGNING_SECRET
 export LOG_RETENTION_IN_DAYS
 export LOG_LEVEL
-
+export FORWARD_CSOC_LOGS
+export RUN_REGRESSION_TESTS
 
 echo "Generating config for ${EPSAM_CONFIG}"
 "$FIX_SCRIPT" "$EPSAM_CONFIG"
 
 echo "Installing dependencies locally"
 mkdir -p .dependencies
-poetry export --without-hashes --format=requirements.txt --with slackBotFunction > .dependencies/requirements_slackBotFunction
-poetry export --without-hashes --format=requirements.txt --with syncKnowledgeBaseFunction > .dependencies/requirements_syncKnowledgeBaseFunction
-poetry export --without-hashes --format=requirements.txt --with preprocessingFunction > .dependencies/requirements_preprocessingFunction
 poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_slackBotFunction
 poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_syncKnowledgeBaseFunction
+poetry show --only=notifyS3UploadFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_notifyS3UploadFunction
+poetry show --only=preprocessingFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_preprocessingFunction
+poetry show --only=bedrockLoggingConfigFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_bedrockLoggingConfigFunction
+
 pip3 install -r .dependencies/requirements_slackBotFunction -t .dependencies/slackBotFunction/python
 pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
 pip3 install -r .dependencies/requirements_notifyS3UploadFunction -t .dependencies/notifyS3UploadFunction/python
 pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
+pip3 install -r .dependencies/requirements_bedrockLoggingConfigFunction -t .dependencies/bedrockLoggingConfigFunction/python
 rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
 cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
 find .dependencies/preprocessingFunction/python -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
