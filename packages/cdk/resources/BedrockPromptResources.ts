@@ -1,4 +1,5 @@
 import {Construct} from "constructs"
+import * as crypto from "crypto"
 import {
   BedrockFoundationModel,
   ChatMessage,
@@ -69,8 +70,13 @@ export class BedrockPromptResources extends Construct {
       text: inferenceConfig
     }
 
+    const hash = crypto.createHash("md5")
+      .update(JSON.stringify(variant))
+      .digest("hex")
+      .substring(0, 6)
+
     return new Prompt(this, id, {
-      promptName,
+      promptName: `${promptName}-${hash}`,
       description,
       defaultVariant: variant,
       variants: [variant]
