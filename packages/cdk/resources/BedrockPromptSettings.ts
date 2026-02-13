@@ -13,7 +13,8 @@ export class BedrockPromptSettings extends Construct {
   public readonly systemPrompt: ChatMessage
   public readonly userPrompt: ChatMessage
   public readonly reformulationPrompt: ChatMessage
-  public readonly inferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
+  public readonly ragInferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
+  public readonly reformulationInferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
 
   /**
    * @param scope The Construct scope
@@ -32,10 +33,19 @@ export class BedrockPromptSettings extends Construct {
     const reformulationPrompt = this.getTypedPrompt("reformulation")
     this.reformulationPrompt = ChatMessage.user(reformulationPrompt.text)
 
-    this.inferenceConfig = {
+    this.ragInferenceConfig = {
       temperature: 0,
       topP: 0.1,
       maxTokens: 1024,
+      stopSequences: [
+        "Human:"
+      ]
+    }
+
+    this.reformulationInferenceConfig = {
+      temperature: 0.5,
+      topP: 0.9,
+      maxTokens: 512,
       stopSequences: [
         "Human:"
       ]

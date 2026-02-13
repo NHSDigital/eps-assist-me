@@ -164,8 +164,8 @@ export class EpsAssistMeStack extends Stack {
       guardrailArn: vectorKB.guardrail.guardrailArn,
       dataSourceArn: vectorKB.dataSourceArn,
       promptName: bedrockPromptResources.queryReformulationPrompt.promptName,
-      ragModelId: bedrockPromptResources.ragModelId,
-      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
+      ragModelId: bedrockPromptResources.modelId,
+      queryReformulationModelId: bedrockPromptResources.modelId,
       docsBucketArn: storage.kbDocsBucket.bucketArn,
       docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn
     })
@@ -196,8 +196,8 @@ export class EpsAssistMeStack extends Stack {
       ragResponsePromptName: bedrockPromptResources.ragResponsePrompt.promptName,
       reformulationPromptVersion: bedrockPromptResources.queryReformulationPrompt.promptVersion,
       ragResponsePromptVersion: bedrockPromptResources.ragResponsePrompt.promptVersion,
-      ragModelId: bedrockPromptResources.ragModelId,
-      queryReformulationModelId: bedrockPromptResources.queryReformulationModelId,
+      ragModelId: bedrockPromptResources.modelId,
+      queryReformulationModelId: bedrockPromptResources.modelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
       notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy,
@@ -276,7 +276,7 @@ export class EpsAssistMeStack extends Stack {
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotCommandsEndpoint", {
       value: `https://${apis.apis["api"].api.domainName?.domainName}/slack/commands`,
-      description: "Slack Commands API endpoint for slash commands"
+      description: "Slack Commands API endpoint for /slash commands"
     })
 
     // Output: Bedrock Prompt ARN

@@ -1,10 +1,12 @@
 import {Construct} from "constructs"
 import {
   BedrockFoundationModel,
+  ChatMessage,
   Prompt,
   PromptVariant
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock"
 import {BedrockPromptSettings} from "./BedrockPromptSettings"
+import {CfnPrompt} from "aws-cdk-lib/aws-bedrock"
 
 export interface BedrockPromptResourcesProps {
   readonly stackName: string
@@ -14,53 +16,64 @@ export interface BedrockPromptResourcesProps {
 export class BedrockPromptResources extends Construct {
   public readonly queryReformulationPrompt: Prompt
   public readonly ragResponsePrompt: Prompt
-  public readonly ragModelId: string
-  public readonly queryReformulationModelId: string
+  public readonly modelId: string
 
   constructor(scope: Construct, id: string, props: BedrockPromptResourcesProps) {
     super(scope, id)
 
-    const ragModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
-    const reformulationModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
+    const aiModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
 
-    const queryReformulationPromptVariant = PromptVariant.text({
+    // Create Prompts
+    this.queryReformulationPrompt = this.createPrompt(
+      "QueryReformulationPrompt",
+      `${props.stackName}-queryReformulation`,
+      "Prompt for reformulating user queries to improve RAG retrieval",
+      aiModel,
+      "",
+      [props.settings.reformulationPrompt],
+      props.settings.reformulationInferenceConfig
+    )
+
+    this.ragResponsePrompt = this.createPrompt(
+      "RagResponsePrompt",
+      `${props.stackName}-ragResponse`,
+      "Prompt for generating RAG responses with knowledge base context and system instructions",
+      aiModel,
+      props.settings.systemPrompt.text,
+      [props.settings.userPrompt],
+      props.settings.ragInferenceConfig
+    )
+
+    this.modelId = aiModel.modelId
+  }
+
+  private createPrompt(
+    id: string,
+    promptName: string,
+    description: string,
+    model: BedrockFoundationModel,
+    systemPromptText: string,
+    messages: [ChatMessage],
+    inferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
+  ): Prompt {
+
+    const variant = PromptVariant.chat({
       variantName: "default",
-      model: reformulationModel,
-      promptVariables: ["topic"],
-      promptText: props.settings.reformulationPrompt.text
-    })
-
-    const queryReformulationPrompt = new Prompt(this, "QueryReformulationPrompt", {
-      promptName: `${props.stackName}-queryReformulation`,
-      description: "Prompt for reformulating user queries to improve RAG retrieval",
-      defaultVariant: queryReformulationPromptVariant,
-      variants: [queryReformulationPromptVariant]
-    })
-
-    const ragResponsePromptVariant = PromptVariant.chat({
-      variantName: "default",
-      model: ragModel,
+      model: model,
       promptVariables: ["query", "search_results"],
-      system: props.settings.systemPrompt.text,
-      messages: [props.settings.userPrompt]
+      system: systemPromptText,
+      messages: messages
     })
 
-    ragResponsePromptVariant.inferenceConfiguration = {
-      text: props.settings.inferenceConfig
+    variant.inferenceConfiguration = {
+      text: inferenceConfig
     }
 
-    const ragPrompt = new Prompt(this, "ragResponsePrompt", {
-      promptName: `${props.stackName}-ragResponse`,
-      description: "Prompt for generating RAG responses with knowledge base context and system instructions",
-      defaultVariant: ragResponsePromptVariant,
-      variants: [ragResponsePromptVariant]
+    return new Prompt(this, id, {
+      promptName,
+      description,
+      defaultVariant: variant,
+      variants: [variant]
     })
-
-    // expose model IDs for use in Lambda environment variables
-    this.ragModelId = ragModel.modelId
-    this.queryReformulationModelId = reformulationModel.modelId
-
-    this.queryReformulationPrompt = queryReformulationPrompt
-    this.ragResponsePrompt = ragPrompt
   }
 }
