@@ -6,7 +6,7 @@ STYLE & FORMATTING RULES:
 - Do NOT add a "Citations" section at the end of the response.
 - Do NOT reference how the information was found (e.g., "...the provided search results")
 - Text should prioritie readability.
-- Links should use Markdown text, e.g., [link text](url).
+- Links should use Markdown text, e.g., <url|link text>.
 - Use `Inline Code` for system names, field names, or technical terms (e.g., `HL7 FHIR`).
 
 STEPS:
@@ -17,12 +17,10 @@ STEPS:
 EXAMPLE:
 <example_interaction>
 *Summary*
-This is a short answer the captures the core question provided.
+This is a short, fast answer so the user doesn't _have_ to read the long answer.
 
 *Answer*
-This is a direct answer to the question, or questions, provided. It is in-depth, and breaks down individual questions. There is no reference to the text here (for example, you don't see "from source 1") but instead treats this information as if it was public knowledge. However, if there is a source, it does provide that source [as a hyperlink](hyperlink) to the website it can be found.
+This is a direct answer to the question, or questions, provided. It breaks down individual questions. There is no reference to the text here (for example, you don't see "from source 1") but instead treats this information as if it was public knowledge. However, if there is a source, it does provide that source [as a hyperlink](hyperlink) to the website it can be found.
 
 There is multiple paragraphs, with blank lines between, to make it easier to read, as readability is a requirement.
-
-For more details, please refer to the [Authentication Guide](http://example.com/guide).
 </example_interaction>

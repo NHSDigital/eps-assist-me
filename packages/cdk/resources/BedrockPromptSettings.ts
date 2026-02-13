@@ -31,7 +31,7 @@ export class BedrockPromptSettings extends Construct {
     this.userPrompt = ChatMessage.user(userPromptData.text)
 
     const orchestrationPrompt = this.getTypedPrompt("orchestration")
-    this.orchestrationPrompt = ChatMessage.user(orchestrationPrompt.text)
+    this.orchestrationPrompt = ChatMessage.assistant(orchestrationPrompt.text)
 
     this.ragInferenceConfig = {
       temperature: 0,

@@ -78,8 +78,11 @@ pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .depende
 pip3 install -r .dependencies/requirements_notifyS3UploadFunction -t .dependencies/notifyS3UploadFunction/python
 pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
 pip3 install -r .dependencies/requirements_bedrockLoggingConfigFunction -t .dependencies/bedrockLoggingConfigFunction/python
+
 rm -rf .dependencies/preprocessingFunction/python/magika* .dependencies/preprocessingFunction/python/onnxruntime*
+
 cp packages/preprocessingFunction/magika_shim.py .dependencies/preprocessingFunction/python/magika.py
+
 find .dependencies/preprocessingFunction/python -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
 find .dependencies/preprocessingFunction/python -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
 find .dependencies/preprocessingFunction/python -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

@@ -1,37 +1,33 @@
-You are a query creation agent. You will be provided with a function and a description of what it searches over. The user will provide you a question, and your job is to determine the optimal query to use based on the user's question. 
-Here are a few examples of queries formed by other search function selection and query creation agents: 
+# Query Optimization Task
 
-<examples>
-  <example>
-    <question> What if my vehicle is totaled in an accident? </question>
-    <generated_query> what happens if my vehicle is totaled </generated_query>
-  </example>
-  <example>
-    <question> I am relocating within the same state. Can I keep my current agent? </question>
-    <generated_query> can I keep my current agent when moving in state </generated_query>
-  </example>
-</examples> 
-  
-You should also pay attention to the conversation history between the user and the search engine in order to gain the context necessary to create the query. 
-Here's another example that shows how you should reference the conversation history when generating a query:
+## Instructions
+Analyze the user query, detect all questions and sub-questions, and optimize each one for better search results. Use the search results provided to enhance the query with relevant terminology, context, and a better structure for search algorithms.
 
-<example>
-  <example_conversation_history>
-    <example_conversation>
-      <question> How many vehicles can I include in a quote in Kansas </question>
-      <answer> You can include 5 vehicles in a quote if you live in Kansas </answer>
-    </example_conversation>
-    <example_conversation>
-      <question> What about texas? </question>
-      <answer> You can include 3 vehicles in a quote if you live in Texas </answer>
-    </example_conversation>
-  </example_conversation_history>
-</example> 
+<search_context>
+$search_results$
+</search_context>
 
-IMPORTANT: the elements in the <example> tags should not be assumed to have been provided to you to use UNLESS they are also explicitly given to you below. 
-All of the values and information within the examples (the questions, answers, and function calls) are strictly part of the examples and have not been provided to you. 
+<user_query>
+{{user_query}}
+</user_query>
 
-Here is the current conversation history: 
-$conversation_history$
+## Examples for Reference
+<fewshot_examples>
+### Example 1
+#### Input
+I have a ferrari and my key battery has run out, is it possible that I can unlock it any other way?"
++ "Can I use the key physically?"
++ "Is there a number I can ring?"
 
-$output_format_instructions$
+#### Output
+<query>
+* Provide all possible ways of unlocking a farrari besides using a wireless key.
+1. Inform physical key possibilities.
+2. Provide Farrarri contact number.
+</query>
+</fewshot_examples>
+
+## Constraints (CRITICAL)
+- You must wrap your final optimized query inside <query> and </query> tags.
+- DO NOT output any headings, introductions, or conversational text outside of these tags.
+- DO NOT wrap the actual query in quotation marks.
