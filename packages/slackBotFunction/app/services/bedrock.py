@@ -62,15 +62,15 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                         }
                     },
                 },
-            },
-            "orchestrationConfiguration": {
-                "inferenceConfig": {
-                    "textInferenceConfig": {
-                        **inference_config,
-                        "stopSequences": [
-                            "Human:",
-                        ],
-                    }
+                "orchestrationConfiguration": {
+                    "inferenceConfig": {
+                        "textInferenceConfig": {
+                            **inference_config,
+                            "stopSequences": [
+                                "Human:",
+                            ],
+                        }
+                    },
                 },
             },
         },
@@ -85,9 +85,9 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
         )
 
     if orchestration_prompt_template:
-        request_params["retrieveAndGenerateConfiguration"]["orchestrationConfiguration"]["promptTemplate"] = {
-            "textPromptTemplate": orchestration_prompt_template.get("prompt_text")
-        }
+        request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["orchestrationConfiguration"][
+            "promptTemplate"
+        ] = {"textPromptTemplate": orchestration_prompt_template.get("prompt_text")}
         logger.info(
             "Using prompt template for RAG response generation",
             extra={"prompt_name": config.ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_NAME},
