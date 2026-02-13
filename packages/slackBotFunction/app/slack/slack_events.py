@@ -40,7 +40,6 @@ from app.utils.handler_utils import (
 
 from app.services.ai_processor import process_ai_query
 
-
 logger = get_logger()
 
 processing_error_message = "Error processing message"

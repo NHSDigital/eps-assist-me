@@ -22,6 +22,7 @@ import {
   CfnLogGroup
 } from "aws-cdk-lib/aws-logs"
 import {Key} from "aws-cdk-lib/aws-kms"
+import {addSuppressions} from "../bin/utils/appUtils"
 
 // Amazon Titan embedding model for vector generation
 const EMBEDDING_MODEL = "amazon.titan-embed-text-v2:0"
@@ -200,13 +201,9 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     // Suppress CFN guard rules for log group
     const cfnlogGroup = kbLogGroup.node.defaultChild as CfnLogGroup
-    cfnlogGroup.cfnOptions.metadata = {
-      guard: {
-        SuppressedRules: [
-          "CW_LOGGROUP_RETENTION_PERIOD_CHECK"
-        ]
-      }
-    }
+    addSuppressions([cfnlogGroup], [
+      "CW_LOGGROUP_RETENTION_PERIOD_CHECK"
+    ])
 
     // Create delivery source for the Knowledge Base
     const kbDeliverySource = new CfnDeliverySource(this, "KBDeliverySource", {

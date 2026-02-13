@@ -2,12 +2,14 @@ import {Construct} from "constructs"
 import {SecretValue} from "aws-cdk-lib"
 import {StringParameter, ParameterTier} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
+import {IKey} from "aws-cdk-lib/aws-kms"
 
 export interface SecretWithParameterProps {
   readonly secretName: string
   readonly parameterName: string
   readonly description: string
   readonly secretValue: string
+  readonly kmsKey: IKey
 }
 
 export class SecretWithParameter extends Construct {
@@ -21,7 +23,8 @@ export class SecretWithParameter extends Construct {
     const secret = new Secret(this, "Secret", {
       secretName: props.secretName,
       description: props.description,
-      secretStringValue: SecretValue.unsafePlainText(props.secretValue)
+      secretStringValue: SecretValue.unsafePlainText(props.secretValue),
+      encryptionKey: props.kmsKey
     })
 
     // Create SSM parameter that references the secret

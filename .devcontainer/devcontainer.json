@@ -17,6 +17,7 @@
     "source=${env:HOME}${env:USERPROFILE}/.gitconfig,target=/home/vscode/.gitconfig,type=bind"
   ],
   "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
       "version": "latest",
       "moby": "true",
