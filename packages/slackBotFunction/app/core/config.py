@@ -81,6 +81,8 @@ def get_retrieve_generate_config() -> BedrockConfig:
     GUARD_VERSION = os.environ["GUARD_RAIL_VERSION"]
     RAG_RESPONSE_PROMPT_NAME = os.environ["RAG_RESPONSE_PROMPT_NAME"]
     RAG_RESPONSE_PROMPT_VERSION = os.environ["RAG_RESPONSE_PROMPT_VERSION"]
+    ORCHESTRATION_RESPONSE_PROMPT_NAME = os.environ["ORCHESTRATION_RESPONSE_PROMPT_NAME"]
+    ORCHESTRATION_RESPONSE_PROMPT_VERSION = os.environ["ORCHESTRATION_RESPONSE_PROMPT_VERSION"]
 
     logger.info(
         "Guardrail configuration loaded", extra={"guardrail_id": GUARD_RAIL_ID, "guardrail_version": GUARD_VERSION}
@@ -94,6 +96,8 @@ def get_retrieve_generate_config() -> BedrockConfig:
         GUARD_VERSION,
         RAG_RESPONSE_PROMPT_NAME,
         RAG_RESPONSE_PROMPT_VERSION,
+        ORCHESTRATION_RESPONSE_PROMPT_NAME,
+        ORCHESTRATION_RESPONSE_PROMPT_VERSION,
     )
 
 
@@ -148,6 +152,8 @@ class BedrockConfig:
     GUARD_VERSION: str
     RAG_RESPONSE_PROMPT_NAME: str
     RAG_RESPONSE_PROMPT_VERSION: str
+    ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_NAME: str
+    ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_VERSION: str
 
 
 @dataclass

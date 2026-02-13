@@ -21,8 +21,12 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
     """
 
     config = get_retrieve_generate_config()
-    prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
-    inference_config = prompt_template.get("inference_config")
+    rag_prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
+    orchestration_prompt_template = load_prompt(
+        config.ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_NAME,
+        config.ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_VERSION,
+    )
+    inference_config = rag_prompt_template.get("inference_config")
 
     if not inference_config:
         default_values = {"temperature": 0, "maxTokens": 1024, "topP": 0.1}
@@ -42,7 +46,7 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
             "type": "KNOWLEDGE_BASE",
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
-                "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
+                "modelArn": rag_prompt_template.get("model_id", config.RAG_MODEL_ID),
                 "retrievalConfiguration": {"vectorSearchConfiguration": {"numberOfResults": 5}},
                 "generationConfiguration": {
                     "guardrailConfiguration": {
@@ -59,15 +63,34 @@ def query_bedrock(user_query: str, session_id: str = None) -> RetrieveAndGenerat
                     },
                 },
             },
+            "orchestrationConfiguration": {
+                "inferenceConfig": {
+                    "textInferenceConfig": {
+                        **inference_config,
+                        "stopSequences": [
+                            "Human:",
+                        ],
+                    }
+                },
+            },
         },
     }
 
-    if prompt_template:
+    if rag_prompt_template:
         request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"][
             "promptTemplate"
-        ] = {"textPromptTemplate": prompt_template.get("prompt_text")}
+        ] = {"textPromptTemplate": rag_prompt_template.get("prompt_text")}
         logger.info(
             "Using prompt template for RAG response generation", extra={"prompt_name": config.RAG_RESPONSE_PROMPT_NAME}
+        )
+
+    if orchestration_prompt_template:
+        request_params["retrieveAndGenerateConfiguration"]["orchestrationConfiguration"]["promptTemplate"] = {
+            "textPromptTemplate": orchestration_prompt_template.get("prompt_text")
+        }
+        logger.info(
+            "Using prompt template for RAG response generation",
+            extra={"prompt_name": config.ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_NAME},
         )
 
     # Include session ID for conversation continuity across messages

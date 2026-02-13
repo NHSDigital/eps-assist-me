@@ -34,6 +34,4 @@ All of the values and information within the examples (the questions, answers, a
 Here is the current conversation history: 
 $conversation_history$
 
-User Query: {{user_query}}
-
 $output_format_instructions$

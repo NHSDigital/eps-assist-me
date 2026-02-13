@@ -15,7 +15,7 @@ export interface BedrockPromptResourcesProps {
 }
 
 export class BedrockPromptResources extends Construct {
-  public readonly queryReformulationPrompt: Prompt
+  public readonly orchestrationReformulationPrompt: Prompt
   public readonly ragResponsePrompt: Prompt
   public readonly modelId: string
 
@@ -25,10 +25,10 @@ export class BedrockPromptResources extends Construct {
     const aiModel = new BedrockFoundationModel("meta.llama3-70b-instruct-v1:0")
 
     // Create Prompts
-    this.queryReformulationPrompt = this.createPrompt(
-      "QueryReformulationPrompt",
-      `${props.stackName}-queryReformulation`,
-      "Prompt for reformulating user queries to improve RAG retrieval",
+    this.orchestrationReformulationPrompt = this.createPrompt(
+      "OrchestrationReformulationPrompt",
+      `${props.stackName}-OrchestrationReformulation`,
+      "Prompt for orchestrating queries to improve RAG inference",
       aiModel,
       "",
       [props.settings.reformulationPrompt],
@@ -61,7 +61,7 @@ export class BedrockPromptResources extends Construct {
     const variant = PromptVariant.chat({
       variantName: "default",
       model: model,
-      promptVariables: ["query", "search_results"],
+      promptVariables: ["prompt", "search_results"],
       system: systemPromptText,
       messages: messages
     })

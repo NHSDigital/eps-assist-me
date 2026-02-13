@@ -28,9 +28,9 @@ export interface FunctionsProps {
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
   readonly slackBotStateTable: TableV2
-  readonly reformulationPromptName: string
+  readonly orchestrationPromptName: string
   readonly ragResponsePromptName: string
-  readonly reformulationPromptVersion: string
+  readonly orchestrationPromptVersion: string
   readonly ragResponsePromptVersion: string
   readonly isPullRequest: boolean
   readonly mainSlackBotLambdaExecutionRoleArn : string
@@ -69,9 +69,9 @@ export class Functions extends Construct {
         "GUARD_RAIL_ID": props.guardrailId,
         "GUARD_RAIL_VERSION": props.guardrailVersion,
         "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName,
-        "QUERY_REFORMULATION_PROMPT_NAME": props.reformulationPromptName,
+        "ORCHESTRATION_RESPONSE_PROMPT_NAME": props.orchestrationPromptName,
         "RAG_RESPONSE_PROMPT_NAME": props.ragResponsePromptName,
-        "QUERY_REFORMULATION_PROMPT_VERSION": props.reformulationPromptVersion,
+        "ORCHESTRATION_RESPONSE_PROMPT_VERSION": props.orchestrationPromptVersion,
         "RAG_RESPONSE_PROMPT_VERSION": props.ragResponsePromptVersion
       }
     })

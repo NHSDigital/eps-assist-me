@@ -22,8 +22,8 @@ def mock_env():
         "GUARD_RAIL_ID": "test-guard-id",
         "GUARD_RAIL_VERSION": "1",
         "QUERY_REFORMULATION_MODEL_ID": "test-model",
-        "QUERY_REFORMULATION_PROMPT_NAME": "test-prompt",
-        "QUERY_REFORMULATION_PROMPT_VERSION": "DRAFT",
+        "ORCHESTRATION_RESPONSE_PROMPT_NAME": "test-prompt",
+        "ORCHESTRATION_RESPONSE_PROMPT_VERSION": "DRAFT",
         "RAG_RESPONSE_PROMPT_NAME": "test-rag-prompt",
         "RAG_RESPONSE_PROMPT_VERSION": "DRAFT",
     }
