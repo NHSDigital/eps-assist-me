@@ -35,7 +35,7 @@ moto = {extras = ["ssm"], version = "^5.1.20"}
 [tool.poetry.group.slackBotFunction.dependencies]
 slack-bolt = "^1.25.0"
 slack-sdk = "^3.39.0"
-boto3 = "^1.42.44"
+boto3 = "^1.42.48"
 requests = "^2.32.5"
 urllib3 = "^2.6.3"
 aws-lambda-powertools = "^3.23.0"
@@ -43,18 +43,18 @@ boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runt
 
 
 [tool.poetry.group.syncKnowledgeBaseFunction.dependencies]
-boto3 = "^1.42.44"
+boto3 = "^1.42.48"
 aws-lambda-powertools = "^3.23.0"
 
 
 [tool.poetry.group.bedrockLoggingConfigFunction.dependencies]
-boto3 = "^1.42.44"
+boto3 = "^1.42.48"
 urllib3 = "^2.6.2"
 aws-lambda-powertools = "^3.23.0"
 
 
 [tool.poetry.group.preprocessingFunction.dependencies]
-boto3 = "^1.42.44"
+boto3 = "^1.42.48"
 aws-lambda-powertools = "^3.23.0"
 markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.0.1a12"}
 
