@@ -22,7 +22,7 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
         config.ORCHESTRATION_PROMPT_NAME,
         config.ORCHESTRATION_PROMPT_VERSION,
     )
-    orchestrated_prompt = query_bedrock(user_query, orchestration_prompt_template, config, session_id)
+    orchestrated_prompt = query_bedrock(user_query, orchestration_prompt_template, config)
     orchestrated_text = orchestrated_prompt["output"]["text"]
 
     logger.debug("Orchestrated_text", extra={"text": orchestrated_text})
