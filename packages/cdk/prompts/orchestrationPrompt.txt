@@ -3,31 +3,36 @@
 ## Instructions
 Analyze the user query, detect all questions and sub-questions, and optimize each one for better search results. Use the search results provided to enhance the query with relevant terminology, context, and a better structure for search algorithms.
 
-<search_context>
+### Search Context
 $search_results$
-</search_context>
 
-<user_query>
+### User Query
 {{user_query}}
-</user_query>
 
-## Examples for Reference
-<fewshot_examples>
-### Example 1
-#### Input
-I have a ferrari and my key battery has run out, is it possible that I can unlock it any other way?"
-+ "Can I use the key physically?"
-+ "Is there a number I can ring?"
+## Task
+Your task is to:
+1. Identify all questions and sub-questions in the user query
+2. Restructure them in a clear, organized format
+3. Enhance each question with relevant terminology from the search results
+4. Create a comprehensive optimized query that will yield better search results
 
-#### Output
+## Output Format
+Provide your optimized query directly without any preamble, explanations, or additional text.
+
+## Constraints
+- Your response must be wrapped inside <query> and </query> tags
+- DO NOT include any headings, introductions, or conversational text outside these tags
+- DO NOT wrap the actual query in quotation marks
+- Include all important information, examples, and constraints from the original query
+- Keep questions comprehensive, prioritising easy understanding for end users
+
+## Example
+Input: "I have a ferrari and my key battery has run out, is it possible that I can unlock it any other way? Can I use the key physically? Is there a number I can ring? My reg is 123456, is this important"
+
+Output:
 <query>
-* Provide all possible ways of unlocking a farrari besides using a wireless key.
+* Provide all possible ways of unlocking a Ferrari besides using a wireless key.
 1. Inform physical key possibilities.
-2. Provide Farrarri contact number.
+2. Provide Ferrari contact number.
+3. Is proving the registration important (reg number - 123456)
 </query>
-</fewshot_examples>
-
-## Constraints (CRITICAL)
-- You must wrap your final optimized query inside <query> and </query> tags.
-- DO NOT output any headings, introductions, or conversational text outside of these tags.
-- DO NOT wrap the actual query in quotation marks.
