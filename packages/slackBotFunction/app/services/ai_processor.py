@@ -2,7 +2,7 @@
 shared AI processing service - extracted to avoid duplication
 
 both slack handlers and direct invocation use identical logic for query
-orchestration and bedrock interaction. single source of truth for AI flows.
+reformulation and bedrock interaction. single source of truth for AI flows.
 """
 
 from app.services.bedrock import query_bedrock
@@ -18,17 +18,18 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     # session_id enables conversation continuity across multiple queries
     config = get_retrieve_generate_config()
 
-    orchestration_prompt_template = load_prompt(
-        config.ORCHESTRATION_PROMPT_NAME,
-        config.ORCHESTRATION_PROMPT_VERSION,
+    reformulation_prompt_template = load_prompt(
+        config.REFORMULATION_PROMPT_NAME,
+        config.REFORMULATION_PROMPT_VERSION,
     )
-    orchestrated_prompt = query_bedrock(user_query, orchestration_prompt_template, config)
-    orchestrated_text = orchestrated_prompt["output"]["text"]
+    # Don't provide sessionId as this conflicts with the sessions knowledgebase settings
+    reformulation_prompt = query_bedrock(user_query, reformulation_prompt_template, config)
+    reformulation_text = reformulation_prompt["output"]["text"]
 
-    logger.debug("Orchestrated_text", extra={"text": orchestrated_text})
+    logger.debug("reformulation_text", extra={"text": reformulation_text})
 
     rag_prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
-    kb_response = query_bedrock(orchestrated_text, rag_prompt_template, config, session_id)
+    kb_response = query_bedrock(reformulation_text, rag_prompt_template, config, session_id)
 
     logger.info(
         "response from bedrock",

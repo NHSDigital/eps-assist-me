@@ -28,14 +28,14 @@ export interface FunctionsProps {
   readonly slackBotTokenSecret: Secret
   readonly slackBotSigningSecret: Secret
   readonly slackBotStateTable: TableV2
-  readonly orchestrationPromptName: string
+  readonly reformulationPromptName: string
   readonly ragResponsePromptName: string
-  readonly orchestrationPromptVersion: string
+  readonly reformulationPromptVersion: string
   readonly ragResponsePromptVersion: string
   readonly isPullRequest: boolean
   readonly mainSlackBotLambdaExecutionRoleArn : string
   readonly ragModelId: string
-  readonly orchestrationModelId: string
+  readonly reformulationModelId: string
   readonly notifyS3UploadFunctionPolicy: ManagedPolicy
   readonly docsBucketName: string
 }
@@ -61,7 +61,7 @@ export class Functions extends Construct {
       dependencyLocation: ".dependencies/slackBotFunction",
       environmentVariables: {
         "RAG_MODEL_ID": props.ragModelId,
-        "ORCHESTRATION_MODEL_ID": props.orchestrationModelId,
+        "REFORMULATION_MODEL_ID": props.reformulationModelId,
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "LAMBDA_MEMORY_SIZE": LAMBDA_MEMORY_SIZE,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
@@ -69,9 +69,9 @@ export class Functions extends Construct {
         "GUARD_RAIL_ID": props.guardrailId,
         "GUARD_RAIL_VERSION": props.guardrailVersion,
         "SLACK_BOT_STATE_TABLE": props.slackBotStateTable.tableName,
-        "ORCHESTRATION_RESPONSE_PROMPT_NAME": props.orchestrationPromptName,
+        "REFORMULATION_RESPONSE_PROMPT_NAME": props.reformulationPromptName,
         "RAG_RESPONSE_PROMPT_NAME": props.ragResponsePromptName,
-        "ORCHESTRATION_RESPONSE_PROMPT_VERSION": props.orchestrationPromptVersion,
+        "REFORMULATION_RESPONSE_PROMPT_VERSION": props.reformulationPromptVersion,
         "RAG_RESPONSE_PROMPT_VERSION": props.ragResponsePromptVersion
       }
     })

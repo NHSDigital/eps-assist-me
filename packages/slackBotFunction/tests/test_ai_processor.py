@@ -1,4 +1,4 @@
-"""shared ai processor - validates query orchestration and bedrock integration"""
+"""shared ai processor - validates query reformulation and bedrock integration"""
 
 import pytest
 from unittest.mock import call, patch, ANY
@@ -10,8 +10,8 @@ def mock_config_setup(mock_load_prompt, mock_config):
     """Setup common mock configurations"""
     mock_load_prompt.return_value = {"prompt_text": "test_prompt", "model_id": "model_id", "inference_config": {}}
     mock_config.get_retrieve_generate_config.return_value = {
-        "ORCHESTRATION_PROMPT_NAME": "test",
-        "ORCHESTRATION_PROMPT_VERSION": "test",
+        "REFORMULATION_PROMPT_NAME": "test",
+        "REFORMULATION_PROMPT_VERSION": "test",
         "RAG_RESPONSE_PROMPT_NAME": "test",
         "RAG_RESPONSE_PROMPT_VERSION": "test",
     }
@@ -44,13 +44,8 @@ class TestAIProcessor:
 
         mock_bedrock.assert_has_calls(
             [
-                call("How to authenticate EPS API?", mock_load_prompt.return_value, ANY, None),
-                call(
-                    "To authenticate with EPS API, you need...",
-                    mock_load_prompt.return_value,
-                    ANY,
-                    None,
-                ),
+                call("How to authenticate EPS API?", mock_load_prompt.return_value, ANY),
+                call("To authenticate with EPS API, you need...", mock_load_prompt.return_value, ANY, None),
             ]
         )
 
@@ -76,13 +71,8 @@ class TestAIProcessor:
 
         mock_bedrock.assert_has_calls(
             [
-                call("What about rate limits?", mock_load_prompt.return_value, ANY, mock_session_id),
-                call(
-                    "EPS API has rate limits of...",
-                    mock_load_prompt.return_value,
-                    ANY,
-                    mock_session_id,
-                ),
+                call("What about rate limits?", mock_load_prompt.return_value, ANY),
+                call("EPS API has rate limits of...", mock_load_prompt.return_value, ANY, mock_session_id),
             ]
         )
 
@@ -149,7 +139,7 @@ class TestAIProcessor:
 
         mock_bedrock.assert_has_calls(
             [
-                call("", ANY, ANY, None),
+                call("", ANY, ANY),
                 call("Please provide a question", ANY, ANY, None),
             ]
         )

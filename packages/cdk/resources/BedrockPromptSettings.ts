@@ -3,18 +3,18 @@ import {ChatMessage} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bed
 import {Construct} from "constructs"
 import {CfnPrompt} from "aws-cdk-lib/aws-bedrock"
 
-export type BedrockPromptSettingsType = "system" | "orchestration" | "user"
+export type BedrockPromptSettingsType = "system" | "reformulation" | "user"
 
 /** BedrockPromptSettings is responsible for loading and providing
- * the system, user, and orchestration prompts along with their
+ * the system, user, and reformulation prompts along with their
  * inference configurations.
  */
 export class BedrockPromptSettings extends Construct {
   public readonly systemPrompt: ChatMessage
   public readonly userPrompt: ChatMessage
-  public readonly orchestrationPrompt: ChatMessage
+  public readonly reformulationPrompt: ChatMessage
   public readonly ragInferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
-  public readonly orchestrationInferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
+  public readonly reformulationInferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
 
   /**
    * @param scope The Construct scope
@@ -30,8 +30,8 @@ export class BedrockPromptSettings extends Construct {
     const userPromptData = this.getTypedPrompt("user")
     this.userPrompt = ChatMessage.user(userPromptData.text)
 
-    const orchestrationPrompt = this.getTypedPrompt("orchestration")
-    this.orchestrationPrompt = ChatMessage.assistant(orchestrationPrompt.text)
+    const reformulationPrompt = this.getTypedPrompt("reformulation")
+    this.reformulationPrompt = ChatMessage.assistant(reformulationPrompt.text)
 
     this.ragInferenceConfig = {
       temperature: 0,
@@ -42,7 +42,7 @@ export class BedrockPromptSettings extends Construct {
       ]
     }
 
-    this.orchestrationInferenceConfig = {
+    this.reformulationInferenceConfig = {
       temperature: 0,
       topP: 0.3,
       maxTokens: 512,
@@ -56,7 +56,7 @@ export class BedrockPromptSettings extends Construct {
    * If a version is provided, it retrieves that specific version.
    * Otherwise, it retrieves the latest version based on file naming.
    *
-   * @param type The type of prompt (system, user, orchestration)
+   * @param type The type of prompt (system, user, reformulation)
    * @returns An object containing the prompt text and filename
    */
   private getTypedPrompt(type: BedrockPromptSettingsType)
