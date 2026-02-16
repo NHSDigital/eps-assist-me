@@ -19,8 +19,8 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     config = get_retrieve_generate_config()
 
     orchestration_prompt_template = load_prompt(
-        config.ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_NAME,
-        config.ORCHESTRATION_RESPONSE_PROMPT_NAME_RESPONSE_PROMPT_VERSION,
+        config.ORCHESTRATION_PROMPT_NAME,
+        config.ORCHESTRATION_PROMPT_VERSION,
     )
     orchestrated_prompt = query_bedrock(user_query, orchestration_prompt_template, config, session_id)
     orchestrated_text = orchestrated_prompt["output"]["text"]

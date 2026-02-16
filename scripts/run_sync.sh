@@ -51,6 +51,8 @@ LOG_LEVEL=debug
 FORWARD_CSOC_LOGS=false
 RUN_REGRESSION_TESTS=false
 
+
+
 # export all the vars so they can be picked up by external programs
 export STACK_NAME
 export COMMIT_ID

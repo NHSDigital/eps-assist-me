@@ -5,7 +5,7 @@ from mypy_boto3_bedrock_agent_runtime import AgentsforBedrockRuntimeClient
 from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
 from mypy_boto3_bedrock_agent_runtime.type_defs import RetrieveAndGenerateResponseTypeDef
 
-from app.core.config import get_logger
+from app.core.config import BedrockConfig, get_logger
 
 
 logger = get_logger()
