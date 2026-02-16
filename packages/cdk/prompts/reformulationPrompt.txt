@@ -13,9 +13,6 @@ Output your response strictly using the following XML structure:
 <|eot_id|>
 
 <|start_header_id|>user<|end_header_id|>
-### Search Context
-The company leave policy dictates that standard PTO accrues at 1.5 days per month. However, employees on probation (first 90 days) cannot use accrued PTO. If an employee transitions from part-time to full-time, their prior accrued PTO carries over, but the new accrual rate of 1.5 days begins on the official transition date. Negative PTO balances are only permitted for full-time employees with at least 1 year of tenure, up to a maximum of -3 days.
-
 ### User Query
 Hi, I need some help figuring out the PTO rules for one of my team members. They started as part-time 6 months ago, but they just transitioned to full-time last week (let's say exactly 7 days ago). They currently have 2 days of PTO saved up from their part-time stint. They want to take next week off entirely, which would require 5 days of PTO. Can they do this, effectively going to a -3 balance, since they are full-time now?
 <|eot_id|>
@@ -30,9 +27,6 @@ Can a recently transitioned full-time employee with 6 months total tenure and 2 
 - Current PTO Balance: 2 days
 - Requested PTO: 5 days (resulting in -3 balance)
 </key_variables>
-<distilled_context>
-Part-time PTO carries over upon transitioning to full-time. Negative PTO balances (up to -3 days) are strictly reserved for full-time employees with at least 1 year of tenure.
-</distilled_context>
 <|eot_id|>
 
 <|start_header_id|>user<|end_header_id|>

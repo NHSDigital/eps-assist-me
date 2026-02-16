@@ -33,16 +33,7 @@ export class BedrockPromptSettings extends Construct {
     const reformulationPrompt = this.getTypedPrompt("reformulation")
     this.reformulationPrompt = ChatMessage.assistant(reformulationPrompt.text)
 
-    this.ragInferenceConfig = {
-      temperature: 0,
-      topP: 0.1,
-      maxTokens: 1024,
-      stopSequences: [
-        "Human:"
-      ]
-    }
-
-    this.reformulationInferenceConfig = {
+    const defaultInferenceConfig = {
       temperature: 0,
       topP: 0.3,
       maxTokens: 512,
@@ -50,6 +41,9 @@ export class BedrockPromptSettings extends Construct {
         "Human:"
       ]
     }
+
+    this.ragInferenceConfig = defaultInferenceConfig
+    this.reformulationInferenceConfig = defaultInferenceConfig
   }
 
   /** Get the latest prompt text from files in the specified directory.
