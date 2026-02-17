@@ -39,7 +39,7 @@ def test_log_query_stats_masks_dm_channel(mock_env, mock_get_parameter):
 
         assert mock_logger.info.called
 
-        args, kwargs = mock_logger.info.call_args
+        _, kwargs = mock_logger.info.call_args
         reporting_info = kwargs["extra"]["reporting_info"]
         assert reporting_info["channel"] == "Direct Message"
         assert reporting_info["is_direct_message"] is True
