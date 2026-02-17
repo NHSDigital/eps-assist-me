@@ -1,12 +1,6 @@
+import sys
 from unittest.mock import Mock, patch
 from app.services.slack import get_friendly_channel_name
-from app.slack.slack_events import process_slack_message, log_query_stats
-import sys
-
-# Remove modules from cache to ensure fresh import with mocks if needed
-for module in list(sys.modules.keys()):
-    if module.startswith("app"):
-        del sys.modules[module]
 
 
 def test_get_friendly_channel_name_returns_direct_message_for_im():
@@ -28,66 +22,69 @@ def test_get_friendly_channel_name_returns_name_for_public_channel():
     assert result == "general"
 
 
-@patch("app.slack.slack_events.logger")
-def test_log_query_stats_masks_dm_channel(mock_logger, mock_env, mock_get_parameter):
+def test_log_query_stats_masks_dm_channel(mock_env, mock_get_parameter):
+    # reload module to ensure clean state and correct patching
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+
+    from app.slack.slack_events import log_query_stats
+    import app.slack.slack_events
+
     mock_client = Mock()
-    # verify we don't call client.conversations_info because we handle it explicitly
 
     event = {"event_ts": "1234567890.123", "channel_type": "im"}
 
-    log_query_stats(user_query="test", event=event, channel="D123", client=mock_client, thread_ts="123")
+    with patch.object(app.slack.slack_events, "logger") as mock_logger:
+        log_query_stats(user_query="test", event=event, channel="D123", client=mock_client, thread_ts="123")
 
-    # Check if info was called
-    assert mock_logger.info.called
+        assert mock_logger.info.called
 
-    # Inspect arguments
-    args, kwargs = mock_logger.info.call_args
-    reporting_info = kwargs["extra"]["reporting_info"]
-    assert reporting_info["channel"] == "Direct Message"
-    assert reporting_info["is_direct_message"] is True
-    # Ensure no API call was made to fetch channel name (optimization check)
-    mock_client.conversations_info.assert_not_called()
+        args, kwargs = mock_logger.info.call_args
+        reporting_info = kwargs["extra"]["reporting_info"]
+        assert reporting_info["channel"] == "Direct Message"
+        assert reporting_info["is_direct_message"] is True
+
+        mock_client.conversations_info.assert_not_called()
 
 
-@patch("app.slack.slack_events.logger")
-@patch("app.slack.slack_events.conversation_key_and_root")
-@patch("app.slack.slack_events.get_conversation_session_data")
-@patch("app.slack.slack_events.get_friendly_channel_name")
-@patch("app.services.ai_processor.process_ai_query")
-def test_process_slack_message_log_privacy(
-    mock_process_ai, mock_get_friendly, mock_get_session, mock_key_root, mock_logger, mock_env, mock_get_parameter
-):
-    mock_key_root.return_value = ("key", "ts")
-    mock_client = Mock()
-    mock_client.chat_postMessage.return_value = {"ts": "123"}
-    mock_get_session.return_value = {}
-    mock_process_ai.return_value = {"kb_response": {}, "text": "response", "session_id": "sid"}
+def test_process_slack_message_log_privacy(mock_env, mock_get_parameter):
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
 
-    event = {
-        "user": "U12345",
-        "channel": "C123",
-        "text": "hello",
-        "ts": "123",
-        "event_ts": "123",
-        "channel_type": "channel",
-    }
+    from app.slack.slack_events import process_slack_message
+    import app.slack.slack_events
 
-    process_slack_message(event, "evt1", mock_client)
+    with patch.object(app.slack.slack_events, "logger") as mock_logger, patch.object(
+        app.slack.slack_events, "conversation_key_and_root", return_value=("key", "ts")
+    ), patch.object(app.slack.slack_events, "get_conversation_session_data", return_value={}), patch.object(
+        app.slack.slack_events, "get_friendly_channel_name"
+    ), patch.object(
+        app.slack.slack_events, "process_ai_query"
+    ) as mock_process_ai:
 
-    # Verify the "Processing message" log call
-    # It should NOT contain the user ID "U12345" in the message string
+        mock_client = Mock()
+        mock_client.chat_postMessage.return_value = {"ts": "123"}
+        mock_process_ai.return_value = {"kb_response": {}, "text": "response", "session_id": "sid"}
 
-    # Find the call with "Processing message"
-    processing_call = None
-    for call in mock_logger.info.call_args_list:
-        args, _ = call
-        if args and "Processing message" in args[0]:
-            processing_call = call
-            break
+        event = {
+            "user": "U12345",
+            "channel": "C123",
+            "text": "hello",
+            "ts": "123",
+            "event_ts": "123",
+            "channel_type": "channel",
+        }
 
-    assert processing_call is not None
-    # The message should be exactly "Processing message" (or at least not contain "from user U12345")
-    # call args is a tuple (args, kwargs)
-    args, _ = processing_call
-    assert "from user" not in args[0]
-    assert "U12345" not in args[0]
+        process_slack_message(event, "evt1", mock_client)
+
+        processing_call = None
+        for call in mock_logger.info.call_args_list:
+            args, _ = call
+            if args and "Processing message" in args[0]:
+                processing_call = call
+                break
+
+        assert processing_call is not None
+        args, _ = processing_call
+        assert "from user" not in args[0]
+        assert "U12345" not in args[0]
