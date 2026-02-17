@@ -1,3 +1,4 @@
+import math
 import sys
 from unittest.mock import Mock, patch, MagicMock, ANY
 
@@ -119,4 +120,4 @@ def test_query_bedrock_check_config(mock_boto_client: Mock, mock_env: Mock):
 
     assert prompt_config["temperature"] == 0
     assert prompt_config["maxTokens"] == 1024
-    assert prompt_config["topP"] == 0.1
+    assert math.isclose(prompt_config["topP"], 0.1, rel_tol=1e-09, abs_tol=1e-09)
