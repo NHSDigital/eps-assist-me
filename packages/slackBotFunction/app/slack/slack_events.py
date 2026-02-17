@@ -413,7 +413,7 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
             post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
-    if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
+    if re.match(constants.FEEDBACK_PREFIX, message_text, re.IGNORECASE | re.DOTALL | re.MULTILINE):
         process_feedback_event(
             message_text=message_text,
             conversation_key=conversation_key,
