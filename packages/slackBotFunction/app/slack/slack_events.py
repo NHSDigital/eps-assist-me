@@ -7,6 +7,7 @@ import re
 import time
 import traceback
 import json
+import html
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
@@ -413,7 +414,9 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
             post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
-    if re.match(constants.FEEDBACK_PREFIX, message_text, re.IGNORECASE | re.DOTALL | re.MULTILINE):
+    # Unescape HTML entities to handle cases where Slack formats the message with entities (e.g., &lt; instead of <)
+    feedback_formatted_text = html.unescape(message_text)
+    if re.match(constants.FEEDBACK_PREFIX, feedback_formatted_text, re.IGNORECASE | re.DOTALL | re.MULTILINE):
         process_feedback_event(
             message_text=message_text,
             conversation_key=conversation_key,
