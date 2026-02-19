@@ -119,7 +119,7 @@ class Constants:
 
 
 constants = Constants(
-    FEEDBACK_PREFIX="feedback:",
+    FEEDBACK_PREFIX=r"^[\W\s_]{0,10}(feedback)[\W\s_]{0,10}",
     CONTEXT_TYPE_DM="DM",
     CONTEXT_TYPE_THREAD="thread",
     CHANNEL_TYPE_IM="im",
