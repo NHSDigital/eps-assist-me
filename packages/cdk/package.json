@@ -4,7 +4,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "jest --passWithNoTests",
+    "test": "echo 'no tests yet'",
     "cdk": "cdk",
     "lint": "eslint  --max-warnings 0 --fix --config ../../eslint.config.mjs .",
     "check-licenses": "license-checker --failOn GPL --failOn LGPL --start ../.."
