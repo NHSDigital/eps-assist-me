@@ -158,11 +158,10 @@ export class VectorKnowledgeBaseResources extends Construct {
 
     const chunkingConfiguration: CfnDataSource.ChunkingConfigurationProperty = {
       ...ChunkingStrategy.SEMANTIC.configuration,
-      semanticChunkingConfiguration: {
-        breakpointPercentileThreshold: 80,
-        bufferSize: 1,
-        maxTokens: 350
-      } satisfies CfnDataSource.SemanticChunkingConfigurationProperty
+      fixedSizeChunkingConfiguration: {
+        maxTokens: 512,
+        overlapPercentage: 25
+      } satisfies CfnDataSource.FixedSizeChunkingConfigurationProperty
     }
 
     const hash = crypto.createHash("md5")
@@ -181,9 +180,6 @@ export class VectorKnowledgeBaseResources extends Construct {
           bucketArn: props.docsBucket.bucketArn,
           inclusionPrefixes: ["processed/"]
         }
-      },
-      vectorIngestionConfiguration: {
-        chunkingConfiguration: chunkingConfiguration
       }
     })
 
