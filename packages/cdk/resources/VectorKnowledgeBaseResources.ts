@@ -180,6 +180,9 @@ export class VectorKnowledgeBaseResources extends Construct {
           bucketArn: props.docsBucket.bucketArn,
           inclusionPrefixes: ["processed/"]
         }
+      },
+      vectorIngestionConfiguration: {
+        chunkingConfiguration: chunkingConfiguration
       }
     })
 
