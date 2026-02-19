@@ -9,14 +9,14 @@ from mypy_boto3_bedrock_agent import AgentsforBedrockClient
 logger = get_logger()
 
 
-def _render_prompt(template_config: dict) -> str:
+def _render_system_prompt(template_config: dict) -> str:
     """
     Returns a unified prompt string regardless of template type.
     """
 
-    chat_cfg = template_config.get("chat")
-    if chat_cfg:
-        return parse_system_message(chat_cfg)
+    chat_configuration = template_config.get("chat")
+    if chat_configuration:
+        return parse_system_message(chat_configuration)
 
     text_cfg = template_config.get("text")
     if isinstance(text_cfg, dict) and "text" in text_cfg:
@@ -31,10 +31,10 @@ def _render_prompt(template_config: dict) -> str:
     raise PromptLoadError(f"Unsupported prompt configuration. Keys: {list(template_config.keys())}")
 
 
-def parse_system_message(chat_cfg: dict) -> str:
+def parse_system_message(chat_configuration: dict) -> str:
     parts: list[str] = []
 
-    system_items = chat_cfg.get("system", [])
+    system_items = chat_configuration.get("system", [])
     logger.debug("Processing system messages for prompt rendering", extra={"system_items": system_items})
     if isinstance(system_items, list):
         system_texts = [
@@ -50,9 +50,11 @@ def parse_system_message(chat_cfg: dict) -> str:
         "assistant": "Assistant: ",
     }
 
-    logger.debug("Processing chat messages for prompt rendering", extra={"messages": chat_cfg.get("messages", [])})
+    logger.debug(
+        "Processing chat messages for prompt rendering", extra={"messages": chat_configuration.get("messages", [])}
+    )
 
-    for msg in chat_cfg.get("messages", []):
+    for msg in chat_configuration.get("messages", []):
         role = (msg.get("role") or "").lower()
         prefix = role_prefix.get(role)
         if not prefix:
@@ -106,11 +108,11 @@ def load_prompt(prompt_name: str, prompt_version: str = None) -> dict:
 
         # Extract and render the prompt template
         template_config = variant["templateConfiguration"]
-        prompt_text = _render_prompt(template_config)
+        prompt_text = _render_system_prompt(template_config)
         actual_version = response.get("version", "DRAFT")
 
         # Extract inference configuration with defaults
-        default_inference = {"temperature": 0, "topP": 1, "maxTokens": 1500}
+        default_inference = {"temperature": 0, "topP": 0.1, "maxTokens": 1024}
         model_id = variant.get("modelId", "")
         raw_inference = variant.get("inferenceConfiguration", {})
         raw_text_config = raw_inference.get("text", {})

@@ -158,9 +158,9 @@ def test_get_render_prompt_chat_dict(mock_logger: Mock, mock_env: Mock):
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
         del sys.modules["app.services.prompt_loader"]
-    from app.services.prompt_loader import _render_prompt
+    from app.services.prompt_loader import _render_system_prompt
 
-    result = _render_prompt(
+    result = _render_system_prompt(
         {
             "chat": {
                 "system": [
@@ -186,9 +186,9 @@ def test_get_render_prompt_chat_dict_no_role(mock_logger: Mock, mock_env: Mock):
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
         del sys.modules["app.services.prompt_loader"]
-    from app.services.prompt_loader import _render_prompt
+    from app.services.prompt_loader import _render_system_prompt
 
-    result = _render_prompt(
+    result = _render_system_prompt(
         {
             "chat": {
                 "system": [
@@ -213,9 +213,9 @@ def test_get_render_prompt_chat_dict_multiple_questions(mock_logger: Mock, mock_
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
         del sys.modules["app.services.prompt_loader"]
-    from app.services.prompt_loader import _render_prompt
+    from app.services.prompt_loader import _render_system_prompt
 
-    result = _render_prompt(
+    result = _render_system_prompt(
         {
             "chat": {
                 "messages": [
@@ -244,9 +244,9 @@ def test_get_render_prompt_chat_dict_multiple_assistant_prompts(mock_logger: Moc
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
         del sys.modules["app.services.prompt_loader"]
-    from app.services.prompt_loader import _render_prompt
+    from app.services.prompt_loader import _render_system_prompt
 
-    result = _render_prompt(
+    result = _render_system_prompt(
         {
             "chat": {
                 "system": [
@@ -266,9 +266,9 @@ def test_get_render_prompt_chat_dict_multiple_assistant_message(mock_logger: Moc
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
         del sys.modules["app.services.prompt_loader"]
-    from app.services.prompt_loader import _render_prompt
+    from app.services.prompt_loader import _render_system_prompt
 
-    result = _render_prompt(
+    result = _render_system_prompt(
         {
             "chat": {
                 "messages": [
@@ -297,9 +297,9 @@ def test_get_render_prompt_text_dict(mock_logger: Mock, mock_env: Mock):
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
         del sys.modules["app.services.prompt_loader"]
-    from app.services.prompt_loader import _render_prompt
+    from app.services.prompt_loader import _render_system_prompt
 
-    result = _render_prompt(
+    result = _render_system_prompt(
         {
             "text": "Second Prompt.",
         },
@@ -313,9 +313,9 @@ def test_get_render_prompt_empty(mock_logger: Mock, mock_env: Mock):
     # delete and import module to test
     if "app.services.prompt_loader" in sys.modules:
         del sys.modules["app.services.prompt_loader"]
-    from app.services.prompt_loader import _render_prompt
+    from app.services.prompt_loader import _render_system_prompt
 
-    result = _render_prompt(
+    result = _render_system_prompt(
         {
             "chat": {
                 "system": [],
@@ -332,11 +332,11 @@ def test_render_prompt_raises_configuration_error_empty(mock_logger):
     with patch("app.core.config.get_logger", return_value=mock_logger):
         if "app.services.prompt_loader" in sys.modules:
             del sys.modules["app.services.prompt_loader"]
-        from app.services.prompt_loader import _render_prompt
+        from app.services.prompt_loader import _render_system_prompt
         from app.services.exceptions import PromptLoadError
 
         with pytest.raises(PromptLoadError) as excinfo:
-            _render_prompt({})
+            _render_system_prompt({})
 
         # Verify the exception and logger call
         assert excinfo.type is PromptLoadError
@@ -348,11 +348,11 @@ def test_render_prompt_raises_configuration_error_text_missing(mock_logger):
     with patch("app.core.config.get_logger", return_value=mock_logger):
         if "app.services.prompt_loader" in sys.modules:
             del sys.modules["app.services.prompt_loader"]
-        from app.services.prompt_loader import _render_prompt
+        from app.services.prompt_loader import _render_system_prompt
         from app.services.exceptions import PromptLoadError
 
         with pytest.raises(PromptLoadError) as excinfo:
-            _render_prompt({"text": {}})
+            _render_system_prompt({"text": {}})
 
         # Verify the exception and logger call
         assert excinfo.type is PromptLoadError

@@ -27,6 +27,7 @@ export class Apis extends Construct {
       forwardCsocLogs: props.forwardCsocLogs,
       csocApiGatewayDestination: props.csocApiGatewayDestination
     })
+
     // Create /slack resource path
     const slackResource = apiGateway.api.root.addResource("slack")
 
@@ -36,6 +37,17 @@ export class Apis extends Construct {
     const slackEventsEndpoint = new LambdaEndpoint(this, "SlackEventsEndpoint", {
       parentResource: slackResource,
       resourceName: "events",
+      method: HttpMethod.POST,
+      restApiGatewayRole: apiGateway.role,
+      lambdaFunction: props.functions.slackBot
+    })
+
+    // Create the '/slack/commands' POST endpoint for Slack Events API
+    // This endpoint will handle slash commands, such as /test
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const slackCommandsEndpoint = new LambdaEndpoint(this, "SlackCommandsEndpoint", {
+      parentResource: slackResource,
+      resourceName: "commands",
       method: HttpMethod.POST,
       restApiGatewayRole: apiGateway.role,
       lambdaFunction: props.functions.slackBot
