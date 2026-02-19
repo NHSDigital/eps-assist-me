@@ -3,7 +3,7 @@ import {ChatMessage} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bed
 import {Construct} from "constructs"
 import {CfnPrompt} from "aws-cdk-lib/aws-bedrock"
 
-export type BedrockPromptSettingsType = "system" | "user" | "reformulation"
+export type BedrockPromptSettingsType = "system" | "reformulation" | "user"
 
 /** BedrockPromptSettings is responsible for loading and providing
  * the system, user, and reformulation prompts along with their
@@ -13,7 +13,8 @@ export class BedrockPromptSettings extends Construct {
   public readonly systemPrompt: ChatMessage
   public readonly userPrompt: ChatMessage
   public readonly reformulationPrompt: ChatMessage
-  public readonly inferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
+  public readonly ragInferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
+  public readonly reformulationInferenceConfig: CfnPrompt.PromptModelInferenceConfigurationProperty
 
   /**
    * @param scope The Construct scope
@@ -30,16 +31,19 @@ export class BedrockPromptSettings extends Construct {
     this.userPrompt = ChatMessage.user(userPromptData.text)
 
     const reformulationPrompt = this.getTypedPrompt("reformulation")
-    this.reformulationPrompt = ChatMessage.user(reformulationPrompt.text)
+    this.reformulationPrompt = ChatMessage.assistant(reformulationPrompt.text)
 
-    this.inferenceConfig = {
+    const defaultInferenceConfig = {
       temperature: 0,
       topP: 0.3,
-      maxTokens: 1024,
+      maxTokens: 512,
       stopSequences: [
         "Human:"
       ]
     }
+
+    this.ragInferenceConfig = defaultInferenceConfig
+    this.reformulationInferenceConfig = defaultInferenceConfig
   }
 
   /** Get the latest prompt text from files in the specified directory.

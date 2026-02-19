@@ -1,5 +1,40 @@
-Return the user query exactly as provided without any modifications, changes, or reformulations.
-Do not alter, rephrase, or modify the input in any way.
-Simply return: {{user_query}}
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+You are an expert RAG query and context optimizer. Your task is to analyze verbose user queries and raw search context, stripping away all conversational filler to output a concise, impactful summary.
 
-User Query: {{user_query}}
+You must:
+1. Extract the core objective into a single, direct question.
+2. Capture individual questions and their specific needs. 
+3. Isolate critical variables, specific states, and constraints required to solve the problem.
+4. Enhance the question(s) with relevant terminology from the search results
+
+Output your response strictly using the following XML structure:
+<optimized_query> (The short, direct question)
+<key_variables> (Bullet points of critical states, statuses, or constraints)
+<|eot_id|>
+
+<|start_header_id|>user<|end_header_id|>
+### User Query
+Hi, I need some help figuring out the PTO rules for one of my team members. They started as part-time 6 months ago, but they just transitioned to full-time last week (let's say exactly 7 days ago). They currently have 2 days of PTO saved up from their part-time stint. They want to take next week off entirely, which would require 5 days of PTO. Can they do this, effectively going to a -3 balance, since they are full-time now?
+<|eot_id|>
+
+<|start_header_id|>assistant<|end_header_id|>
+<optimized_query>
+Can a recently transitioned full-time employee with 6 months total tenure and 2 accrued PTO days take 5 days off, resulting in a -3 PTO balance?
+</optimized_query>
+<key_variables>
+- Current Status: Full-time (transitioned 7 days ago)
+- Total Tenure: 6 months
+- Current PTO Balance: 2 days
+- Requested PTO: 5 days (resulting in -3 balance)
+</key_variables>
+<|eot_id|>
+
+<|start_header_id|>user<|end_header_id|>
+### Search Context
+$search_results$
+
+### User Query
+{{user_query}}
+<|eot_id|>
+
+<|start_header_id|>assistant<|end_header_id|>

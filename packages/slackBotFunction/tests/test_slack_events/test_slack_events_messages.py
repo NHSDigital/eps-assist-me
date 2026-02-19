@@ -466,7 +466,7 @@ def test_create_response_body_creates_body_with_lists(
         del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_response_body
 
-    dirty_input = "Header text - Standard Dash -No Space Dash • Standard Bullet  -NoSpace-NoSpace"
+    dirty_input = "Header text - Standard Dash -No Space Dash • Standard Bullet  -DoubleSpace-NoSpace"
 
     # perform operation
     response = _create_response_body(
@@ -481,7 +481,7 @@ def test_create_response_body_creates_body_with_lists(
 
     response_value = response[0]["text"]["text"]
 
-    expected_output = "Header text\n- Standard Dash\n- No Space Dash\n- Standard Bullet\n- NoSpace-NoSpace"
+    expected_output = "Header text - Standard Dash -No Space Dash - Standard Bullet  -DoubleSpace-NoSpace"
     assert expected_output in response_value
 
 
@@ -508,4 +508,361 @@ def test_create_response_body_creates_body_without_encoding_errors(
 
     response_value = response[0]["text"]["text"]
 
-    assert "Tabbing Issue.\n- Bullet point issue." in response_value
+    assert "Tabbing Issue. - Bullet point issue." in response_value
+
+
+# ================================================================
+# Tests for _create_citation
+# ================================================================
+
+
+def test_create_citation_high_relevance_score(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation creation with high relevance score"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    citation = {
+        "source_number": "1",
+        "title": "Test Document",
+        "excerpt": "This is a test excerpt",
+        "relevance_score": "0.95",
+    }
+    feedback_data = {"ck": "conv-123", "ch": "C789"}
+    response_text = "Response with [cit_1] citation"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    assert len(result["action_buttons"]) == 1
+    button = result["action_buttons"][0]
+    assert button["type"] == "button"
+    assert button["text"]["text"] == "[1] Test Document"
+    assert button["action_id"] == "cite_1"
+    assert result["response_text"] == "Response with [1] citation"
+
+
+def test_create_citation_low_relevance_score(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation is skipped when relevance score is low"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    citation = {
+        "source_number": "2",
+        "title": "Low Relevance Doc",
+        "excerpt": "This is low relevance",
+        "relevance_score": "0.5",  # Below 0.6 threshold
+    }
+    feedback_data = {"ck": "conv-123"}
+    response_text = "Response with [cit_2]"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    assert len(result["action_buttons"]) == 0
+    assert result["response_text"] == "Response with [cit_2]"
+
+
+def test_create_citation_missing_excerpt(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation with missing excerpt uses default message"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    citation = {
+        "source_number": "3",
+        "title": "Document Without Excerpt",
+        "relevance_score": "0.9",
+    }
+    feedback_data = {"ck": "conv-123"}
+    response_text = "Response text"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    assert len(result["action_buttons"]) == 1
+    import json
+
+    button_data = json.loads(result["action_buttons"][0]["value"])
+    assert button_data["body"] == "No document excerpt available."
+
+
+def test_create_citation_missing_title_uses_filename(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation uses filename when title is missing"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    citation = {
+        "source_number": "4",
+        "filename": "document.pdf",
+        "excerpt": "Some content",
+        "relevance_score": "0.85",
+    }
+    feedback_data = {"ck": "conv-123"}
+    response_text = "Response text"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    assert len(result["action_buttons"]) == 1
+    assert result["action_buttons"][0]["text"]["text"] == "[4] document.pdf"
+
+
+def test_create_citation_fallback_source_when_missing(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation uses 'Source' when both title and filename are missing"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    citation = {
+        "source_number": "5",
+        "excerpt": "Some content",
+        "relevance_score": "0.9",
+    }
+    feedback_data = {"ck": "conv-123"}
+    response_text = "Response text"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    assert len(result["action_buttons"]) == 1
+    assert result["action_buttons"][0]["text"]["text"] == "[5] Source"
+
+
+def test_create_citation_button_text_truncation(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation button text is truncated when exceeds 75 characters"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    long_title = "A" * 80  # Title longer than 75 chars
+    citation = {
+        "source_number": "6",
+        "title": long_title,
+        "excerpt": "Some content",
+        "relevance_score": "0.9",
+    }
+    feedback_data = {"ck": "conv-123"}
+    response_text = "Response text"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    button_text = result["action_buttons"][0]["text"]["text"]
+    assert len(button_text) <= 77  # "[X] " + 70 chars + "..."
+    assert button_text.endswith("...")
+
+
+def test_create_citation_removes_newlines_from_source_number(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation removes newlines from source number"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    citation = {
+        "source_number": "7\n\n",
+        "title": "Test",
+        "excerpt": "Content",
+        "relevance_score": "0.9",
+    }
+    feedback_data = {"ck": "conv-123"}
+    response_text = "Response with [cit_7]"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    assert result["response_text"] == "Response with [7]"
+    assert result["action_buttons"][0]["action_id"] == "cite_7"
+
+
+def test_create_citation_zero_relevance_score(mock_get_parameter: Mock, mock_env: Mock):
+    """Test citation with zero relevance score is skipped"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _create_citation
+
+    citation = {
+        "source_number": "8",
+        "title": "No Relevance",
+        "excerpt": "Content",
+        "relevance_score": "0",
+    }
+    feedback_data = {"ck": "conv-123"}
+    response_text = "Response text"
+
+    result = _create_citation(citation, feedback_data, response_text)
+
+    assert len(result["action_buttons"]) == 0
+
+
+# ================================================================
+# Tests for convert_markdown_to_slack
+# ================================================================
+
+
+def test_convert_markdown_to_slack_bold_formatting(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion of markdown bold to Slack formatting"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    markdown_text = "This is **bold text** in markdown"
+    result = convert_markdown_to_slack(markdown_text)
+
+    assert "*bold text*" in result
+
+
+def test_convert_markdown_to_slack_italic_formatting(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion of markdown italics to Slack formatting"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    markdown_text = "This is __italic text__ in markdown"
+    result = convert_markdown_to_slack(markdown_text)
+
+    assert "_italic text_" in result
+
+
+def test_convert_markdown_to_slack_links(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion of markdown links to Slack formatting"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    markdown_text = "Check out [this link](https://example.com)"
+    result = convert_markdown_to_slack(markdown_text)
+
+    assert "<https://example.com|this link>" in result
+
+
+def test_convert_markdown_to_slack_encoding_issues_arrow(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion removes arrow encoding issues"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text_with_encoding = "» Tab issue"
+    result = convert_markdown_to_slack(text_with_encoding)
+
+    assert "»" not in result
+    assert "Tab issue" in result
+
+
+def test_convert_markdown_to_slack_encoding_issues_bullet(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion fixes bullet point encoding issues"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text_with_encoding = "â¢ Bullet point"
+    result = convert_markdown_to_slack(text_with_encoding)
+
+    assert "â¢" not in result
+    assert "- Bullet point" in result
+
+
+def test_convert_markdown_to_slack_empty_string(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion of empty string"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    result = convert_markdown_to_slack("")
+
+    assert result == ""
+
+
+def test_convert_markdown_to_slack_none_string(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion of None string"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    result = convert_markdown_to_slack(None)
+
+    assert result == ""
+
+
+def test_convert_markdown_to_slack_combined_formatting(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion with multiple formatting types"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text = "Check **bold** and __italic__ with [link](https://test.com)"
+    result = convert_markdown_to_slack(text)
+
+    assert "*bold*" in result
+    assert "_italic_" in result
+    assert "<https://test.com|link>" in result
+
+
+def test_convert_markdown_to_slack_link_with_newlines_no_space(mock_get_parameter: Mock, mock_env: Mock):
+    """Test link conversion removes newlines from link text"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text = "Check [link\ntext](https://example.com)"
+    result = convert_markdown_to_slack(text)
+
+    assert "<https://example.com|link text>" in result
+
+
+def test_convert_markdown_to_slack_link_with_newlines_with_space(mock_get_parameter: Mock, mock_env: Mock):
+    """Test link conversion removes newlines from link text"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text = "Check [link \n text](https://example.com)"
+    result = convert_markdown_to_slack(text)
+
+    assert "<https://example.com|link   text>" in result
+
+
+def test_convert_markdown_to_slack_link_with_newlines_with_dash(mock_get_parameter: Mock, mock_env: Mock):
+    """Test link conversion removes newlines from link text"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text = "Check [link-text](https://example.com)"
+    result = convert_markdown_to_slack(text)
+
+    assert "<https://example.com|link-text>" in result
+
+
+def test_convert_markdown_to_slack_link_with_newlines_with_dash_and_space(mock_get_parameter: Mock, mock_env: Mock):
+    """Test link conversion removes newlines from link text"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text = "Check [link - text](https://example.com)"
+    result = convert_markdown_to_slack(text)
+
+    assert "<https://example.com|link - text>" in result
+
+
+def test_convert_markdown_to_slack_whitespace_stripped(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion strips leading/trailing whitespace"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text = "  Some text with spaces  "
+    result = convert_markdown_to_slack(text)
+
+    assert result == "Some text with spaces"
+
+
+def test_convert_markdown_to_slack_multiple_encoding_issues(mock_get_parameter: Mock, mock_env: Mock):
+    """Test conversion handles multiple encoding issues"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import convert_markdown_to_slack
+
+    text = "» Tab issue. â¢ Bullet point â¢ another bullet"
+    result = convert_markdown_to_slack(text)
+
+    assert "»" not in result
+    assert "â¢" not in result
+    assert "- Bullet point" in result
+    assert "- another bullet" in result
