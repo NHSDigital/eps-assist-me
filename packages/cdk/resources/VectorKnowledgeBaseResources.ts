@@ -157,7 +157,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     // prefix pointed to processed/ to only ingest converted markdown documents
 
     const chunkingConfiguration: CfnDataSource.ChunkingConfigurationProperty = {
-      ...ChunkingStrategy.SEMANTIC.configuration,
+      ...ChunkingStrategy.FIXED_SIZE.configuration,
       fixedSizeChunkingConfiguration: {
         maxTokens: 512,
         overlapPercentage: 25
@@ -167,7 +167,7 @@ export class VectorKnowledgeBaseResources extends Construct {
     const hash = crypto.createHash("md5")
       .update(JSON.stringify(chunkingConfiguration))
       .digest("hex")
-      .substring(0, 5)
+      .substring(0, 6)
 
     // TODO: migrate to L2 constructs to avoid duplicating code thats already available in the
     // @cdklabs/generative-ai-cdk-constructs library
