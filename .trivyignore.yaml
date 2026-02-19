@@ -4,13 +4,19 @@ vulnerabilities:
       - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/aws-bedrock-batch-stepfn/uv.lock"
       - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/opensearch-serverless-custom-resources/poetry.lock"
     statement: downstream dependency just used in build stage
+    expired_at: 2026-04-01
   - id: CVE-2025-66471
     paths:
       - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/aws-bedrock-batch-stepfn/uv.lock"
       - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/opensearch-serverless-custom-resources/poetry.lock"
     statement: downstream dependency just used in build stage
+    expired_at: 2026-04-01
   - id: CVE-2026-21441
     paths:
       - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/aws-bedrock-batch-stepfn/uv.lock"
       - "node_modules/@cdklabs/generative-ai-cdk-constructs/lambda/opensearch-serverless-custom-resources/poetry.lock"
     statement: downstream dependency just used in build stage
+    expired_at: 2026-04-01
+  - id: CVE-2026-26996
+    statement: minimatch is only used in build stage and not included in production code
+    expired_at: 2026-04-01
