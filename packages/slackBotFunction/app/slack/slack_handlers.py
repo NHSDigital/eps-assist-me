@@ -69,11 +69,7 @@ def respond_to_action(ack: Ack):
 # ack function for commands where we just send an ack response back
 def respond_to_command(body, ack):
     logger.debug("Sending ack response for help command", extra={"body": body, "ack": ack})
-    text = body.get("text")
-    if text is None or len(text) == 0:
-        ack(":x: Usage: /help")
-    else:
-        ack(f"Accepted! (task: {body['text']})")
+    ack("Testing initiated")
 
 
 def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
