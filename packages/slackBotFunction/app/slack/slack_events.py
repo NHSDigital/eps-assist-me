@@ -960,7 +960,7 @@ def process_command_test_help(body: Dict[str, Any], client: WebClient) -> None:
         - /test q10-16 --> Sends questions 10 to 16
         - /test .output -> Sends questions 1 to {length} and posts them to Slack
     """  # noqa: E501
-    client.chat_postEphemeral(channel=command["channel_id"], user=command["user_id"], text=help_text)
+    client.chat_postEphemeral(channel=body["channel_id"], user=body["user_id"], text=help_text)
 
 
 # ================================================================
