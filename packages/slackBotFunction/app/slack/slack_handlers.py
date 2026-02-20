@@ -45,7 +45,6 @@ def setup_handlers(app: App) -> None:
     for i in range(1, 10):
         app.action(f"cite_{i}")(ack=respond_to_action, lazy=[feedback_handler])
     app.command("/test")(ack=respond_to_command, lazy=[command_handler])
-    app.command("/help")(ack=respond_to_help_command, lazy=[help_handler])
 
 
 # ================================================================
@@ -69,15 +68,6 @@ def respond_to_action(ack: Ack):
 
 # ack function for commands where we just send an ack response back
 def respond_to_command(body, ack):
-    logger.debug("Sending ack response for help command", extra={"body": body, "ack": ack})
-    text = body.get("text")
-    if text is None or len(text) == 0:
-        ack(":x: Usage: /help")
-    else:
-        ack(f"Accepted! (task: {body['text']})")
-
-
-def respond_to_help_command(body, ack):
     logger.debug("Sending ack response for help command", extra={"body": body, "ack": ack})
     text = body.get("text")
     if text is None or len(text) == 0:
@@ -188,12 +178,3 @@ def command_handler(respond, body, client: WebClient) -> None:
         process_async_slack_command(body=body, client=client)
     except Exception:
         logger.error("Error triggering async processing for command", extra={"error": traceback.format_exc()})
-
-
-def help_handler(respond, body, client: WebClient) -> None:
-    logger.info("Received help command from user", extra={"response": respond, "body": body})
-    time.sleep(5)  # longer than 3 seconds
-    respond(f"Completed! (task: {body['text']})")
-    client.chat_postMessage(
-        channel=body["channel_id"], user=body["user_id"], text=f"Here's some help for your task: {body['text']}"
-    )
