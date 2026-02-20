@@ -434,16 +434,16 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     process_slack_message(event=event, event_id=event_id, client=client)
 
 
-def process_async_slack_command(command: Dict[str, Any], client: WebClient) -> None:
-    logger.debug("Processing async Slack command", extra={"command": command})
+def process_async_slack_command(body: Dict[str, Any], client: WebClient) -> None:
+    logger.debug("Processing async Slack command", extra={"body": body})
 
     try:
-        command_arg = command.get("command", "").strip()
+        command_arg = body.get("command", "").strip()
         if command_arg == "/test":
-            process_command_test_request(command=command, client=client)
+            process_command_test_request(body=body, client=client)
     except Exception as e:
         logger.error(f"Error processing test command: {e}", extra={"error": traceback.format_exc()})
-        post_error_message(channel=command["channel_id"], thread_ts=None, client=client)
+        post_error_message(channel=body["channel_id"], thread_ts=None, client=client)
 
 
 # ================================================================
@@ -475,7 +475,7 @@ def process_pull_request_slack_command(slack_command_data: Dict[str, Any]) -> No
         command = slack_command_data["event"]
         token = get_bot_token()
         client = WebClient(token=token)
-        process_async_slack_command(command=command, client=client)
+        process_async_slack_command(body=command, client=client)
     except Exception:
         # we cant post a reply to slack for this error as we may not have details about where to post it
         logger.error(processing_error_message, extra={"error": traceback.format_exc()})
@@ -801,22 +801,23 @@ def _toggle_button_style(element: dict) -> bool:
 # ================================================================
 
 
-def process_command_test_request(command: Dict[str, Any], client: WebClient) -> None:
-    if "help" in command.get("text"):
-        process_command_test_help(command=command, client=client)
+def process_command_test_request(body: Dict[str, Any], client: WebClient) -> None:
+    logger.info("Processing Command Test Request", extra={"body": body})
+    if "help" in body.get("text"):
+        process_command_test_help(body=body, client=client)
     else:
-        process_command_test_questions(command=command, client=client)
+        process_command_test_questions(body=body, client=client)
 
 
-def process_command_test_questions(command: Dict[str, Any], client: WebClient) -> None:
+def process_command_test_questions(body: Dict[str, Any], client: WebClient) -> None:
     # Prepare response
 
     try:
-        acknowledgement_msg = f"<@{command.get("user_id")}> has initiated testing."
-        logger.info(acknowledgement_msg, extra={"command": command})
+        acknowledgement_msg = f"<@{body.get('user_id')}> has initiated testing."
+        logger.info(acknowledgement_msg, extra={"body": body})
 
         # Extract parameters
-        params = extract_test_command_params(command.get("text"))
+        params = extract_test_command_params(body.get("text"))
 
         # Is the command targeting a PR
         pr = params.get("pr", "").strip()
@@ -826,7 +827,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
 
         # Initial acknowledgment
         post_params = {
-            "channel": command["channel_id"],
+            "channel": body["channel_id"],
             "text": acknowledgement_msg,
         }
         client.chat_postMessage(**post_params)
@@ -843,10 +844,10 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
 
         # Post query information (for reflection in future)
         post_params = {
-            "channel": command["channel_id"],
+            "channel": body["channel_id"],
             "text": acknowledgement_msg,
         }
-        client.chat_postEphemeral(**post_params, user=command.get("user_id"))
+        client.chat_postEphemeral(**post_params, user=body.get("user_id"))
 
         # Retrieve sample questions
         test_questions = SampleQuestionBank().get_questions(start=start - 1, end=end - 1)
@@ -873,7 +874,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
                 futures.append(future)
 
         post_params["text"] = "Testing complete, generating file..."
-        client.chat_postEphemeral(**post_params, user=command.get("user_id"))
+        client.chat_postEphemeral(**post_params, user=body.get("user_id"))
 
         aggregated_results = []
         for i, future in enumerate(futures):
@@ -894,7 +895,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
 
         # Upload the file to Slack
         client.files_upload_v2(
-            channel=command["channel_id"],
+            channel=body["channel_id"],
             content=final_file_content,
             title=filename,
             filename=filename,
@@ -904,7 +905,7 @@ def process_command_test_questions(command: Dict[str, Any], client: WebClient) -
     except Exception as e:
         logger.error(
             f"Failed to attach feedback buttons: {e}",
-            extra={"channel": command["channel_id"], "error": traceback.format_exc()},
+            extra={"channel": body["channel_id"], "error": traceback.format_exc()},
         )
 
 
@@ -936,8 +937,8 @@ def process_command_test_ai_request(question, response, output: bool, client: We
     return {"index": f"{question[0]}", "text": question[1], "response": response_text}
 
 
-def process_command_test_help(command: Dict[str, Any], client: WebClient) -> None:
-    logger.info("Processing Command Test Help Message", extra={"command": command})
+def process_command_test_help(body: Dict[str, Any], client: WebClient) -> None:
+    logger.info("Processing Command Test Help Message", extra={"body": body})
     length = SampleQuestionBank().length() + 1
     help_text = f"""
     Certainly! Here is some help testing me!
