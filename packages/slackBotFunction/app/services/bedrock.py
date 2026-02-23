@@ -83,7 +83,7 @@ def query_bedrock(
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",
-        extra={"session_id": response.get("sessionId")},
+        extra={"session_id": response.get("sessionId"), "response": response},
     )
     return response
 
