@@ -6,20 +6,30 @@ reformulation and bedrock interaction. single source of truth for AI flows.
 """
 
 from app.services.bedrock import query_bedrock
-from app.services.query_reformulator import reformulate_query
-from app.core.config import get_logger
+from app.core.config import get_retrieve_generate_config, get_logger
 from app.core.types import AIProcessorResponse
+from app.services.prompt_loader import load_prompt
 
 logger = get_logger()
 
 
 def process_ai_query(user_query: str, session_id: str | None = None) -> AIProcessorResponse:
     """shared AI processing logic for both slack and direct invocation"""
-    # reformulate: improves vector search quality in knowledge base
-    reformulated_query = reformulate_query(user_query)
-
     # session_id enables conversation continuity across multiple queries
-    kb_response = query_bedrock(reformulated_query, session_id)
+    config = get_retrieve_generate_config()
+
+    reformulation_prompt_template = load_prompt(
+        config.REFORMULATION_PROMPT_NAME,
+        config.REFORMULATION_PROMPT_VERSION,
+    )
+    # Don't provide sessionId as this conflicts with the sessions knowledgebase settings
+    reformulation_prompt = query_bedrock(user_query, reformulation_prompt_template, config)
+    reformulation_text = reformulation_prompt["output"]["text"]
+
+    logger.debug("reformulation_text", extra={"text": reformulation_text})
+
+    rag_prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
+    kb_response = query_bedrock(reformulation_text, rag_prompt_template, config, session_id)
 
     logger.info(
         "response from bedrock",

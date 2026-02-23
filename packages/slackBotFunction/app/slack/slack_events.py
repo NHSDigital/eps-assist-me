@@ -7,6 +7,7 @@ import re
 import time
 import traceback
 import json
+import html
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
@@ -280,10 +281,14 @@ def convert_markdown_to_slack(body: str) -> str:
     body = re.sub(r"([\*_]){2,10}([^*]+)([\*_]){2,10}", r"\1\2\1", body)
 
     # 3. Handle Lists (Handle various bullet points and dashes, inc. unicode support)
-    body = re.sub(r"(?:^|\s{1,10})[-•–—▪‣◦⁃]\s{0,10}", r"\n- ", body)
+    body = re.sub(r"[-•–—▪‣◦⁃]", r"-", body)
 
-    # 4. Convert Markdown Links [text](url) to Slack <url|text>
-    body = re.sub(r"\[([^\]]+)\]\(([^\)]+)\)", r"<\2|\1>", body)
+    # 3. Convert Markdown Links [text](url) to Slack <url|text>
+    matches = re.findall(r"\[([^\]]+)\]\(([^\)]+)\)", body)
+
+    for match in matches:
+        text, url = match
+        body = body.replace(f"[{text}]({url})", f"<{url}|{text.replace('\n', ' ').replace(r"/n{2,}", ' ')[:50]}>")
 
     return body.strip()
 
@@ -412,7 +417,9 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
             logger.error(f"Can not find pull request details: {e}", extra={"error": traceback.format_exc()})
             post_error_message(channel=channel_id, thread_ts=thread_ts, client=client)
         return
-    if message_text.lower().startswith(constants.FEEDBACK_PREFIX):
+    # Unescape HTML entities to handle cases where Slack formats the message with entities (e.g., &lt; instead of <)
+    feedback_formatted_text = html.unescape(message_text)
+    if re.match(constants.FEEDBACK_PREFIX, feedback_formatted_text, re.IGNORECASE | re.DOTALL | re.MULTILINE):
         process_feedback_event(
             message_text=message_text,
             conversation_key=conversation_key,

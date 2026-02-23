@@ -80,6 +80,22 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress unauthenticated API route warnings
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/Apis/EpsAssistApiGateway/ApiGateway/Default/slack/commands/POST/Resource",
+    [
+      {
+        id: "AwsSolutions-APIG4",
+        reason: "Slack command endpoint is intentionally unauthenticated."
+      },
+      {
+        id: "AwsSolutions-COG4",
+        reason: "Cognito not required for this public endpoint."
+      }
+    ]
+  )
+
   // Suppress missing WAF on API stage for Apis construct
   safeAddNagSuppression(
     stack,
