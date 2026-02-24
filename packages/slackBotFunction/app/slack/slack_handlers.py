@@ -12,7 +12,7 @@ import time
 from functools import lru_cache
 import traceback
 from typing import Any, Dict
-from slack_bolt import Ack, App, Say
+from slack_bolt import Ack, App
 from slack_sdk import WebClient
 from app.core.config import (
     get_logger,
@@ -67,9 +67,9 @@ def respond_to_action(ack: Ack):
 
 
 # ack function for commands where we just send an ack response back
-def respond_to_command(ack: Ack, say: Say):
-    logger.debug("Sending ack response for command")
-    ack()
+def respond_to_command(body, ack):
+    logger.debug("Sending ack response for help command", extra={"body": body, "ack": ack})
+    ack("Testing initiated")
 
 
 def feedback_handler(body: Dict[str, Any], client: WebClient) -> None:
@@ -149,20 +149,20 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
         logger.error("Error triggering async processing for event", extra={"error": traceback.format_exc()})
 
 
-def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebClient) -> None:
+def command_handler(respond, body, client: WebClient) -> None:
     """Handle /test command to prompt the bot to respond."""
-    logger.info("Received command from user", extra={"body": body, "command": command, "client": client})
-    if not command:
+    logger.info("Received command from user", extra={"body": body})
+    if not body:
         logger.error("Invalid command payload")
         return
 
-    user_id = command.get("user_id")
-    session_pull_request_id = extract_test_command_params(command.get("text")).get("pr")
+    user_id = body.get("user_id")
+    session_pull_request_id = extract_test_command_params(body.get("text")).get("pr")
     if session_pull_request_id:
         logger.info(f"Command in pull request session {session_pull_request_id} from user {user_id}")
         forward_to_pull_request_lambda(
             body=body,
-            event={**command, "channel": command.get("channel_id")},
+            event={**body, "channel": body.get("channel_id")},
             pull_request_id=session_pull_request_id,
             event_id=f"/command-{time.time()}",
             store_pull_request_id=False,
@@ -171,6 +171,6 @@ def command_handler(body: Dict[str, Any], command: Dict[str, Any], client: WebCl
         return
 
     try:
-        process_async_slack_command(command, client)
+        process_async_slack_command(body=body, client=client)
     except Exception:
         logger.error("Error triggering async processing for command", extra={"error": traceback.format_exc()})
