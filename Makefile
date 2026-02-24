@@ -1,4 +1,4 @@
-.PHONY: install build test publish release clean lint
+.PHONY: install build test publish release clean lint cdk-synth
 
 install: install-python install-hooks install-node
 
