@@ -127,7 +127,7 @@ def test_process_slack_command_test_questions_ai_request_to_file(
     mock_client.chat_postMessage.return_value = mock_response
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     assert mock_query_bedrock.call_count == 21
@@ -163,7 +163,7 @@ def test_process_slack_command_test_questions_default_to_file(
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.assert_called_once()
@@ -202,7 +202,7 @@ def test_process_slack_command_test_questions_single_question_to_file(
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.asset_called_once()
@@ -237,7 +237,7 @@ def test_process_slack_command_test_questions_two_questions_to_file(
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.assert_called_once()
@@ -272,7 +272,7 @@ def test_process_slack_command_test_questions_ai_request_to_slack(
     mock_client.chat_postMessage.return_value = mock_response
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     assert mock_query_bedrock.call_count == 21
@@ -308,7 +308,7 @@ def test_process_slack_command_test_questions_default_to_slack(
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.assert_called()
@@ -347,7 +347,7 @@ def test_process_slack_command_test_questions_single_question_to_slack(
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.assert_called()
@@ -381,7 +381,7 @@ def test_process_slack_command_test_questions_two_questions_to_slack(
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.assert_called()
@@ -423,7 +423,7 @@ def test_process_slack_command_test_questions_too_many_questions_error(
 
         # with pytest.raises(ValueError, match="'end' must be less than 21"):
         # perform operation
-        process_async_slack_command(command=slack_command_data, client=mock_client)
+        process_async_slack_command(body=slack_command_data, client=mock_client)
 
         # assertions
         mock_client.chat_postMessage.asset_not_called()
@@ -460,7 +460,7 @@ def test_process_slack_command_test_help(
     mock_process_ai_query.return_value = {"text": "ai response", "session_id": None, "citations": [], "kb_response": {}}
 
     # perform operation
-    process_async_slack_command(command=slack_command_data, client=mock_client)
+    process_async_slack_command(body=slack_command_data, client=mock_client)
 
     # assertions
     mock_client.chat_postMessage.assert_not_called()

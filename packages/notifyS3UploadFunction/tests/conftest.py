@@ -4,7 +4,6 @@ import pytest
 from unittest.mock import MagicMock, Mock, patch
 import os
 
-
 TEST_BOT_TOKEN = "test-bot-token"
 
 
