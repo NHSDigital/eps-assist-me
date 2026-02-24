@@ -159,8 +159,8 @@ export class VectorKnowledgeBaseResources extends Construct {
     const chunkingConfiguration: CfnDataSource.ChunkingConfigurationProperty = {
       ...ChunkingStrategy.FIXED_SIZE.configuration,
       fixedSizeChunkingConfiguration: {
-        maxTokens: 256,
-        overlapPercentage: 25
+        maxTokens: 512,
+        overlapPercentage: 50
       } satisfies CfnDataSource.FixedSizeChunkingConfigurationProperty
     }
 

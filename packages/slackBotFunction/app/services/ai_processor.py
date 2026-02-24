@@ -29,7 +29,13 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     logger.debug("reformulation_text", extra={"text": reformulation_text})
 
     rag_prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
-    kb_response = query_bedrock(reformulation_text, rag_prompt_template, config, session_id)
+    kb_response = query_bedrock(
+        user_query=reformulation_text,
+        prompt_template=rag_prompt_template,
+        config=config,
+        session_id=session_id,
+        rerank_results=True,
+    )
 
     logger.info(
         "response from bedrock",
