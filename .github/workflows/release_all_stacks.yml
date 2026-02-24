@@ -48,6 +48,12 @@ on:
       FORWARD_CSOC_LOGS:
         type: boolean
         required: true
+      runtime_docker_image:
+        type: string
+        required: true
+      verify_published_from_main_image:
+        type: boolean
+        required: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE:
         required: true
@@ -73,14 +79,29 @@ on:
         required: false
 
 jobs:
+  verify_attestation:
+    uses: NHSDigital/eps-common-workflows/.github/workflows/verify-attestation.yml@36677e1d6bfaa010d7b78942a1ade12fbefecb80
+    with:
+      runtime_docker_image: "${{ inputs.runtime_docker_image }}"
+      verify_published_from_main_image: ${{ inputs.verify_published_from_main_image }}
   release_all_code:
     runs-on: ubuntu-22.04
+    needs: verify_attestation
+    container:
+      image: ${{ needs.verify_attestation.outputs.pinned_image }}
+      options: --user 1001:1001 --group-add 128
+    defaults:
+      run:
+        shell: bash
     environment: ${{ inputs.TARGET_ENVIRONMENT }}
     name: deploy cdk app ${{ inputs.CDK_APP_NAME }}
     permissions:
       id-token: write
       contents: write
     steps:
+      - name: copy .tool-versions
+        run: |
+          cp /home/vscode/.tool-versions "$HOME/.tool-versions"
       - name: Checkout local github actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -101,14 +122,6 @@ jobs:
           TARGET_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.INT_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
           DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
 
-      - name: Configure AWS Credentials
-        id: connect_aws_pull_image
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7
-        with:
-          aws-region: eu-west-2
-          role-to-assume: ${{ secrets.CDK_PULL_IMAGE_ROLE }}
-          role-session-name: eps-assist-me-pull-image
-
       - name: build_artifact download
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
@@ -118,20 +131,6 @@ jobs:
         run: |
           mkdir -p .build
           tar -xf artifact.tar -C .build
-
-      - name: Retrieve AWS Account ID
-        id: retrieve_aws_account_id
-        run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_ENV"
-
-      - name: Login to Amazon ECR
-        id: login_ecr
-        run: |
-          aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com
-
-      - name: Pull cdk-utils-build from Amazon ECR
-        run: |
-          docker pull "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest"
-          docker tag "${{ env.ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/cdk-utils-build-repo:latest" cdk-utils-build-repo:latest
 
       - name: Configure AWS Credentials
         id: connect_aws_for_deployment
@@ -159,36 +158,19 @@ jobs:
           IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
           RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
 
-      - name: Show diff for stack
-        run: |
-          docker run \
-          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect_aws_for_deployment.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect_aws_for_deployment.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect_aws_for_deployment.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e SHOW_DIFF="true" \
-          -e DEPLOY_CODE="false" \
-          -e CONFIG_FILE_NAME="epsam_app.json" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
-        shell: bash
 
       - name: Deploy code for stack
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
-          docker run \
-          -v "$(pwd)/.build":/home/cdkuser/workspace/ \
-          -e AWS_ACCESS_KEY_ID=${{ steps.connect_aws_for_deployment.outputs.aws-access-key-id }} \
-          -e AWS_SECRET_ACCESS_KEY=${{ steps.connect_aws_for_deployment.outputs.aws-secret-access-key }} \
-          -e AWS_SESSION_TOKEN=${{ steps.connect_aws_for_deployment.outputs.aws-session-token }} \
-          -e AWS_REGION="eu-west-2" \
-          -e SHOW_DIFF="false" \
-          -e DEPLOY_CODE="true" \
-          -e CONFIG_FILE_NAME="epsam_app.json" \
-          -e CDK_APP_PATH="packages/cdk/bin/EpsAssistMeApp.ts" \
-          cdk-utils-build-repo:latest
+          cd .build
+          npx cdk deploy \
+          --app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+          --all \
+          --require-approval=never \
+          --ci true
         shell: bash
+        env:
+          CONFIG_FILE_NAME: "epsam_app.json"
 
       - name: Normalize Environment Name
         if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
@@ -276,5 +258,6 @@ jobs:
     with:
       ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
       VERSION_NUMBER: ${{ inputs.VERSION_NUMBER }}
+      runtime_docker_image: "${{ inputs.runtime_docker_image }}"
     secrets:
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
