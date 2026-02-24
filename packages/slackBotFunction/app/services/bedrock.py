@@ -82,10 +82,6 @@ def query_bedrock(
     logger.debug("Retrieve and Generate", extra={"params": request_params})
     chunks = client.retrieve(
         knowledgeBaseId=config.KNOWLEDGEBASE_ID,
-        guardrailConfiguration={
-            "guardrailId": config.GUARD_RAIL_ID,
-            "guardrailVersion": config.GUARD_VERSION,
-        },
         retrievalQuery={"text": user_query},
         retrievalConfiguration={"vectorSearchConfiguration": {"numberOfResults": 5}},
     )
