@@ -85,9 +85,20 @@ def query_bedrock(
         retrievalQuery={"text": user_query},
         retrievalConfiguration={"vectorSearchConfiguration": {"numberOfResults": 5}},
     )
-    logger.info(
-        "Retrieved chunks from Bedrock", extra={"session_id": chunks.get("sessionId"), "retrieved_chunks": chunks}
-    )
+
+    chunks = chunks.get("retrievedChunks", [])
+    chunks = [chunk for chunk in chunks if chunk.get("content", {}).get("text")]
+    chunks = [
+        {
+            **chunk,
+            "score": chunk.get("score"),
+            "uri": chunk.get("location", {}).get("s3Location", {}).get("uri", "").split("/")[-1],
+        }
+        for chunk in chunks
+    ]
+
+    average_score = sum(chunk["score"] for chunk in chunks) / len(chunks) if chunks else 0
+    logger.info("Retrieved chunks from Bedrock", extra={"average_score": average_score, "retrieved_chunks": chunks})
 
     response = client.retrieve_and_generate(**request_params)
     logger.info(
