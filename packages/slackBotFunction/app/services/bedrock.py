@@ -80,6 +80,19 @@ def query_bedrock(
         logger.info("Starting new conversation")
 
     logger.debug("Retrieve and Generate", extra={"params": request_params})
+    chunks = client.retrieve(
+        knowledgeBaseId=config.KNOWLEDGEBASE_ID,
+        guardrailConfiguration={
+            "guardrailId": config.GUARD_RAIL_ID,
+            "guardrailVersion": config.GUARD_VERSION,
+        },
+        retrievalQuery={"text": user_query},
+        retrievalConfiguration={"vectorSearchConfiguration": {"numberOfResults": 5}},
+    )
+    logger.info(
+        "Retrieved chunks from Bedrock", extra={"session_id": chunks.get("sessionId"), "retrieved_chunks": chunks}
+    )
+
     response = client.retrieve_and_generate(**request_params)
     logger.info(
         "Got Bedrock response",
