@@ -16,6 +16,7 @@ def query_bedrock(
     prompt_template: dict,
     config: BedrockConfig,
     session_id: str = None,
+    rerank_results: bool = False,
 ) -> RetrieveAndGenerateResponseTypeDef:
     """
     Query Amazon Bedrock Knowledge Base using RAG (Retrieval-Augmented Generation)
@@ -45,7 +46,9 @@ def query_bedrock(
             "knowledgeBaseConfiguration": {
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
                 "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
-                "retrievalConfiguration": {"vectorSearchConfiguration": {"numberOfResults": 5}},
+                "retrievalConfiguration": {
+                    "vectorSearchConfiguration": {"numberOfResults": 5},
+                },
                 "generationConfiguration": {
                     "guardrailConfiguration": {
                         "guardrailId": config.GUARD_RAIL_ID,
@@ -63,6 +66,26 @@ def query_bedrock(
             },
         },
     }
+
+    # Add reranking configuration to prioritize more relevant retrieved documents
+    if rerank_results:
+        request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["retrievalConfiguration"][
+            "rerankingConfiguration"
+        ] = {
+            "type": "BEDROCK_RERANKING_MODEL",
+            "bedrockRerankingConfiguration": {
+                "numberOfRerankedResults": 5,
+                "modelConfiguration": {
+                    "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
+                },
+            },
+        }
+
+        # Increase number of retrieved results to rerank more effectively
+        request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["retrievalConfiguration"][
+            "vectorSearchConfiguration"
+        ] = {"numberOfResults": 20}
+        logger.info("Using reranking configuration for retrieval", extra={"numberOfRerankedResults": 5})
 
     if prompt_template:
         request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"][
