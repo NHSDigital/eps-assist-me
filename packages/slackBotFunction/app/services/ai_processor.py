@@ -18,6 +18,8 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     # session_id enables conversation continuity across multiple queries
     config = get_retrieve_generate_config()
 
+    time = logger.time("total_ai_processing_time")
+
     reformulation_prompt_template = load_prompt(
         config.REFORMULATION_PROMPT_NAME,
         config.REFORMULATION_PROMPT_VERSION,
@@ -39,7 +41,7 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
 
     logger.info(
         "response from bedrock",
-        extra={"response_text": kb_response},
+        extra={"response_text": kb_response, "time": time.stop().total_seconds()},
     )
 
     return {

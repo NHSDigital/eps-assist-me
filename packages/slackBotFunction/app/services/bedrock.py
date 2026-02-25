@@ -82,7 +82,7 @@ def query_bedrock(
     else:
         logger.info("Starting new conversation")
 
-    logger.debug("Retrieve and Generate", extra={"params": request_params})
+    logger.debug("Retrieve Citations", extra={"params": request_params})
     chunks = client.retrieve(
         knowledgeBaseId=config.KNOWLEDGEBASE_ID,
         retrievalQuery={"text": user_query},
