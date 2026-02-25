@@ -5,6 +5,8 @@ both slack handlers and direct invocation use identical logic for query
 reformulation and bedrock interaction. single source of truth for AI flows.
 """
 
+import time
+
 from app.services.bedrock import query_bedrock
 from app.core.config import get_retrieve_generate_config, get_logger
 from app.core.types import AIProcessorResponse
@@ -18,7 +20,7 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
     # session_id enables conversation continuity across multiple queries
     config = get_retrieve_generate_config()
 
-    time = logger.time("total_ai_processing_time")
+    now = int(time.time())
 
     reformulation_prompt_template = load_prompt(
         config.REFORMULATION_PROMPT_NAME,
@@ -41,7 +43,7 @@ def process_ai_query(user_query: str, session_id: str | None = None) -> AIProces
 
     logger.info(
         "response from bedrock",
-        extra={"response_text": kb_response, "time": time.stop().total_seconds()},
+        extra={"response_text": kb_response, "time": time.time() - now},
     )
 
     return {
