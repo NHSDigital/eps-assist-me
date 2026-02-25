@@ -47,7 +47,7 @@ def query_bedrock(
                 "knowledgeBaseId": config.KNOWLEDGEBASE_ID,
                 "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
                 "retrievalConfiguration": {
-                    "vectorSearchConfiguration": {"numberOfResults": 5},
+                    "vectorSearchConfiguration": {"numberOfResults": 10},
                 },
                 "generationConfiguration": {
                     "guardrailConfiguration": {
@@ -66,26 +66,6 @@ def query_bedrock(
             },
         },
     }
-
-    # Add reranking configuration to prioritize more relevant retrieved documents
-    if rerank_results:
-        request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["retrievalConfiguration"][
-            "rerankingConfiguration"
-        ] = {
-            "type": "BEDROCK_RERANKING_MODEL",
-            "bedrockRerankingConfiguration": {
-                "numberOfRerankedResults": 5,
-                "modelConfiguration": {
-                    "modelArn": prompt_template.get("model_id", config.RAG_MODEL_ID),
-                },
-            },
-        }
-
-        # Increase number of retrieved results to rerank more effectively
-        request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["retrievalConfiguration"][
-            "vectorSearchConfiguration"
-        ] = {"numberOfResults": 20}
-        logger.info("Using reranking configuration for retrieval", extra={"numberOfRerankedResults": 5})
 
     if prompt_template:
         request_params["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"][
