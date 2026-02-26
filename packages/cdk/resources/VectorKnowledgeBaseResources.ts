@@ -160,7 +160,7 @@ export class VectorKnowledgeBaseResources extends Construct {
       ...ChunkingStrategy.FIXED_SIZE.configuration,
       fixedSizeChunkingConfiguration: {
         maxTokens: 512,
-        overlapPercentage: 50
+        overlapPercentage: 25
       } satisfies CfnDataSource.FixedSizeChunkingConfigurationProperty
     }
 
