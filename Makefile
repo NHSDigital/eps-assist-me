@@ -1,10 +1,4 @@
-guard-%:
-	@ if [ "${${*}}" = "" ]; then \
-		echo "Environment variable $* not set"; \
-		exit 1; \
-	fi
-
-.PHONY: install build test publish release clean
+.PHONY: install build test publish release clean lint cdk-synth
 
 install: install-python install-hooks install-node
 
@@ -22,10 +16,6 @@ compile-node:
 
 pre-commit: git-secrets-docker-setup
 	poetry run pre-commit run --all-files
-
-git-secrets-docker-setup:
-	export LOCAL_WORKSPACE_FOLDER=$(pwd)
-	docker build -f https://raw.githubusercontent.com/NHSDigital/eps-workflow-quality-checks/refs/tags/v4.0.4/dockerfiles/nhsd-git-secrets.dockerfile -t git-secrets .
 
 lint: lint-githubactions lint-githubaction-scripts lint-black lint-flake8 lint-node
 
@@ -70,23 +60,6 @@ deep-clean: clean
 	rm -rf .venv
 	rm -rf .poetry
 	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
-
-check-licenses: check-licenses-node check-licenses-python
-
-check-licenses-node:
-	npm run check-licenses --workspace packages/cdk
-
-check-licenses-python:
-	scripts/check_python_licenses.sh
-
-aws-configure:
-	aws configure sso --region eu-west-2
-
-aws-login:
-	aws sso login --sso-session sso-session
-
-cfn-guard:
-	./scripts/run_cfn_guard.sh
 
 cdk-deploy: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
@@ -177,3 +150,6 @@ convert-docs-file:
 
 compile:
 	echo "Does nothing currently"
+
+%:
+	@$(MAKE) -f /usr/local/share/eps/Mk/common.mk $@
