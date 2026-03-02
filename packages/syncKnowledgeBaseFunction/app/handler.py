@@ -313,7 +313,7 @@ def update_slack_task(
 
     if outputs:
         task["output"] = {
-            "type:": "rich_text",
+            "type": "rich_text",
             "block_id": uuid.uuid4().hex,
             "elements": [
                 {"type": "rich_text_section", "elements": [{"type": "text", "text": output}]} for output in outputs
