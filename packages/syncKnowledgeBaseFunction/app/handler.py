@@ -198,7 +198,7 @@ def get_bot_channels(client):
     return channel_ids
 
 
-def post_message(channel_id: str, blocks: list, text_fallback: str) -> SlackResponse:
+def post_message(slack_client, channel_id: str, blocks: list, text_fallback: str):
     """
     Posts the formatted message to a specific channel.
     """
@@ -212,7 +212,7 @@ def post_message(channel_id: str, blocks: list, text_fallback: str) -> SlackResp
         return None
 
 
-def initialise_slack_messages(event_count: int) -> list:
+def initialise_slack_messages(event_count: int) -> tuple:
     """
     Send Slack notification summarizing the synchronization status
     """
@@ -251,21 +251,21 @@ def initialise_slack_messages(event_count: int) -> list:
 
     if not target_channels:
         logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
-        return []
+        return slack_client, []
 
     # Broadcast Loop
     logger.info(f"Broadcasting to {len(target_channels)} channels...")
 
     responses = []
     for channel_id in target_channels:
-        response = post_message(channel_id, blocks, message)
+        response = post_message(slack_client=slack_client, channel_id=channel_id, blocks=blocks, text_fallback=message)
         responses.append(response)
 
     logger.info("Broadcast complete.", extra={"responses": len(responses)})
-    return responses
+    return slack_client, responses
 
 
-def update_slack_message(response, blocks):
+def update_slack_message(slack_client, response, blocks):
     """
     Update the existing Slack message blocks with new information
     """
@@ -299,10 +299,22 @@ def update_slack_task(
         task["status"] = status
 
     if details:
-        task["details"] = details
+        task["details"] = {
+            "type": "rich_text",
+            "block_id": uuid.uuid4().hex,
+            "elements": [
+                {"type": "rich_text_section", "elements": [{"type": "text", "text": detail}]} for detail in details
+            ],
+        }
 
     if outputs:
-        task["output"] = outputs
+        task["output"] = {
+            "type:": "rich_text",
+            "block_id": uuid.uuid4().hex,
+            "elements": [
+                {"type": "rich_text_section", "elements": [{"type": "text", "text": output}]} for output in outputs
+            ],
+        }
 
     return plan
 
@@ -346,7 +358,7 @@ def create_task(
     return task
 
 
-def update_slack_events(event_count: int, messages: list):
+def update_slack_events(slack_client, event_count: int, messages: list):
     """
     Update the event count in the existing Slack message blocks
     """
@@ -371,10 +383,10 @@ def update_slack_events(event_count: int, messages: list):
         else:
             create_task(plan=plan, title=title, outputs=outputs)
 
-        update_slack_message(response, blocks)
+        update_slack_message(slack_client, response, blocks)
 
 
-def update_slack_files(processed_files: list, messages: list, complete=False):
+def update_slack_files(slack_client, processed_files: list, messages: list, complete=False):
     """
     Update the existing Slack message blocks with the count of processed files
     """
@@ -410,16 +422,14 @@ def update_slack_files(processed_files: list, messages: list, complete=False):
         outputs = [f"Total files processed: {added + deleted}"]
 
         if task:
-            plan = update_slack_task(
-                plan=plan, task=task, messages=messages, status=status, title=title, details=details, outputs=outputs
-            )
+            plan = update_slack_task(plan=plan, task=task, status=status, title=title, details=details, outputs=outputs)
         else:
             create_task(plan=plan, title=title, details=details, outputs=outputs)
 
-        update_slack_message(response, blocks)
+        update_slack_message(slack_client=slack_client, response=response, blocks=blocks)
 
 
-def update_slack_complete(messages):
+def update_slack_complete(slack_client, messages):
     """
     Mark Slack Plan as complete
     """
@@ -439,7 +449,7 @@ def update_slack_complete(messages):
         for i, task in plan["tasks"]:
             task["status"] = "completed"
 
-        update_slack_message(response, blocks)
+        update_slack_message(slack_client, response, blocks)
 
 
 def process_sqs_record(s3_record):
@@ -510,7 +520,7 @@ def handler(event, context):
         processed_files = []  # Track successfully processed file keys
         job_ids = []  # Track started ingestion job IDs
 
-        slack_messages = initialise_slack_messages(len(records))
+        slack_client, slack_messages = initialise_slack_messages(len(records))
         skipped = 0
         # Process each S3 event record in the SQS batch
         for sqs_index, sqs_record in enumerate(records):
@@ -523,7 +533,9 @@ def handler(event, context):
                             "record_index": sqs_index + 1,
                         },
                     )
-                    update_slack_events(len(records) - skipped, slack_messages)
+                    update_slack_events(
+                        slack_client=slack_client, event_count=len(records) - skipped, messages=slack_messages
+                    )
                     skipped += 1
                     continue
 
@@ -535,7 +547,10 @@ def handler(event, context):
                 job_ids.extend(results["job_ids"])
 
                 update_slack_files(
-                    processed_files=processed_files, messages=slack_messages, complete=(sqs_index == len(records) - 1)
+                    slack_client=slack_client,
+                    processed_files=processed_files,
+                    messages=slack_messages,
+                    complete=(sqs_index == len(records) - 1),
                 )
 
             except (json.JSONDecodeError, KeyError) as e:
@@ -544,7 +559,7 @@ def handler(event, context):
 
         total_duration = time.time() - start_time
 
-        update_slack_complete(messages=slack_messages)
+        update_slack_complete(slack_client=slack_client, messages=slack_messages)
 
         logger.info(
             "Knowledge base sync process completed",
