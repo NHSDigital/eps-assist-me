@@ -385,6 +385,10 @@ def update_slack_files(processed_files: list, messages: list, complete=False):
         logger.warning("No processed files to update in Slack messages.")
         return
 
+    logger.info(
+        "Processing lack files Slack Notification",
+        extra={"processed_files": processed_files, "messages": messages, "complete": complete},
+    )
     added = sum(1 for f in processed_files if f["event_type"] == "CREATE")
     deleted = sum(1 for f in processed_files if f["event_type"] == "DELETE")
 
@@ -471,7 +475,7 @@ def process_sqs_record(s3_record):
                 },
             )
 
-    return {"processed_files": [processed_file["file_key"] for processed_file in processed_files], "job_ids": job_ids}
+    return {"processed_files": processed_files, "job_ids": job_ids}
 
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)
@@ -525,6 +529,8 @@ def handler(event, context):
 
                 logger.info("Processing SQS record", extra={"record_index": sqs_index + 1})
                 results = process_sqs_record(sqs_record)
+
+                logger.info("Processed", extra={"processed": results})
                 processed_files.extend(results["processed_files"])
                 job_ids.extend(results["job_ids"])
 
