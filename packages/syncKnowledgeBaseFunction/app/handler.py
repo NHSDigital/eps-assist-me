@@ -139,7 +139,7 @@ def process_s3_record(record, record_index):
     return True, object_key, job_id, event_type
 
 
-def handle_client_error(e, start_time):
+def handle_client_error(e, start_time, slack_client, slack_messages):
     """
     Handle AWS ClientError exceptions with appropriate responses
 
@@ -161,11 +161,15 @@ def handle_client_error(e, start_time):
                 "explanation": "Normal when multiple files uploaded quickly",
             },
         )
+
+        update_slack_complete(slack_client=slack_client, messages=slack_messages)
         return {
             "statusCode": 409,
             "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
         }
     else:
+
+        update_slack_error(slack_client=slack_client, messages=slack_messages)
         # Handle other AWS service errors
         logger.error(
             "AWS service error occurred",
@@ -456,6 +460,32 @@ def update_slack_complete(slack_client, messages):
         update_slack_message(slack_client, response, blocks)
 
 
+def update_slack_error(slack_client, messages, error):
+    """
+    Mark Slack Plan as errored
+    """
+    if not messages:
+        logger.warning("No existing Slack messages to update event count.")
+        return
+
+    for response in messages:
+        if response is None:
+            continue
+
+        # Update the event count in the plan block
+        blocks = response["message"]["blocks"]
+        plan = next((block for block in blocks if block["type"] == "plan"), None)
+
+        plan["title"] = "Processing complete!"
+        for i, task in plan["tasks"]:
+            if i == len(plan["tasks"]) - 1:
+                task["status"] = "error"
+            else:
+                task["status"] = "completed"
+
+        update_slack_message(slack_client, response, blocks)
+
+
 def process_sqs_record(s3_record):
     """
     Process a single Simple Queue Service record and prepare processing
@@ -587,10 +617,11 @@ def handler(event, context):
 
     except ClientError as e:
         # Handle AWS service errors
-        return handle_client_error(e, start_time)
+        return handle_client_error(e, start_time, slack_client, slack_messages)
 
     except Exception as e:
         # Handle unexpected errors
+        update_slack_error(slack_client=slack_client, messages=slack_messages, error=e)
         logger.error(
             "Unexpected error occurred",
             extra={
