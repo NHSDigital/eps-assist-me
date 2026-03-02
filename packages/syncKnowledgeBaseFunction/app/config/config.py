@@ -1,7 +1,6 @@
 import os
 import json
 import traceback
-from dataclasses import dataclass
 from functools import lru_cache
 from typing import Tuple
 from aws_lambda_powertools import Logger
@@ -12,6 +11,7 @@ logger = Logger(service="syncKnowledgeBaseFunction")
 # Environment variables
 KNOWLEDGEBASE_ID = os.environ.get("KNOWLEDGEBASE_ID")
 DATA_SOURCE_ID = os.environ.get("DATA_SOURCE_ID")
+SLACK_BOT_TOKEN_PARAMETER = os.environ.get("SLACK_BOT_TOKEN_PARAMETER")
 
 # Supported file types for Bedrock Knowledge Base ingestion
 SUPPORTED_FILE_TYPES = {".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"}
@@ -19,9 +19,8 @@ SUPPORTED_FILE_TYPES = {".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", 
 
 @lru_cache()
 def get_bot_token() -> Tuple[str, str]:
-    bot_token_parameter = os.environ["SLACK_BOT_TOKEN_PARAMETER"]
     try:
-        bot_token_raw = get_parameter(bot_token_parameter, decrypt=True)
+        bot_token_raw = get_parameter(SLACK_BOT_TOKEN_PARAMETER, decrypt=True)
 
         if not bot_token_raw:
             raise ValueError("Missing required parameters from Parameter Store")
@@ -44,8 +43,3 @@ def get_bot_token() -> Tuple[str, str]:
 def get_bot_on_prs() -> bool:
     is_active_on_prs_str = os.environ.get("SLACK_BOT_ACTIVE_ON_PRS", "false").lower()
     return is_active_on_prs_str == "true"
-
-
-@dataclass
-class SlackBotConfig:
-    SLACK_BOT_TOKEN_PARAMETER: str

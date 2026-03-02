@@ -45,6 +45,9 @@ boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runt
 [tool.poetry.group.syncKnowledgeBaseFunction.dependencies]
 boto3 = "^1.42.54"
 aws-lambda-powertools = "^3.23.0"
+urllib3 = "^2.6.3"
+slack-bolt = "^1.25.0"
+slack-sdk = "^3.40.1"
 
 
 [tool.poetry.group.bedrockLoggingConfigFunction.dependencies]
@@ -57,13 +60,6 @@ aws-lambda-powertools = "^3.23.0"
 boto3 = "^1.42.54"
 aws-lambda-powertools = "^3.23.0"
 markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.0.1a12"}
-
-
-[tool.poetry.group.notifyS3UploadFunction.dependencies]
-aws-lambda-powertools = "^3.23.0"
-urllib3 = "^2.6.3"
-slack-bolt = "^1.25.0"
-slack-sdk = "^3.40.1"
 
 
 [tool.black]
