@@ -127,11 +127,15 @@ export class RuntimePolicies extends Construct {
       actions: [
         "bedrock:StartIngestionJob",
         "bedrock:GetIngestionJob",
-        "bedrock:ListIngestionJobs"
+        "bedrock:ListIngestionJobs",
+        "ssm:GetParameter",
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage"
       ],
       resources: [
         props.knowledgeBaseArn,
-        props.dataSourceArn
+        props.dataSourceArn,
+        ...slackBotPolicyResources
       ]
     })
 
