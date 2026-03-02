@@ -1,7 +1,7 @@
 import json
 import pytest
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, DEFAULT
 from botocore.exceptions import ClientError
 
 
@@ -117,7 +117,7 @@ def test_handler_success(
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
-    mock_initialise_slack_messages.return_value = []
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -151,7 +151,7 @@ def test_handler_multiple_files(
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
-    mock_initialise_slack_messages.return_value = []
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -218,6 +218,7 @@ def test_handler_unexpected_error(
     mock_time.side_effect = [1000, 1001, 1002]
     mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.side_effect = Exception("Unexpected error")
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -366,7 +367,7 @@ def test_handler_unknown_event_type(
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
-    mock_initialise_slack_messages.return_value = []
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     unknown_event = {
         "Records": [

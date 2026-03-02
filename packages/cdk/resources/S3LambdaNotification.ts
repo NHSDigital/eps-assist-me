@@ -25,7 +25,7 @@ export class S3LambdaNotification extends Construct {
     const queue = new SimpleQueueService(this, `${props.stackName}-${queueName}`, {
       stackName: props.stackName,
       queueName: queueName,
-      batchDelay: 100,
+      batchDelay: 300, // 5 minutes
       functions: [
         props.functions.syncKnowledgeBaseFunction
       ]

@@ -220,12 +220,11 @@ def post_message(slack_client, channel_id: str, blocks: list, text_fallback: str
         return None
 
 
-def initialise_slack_messages(event_count: int) -> tuple:
+def initialise_slack_messages(event_count: int):
     """
     Send Slack notification summarizing the synchronization status
     """
     # Build blocks for Slack message
-    message = "*My knowledge base has been updated!*"
     blocks = [
         {
             "type": "section",
@@ -266,7 +265,12 @@ def initialise_slack_messages(event_count: int) -> tuple:
 
     responses = []
     for channel_id in target_channels:
-        response = post_message(slack_client=slack_client, channel_id=channel_id, blocks=blocks, text_fallback=message)
+        response = post_message(
+            slack_client=slack_client,
+            channel_id=channel_id,
+            blocks=blocks,
+            text_fallback="*My knowledge base has been updated!*",
+        )
         responses.append(response)
 
     logger.info("Broadcast complete.", extra={"responses": len(responses)})
@@ -279,6 +283,9 @@ def update_slack_message(slack_client, response, blocks):
     """
     channel_id = response["channel"]
     ts = response["ts"]
+
+    if slack_client is None:
+        return
 
     try:
         slack_client.chat_update(channel=channel_id, ts=ts, blocks=blocks)
@@ -429,7 +436,7 @@ def update_slack_files(slack_client, processed_files: list, messages: list, comp
         details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
         outputs = [f"Total files processed: {added + deleted}"]
 
-        if task:
+        if task and task["title"] == title:
             plan = update_slack_task(plan=plan, task=task, status=status, title=title, details=details, outputs=outputs)
         else:
             create_task(plan=plan, title=title, details=details, outputs=outputs)
@@ -460,7 +467,7 @@ def update_slack_complete(slack_client, messages):
         update_slack_message(slack_client, response, blocks)
 
 
-def update_slack_error(slack_client, messages, error):
+def update_slack_error(slack_client, messages):
     """
     Mark Slack Plan as errored
     """
@@ -554,7 +561,8 @@ def handler(event, context):
         processed_files = []  # Track successfully processed file keys
         job_ids = []  # Track started ingestion job IDs
 
-        slack_client, slack_messages = initialise_slack_messages(len(records))
+        slack_client = None
+        slack_messages = []
         skipped = 0
         # Process each S3 event record in the SQS batch
         for sqs_index, sqs_record in enumerate(records):
@@ -567,19 +575,27 @@ def handler(event, context):
                             "record_index": sqs_index + 1,
                         },
                     )
-                    update_slack_events(
-                        slack_client=slack_client, event_count=len(records) - skipped, messages=slack_messages
-                    )
+                    if slack_client:
+                        update_slack_events(
+                            slack_client=slack_client, event_count=len(records) - skipped, messages=slack_messages
+                        )
                     skipped += 1
                     continue
 
                 logger.info("Processing SQS record", extra={"record_index": sqs_index + 1})
                 results = process_sqs_record(sqs_record)
 
+                # Wait until something is processed before initialising as a conflict isn't checked until processing
+                # If it doesn't fail, post to chat(s)
+                if not slack_client:
+                    slack_client, slack_messages = initialise_slack_messages(len(records))
+
                 logger.info("Processed", extra={"processed": results})
                 processed_files.extend(results["processed_files"])
                 job_ids.extend(results["job_ids"])
 
+                # Update chat to show processed files
+                # If we've reached here, the chat must be initialised.
                 update_slack_files(
                     slack_client=slack_client,
                     processed_files=processed_files,
@@ -593,7 +609,9 @@ def handler(event, context):
 
         total_duration = time.time() - start_time
 
-        update_slack_complete(slack_client=slack_client, messages=slack_messages)
+        # Mark all tasks in Slack Plan to complete
+        if slack_client:
+            update_slack_complete(slack_client=slack_client, messages=slack_messages)
 
         logger.info(
             "Knowledge base sync process completed",
@@ -621,7 +639,7 @@ def handler(event, context):
 
     except Exception as e:
         # Handle unexpected errors
-        update_slack_error(slack_client=slack_client, messages=slack_messages, error=e)
+        update_slack_error(slack_client=slack_client, messages=slack_messages)
         logger.error(
             "Unexpected error occurred",
             extra={
