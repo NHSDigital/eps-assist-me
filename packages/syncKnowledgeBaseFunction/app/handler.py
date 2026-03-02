@@ -454,7 +454,7 @@ def update_slack_complete(slack_client, messages):
         plan = next((block for block in blocks if block["type"] == "plan"), None)
 
         plan["title"] = "Processing complete!"
-        for i, task in plan["tasks"]:
+        for i, task in enumerate(plan["tasks"]):
             task["status"] = "completed"
 
         update_slack_message(slack_client, response, blocks)
@@ -477,7 +477,7 @@ def update_slack_error(slack_client, messages, error):
         plan = next((block for block in blocks if block["type"] == "plan"), None)
 
         plan["title"] = "Processing complete!"
-        for i, task in plan["tasks"]:
+        for i, task in enumerate(plan["tasks"]):
             if i == len(plan["tasks"]) - 1:
                 task["status"] = "error"
             else:

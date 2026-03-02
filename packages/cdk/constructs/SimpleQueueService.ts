@@ -46,7 +46,7 @@ export class SimpleQueueService extends Construct {
         encryptionMasterKey: kmsKey,
         deadLetterQueue: {
           queue: deadLetterQueue,
-          maxReceiveCount: 3 // Move to DLQ after 3 failed attempts
+          maxReceiveCount: 1 // Move to DLQ after a failed attempt
         },
         deliveryDelay: Duration.seconds(0),
         visibilityTimeout: Duration.seconds(60),
