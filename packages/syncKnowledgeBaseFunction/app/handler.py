@@ -205,10 +205,14 @@ def post_message(slack_client, channel_id: str, blocks: list, text_fallback: str
     try:
         return slack_client.chat_postMessage(channel=channel_id, text=text_fallback, blocks=blocks)
     except SlackApiError as e:
-        logger.error(f"Error posting to {channel_id}: {str(e)}")
+        logger.error(
+            f"Error posting to {channel_id}: {str(e)}", extra={"blocks": blocks, "text_fallback": text_fallback}
+        )
         return None
     except Exception as e:
-        logger.error(f"Error posting to {channel_id}: {str(e)}")
+        logger.error(
+            f"Error posting to {channel_id}: {str(e)}", extra={"blocks": blocks, "text_fallback": text_fallback}
+        )
         return None
 
 
@@ -342,7 +346,7 @@ def create_task(
             ],
         },
         "output": {
-            "type:": "rich_text",
+            "type": "rich_text",
             "block_id": uuid.uuid4().hex,
             "elements": [
                 {"type": "rich_text_section", "elements": [{"type": "text", "text": output}]}
