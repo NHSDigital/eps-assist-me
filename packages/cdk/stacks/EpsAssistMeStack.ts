@@ -200,14 +200,13 @@ export class EpsAssistMeStack extends Stack {
       reformulationModelId: bedrockPromptResources.modelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
-      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy,
       docsBucketName: storage.kbDocsBucket.bucketName
     })
 
     // Grant preprocessing Lambda access to the KMS key for S3 bucket
     storage.kbDocsKmsKey.grantEncryptDecrypt(functions.preprocessingFunction.executionRole)
 
-    // Create S3LambdaNotification to link S3 and NotifyS3UploadFunction
+    // Create AWS Lambdas to link S3
     new S3LambdaNotification(this, "StorageNotificationQueue", {
       stackName: props.stackName,
       functions,
