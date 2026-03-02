@@ -128,7 +128,9 @@ export class Functions extends Construct {
       dependencyLocation: ".dependencies/syncKnowledgeBaseFunction",
       environmentVariables: {
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
-        "DATA_SOURCE_ID": props.dataSourceId
+        "DATA_SOURCE_ID": props.dataSourceId,
+        "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
+        "SLACK_BOT_ACTIVE_ON_PRS": "false"
       },
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
     })
