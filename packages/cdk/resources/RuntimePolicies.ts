@@ -21,7 +21,6 @@ export interface RuntimePoliciesProps {
 export class RuntimePolicies extends Construct {
   public readonly slackBotPolicy: ManagedPolicy
   public readonly syncKnowledgeBasePolicy: ManagedPolicy
-  public readonly notifyS3UploadFunctionPolicy: ManagedPolicy
   public readonly preprocessingPolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string, props: RuntimePoliciesProps) {
@@ -139,24 +138,6 @@ export class RuntimePolicies extends Construct {
     this.syncKnowledgeBasePolicy = new ManagedPolicy(this, "SyncKnowledgeBasePolicy", {
       description: "Policy for SyncKnowledgeBase Lambda to trigger ingestion jobs",
       statements: [syncKnowledgeBasePolicy]
-    })
-
-    // Create managed policy for S3UpdateNotification Lambda function
-    const notifyS3UploadFunctionPolicy = new PolicyStatement({
-      actions: [
-        "ssm:GetParameter",
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage"
-      ],
-      resources: [
-        props.knowledgeBaseArn,
-        ...slackBotPolicyResources
-      ]
-    })
-
-    this.notifyS3UploadFunctionPolicy = new ManagedPolicy(this, "notifyS3UploadFunctionPolicy", {
-      description: "Policy for S3UpdateNotification Lambda to access SSM parameters",
-      statements: [notifyS3UploadFunctionPolicy]
     })
 
     //policy for the preprocessing lambda

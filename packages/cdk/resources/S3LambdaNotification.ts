@@ -27,9 +27,6 @@ export class S3LambdaNotification extends Construct {
       queueName: queueName,
       batchDelay: 100,
       functions: [
-        // Temporarily only trigger sync, as only one can run at once on SQS
-        //    - if notifications is successful, sync won't run
-        // props.functions.notifyS3UploadFunction,
         props.functions.syncKnowledgeBaseFunction
       ]
     })

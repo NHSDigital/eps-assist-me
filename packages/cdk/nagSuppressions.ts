@@ -28,18 +28,6 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  // Suppress wildcard log permissions for NotifyS3UploadFunction Lambda
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/NotifyS3UploadFunction/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths."
-      }
-    ]
-  )
-
   // Suppress wildcard log permissions for Preprocessing Lambda
   safeAddNagSuppression(
     stack,
