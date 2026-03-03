@@ -105,6 +105,69 @@ def multiple_s3_event():
     }
 
 
+@pytest.fixture
+def slack_message_event():
+    return {
+        "channel": "test",
+        "ts": "123456",
+        "message": {
+            "blocks": [
+                {
+                    "type": "plan",
+                    "title": "Thinking completed",
+                    "tasks": [
+                        {
+                            "task_id": "call_001",
+                            "title": "Fetched user profile information",
+                            "status": "in_progress",
+                            "details": {
+                                "type": "rich_text",
+                                "block_id": "viMWO",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [{"type": "text", "text": "Searched database..."}],
+                                    }
+                                ],
+                            },
+                            "output": {
+                                "type": "rich_text",
+                                "block_id": "viMWO",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [{"type": "text", "text": "Profile data loaded"}],
+                                    }
+                                ],
+                            },
+                        },
+                        {
+                            "task_id": "call_002",
+                            "title": "Checked user permissions",
+                            "status": "pending",
+                        },
+                        {
+                            "task_id": "call_003",
+                            "title": "Generated comprehensive user report",
+                            "status": "complete",
+                            "output": {
+                                "type": "rich_text",
+                                "block_id": "crsk",
+                                "elements": [
+                                    {
+                                        "type": "rich_text_section",
+                                        "elements": [{"type": "text", "text": "15 data points compiled"}],
+                                    }
+                                ],
+                            },
+                        },
+                    ],
+                }
+            ],
+        },
+    }
+
+
 @patch("app.handler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("time.time")
@@ -408,3 +471,83 @@ def test_handler_unknown_event_type(
         dataSourceId="test-ds-id",
         description="Auto-sync triggered by S3 ObjectRestore:Completed on test-file.pdf",
     )
+
+
+@patch("app.handler.initialise_slack_messages")
+@patch("boto3.client")
+@patch("slack_sdk.WebClient")
+@patch("time.time")
+def test_slack_handler_success(
+    mock_time,
+    mock_slack_client,
+    mock_boto_client,
+    mock_initialise_slack_messages,
+    mock_env,
+    lambda_context,
+    s3_event,
+    slack_message_event,
+):
+    """Test successful handler execution"""
+    mock_time.side_effect = [1000, 1001, 1002, 1003]
+
+    # Slack
+    mock_instance = mock_slack_client.return_value
+    mock_instance.chat_update.return_value = {"ok": True}
+    mock_initialise_slack_messages.return_value = (mock_instance, [slack_message_event])
+
+    # Boto
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    from app.handler import handler
+
+    result = handler(s3_event, lambda_context)
+
+    assert result["statusCode"] == 200
+    assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
+    mock_instance.chat_update.call_count = 2
+
+
+@patch("app.handler.initialise_slack_messages")
+@patch("boto3.client")
+@patch("slack_sdk.WebClient")
+@patch("time.time")
+def test_slack_handler_success_multiple(
+    mock_time,
+    mock_slack_client,
+    mock_boto_client,
+    mock_initialise_slack_messages,
+    mock_env,
+    lambda_context,
+    s3_event,
+    slack_message_event,
+):
+    """
+    Test successful execution of slack messages.
+    Should not be any different then a single message
+    """
+    mock_time.side_effect = [1000, 1001, 1002, 1003]
+
+    # Slack
+    mock_instance = mock_slack_client.return_value
+    mock_instance.chat_update.return_value = {"ok": True}
+    mock_initialise_slack_messages.return_value = (
+        mock_instance,
+        [slack_message_event, slack_message_event, slack_message_event],
+    )
+
+    # Boto
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    from app.handler import handler
+
+    result = handler(s3_event, lambda_context)
+
+    assert result["statusCode"] == 200
+    assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
+    mock_instance.chat_update.call_count = 2

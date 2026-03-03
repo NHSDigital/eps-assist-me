@@ -162,7 +162,9 @@ def handle_client_error(e, start_time, slack_client, slack_messages):
             },
         )
 
-        update_slack_complete(slack_client=slack_client, messages=slack_messages)
+        update_slack_complete(
+            slack_client=slack_client, messages=slack_messages, feedback="Update already in progress."
+        )
         return {
             "statusCode": 409,
             "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
@@ -295,9 +297,11 @@ def update_slack_message(slack_client, response, blocks):
     ts = response["ts"]
 
     if slack_client is None:
+        logger.warning("No Slack client found, skipping update message")
         return
 
     try:
+        logger.info("Updating Slack channel")
         slack_client.chat_update(channel=channel_id, ts=ts, blocks=blocks)
     except SlackApiError as e:
         logger.error(f"Error updating message in {channel_id}: {str(e)}")
@@ -313,6 +317,7 @@ def update_slack_task(
     details=None,
     outputs=None,
 ):
+    logger.info("Updating Slack task")
     if not task:
         return plan
 
@@ -388,6 +393,7 @@ def update_slack_files(slack_client, processed_files: list, messages: list):
     Update the existing Slack message blocks with the count of processed files
     """
     if not messages:
+        logger.warning("No slack messages to update")
         return
 
     if not processed_files:
@@ -396,7 +402,7 @@ def update_slack_files(slack_client, processed_files: list, messages: list):
 
     logger.info(
         "Processing lack files Slack Notification",
-        extra={"processed_files": processed_files, "messages": messages, "complete": complete},
+        extra={"processed_files": processed_files, "messages": messages},
     )
     added = sum(1 for f in processed_files if f["event_type"] == "CREATE")
     deleted = sum(1 for f in processed_files if f["event_type"] == "DELETE")
@@ -404,30 +410,47 @@ def update_slack_files(slack_client, processed_files: list, messages: list):
 
     logger.info(f"Processed {added} added/updated and {deleted} deleted file(s).")
 
-    for response in messages:
-        if response is None:
-            continue
+    for i, response in enumerate(messages):
+        try:
+            if response is None:
+                logger.info(f"Skipping empty response ({i + 1})")
+                continue
 
-        # Update the event count in the plan block
-        blocks = response["message"]["blocks"]
-        plan = next((block for block in blocks if block["type"] == "plan"), None)
-        task = plan["tasks"][-1] if plan and "tasks" in plan and plan["tasks"] else None
+            # Update the event count in the plan block
+            blocks = response["message"]
+            blocks = response["message"]["blocks"]
+            plan = next((block for block in blocks if block["type"] == "plan"), None)
+            task = plan["tasks"][-1] if plan and "tasks" in plan and plan["tasks"] else None
 
-        # Task params
-        title = "Processing file changes"
-        status = "completed"
-        details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
-        outputs = [f"Total files processed: {added + deleted}" if skip else "No file changes"]
+            # Task params
+            logger.info("test 1")
+            title = "Processing file changes"
+            status = "completed"
+            details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
+            outputs = [f"Total files processed: {added + deleted}" if skip else "No file changes"]
 
-        if task and task["title"] == title:
-            plan = update_slack_task(plan=plan, task=task, status=status, title=title, details=details, outputs=outputs)
-        else:
-            create_task(plan=plan, title=title, details=details, outputs=outputs, status=status)
+            if task and task["title"] == title:
+                plan = update_slack_task(
+                    plan=plan, task=task, status=status, title=title, details=details, outputs=outputs
+                )
+            else:
+                create_task(plan=plan, title=title, details=details, outputs=outputs, status=status)
 
-        update_slack_message(slack_client=slack_client, response=response, blocks=blocks)
+            update_slack_message(slack_client=slack_client, response=response, blocks=blocks)
+        except Exception as e:
+            logger.error(
+                "Unexpected error occurred updating Slack message",
+                extra={
+                    "status_code": 500,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "error": traceback.format_exc(),
+                    "e": e,
+                },
+            )
 
 
-def update_slack_complete(slack_client, messages):
+def update_slack_complete(slack_client, messages, feedback: None):
     """
     Mark Slack Plan as complete
     """
@@ -436,18 +459,30 @@ def update_slack_complete(slack_client, messages):
         return
 
     for response in messages:
-        if response is None:
-            continue
+        try:
+            if response is None:
+                continue
 
-        # Update the event count in the plan block
-        blocks = response["message"]["blocks"]
-        plan = next((block for block in blocks if block["type"] == "plan"), None)
+            # Update the event count in the plan block
+            blocks = response["message"]["blocks"]
+            plan = next((block for block in blocks if block["type"] == "plan"), None)
 
-        plan["title"] = "Processing complete!"
-        for i, task in enumerate(plan["tasks"]):
-            task["status"] = "complete"
+            plan["title"] = feedback if feedback else "Processing complete!"
+            for i, task in enumerate(plan["tasks"]):
+                task["status"] = "complete"
 
-        update_slack_message(slack_client, response, blocks)
+            update_slack_message(slack_client, response, blocks)
+        except Exception as e:
+            logger.error(
+                "Unexpected error occurred completing Slack message",
+                extra={
+                    "status_code": 500,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "error": traceback.format_exc(),
+                    "e": e,
+                },
+            )
 
 
 def update_slack_error(slack_client, messages):
@@ -459,21 +494,33 @@ def update_slack_error(slack_client, messages):
         return
 
     for response in messages:
-        if response is None:
-            continue
+        try:
+            if response is None:
+                continue
 
-        # Update the event count in the plan block
-        blocks = response["message"]["blocks"]
-        plan = next((block for block in blocks if block["type"] == "plan"), None)
+            # Update the event count in the plan block
+            blocks = response["message"]["blocks"]
+            plan = next((block for block in blocks if block["type"] == "plan"), None)
 
-        plan["title"] = "Processing complete!"
-        for i, task in enumerate(plan["tasks"]):
-            if i == len(plan["tasks"]) - 1:
-                task["status"] = "error"
-            else:
-                task["status"] = "complete"
+            plan["title"] = "Processing complete!"
+            for i, task in enumerate(plan["tasks"]):
+                if i == len(plan["tasks"]) - 1:
+                    task["status"] = "error"
+                else:
+                    task["status"] = "complete"
 
-        update_slack_message(slack_client, response, blocks)
+            update_slack_message(slack_client, response, blocks)
+        except Exception as e:
+            logger.error(
+                "Unexpected error occurred posting Slack error status update",
+                extra={
+                    "status_code": 500,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "error": traceback.format_exc(),
+                    "e": e,
+                },
+            )
 
 
 def process_sqs_record(s3_records):
@@ -481,7 +528,6 @@ def process_sqs_record(s3_records):
     Process a single Simple Queue Service record and prepare processing
     of a S3 record.
     """
-    logger.info("process_sqs_record s3_records")
     processed_files = []  # Track successfully processed file keys
     job_ids = []  # Track started ingestion job IDs
 
@@ -547,6 +593,9 @@ def handler(event, context):
         logger.info("initialise")
         slack_client, slack_messages = initialise_slack_messages(len(records))
 
+        logger.info("\n -- slack_messages")
+        logger.info(json.dumps(slack_messages))
+
         # Process each S3 event record in the SQS batch
         for sqs_index, sqs_record in enumerate(records):
             try:
@@ -569,20 +618,20 @@ def handler(event, context):
 
         if not s3_records:
             logger.info("No valid S3 records to process", extra={"s3_records": len(records)})
+        else:
+            logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
+            results = process_sqs_record(s3_records)
 
-        logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
-        results = process_sqs_record(s3_records)
+            processed_files.extend(results["processed_files"])
+            job_ids.extend(results["job_ids"])
 
-        processed_files.extend(results["processed_files"])
-        job_ids.extend(results["job_ids"])
-
-        # Update file messages (N removed, N added, etc)
-        update_slack_files(slack_client=slack_client, processed_files=processed_files, messages=slack_messages)
+            # Update file messages (N removed, N added, etc)
+            update_slack_files(slack_client=slack_client, processed_files=processed_files, messages=slack_messages)
 
         total_duration = time.time() - start_time
 
         # Make sure all tasks are marked as complete in the Slack Plan
-        update_slack_complete(slack_client=slack_client, messages=slack_messages)
+        update_slack_complete(slack_client=slack_client, messages=slack_messages, feedback=None)
 
         logger.info(
             "Knowledge base sync process completed",
