@@ -168,8 +168,8 @@ def handle_client_error(e, start_time, slack_client, slack_messages):
             "body": "Files uploaded successfully - processing by existing ingestion job (no action required)",
         }
     else:
-
         update_slack_error(slack_client=slack_client, messages=slack_messages)
+
         # Handle other AWS service errors
         logger.error(
             "AWS service error occurred",
@@ -224,57 +224,67 @@ def initialise_slack_messages(event_count: int):
     """
     Send Slack notification summarizing the synchronization status
     """
-    # Build blocks for Slack message
-    blocks = [
-        {
-            "type": "section",
-            "text": {
-                "type": "plain_text",
-                "text": "I am currently syncing changes to my knowledge base.\n This may take a few minutes.",
+    default_response = (None, [])
+    try:
+        # Build blocks for Slack message
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "plain_text",
+                    "text": "I am currently syncing changes to my knowledge base.\n This may take a few minutes.",
+                },
             },
-        },
-        {
-            "type": "plan",
-            "plan_id": "plan_1",
-            "title": "Fetching changes...",
-            "tasks": [create_task(title="Fetching changes", details=[], outputs=[f"Found {event_count} event(s)"])],
-        },
-        {
-            "type": "context",
-            "elements": [{"type": "plain_text", "text": "Please wait up-to 10 minutes for changes to take effect"}],
-        },
-    ]
+            {
+                "type": "plan",
+                "plan_id": "plan_1",
+                "title": "Fetching changes...",
+                "tasks": [create_task(title="Fetching changes", details=[], outputs=[f"Found {event_count} event(s)"])],
+            },
+            {
+                "type": "context",
+                "elements": [{"type": "plain_text", "text": "Please wait up-to 10 minutes for changes to take effect"}],
+            },
+        ]
 
-    # Create new client
-    token = get_bot_token()
-    slack_client = WebClient(token=token)
-    response = slack_client.auth_test()
+        # Create new client
+        token = get_bot_token()
+        slack_client = WebClient(token=token)
+        response = slack_client.auth_test()
 
-    logger.info(f"Authenticated as bot user: {response.get('user_id', 'unknown')}", extra={"response": response})
+        logger.info(f"Authenticated as bot user: {response.get('user_id', 'unknown')}", extra={"response": response})
 
-    # Get Channels where the Bot is a member
-    logger.info("Find bot channels...")
-    target_channels = get_bot_channels(slack_client)
+        # Get Channels where the Bot is a member
+        logger.info("Find bot channels...")
+        target_channels = get_bot_channels(slack_client)
 
-    if not target_channels:
-        logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
-        return slack_client, []
+        if not target_channels:
+            logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
+            return default_response
 
-    # Broadcast Loop
-    logger.info(f"Broadcasting to {len(target_channels)} channels...")
+        # Broadcast Loop
+        logger.info(f"Broadcasting to {len(target_channels)} channels...")
 
-    responses = []
-    for channel_id in target_channels:
-        response = post_message(
-            slack_client=slack_client,
-            channel_id=channel_id,
-            blocks=blocks,
-            text_fallback="*My knowledge base has been updated!*",
-        )
-        responses.append(response)
+        responses = []
+        for channel_id in target_channels:
+            try:
+                response = post_message(
+                    slack_client=slack_client,
+                    channel_id=channel_id,
+                    blocks=blocks,
+                    text_fallback="*My knowledge base has been updated!*",
+                )
+                responses.append(response)
+            except Exception as e:
+                logger.error(f"Failed to initialise slack message for channel: {channel_id}", extra={"exception": e})
+                continue
 
-    logger.info("Broadcast complete.", extra={"responses": len(responses)})
-    return slack_client, responses
+        logger.info("Broadcast complete.", extra={"responses": len(responses)})
+        return slack_client, responses
+
+    except Exception as e:
+        logger.error(f"Failed to initialise slack messages: {str(e)}")
+        return default_response
 
 
 def update_slack_message(slack_client, response, blocks):
@@ -339,7 +349,7 @@ def create_task(
     plan=None,
     details=None,
     outputs=None,
-    status: Literal["in_progress", "completed"] = "in_progress",
+    status: Literal["in_progress", "complete"] = "in_progress",
 ):
     """
     Helper function to create a task object for the plan block
@@ -373,35 +383,7 @@ def create_task(
     return task
 
 
-def update_slack_events(slack_client, event_count: int, messages: list):
-    """
-    Update the event count in the existing Slack message blocks
-    """
-    if not messages:
-        logger.warning("No existing Slack messages to update event count.")
-        return
-
-    for response in messages:
-        if response is None:
-            continue
-
-        # Update the event count in the plan block
-        blocks = response["message"]["blocks"]
-        plan = next((block for block in blocks if block["type"] == "plan"), None)
-        task = plan["tasks"][-1] if (plan and "tasks" in plan and plan["tasks"]) else None
-
-        title = "Fetching changes"
-        outputs = [f"Found {event_count} event(s)"]
-
-        if task:
-            plan = update_slack_task(plan=plan, task=task, title=title, outputs=outputs)
-        else:
-            create_task(plan=plan, title=title, outputs=outputs)
-
-        update_slack_message(slack_client, response, blocks)
-
-
-def update_slack_files(slack_client, processed_files: list, messages: list, complete=False):
+def update_slack_files(slack_client, processed_files: list, messages: list):
     """
     Update the existing Slack message blocks with the count of processed files
     """
@@ -418,6 +400,7 @@ def update_slack_files(slack_client, processed_files: list, messages: list, comp
     )
     added = sum(1 for f in processed_files if f["event_type"] == "CREATE")
     deleted = sum(1 for f in processed_files if f["event_type"] == "DELETE")
+    skip = (added + deleted) == 0
 
     logger.info(f"Processed {added} added/updated and {deleted} deleted file(s).")
 
@@ -432,14 +415,14 @@ def update_slack_files(slack_client, processed_files: list, messages: list, comp
 
         # Task params
         title = "Processing file changes"
-        status = "completed" if complete else "in_progress"
+        status = "completed"
         details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
-        outputs = [f"Total files processed: {added + deleted}"]
+        outputs = [f"Total files processed: {added + deleted}" if skip else "No file changes"]
 
         if task and task["title"] == title:
             plan = update_slack_task(plan=plan, task=task, status=status, title=title, details=details, outputs=outputs)
         else:
-            create_task(plan=plan, title=title, details=details, outputs=outputs)
+            create_task(plan=plan, title=title, details=details, outputs=outputs, status=status)
 
         update_slack_message(slack_client=slack_client, response=response, blocks=blocks)
 
@@ -493,17 +476,14 @@ def update_slack_error(slack_client, messages):
         update_slack_message(slack_client, response, blocks)
 
 
-def process_sqs_record(s3_record):
+def process_sqs_record(s3_records):
     """
     Process a single Simple Queue Service record and prepare processing
     of a S3 record.
     """
+    logger.info("process_sqs_record s3_records")
     processed_files = []  # Track successfully processed file keys
     job_ids = []  # Track started ingestion job IDs
-
-    body = json.loads(s3_record.get("body", "{}"))
-
-    s3_records = body.get("Records", [])
 
     if not s3_records:
         logger.warning("Skipping SQS event - no S3 events found.")
@@ -556,14 +536,17 @@ def handler(event, context):
         },
     )
 
+    slack_client = None
+    slack_messages = []
     try:
         records = event.get("Records", [])
         processed_files = []  # Track successfully processed file keys
         job_ids = []  # Track started ingestion job IDs
+        s3_records = []  # Track completed ingestion items
 
-        slack_client = None
-        slack_messages = []
-        skipped = 0
+        logger.info("initialise")
+        slack_client, slack_messages = initialise_slack_messages(len(records))
+
         # Process each S3 event record in the SQS batch
         for sqs_index, sqs_record in enumerate(records):
             try:
@@ -575,43 +558,31 @@ def handler(event, context):
                             "record_index": sqs_index + 1,
                         },
                     )
-                    if slack_client:
-                        update_slack_events(
-                            slack_client=slack_client, event_count=len(records) - skipped, messages=slack_messages
-                        )
-                    skipped += 1
                     continue
 
-                logger.info("Processing SQS record", extra={"record_index": sqs_index + 1})
-                results = process_sqs_record(sqs_record)
-
-                # Wait until something is processed before initialising as a conflict isn't checked until processing
-                # If it doesn't fail, post to chat(s)
-                if not slack_client:
-                    slack_client, slack_messages = initialise_slack_messages(len(records))
-
-                logger.info("Processed", extra={"processed": results})
-                processed_files.extend(results["processed_files"])
-                job_ids.extend(results["job_ids"])
-
-                # Update chat to show processed files
-                # If we've reached here, the chat must be initialised.
-                update_slack_files(
-                    slack_client=slack_client,
-                    processed_files=processed_files,
-                    messages=slack_messages,
-                    complete=(sqs_index == len(records) - 1),
-                )
+                body = json.loads(sqs_record.get("body", "{}"))
+                s3_records += body.get("Records", [])
 
             except (json.JSONDecodeError, KeyError) as e:
                 logger.error(f"Failed to parse SQS body: {str(e)}")
                 continue
 
+        if not s3_records:
+            logger.info("No valid S3 records to process", extra={"s3_records": len(records)})
+
+        logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
+        results = process_sqs_record(s3_records)
+
+        processed_files.extend(results["processed_files"])
+        job_ids.extend(results["job_ids"])
+
+        # Update file messages (N removed, N added, etc)
+        update_slack_files(slack_client=slack_client, processed_files=processed_files, messages=slack_messages)
+
         total_duration = time.time() - start_time
 
-        # Mark all tasks in Slack Plan to complete
-        if slack_client:
-            update_slack_complete(slack_client=slack_client, messages=slack_messages)
+        # Make sure all tasks are marked as complete in the Slack Plan
+        update_slack_complete(slack_client=slack_client, messages=slack_messages)
 
         logger.info(
             "Knowledge base sync process completed",

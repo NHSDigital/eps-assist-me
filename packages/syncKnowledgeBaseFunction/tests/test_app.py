@@ -166,7 +166,7 @@ def test_handler_multiple_files(
 @patch("boto3.client")
 @patch("time.time")
 def test_handler_conflict_exception(
-    mock_time, mock_boto_client, start_ingestion_job, mock_env, lambda_context, s3_event
+    mock_time, mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context, s3_event
 ):
     """Test handler with ConflictException (job already running)"""
     mock_time.side_effect = [1000, 1001, 1002]
@@ -176,6 +176,7 @@ def test_handler_conflict_exception(
     )
     mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.side_effect = error
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -199,6 +200,7 @@ def test_handler_aws_error(
     )
     mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.side_effect = error
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -242,7 +244,7 @@ def test_handler_missing_env_vars(lambda_context, s3_event):
 
 @patch("app.handler.initialise_slack_messages")
 @patch("boto3.client")
-def test_handler_invalid_s3_record(mock_initialise_slack_messages, mock_boto_client, mock_env, lambda_context):
+def test_handler_invalid_s3_record(mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context):
     """Test handler with invalid S3 record"""
     invalid_event = {
         "Records": [
@@ -256,6 +258,7 @@ def test_handler_invalid_s3_record(mock_initialise_slack_messages, mock_boto_cli
             }
         ]
     }
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -277,6 +280,7 @@ def test_handler_non_s3_event(mock_boto_client, mock_initialise_slack_messages, 
             }
         ]
     }
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -291,6 +295,7 @@ def test_handler_non_s3_event(mock_boto_client, mock_initialise_slack_messages, 
 def test_handler_empty_records(mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context):
     """Test handler with empty records"""
     empty_event = {"Records": []}
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
@@ -346,6 +351,7 @@ def test_handler_unsupported_file_type(mock_boto_client, mock_initialise_slack_m
             }
         ]
     }
+    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     from app.handler import handler
 
