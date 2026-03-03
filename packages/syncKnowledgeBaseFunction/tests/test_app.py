@@ -547,3 +547,46 @@ def test_slack_handler_success_multiple(
     assert result["statusCode"] == 200
     assert "Successfully triggered ingestion job for 1 trigger file(s)" in result["body"]
     mock_instance.chat_update.call_count = 2
+
+
+@patch("app.handler.initialise_slack_messages")
+@patch("boto3.client")
+@patch("slack_sdk.WebClient")
+@patch("time.time")
+def test_slack_handler_client_failure(
+    mock_time,
+    mock_slack_client,
+    mock_boto_client,
+    mock_initialise_slack_messages,
+    mock_env,
+    lambda_context,
+    s3_event,
+    slack_message_event,
+):
+    """
+    Test successful execution of slack messages.
+    If a post fails to send, it shouldn't stop the rest of the items in the queue
+    """
+    mock_time.side_effect = [1000, 1001, 1002, 1003]
+
+    # Slack
+    mock_instance = mock_slack_client.return_value
+    mock_instance.chat_update.return_value = {"ok": False}
+    mock_initialise_slack_messages.return_value = (
+        mock_instance,
+        [slack_message_event, slack_message_event, slack_message_event],
+    )
+
+    # Boto
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    from app.handler import handler
+
+    result = handler(s3_event, lambda_context)
+
+    assert result["statusCode"] == 200
+    assert "Successfully triggered ingestion job for 1 trigger file(s)" in result["body"]
+    mock_instance.chat_update.call_count = 2

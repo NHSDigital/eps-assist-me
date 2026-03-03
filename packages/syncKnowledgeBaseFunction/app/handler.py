@@ -275,6 +275,8 @@ def initialise_slack_messages(event_count: int):
                     text_fallback="*My knowledge base has been updated!*",
                 )
                 responses.append(response)
+                if response["ok"] is not True:
+                    logger.error("Error initialising Slack Message.", extra={"response": response})
             except Exception as e:
                 logger.error(f"Failed to initialise slack message for channel: {channel_id}", extra={"exception": e})
                 continue
@@ -296,11 +298,11 @@ def update_slack_message(slack_client, response, blocks):
 
     if slack_client is None:
         logger.warning("No Slack client found, skipping update message")
-        return
 
     try:
         logger.info("Updating Slack channel")
-        slack_client.chat_update(channel=channel_id, ts=ts, blocks=blocks)
+        result = slack_client.chat_update(channel=channel_id, ts=ts, blocks=blocks)
+        logger.error("Error updating Slack Message.", extra={"response": result})
     except SlackApiError as e:
         logger.error(f"Error updating message in {channel_id}: {str(e)}")
     except Exception as e:
@@ -392,11 +394,9 @@ def update_slack_files(slack_client, created_files: list[str], deleted_files: li
     """
     if not messages:
         logger.warning("No slack messages to update")
-        return
 
     if not created_files and not deleted_files:
         logger.warning("No processed files to update in Slack messages.")
-        return
 
     logger.info(
         "Processing lack files Slack Notification",
@@ -424,7 +424,7 @@ def update_slack_files(slack_client, created_files: list[str], deleted_files: li
             title = "Processing file changes"
             status = "completed"
             details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
-            outputs = [f"Total files processed: {added + deleted}" if skip else "No file changes"]
+            outputs = [f"Total files processed: {added + deleted}" if not skip else "No file changes"]
 
             if task and task["title"] == title:
                 plan = update_slack_task(
@@ -453,7 +453,6 @@ def update_slack_complete(slack_client, messages, feedback: None):
     """
     if not messages:
         logger.warning("No existing Slack messages to update event count.")
-        return
 
     for response in messages:
         try:
@@ -488,7 +487,6 @@ def update_slack_error(slack_client, messages):
     """
     if not messages:
         logger.warning("No existing Slack messages to update event count.")
-        return
 
     for response in messages:
         try:

@@ -12,6 +12,10 @@ export interface SimpleQueueServiceProps {
   readonly functions: Array<LambdaFunction>
 }
 
+/**
+ * AWS Simple Queue Service
+ * @see {@link https://aws.amazon.com/sqs/}
+ */
 export class SimpleQueueService extends Construct {
   public queue: Queue
   public deadLetterQueue: Queue
@@ -49,7 +53,6 @@ export class SimpleQueueService extends Construct {
           maxReceiveCount: 1 // Move to DLQ after a failed attempt
         },
         deliveryDelay: Duration.seconds(0),
-        visibilityTimeout: Duration.seconds(60),
         enforceSSL: true
       }
     )

@@ -6,6 +6,7 @@ import {Storage} from "./Storage"
 import {Effect, PolicyStatement, ServicePrincipal} from "aws-cdk-lib/aws-iam"
 import {EventType} from "aws-cdk-lib/aws-s3"
 import {LambdaDestination, SqsDestination} from "aws-cdk-lib/aws-s3-notifications"
+import {Duration} from "aws-cdk-lib"
 
 export interface S3LambdaNotificationProps {
   readonly stackName: string
@@ -25,7 +26,7 @@ export class S3LambdaNotification extends Construct {
     const queue = new SimpleQueueService(this, `${props.stackName}-${queueName}`, {
       stackName: props.stackName,
       queueName: queueName,
-      batchDelay: 300, // 5 minutes
+      batchDelay: Duration.minutes(10).toSeconds(),
       functions: [
         props.functions.syncKnowledgeBaseFunction
       ]
