@@ -423,7 +423,6 @@ def update_slack_files(slack_client, processed_files: list, messages: list):
             task = plan["tasks"][-1] if plan and "tasks" in plan and plan["tasks"] else None
 
             # Task params
-            logger.info("test 1")
             title = "Processing file changes"
             status = "completed"
             details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
@@ -590,11 +589,7 @@ def handler(event, context):
         job_ids = []  # Track started ingestion job IDs
         s3_records = []  # Track completed ingestion items
 
-        logger.info("initialise")
         slack_client, slack_messages = initialise_slack_messages(len(records))
-
-        logger.info("\n -- slack_messages")
-        logger.info(json.dumps(slack_messages))
 
         # Process each S3 event record in the SQS batch
         for sqs_index, sqs_record in enumerate(records):
