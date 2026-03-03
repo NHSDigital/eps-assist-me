@@ -187,12 +187,12 @@ def test_handler_success(
     result = handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
+    assert "Successfully triggered ingestion job for 1 trigger file(s)" in result["body"]
     mock_boto_client.assert_called_with("bedrock-agent")
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="Auto-sync: File added/updated (test-file.pdf) - Adding to vector index",
+        description="Auto-sync:\nFiles added/updated (1)",
     )
 
 
@@ -221,8 +221,8 @@ def test_handler_multiple_files(
     result = handler(multiple_s3_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 2 ingestion job(s) for 2 trigger file(s)" in result["body"]
-    assert mock_bedrock.start_ingestion_job.call_count == 2
+    assert "Successfully triggered ingestion job for 2 trigger file(s)" in result["body"]
+    assert mock_bedrock.start_ingestion_job.call_count == 1
 
 
 @patch("app.handler.initialise_slack_messages")
@@ -328,7 +328,7 @@ def test_handler_invalid_s3_record(mock_boto_client, mock_initialise_slack_messa
     result = handler(invalid_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
+    assert "Successfully triggered ingestion job for 0 trigger file(s)" in result["body"]
 
 
 @patch("app.handler.initialise_slack_messages")
@@ -350,7 +350,7 @@ def test_handler_non_s3_event(mock_boto_client, mock_initialise_slack_messages, 
     result = handler(non_s3_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
+    assert "Successfully triggered ingestion job for 0 trigger file(s)" in result["body"]
 
 
 @patch("app.handler.initialise_slack_messages")
@@ -365,7 +365,7 @@ def test_handler_empty_records(mock_boto_client, mock_initialise_slack_messages,
     result = handler(empty_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
+    assert "Successfully triggered ingestion job for 0 trigger file(s)" in result["body"]
 
 
 @pytest.mark.parametrize(
@@ -421,7 +421,7 @@ def test_handler_unsupported_file_type(mock_boto_client, mock_initialise_slack_m
     result = handler(unsupported_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 0 ingestion job(s) for 0 trigger file(s)" in result["body"]
+    assert "Successfully triggered ingestion job for 0 trigger file(s)" in result["body"]
 
 
 @patch("app.handler.initialise_slack_messages")
@@ -464,13 +464,9 @@ def test_handler_unknown_event_type(
 
     result = handler(unknown_event, lambda_context)
 
-    assert result["statusCode"] == 200
-    assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
-    mock_bedrock.start_ingestion_job.assert_called_once_with(
-        knowledgeBaseId="test-kb-id",
-        dataSourceId="test-ds-id",
-        description="Auto-sync triggered by S3 ObjectRestore:Completed on test-file.pdf",
-    )
+    assert result["statusCode"] == 500
+    assert "Could not start sync process" in result["body"]
+    mock_bedrock.start_ingestion_job.assert_not_called()
 
 
 @patch("app.handler.initialise_slack_messages")
@@ -506,7 +502,7 @@ def test_slack_handler_success(
     result = handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
+    assert "Successfully triggered ingestion job for 1 trigger file(s)" in result["body"]
     mock_instance.chat_update.call_count = 2
 
 
@@ -549,5 +545,5 @@ def test_slack_handler_success_multiple(
     result = handler(s3_event, lambda_context)
 
     assert result["statusCode"] == 200
-    assert "Successfully triggered 1 ingestion job(s) for 1 trigger file(s)" in result["body"]
+    assert "Successfully triggered ingestion job for 1 trigger file(s)" in result["body"]
     mock_instance.chat_update.call_count = 2

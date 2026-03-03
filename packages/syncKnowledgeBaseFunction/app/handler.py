@@ -27,70 +27,77 @@ def is_supported_file_type(file_key):
     return any(file_key.lower().endswith(ext) for ext in SUPPORTED_FILE_TYPES)
 
 
-def process_s3_record(record, record_index):
+def process_s3_records(records) -> tuple[bool, str, list, list]:
     """
-    Process a single S3 record and start ingestion job if valid
+    Process a S3 records, a single record can not be synced - the whole drive will be synced
+    Files will be filtered by the knowledge base.
 
     Validates S3 record structure, checks file type support, and triggers
     Bedrock Knowledge Base ingestion for supported documents.
     """
-    # Extract S3 event details
-    s3_info = record.get("s3", {})
-    bucket_name = s3_info.get("bucket", {}).get("name")
-    object_key = s3_info.get("object", {}).get("key")
 
-    # Skip malformed S3 records
-    if not bucket_name or not object_key:
-        logger.warning(
-            "Skipping invalid S3 record",
-            extra={
-                "record_index": record_index + 1,
-                "has_bucket": bool(bucket_name),
-                "has_object_key": bool(object_key),
-            },
-        )
-        return False, None, None
+    created = []
+    deleted = []
+    # Validate if the sync should occur by checking if any files are valid
+    for i, record in enumerate(records):
+        # Extract S3 event details
+        s3_info = record.get("s3", {})
+        bucket_name = s3_info.get("bucket", {}).get("name")
+        object_key = s3_info.get("object", {}).get("key")
 
-    # Skip unsupported file types to avoid unnecessary processing
-    if not is_supported_file_type(object_key):
+        # Skip malformed S3 records
+        if not bucket_name or not object_key:
+            logger.warning(
+                "Skipping invalid S3 record",
+                extra={
+                    "record_index": i + 1,
+                    "has_bucket": bool(bucket_name),
+                    "has_object_key": bool(object_key),
+                },
+            )
+            continue
+
+        # Skip unsupported file types to avoid unnecessary processing
+        if not is_supported_file_type(object_key):
+            logger.info(
+                "Skipping unsupported file type",
+                extra={
+                    "file_key": object_key,
+                    "supported_types": list(SUPPORTED_FILE_TYPES),
+                    "record_index": i + 1,
+                },
+            )
+            continue
+
+        # Extract additional event metadata for logging
+        event_name = record["eventName"]
+        object_size = s3_info.get("object", {}).get("size", "unknown")
+
+        # Determine event type for proper handling
+        is_delete_event = event_name.startswith("ObjectRemoved")
+        is_create_event = event_name.startswith("ObjectCreated")
+        is_update_event = event_name.startswith("ObjectModified")
+
         logger.info(
-            "Skipping unsupported file type",
+            "Found valid S3 event for processing",
             extra={
-                "file_key": object_key,
-                "supported_types": list(SUPPORTED_FILE_TYPES),
-                "record_index": record_index + 1,
+                "event_name": event_name,
+                "bucket": bucket_name,
+                "key": object_key,
+                "object_size_bytes": object_size,
+                "record_index": i + 1,
             },
         )
-        return False, None, None
 
-    # Extract additional event metadata for logging
-    event_name = record["eventName"]
-    object_size = s3_info.get("object", {}).get("size", "unknown")
+        # Determine event type based on S3 event name
+        if is_delete_event:
+            deleted.append(object_key)
+        elif is_create_event or is_update_event:
+            created.append(object_key)
 
-    # Determine event type for proper handling
-    is_delete_event = event_name.startswith("ObjectRemoved")
-    is_create_event = event_name.startswith("ObjectCreated")
-
-    # Determine event type based on S3 event name
-    if is_delete_event:
-        event_type = "DELETE"
-    elif is_create_event:
-        event_type = "CREATE"
-    else:
-        event_type = "OTHER"
-
-    logger.info(
-        "Processing S3 event",
-        extra={
-            "event_name": event_name,
-            "event_type": event_type,
-            "bucket": bucket_name,
-            "key": object_key,
-            "object_size_bytes": object_size,
-            "is_delete_event": is_delete_event,
-            "record_index": record_index + 1,
-        },
-    )
+    # If we have at-least 1 valid file, start the sync process
+    if not created and not deleted:
+        return False, None, [], []
 
     # Start Bedrock ingestion job (processes ALL files in data source)
     # For delete events, this re-ingests remaining files and removes deleted ones from vector index
@@ -98,12 +105,11 @@ def process_s3_record(record, record_index):
     bedrock_agent = boto3.client("bedrock-agent")
 
     # Create descriptive message based on event type
+    description = "Auto-sync:"
     if is_delete_event:
-        description = f"Auto-sync: File deleted ({object_key}) - Re-ingesting to remove from vector index"
-    elif is_create_event:
-        description = f"Auto-sync: File added/updated ({object_key}) - Adding to vector index"
-    else:
-        description = f"Auto-sync triggered by S3 {event_name} on {object_key}"
+        description += f"\nFiles deleted ({len(deleted)})"
+    if is_create_event:
+        description += f"\nFiles added/updated ({len(created)})"
 
     response = bedrock_agent.start_ingestion_job(
         knowledgeBaseId=KNOWLEDGEBASE_ID,
@@ -116,12 +122,6 @@ def process_s3_record(record, record_index):
     job_id = response["ingestionJob"]["ingestionJobId"]
     job_status = response["ingestionJob"]["status"]
 
-    note = "Job processes all files in data source, not just trigger file"
-    if is_delete_event:
-        note += " - Deleted files will be removed from vector index"
-    elif is_create_event:
-        note += " - New/updated files will be added to vector index"
-
     logger.info(
         "Successfully started ingestion job",
         extra={
@@ -129,14 +129,12 @@ def process_s3_record(record, record_index):
             "job_status": job_status,
             "knowledge_base_id": KNOWLEDGEBASE_ID,
             "trigger_file": object_key,
-            "event_type": event_type,
-            "is_delete_event": is_delete_event,
             "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
-            "note": note,
+            "description": description,
         },
     )
 
-    return True, object_key, job_id, event_type
+    return True, job_id, created, deleted
 
 
 def handle_client_error(e, start_time, slack_client, slack_messages):
@@ -388,7 +386,7 @@ def create_task(
     return task
 
 
-def update_slack_files(slack_client, processed_files: list, messages: list):
+def update_slack_files(slack_client, created_files: list[str], deleted_files: list[str], messages: list):
     """
     Update the existing Slack message blocks with the count of processed files
     """
@@ -396,16 +394,16 @@ def update_slack_files(slack_client, processed_files: list, messages: list):
         logger.warning("No slack messages to update")
         return
 
-    if not processed_files:
+    if not created_files and not deleted_files:
         logger.warning("No processed files to update in Slack messages.")
         return
 
     logger.info(
         "Processing lack files Slack Notification",
-        extra={"processed_files": processed_files, "messages": messages},
+        extra={"created_files": created_files, "deleted_files": deleted_files, "messages": messages},
     )
-    added = sum(1 for f in processed_files if f["event_type"] == "CREATE")
-    deleted = sum(1 for f in processed_files if f["event_type"] == "DELETE")
+    added = len(created_files)
+    deleted = len(deleted_files)
     skip = (added + deleted) == 0
 
     logger.info(f"Processed {added} added/updated and {deleted} deleted file(s).")
@@ -522,38 +520,6 @@ def update_slack_error(slack_client, messages):
             )
 
 
-def process_sqs_record(s3_records):
-    """
-    Process a single Simple Queue Service record and prepare processing
-    of a S3 record.
-    """
-    processed_files = []  # Track successfully processed file keys
-    job_ids = []  # Track started ingestion job IDs
-
-    if not s3_records:
-        logger.warning("Skipping SQS event - no S3 events found.")
-        return {"processed_files": [], "job_ids": []}
-
-    for s3_index, s3_record in enumerate(s3_records):
-        if s3_record.get("eventSource") == "aws:s3":
-            # Process S3 event and start ingestion if valid
-            success, file_key, job_id, event_type = process_s3_record(s3_record, s3_index)
-            if success:
-                processed_files.append({"file_key": file_key, "event_type": event_type})
-                job_ids.append(job_id)
-        else:
-            # Skip non-S3 events
-            logger.warning(
-                "Skipping non-S3 event",
-                extra={
-                    "event_source": s3_record.get("eventSource"),
-                    "record_index": s3_index + 1,
-                },
-            )
-
-    return {"processed_files": processed_files, "job_ids": job_ids}
-
-
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
     """
@@ -584,12 +550,11 @@ def handler(event, context):
     slack_client = None
     slack_messages = []
     try:
+        # Get events and update user channels
         records = event.get("Records", [])
-        processed_files = []  # Track successfully processed file keys
-        job_ids = []  # Track started ingestion job IDs
-        s3_records = []  # Track completed ingestion items
-
         slack_client, slack_messages = initialise_slack_messages(len(records))
+
+        s3_records = []  # Track completed ingestion items
 
         # Process each S3 event record in the SQS batch
         for sqs_index, sqs_record in enumerate(records):
@@ -611,18 +576,34 @@ def handler(event, context):
                 logger.error(f"Failed to parse SQS body: {str(e)}")
                 continue
 
+        # Check if the events are valid, and start syncing if so
+        # Don't stop if not, let the lambda handle it.
+        job_id = ""
+        created = []
+        deleted = []
+
         if not s3_records:
             logger.info("No valid S3 records to process", extra={"s3_records": len(records)})
         else:
             logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
-            results = process_sqs_record(s3_records)
+            success, job_id, created, deleted = process_s3_records(s3_records)
 
-            processed_files.extend(results["processed_files"])
-            job_ids.extend(results["job_ids"])
+            if not success:
+                msg = "Could not start sync process"
+                logger.error(
+                    msg,
+                    extra={
+                        "job_id": job_id,
+                    },
+                )
+                return {"statusCode": 500, "body": msg, "job_id": job_id}
 
-            # Update file messages (N removed, N added, etc)
-            update_slack_files(slack_client=slack_client, processed_files=processed_files, messages=slack_messages)
+            # Update file messages in Slack (N removed, N added, etc)
+            update_slack_files(
+                slack_client=slack_client, created_files=created, deleted_files=deleted, messages=slack_messages
+            )
 
+        # Check length of session, even if we haven't started syncing
         total_duration = time.time() - start_time
 
         # Make sure all tasks are marked as complete in the Slack Plan
@@ -632,9 +613,8 @@ def handler(event, context):
             "Knowledge base sync process completed",
             extra={
                 "status_code": 200,
-                "ingestion_jobs_started": len(job_ids),
-                "job_ids": job_ids,
-                "trigger_files": processed_files,
+                "job_id": job_id,
+                "trigger_files": created + deleted,
                 "total_duration_ms": round(total_duration * 1000, 2),
                 "knowledge_base_id": KNOWLEDGEBASE_ID,
                 "next_steps": "Monitor Bedrock console for ingestion job completion status",
@@ -643,9 +623,7 @@ def handler(event, context):
 
         return {
             "statusCode": 200,
-            "body": (
-                f"Successfully triggered {len(job_ids)} ingestion job(s) for {len(processed_files)} trigger file(s)",
-            ),
+            "body": (f"Successfully triggered ingestion job for {len(created) + len(deleted)} trigger file(s)",),
         }
 
     except ClientError as e:
