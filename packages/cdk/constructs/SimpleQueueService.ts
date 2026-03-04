@@ -8,7 +8,6 @@ import {LambdaFunction} from "./LambdaFunction"
 export interface SimpleQueueServiceProps {
   readonly stackName: string
   readonly queueName: string
-  readonly batchDelay: number
   readonly functions: Array<LambdaFunction>
 }
 
@@ -35,10 +34,9 @@ export class SimpleQueueService extends Construct {
     // Create a Dead-Letter Queue (DLQ) for handling failed messages, to help with debugging
     const deadLetterQueue = new Queue(this, `${name}-dlq`, {
       queueName: `${name}-dlq`,
-      retentionPeriod: Duration.days(14), // Max 14
+      retentionPeriod: Duration.days(14), // Max
       encryption: QueueEncryption.KMS,
       encryptionMasterKey: kmsKey,
-      visibilityTimeout: Duration.seconds(60),
       enforceSSL: true
     })
 
@@ -52,19 +50,16 @@ export class SimpleQueueService extends Construct {
           queue: deadLetterQueue,
           maxReceiveCount: 1 // Move to DLQ after a failed attempt
         },
-        deliveryDelay: Duration.seconds(0),
-        visibilityTimeout: Duration.seconds(60),
+        deliveryDelay: Duration.minutes(0),
+        visibilityTimeout: Duration.hours(1), // Really high visibility to prevent multiple calls
         enforceSSL: true
       }
     )
 
     // Add queues as event source for the notify function and sync knowledge base function
-    // While batching, the messages will be sent if maxBatchingWindow is reached or batchSize is reached
-    // Set (very) large batch size to improve wait efficiency of batching window
     const eventSource = new SqsEventSource(queue, {
-      maxBatchingWindow: Duration.seconds(props.batchDelay),
-      batchSize: 1000,
-      reportBatchItemFailures: true
+      maxBatchingWindow: Duration.minutes(5),
+      batchSize: 100
     })
 
     props.functions.forEach(fn => {
