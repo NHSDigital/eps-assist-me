@@ -18,6 +18,7 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 bedrock_agent = boto3.client("bedrock-agent")
+lambda_client = boto3.client("lambda")
 
 
 def is_supported_file_type(file_key):
@@ -531,6 +532,14 @@ def handler(event, context):
     """
     start_time = time.time()
     logger.info("log_event", extra=event)  # DELETE ME
+
+    # S3 can post too fast, causing irregular requests
+    # To make sure batching is efficient, re-batch requests
+    if event.get("batched") is True:
+        request = event.copy()
+        request["batched"]
+        lambda_client.invoke(FunctionName=context.function.name, InvocationType="Event", Payload=json.dumps(request))
+        return {"statusCode": 200, "body": "Initial trigger processed, batching initiated."}
 
     # Early validation of required configuration
     if not KNOWLEDGEBASE_ID or not DATA_SOURCE_ID:
