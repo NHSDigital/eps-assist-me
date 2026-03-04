@@ -535,7 +535,7 @@ def handler(event, context):
 
     # S3 can post too fast, causing irregular requests
     # To make sure batching is efficient, re-batch requests
-    if event.get("batched") is True:
+    if event.get("batched") is False:
         request = event.copy()
         request["batched"]
         lambda_client.invoke(FunctionName=context.function.name, InvocationType="Event", Payload=json.dumps(request))
