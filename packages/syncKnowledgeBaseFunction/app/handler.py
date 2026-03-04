@@ -388,15 +388,54 @@ def create_task(
     return task
 
 
+def update_slack_file(slack_client, response, added, deleted, index, skip):
+    try:
+        if response is None:
+            logger.info(f"Skipping empty response ({index + 1})")
+            return
+
+        # Update the event count in the plan block
+        blocks = response["message"]
+        blocks = response["message"]["blocks"]
+        plan = next((block for block in blocks if block["type"] == "plan"), None)
+        task = plan["tasks"][-1] if plan and "tasks" in plan and plan["tasks"] else None
+
+        # Task params
+        title = "Processing file changes"
+        status = "completed"
+        details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
+        outputs = [f"Total files processed: {added + deleted}" if not skip else "No file changes"]
+
+        if task and task["title"] == title:
+            plan = update_slack_task(plan=plan, task=task, status=status, title=title, details=details, outputs=outputs)
+        else:
+            create_task(plan=plan, title=title, details=details, outputs=outputs, status=status)
+
+        update_slack_message(slack_client=slack_client, response=response, blocks=blocks)
+    except Exception as e:
+        logger.error(
+            "Unexpected error occurred updating Slack message",
+            extra={
+                "status_code": 500,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "error": traceback.format_exc(),
+                "e": e,
+            },
+        )
+
+
 def update_slack_files(slack_client, created_files: list[str], deleted_files: list[str], messages: list):
     """
     Update the existing Slack message blocks with the count of processed files
     """
     if not messages:
         logger.warning("No slack messages to update")
+        return
 
     if not created_files and not deleted_files:
         logger.warning("No processed files to update in Slack messages.")
+        return
 
     logger.info(
         "Processing lack files Slack Notification",
@@ -409,42 +448,9 @@ def update_slack_files(slack_client, created_files: list[str], deleted_files: li
     logger.info(f"Processed {added} added/updated and {deleted} deleted file(s).")
 
     for i, response in enumerate(messages):
-        try:
-            if response is None:
-                logger.info(f"Skipping empty response ({i + 1})")
-                continue
-
-            # Update the event count in the plan block
-            blocks = response["message"]
-            blocks = response["message"]["blocks"]
-            plan = next((block for block in blocks if block["type"] == "plan"), None)
-            task = plan["tasks"][-1] if plan and "tasks" in plan and plan["tasks"] else None
-
-            # Task params
-            title = "Processing file changes"
-            status = "completed"
-            details = [f"{val} {label} file(s)" for val, label in [(added, "new"), (deleted, "removed")] if val > 0]
-            outputs = [f"Total files processed: {added + deleted}" if not skip else "No file changes"]
-
-            if task and task["title"] == title:
-                plan = update_slack_task(
-                    plan=plan, task=task, status=status, title=title, details=details, outputs=outputs
-                )
-            else:
-                create_task(plan=plan, title=title, details=details, outputs=outputs, status=status)
-
-            update_slack_message(slack_client=slack_client, response=response, blocks=blocks)
-        except Exception as e:
-            logger.error(
-                "Unexpected error occurred updating Slack message",
-                extra={
-                    "status_code": 500,
-                    "error_type": type(e).__name__,
-                    "error_message": str(e),
-                    "error": traceback.format_exc(),
-                    "e": e,
-                },
-            )
+        update_slack_file(
+            slack_client=slack_client, response=response, added=added, deleted=deleted, index=i, skip=skip
+        )
 
 
 def update_slack_complete(slack_client, messages, feedback: None):
@@ -524,6 +530,7 @@ def handler(event, context):
     Main Lambda handler for a queue-service (S3-triggered) knowledge base synchronization
     """
     start_time = time.time()
+    logger.info("log_event", extra=event)  # DELETE ME
 
     # Early validation of required configuration
     if not KNOWLEDGEBASE_ID or not DATA_SOURCE_ID:
@@ -550,7 +557,6 @@ def handler(event, context):
     try:
         # Get events and update user channels
         records = event.get("Records", [])
-        slack_client, slack_messages = initialise_slack_messages(len(records))
 
         s3_records = []  # Track completed ingestion items
 
@@ -558,6 +564,8 @@ def handler(event, context):
         for sqs_index, sqs_record in enumerate(records):
             try:
                 if sqs_record.get("eventSource") != "aws:sqs":
+                    event_time = sqs_record.get("attributes", {}).get("SentTimestamp", "Unknown")
+                    logger.info("Event found", extra={"Event Trigger Time": event_time})
                     logger.warning(
                         "Skipping non-SQS event",
                         extra={
@@ -580,9 +588,15 @@ def handler(event, context):
         created = []
         deleted = []
 
+        slack_client = None
+        slack_messages = []
+
         if not s3_records:
             logger.info("No valid S3 records to process", extra={"s3_records": len(records)})
         else:
+            # Disable for quiet testing
+            # slack_client, slack_messages = initialise_slack_messages(len(s3_records))
+
             logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
             success, job_id, created, deleted = process_s3_records(s3_records)
 
