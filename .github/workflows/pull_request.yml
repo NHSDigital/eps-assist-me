@@ -8,23 +8,10 @@ env:
   BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
 
 jobs:
-  get_asdf_version:
-    runs-on: ubuntu-22.04
-    outputs:
-      asdf_version: ${{ steps.asdf-version.outputs.version }}
-      tag_format: ${{ steps.load-config.outputs.TAG_FORMAT }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: Get asdf version
-        id: asdf-version
-        run: echo "version=$(awk '!/^#/ && NF {print $1; exit}' .tool-versions.asdf)" >> "$GITHUB_OUTPUT"
-      - name: Load config value
-        id: load-config
-        run: |
-          TAG_FORMAT=$(yq '.TAG_FORMAT' .github/config/settings.yml)
-          echo "TAG_FORMAT=$TAG_FORMAT" >> "$GITHUB_OUTPUT"
+  get_config_values:
+    uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@8404cf6e3a61ac8de4d1644e175e288aa4965815
+    with:
+      verify_published_from_main_image: false
 
   get_commit_message:
     runs-on: ubuntu-22.04
@@ -42,11 +29,11 @@ jobs:
           echo "commit_message=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks.yml@d215f841eb18b803e339e4ed597ed1f30e086e17
-    needs: [get_asdf_version, get_commit_message]
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@8404cf6e3a61ac8de4d1644e175e288aa4965815
+    needs: [get_config_values, get_commit_message]
     if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc') }}
     with:
-      asdfVersion: ${{ needs.get_asdf_version.outputs.asdf_version }}
+      pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -115,7 +102,7 @@ jobs:
 
   dependabot-auto-approve-and-merge:
     needs: quality_gate
-    uses: NHSDigital/eps-common-workflows/.github/workflows/dependabot-auto-approve-and-merge.yml@d215f841eb18b803e339e4ed597ed1f30e086e17
+    uses: NHSDigital/eps-common-workflows/.github/workflows/dependabot-auto-approve-and-merge.yml@8404cf6e3a61ac8de4d1644e175e288aa4965815
     secrets:
       AUTOMERGE_APP_ID: ${{ secrets.AUTOMERGE_APP_ID }}
       AUTOMERGE_PEM: ${{ secrets.AUTOMERGE_PEM }}
@@ -150,7 +137,7 @@ jobs:
           result-encoding: string
 
   package_code:
-    needs: [get_issue_number, quality_gate]
+    needs: [get_issue_number, quality_gate, get_config_values]
     if: |
       always() &&
       ! contains(needs.*.result, 'failure') &&
@@ -160,15 +147,17 @@ jobs:
       STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
       VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
       COMMIT_ID: ${{ github.sha }}
+      pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
 
   release_code:
-    needs: [get_issue_number, package_code]
+    needs: [get_issue_number, package_code, get_config_values]
     if: |
       always() &&
       ! contains(needs.*.result, 'failure') &&
       ! contains(needs.*.result, 'cancelled')
     uses: ./.github/workflows/release_all_stacks.yml
     with:
+      pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
       STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
       TARGET_ENVIRONMENT: dev-pr
       VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
