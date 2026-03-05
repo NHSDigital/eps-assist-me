@@ -103,7 +103,7 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
     # Start Bedrock ingestion job (processes ALL files in data source)
     # For delete events, this re-ingests remaining files and removes deleted ones from vector index
     ingestion_start_time = time.time()
-    bedrock_agent = boto3.client("bedrock-agent")
+    # bedrock_agent = boto3.client("bedrock-agent")
 
     # Create descriptive message based on event type
     description = "Auto-sync:"
@@ -112,22 +112,23 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
     if is_create_event:
         description += f"\nFiles added/updated ({len(created)})"
 
-    response = bedrock_agent.start_ingestion_job(
-        knowledgeBaseId=KNOWLEDGEBASE_ID,
-        dataSourceId=DATA_SOURCE_ID,
-        description=description,
-    )
+    # response = bedrock_agent.start_ingestion_job(
+    #     knowledgeBaseId=KNOWLEDGEBASE_ID,
+    #     dataSourceId=DATA_SOURCE_ID,
+    #     description=description,
+    # )
     ingestion_request_time = time.time() - ingestion_start_time
 
     # Extract job details for tracking and logging
-    job_id = response["ingestionJob"]["ingestionJobId"]
-    job_status = response["ingestionJob"]["status"]
+    # job_id = response["ingestionJob"]["ingestionJobId"]
+    # job_status = response["ingestionJob"]["status"]
 
+    # REVERT job_id and job_status
     logger.info(
         "Successfully started ingestion job",
         extra={
-            "job_id": job_id,
-            "job_status": job_status,
+            "job_id": "job_id",
+            "job_status": "job_status",
             "knowledge_base_id": KNOWLEDGEBASE_ID,
             "trigger_file": object_key,
             "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
@@ -135,7 +136,8 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
         },
     )
 
-    return True, job_id, created, deleted
+    # REVERT job_id
+    return True, "job_id", created, deleted
 
 
 def handle_client_error(e, start_time, slack_client, slack_messages):
@@ -532,14 +534,6 @@ def handler(event, context):
     """
     start_time = time.time()
     logger.info("log_event", extra=event)  # DELETE ME
-
-    # S3 can post too fast, causing irregular requests
-    # To make sure batching is efficient, re-batch requests
-    if event.get("batched") is False:
-        request = event.copy()
-        request["batched"]
-        lambda_client.invoke(FunctionName=context.function.name, InvocationType="Event", Payload=json.dumps(request))
-        return {"statusCode": 200, "body": "Initial trigger processed, batching initiated."}
 
     # Early validation of required configuration
     if not KNOWLEDGEBASE_ID or not DATA_SOURCE_ID:

@@ -59,12 +59,16 @@ export class SimpleQueueService extends Construct {
     // Add queues as event source for the notify function and sync knowledge base function
     const eventSource = new SqsEventSource(queue, {
       maxBatchingWindow: Duration.minutes(5),
+      reportBatchItemFailures: true,
       batchSize: 100
     })
 
     props.functions.forEach(fn => {
       fn.function.addEventSource(eventSource)
+      fn.function.addEnvironment("SQS_CONNECTION_STRING", queue.queueUrl)
+
       queue.grantConsumeMessages(fn.function)
+      queue.grantSendMessages(fn.function)
     })
 
     // Grant the Lambda function permissions to consume messages from the queue
