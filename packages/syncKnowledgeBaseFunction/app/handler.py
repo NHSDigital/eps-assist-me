@@ -13,12 +13,19 @@ import boto3
 import json
 from typing import Literal
 from botocore.exceptions import ClientError
-from app.config.config import KNOWLEDGEBASE_ID, DATA_SOURCE_ID, SUPPORTED_FILE_TYPES, get_bot_token, logger
+from app.config.config import (
+    KNOWLEDGEBASE_ID,
+    DATA_SOURCE_ID,
+    SUPPORTED_FILE_TYPES,
+    AWS_ACCOUNT_ID,
+    get_bot_token,
+    logger,
+)
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 bedrock_agent = boto3.client("bedrock-agent")
-lambda_client = boto3.client("lambda")
+s3_client = boto3.client("s3")
 
 
 def is_supported_file_type(file_key):
@@ -26,6 +33,64 @@ def is_supported_file_type(file_key):
     Check if file type is supported for Bedrock Knowledge Base ingestion
     """
     return any(file_key.lower().endswith(ext) for ext in SUPPORTED_FILE_TYPES)
+
+
+def get_unprocessed_files(s3_records) -> tuple[list, str, str, bool]:
+    unprocessed_files = []
+    new_process_key = uuid.uuid4().hex
+    process_key = new_process_key
+    bucket_name = ""
+
+    try:
+        if s3_records is None:
+            return unprocessed_files, process_key, bucket_name, True
+
+        bucket_name = s3_records[0]["s3"]["bucket"]["name"]
+
+        paginator = s3_client.get_paginator("list_objects_v2")
+        page_iterator = paginator.paginate(Bucket=bucket_name)
+
+        for page in page_iterator:
+            if "Contents" not in page:
+                continue
+
+            for obj in page["Contents"]:
+                file_key = obj["Key"]
+
+                tag_response = s3_client.get_object_tagging(
+                    Bucket=bucket_name, Key=file_key, ExpectedBucketOwner=AWS_ACCOUNT_ID
+                )
+
+                tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("TagSet", [])}
+                if not tags.get("Process_Status"):
+                    unprocessed_files.append(file_key)
+                    process_key = tags.get("Process_key", process_key)
+                    break
+
+        # Return a list of records which are not being processed by this function
+        unprocessed_files = list(
+            {s3_record.get("s3", {}).get("object", {}).get("key") for s3_record in s3_records} ^ set(unprocessed_files)
+        )
+    except Exception as e:
+        logger.info(f"Error finding last modified file: {str(e)}")
+
+    return unprocessed_files, process_key, bucket_name, process_key == new_process_key
+
+
+def set_unprocessed_files(s3_records, unprocessed_files, key, bucket):
+    tags = [{"Key": "Process_Key", "Value": key}]
+    for file in unprocessed_files:
+        s3_client.put_object_tagging(
+            Bucket=bucket, Key=file, ExpectedBucketOwner=AWS_ACCOUNT_ID, Tagging={"TagSet": tags}
+        )
+    tags.append({"Key": "Process_Status", "Value": "Complete"})
+    for record in s3_records:
+        s3_client.put_object_tagging(
+            Bucket=bucket,
+            Key=record["s3"]["bucket"]["name"],
+            ExpectedBucketOwner=AWS_ACCOUNT_ID,
+            Tagging={"TagSet": tags},
+        )
 
 
 def process_s3_records(records) -> tuple[bool, str, list, list]:
@@ -103,7 +168,6 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
     # Start Bedrock ingestion job (processes ALL files in data source)
     # For delete events, this re-ingests remaining files and removes deleted ones from vector index
     ingestion_start_time = time.time()
-    # bedrock_agent = boto3.client("bedrock-agent")
 
     # Create descriptive message based on event type
     description = "Auto-sync:"
@@ -112,23 +176,22 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
     if is_create_event:
         description += f"\nFiles added/updated ({len(created)})"
 
-    # response = bedrock_agent.start_ingestion_job(
-    #     knowledgeBaseId=KNOWLEDGEBASE_ID,
-    #     dataSourceId=DATA_SOURCE_ID,
-    #     description=description,
-    # )
+    response = bedrock_agent.start_ingestion_job(
+        knowledgeBaseId=KNOWLEDGEBASE_ID,
+        dataSourceId=DATA_SOURCE_ID,
+        description=description,
+    )
     ingestion_request_time = time.time() - ingestion_start_time
 
-    # Extract job details for tracking and logging
-    # job_id = response["ingestionJob"]["ingestionJobId"]
-    # job_status = response["ingestionJob"]["status"]
+    job_id = response["ingestionJob"]["ingestionJobId"]
+    job_status = response["ingestionJob"]["status"]
 
     # REVERT job_id and job_status
     logger.info(
         "Successfully started ingestion job",
         extra={
-            "job_id": "job_id",
-            "job_status": "job_status",
+            "job_id": job_id,
+            "job_status": job_status,
             "knowledge_base_id": KNOWLEDGEBASE_ID,
             "trigger_file": object_key,
             "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
@@ -136,8 +199,7 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
         },
     )
 
-    # REVERT job_id
-    return True, "job_id", created, deleted
+    return True, job_id, created, deleted
 
 
 def handle_client_error(e, start_time, slack_client, slack_messages):
@@ -205,6 +267,19 @@ def get_bot_channels(client):
     return channel_ids
 
 
+def get_latest_message(client, channel_id: str, user_id: str):
+    history = client.conversation_history(channel=channel_id, limit=20)
+
+    newest = None
+    # History is returned newest to oldest
+    for message in history.get("messages", []):
+        if message.get("user") == user_id:
+            newest = message
+            break
+
+    return {"ok": history.get("ok"), "channel": channel_id, "ts": newest.get("ts"), "message": message}
+
+
 def post_message(slack_client, channel_id: str, blocks: list, text_fallback: str):
     """
     Posts the formatted message to a specific channel.
@@ -223,7 +298,7 @@ def post_message(slack_client, channel_id: str, blocks: list, text_fallback: str
         return None
 
 
-def initialise_slack_messages(event_count: int):
+def initialise_slack_messages(event_count: int, is_new: bool):
     """
     Send Slack notification summarizing the synchronization status
     """
@@ -254,8 +329,9 @@ def initialise_slack_messages(event_count: int):
         token = get_bot_token()
         slack_client = WebClient(token=token)
         response = slack_client.auth_test()
+        user_id = response.get("user_id", "unknown")
 
-        logger.info(f"Authenticated as bot user: {response.get('user_id', 'unknown')}", extra={"response": response})
+        logger.info(f"Authenticated as bot user: {user_id}", extra={"response": response})
 
         # Get Channels where the Bot is a member
         logger.info("Find bot channels...")
@@ -271,12 +347,18 @@ def initialise_slack_messages(event_count: int):
         responses = []
         for channel_id in target_channels:
             try:
-                response = post_message(
-                    slack_client=slack_client,
-                    channel_id=channel_id,
-                    blocks=blocks,
-                    text_fallback="*My knowledge base has been updated!*",
-                )
+                response = None
+                if is_new:
+                    response = get_latest_message(slack_client, channel_id, user_id)
+
+                if response is None:
+                    response = post_message(
+                        slack_client=slack_client,
+                        channel_id=channel_id,
+                        blocks=blocks,
+                        text_fallback="*My knowledge base has been updated!*",
+                    )
+
                 responses.append(response)
                 if response["ok"] is not True:
                     logger.error("Error initialising Slack Message.", extra={"response": response})
@@ -336,7 +418,8 @@ def update_slack_task(
             "type": "rich_text",
             "block_id": uuid.uuid4().hex,
             "elements": [
-                {"type": "rich_text_section", "elements": [{"type": "text", "text": detail}]} for detail in details
+                *task.get("details", {}).get("elements", []),
+                *[{"type": "rich_text_section", "elements": [{"type": "text", "text": detail}]} for detail in details],
             ],
         }
 
@@ -391,7 +474,7 @@ def create_task(
     return task
 
 
-def update_slack_file(slack_client, response, added, deleted, index, skip):
+def update_slack_files_message(slack_client, response, added, deleted, index, skip):
     try:
         if response is None:
             logger.info(f"Skipping empty response ({index + 1})")
@@ -451,7 +534,7 @@ def update_slack_files(slack_client, created_files: list[str], deleted_files: li
     logger.info(f"Processed {added} added/updated and {deleted} deleted file(s).")
 
     for i, response in enumerate(messages):
-        update_slack_file(
+        update_slack_files_message(
             slack_client=slack_client, response=response, added=added, deleted=deleted, index=i, skip=skip
         )
 
@@ -591,14 +674,13 @@ def handler(event, context):
         created = []
         deleted = []
 
-        slack_client = None
-        slack_messages = []
+        un_processed, process_key, bucket_name, is_new = get_unprocessed_files(s3_records)
+
+        slack_client, slack_messages = initialise_slack_messages(len(s3_records), is_new)
 
         if not s3_records:
             logger.info("No valid S3 records to process", extra={"s3_records": len(records)})
         else:
-            # Disable for quiet testing
-            # slack_client, slack_messages = initialise_slack_messages(len(s3_records))
 
             logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
             success, job_id, created, deleted = process_s3_records(s3_records)
@@ -622,7 +704,12 @@ def handler(event, context):
         total_duration = time.time() - start_time
 
         # Make sure all tasks are marked as complete in the Slack Plan
-        update_slack_complete(slack_client=slack_client, messages=slack_messages, feedback=None)
+        if not un_processed:
+            update_slack_complete(slack_client=slack_client, messages=slack_messages, feedback=None)
+
+        set_unprocessed_files(
+            s3_records=s3_records, unprocessed_files=un_processed, key=process_key, bucket=bucket_name
+        )
 
         logger.info(
             "Knowledge base sync process completed",
