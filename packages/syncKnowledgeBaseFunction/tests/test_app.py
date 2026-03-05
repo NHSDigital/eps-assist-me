@@ -1,9 +1,9 @@
 import json
 import pytest
 import os
+import sys
 from unittest.mock import Mock, patch, MagicMock, DEFAULT
 from botocore.exceptions import ClientError
-
 
 TEST_BOT_TOKEN = "test-bot-token"
 
@@ -188,7 +188,8 @@ def test_handler_success(
 
     assert result["statusCode"] == 200
     assert "Successfully triggered ingestion job for 1 trigger file(s)" in result["body"]
-    mock_boto_client.assert_called_with("bedrock-agent")
+    mock_boto_client.assert_any_call("bedrock-agent")
+    mock_boto_client.assert_any_call("s3")
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
@@ -216,6 +217,9 @@ def test_handler_multiple_files(
     }
     mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
+    # Force reload the module to catch the new patches
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     from app.handler import handler
 
     result = handler(multiple_s3_event, lambda_context)
@@ -241,6 +245,8 @@ def test_handler_conflict_exception(
     mock_bedrock.start_ingestion_job.side_effect = error
     mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     from app.handler import handler
 
     result = handler(s3_event, lambda_context)
@@ -265,6 +271,8 @@ def test_handler_aws_error(
     mock_bedrock.start_ingestion_job.side_effect = error
     mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     from app.handler import handler
 
     result = handler(s3_event, lambda_context)
@@ -285,6 +293,8 @@ def test_handler_unexpected_error(
     mock_bedrock.start_ingestion_job.side_effect = Exception("Unexpected error")
     mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     from app.handler import handler
 
     result = handler(s3_event, lambda_context)
@@ -497,6 +507,8 @@ def test_slack_handler_success(
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
 
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     from app.handler import handler
 
     result = handler(s3_event, lambda_context)
@@ -540,6 +552,8 @@ def test_slack_handler_success_multiple(
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
 
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     from app.handler import handler
 
     result = handler(s3_event, lambda_context)
@@ -583,6 +597,8 @@ def test_slack_handler_client_failure(
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
 
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
     from app.handler import handler
 
     result = handler(s3_event, lambda_context)

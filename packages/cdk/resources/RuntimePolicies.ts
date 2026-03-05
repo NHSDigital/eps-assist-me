@@ -125,16 +125,25 @@ export class RuntimePolicies extends Construct {
     // Create managed policy for SyncKnowledgeBase Lambda function
     const syncKnowledgeBasePolicy = new PolicyStatement({
       actions: [
+        // Process items through Bedrock
         "bedrock:StartIngestionJob",
         "bedrock:GetIngestionJob",
         "bedrock:ListIngestionJobs",
+        // Get properties from SSM
         "ssm:GetParameter",
+        // Get items and remove them from SQS
         "sqs:ReceiveMessage",
-        "sqs:DeleteMessage"
+        "sqs:DeleteMessage",
+        // Get items from the s3 bucket and handle it's tags
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:GetObjectTagging",
+        "s3:PutObjectTagging"
       ],
       resources: [
         props.knowledgeBaseArn,
         props.dataSourceArn,
+        props.docsBucketArn + "/processed/*",
         ...slackBotPolicyResources
       ]
     })

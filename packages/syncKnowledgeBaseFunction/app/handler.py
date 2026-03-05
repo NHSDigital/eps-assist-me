@@ -24,8 +24,8 @@ from app.config.config import (
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-bedrock_agent = boto3.client("bedrock-agent")
 s3_client = boto3.client("s3")
+bedrock_agent = boto3.client("bedrock-agent")
 
 
 def is_supported_file_type(file_key):
