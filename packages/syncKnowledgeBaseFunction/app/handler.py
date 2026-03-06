@@ -50,18 +50,21 @@ def get_unprocessed_files(s3_records) -> tuple[list, str, str, bool]:
         paginator = s3_client.get_paginator("list_objects_v2")
         page_iterator = paginator.paginate(Bucket=bucket_name)
 
-        for page in page_iterator:
+        for i, page in enumerate(page_iterator):
             if "Contents" not in page:
+                logger.info(f"Skipping page ({i}) with no contents")
                 continue
 
             for obj in page["Contents"]:
                 file_key = obj["Key"]
 
+                logger.log("")
                 tag_response = s3_client.get_object_tagging(
                     Bucket=bucket_name, Key=file_key, ExpectedBucketOwner=AWS_ACCOUNT_ID
                 )
 
                 tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("TagSet", [])}
+                logger.info(f"Found tags for {file_key}", extra={"tags": tags})
                 if not tags.get("Process_Status"):
                     unprocessed_files.append(file_key)
                     process_key = tags.get("Process_key", process_key)
@@ -71,19 +74,27 @@ def get_unprocessed_files(s3_records) -> tuple[list, str, str, bool]:
         unprocessed_files = list(
             {s3_record.get("s3", {}).get("object", {}).get("key") for s3_record in s3_records} ^ set(unprocessed_files)
         )
+
+        logger.info(
+            "Found Unprocessed Files",
+            extra={"count": len(unprocessed_files), "unprocessed_files": json.dumps(unprocessed_files)},
+        )
     except Exception as e:
         logger.info(f"Error finding last modified file: {str(e)}")
 
-    return unprocessed_files, process_key, bucket_name, process_key == new_process_key
+    return unprocessed_files, process_key, bucket_name, (process_key == new_process_key)
 
 
 def set_unprocessed_files(s3_records, unprocessed_files, key, bucket):
     tags = [{"Key": "Process_Key", "Value": key}]
+    logger.info("Update tags on unprocessed files", extra={"tags": json.dumps(tags)})
     for file in unprocessed_files:
         s3_client.put_object_tagging(
             Bucket=bucket, Key=file, ExpectedBucketOwner=AWS_ACCOUNT_ID, Tagging={"TagSet": tags}
         )
+
     tags.append({"Key": "Process_Status", "Value": "Complete"})
+    logger.info("Update tags on processed files", extra={"tags": json.dumps(tags)})
     for record in s3_records:
         s3_client.put_object_tagging(
             Bucket=bucket,
@@ -269,15 +280,21 @@ def get_bot_channels(client):
 
 def get_latest_message(client, channel_id: str, user_id: str):
     history = client.conversation_history(channel=channel_id, limit=20)
-
     newest = None
+
+    if history is None:
+        logger.info(
+            "No Slack conversation history could be found", extra={"channel_id": channel_id, "user_id": user_id}
+        )
+
     # History is returned newest to oldest
     for message in history.get("messages", []):
         if message.get("user") == user_id:
-            newest = message
+            logger.info("Found existing Slack Message", extra={"message": message})
+            newest = {"ok": history.get("ok"), "channel": channel_id, "ts": newest.get("ts"), "message": message}
             break
 
-    return {"ok": history.get("ok"), "channel": channel_id, "ts": newest.get("ts"), "message": message}
+    return newest
 
 
 def post_message(slack_client, channel_id: str, blocks: list, text_fallback: str):
@@ -349,9 +366,11 @@ def initialise_slack_messages(event_count: int, is_new: bool):
             try:
                 response = None
                 if is_new:
+                    logger.info("Searching for existing Slack Message")
                     response = get_latest_message(slack_client, channel_id, user_id)
 
                 if response is None:
+                    logger.info("Creating new Slack Message")
                     response = post_message(
                         slack_client=slack_client,
                         channel_id=channel_id,
