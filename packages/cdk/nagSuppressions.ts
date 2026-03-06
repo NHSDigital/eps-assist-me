@@ -162,6 +162,18 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
+  // Suppress wildcard permissions for Preprocessing policy
+  safeAddNagSuppression(
+    stack,
+    "/EpsAssistMeStack/RuntimePolicies/SyncKnowledgeBasePolicy/Resource",
+    [
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Preprocessing Lambda needs wildcard permissions to read/write any file in raw/ and processed/ prefixes."
+      }
+    ]
+  )
+
   // Suppress secrets without rotation
   safeAddNagSuppressionGroup(
     stack,
@@ -448,6 +460,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
       }
     ]
   )
+
   // Suppress BedrockLogging Provider framework runtime version
   safeAddNagSuppression(
     stack,

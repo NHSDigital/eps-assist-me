@@ -676,7 +676,9 @@ def handler(event, context):
 
         un_processed, process_key, bucket_name, is_new = get_unprocessed_files(s3_records)
 
-        slack_client, slack_messages = initialise_slack_messages(len(s3_records), is_new)
+        # slack_client, slack_messages = initialise_slack_messages(len(s3_records), is_new)
+        slack_client = None
+        slack_messages = []
 
         if not s3_records:
             logger.info("No valid S3 records to process", extra={"s3_records": len(records)})

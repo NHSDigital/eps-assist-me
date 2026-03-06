@@ -17,7 +17,6 @@ import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {VectorIndex} from "../resources/VectorIndex"
-import {BucketDeployment, Source} from "aws-cdk-lib/aws-s3-deployment"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {S3LambdaNotification} from "../resources/S3LambdaNotification"
@@ -96,12 +95,6 @@ export class EpsAssistMeStack extends Stack {
       stackName: props.stackName,
       deploymentRole: deploymentRole,
       auditLoggingBucket: auditLoggingBucket
-    })
-
-    // initialize s3 folders for raw and processed documents
-    new BucketDeployment(this, "S3FolderInitializer", {
-      sources: [Source.asset("packages/cdk/assets/s3-folders")],
-      destinationBucket: storage.kbDocsBucket
     })
 
     // Create Bedrock execution role without dependencies
