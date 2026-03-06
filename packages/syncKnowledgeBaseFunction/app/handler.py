@@ -213,7 +213,7 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
     return True, job_id, created, deleted
 
 
-def handle_client_error(e, start_time, slack_client, slack_messages):
+def handle_client_error(e, start_time, slack_client: WebClient, slack_messages):
     """
     Handle AWS ClientError exceptions with appropriate responses
 
@@ -262,7 +262,7 @@ def handle_client_error(e, start_time, slack_client, slack_messages):
         }
 
 
-def get_bot_channels(client):
+def get_bot_channels(client: WebClient):
     """
     Fetches all public and private channels the bot is a member of.
     """
@@ -278,8 +278,8 @@ def get_bot_channels(client):
     return channel_ids
 
 
-def get_latest_message(client, channel_id: str, user_id: str):
-    history = client.conversation_history(channel=channel_id, limit=20)
+def get_latest_message(client: WebClient, channel_id: str, user_id: str):
+    history = client.conversations_history(channel=channel_id, limit=20)
     newest = None
 
     if history is None:
@@ -297,7 +297,7 @@ def get_latest_message(client, channel_id: str, user_id: str):
     return newest
 
 
-def post_message(slack_client, channel_id: str, blocks: list, text_fallback: str):
+def post_message(slack_client: WebClient, channel_id: str, blocks: list, text_fallback: str):
     """
     Posts the formatted message to a specific channel.
     """
@@ -393,7 +393,7 @@ def initialise_slack_messages(event_count: int, is_new: bool):
         return default_response
 
 
-def update_slack_message(slack_client, response, blocks):
+def update_slack_message(slack_client: WebClient, response, blocks):
     """
     Update the existing Slack message blocks with new information
     """
@@ -493,7 +493,7 @@ def create_task(
     return task
 
 
-def update_slack_files_message(slack_client, response, added, deleted, index, skip):
+def update_slack_files_message(slack_client: WebClient, response, added, deleted, index, skip):
     try:
         if response is None:
             logger.info(f"Skipping empty response ({index + 1})")
@@ -530,7 +530,7 @@ def update_slack_files_message(slack_client, response, added, deleted, index, sk
         )
 
 
-def update_slack_files(slack_client, created_files: list[str], deleted_files: list[str], messages: list):
+def update_slack_files(slack_client: WebClient, created_files: list[str], deleted_files: list[str], messages: list):
     """
     Update the existing Slack message blocks with the count of processed files
     """
@@ -558,7 +558,7 @@ def update_slack_files(slack_client, created_files: list[str], deleted_files: li
         )
 
 
-def update_slack_complete(slack_client, messages, feedback: None):
+def update_slack_complete(slack_client: WebClient, messages, feedback: None):
     """
     Mark Slack Plan as complete
     """
@@ -592,7 +592,7 @@ def update_slack_complete(slack_client, messages, feedback: None):
             )
 
 
-def update_slack_error(slack_client, messages):
+def update_slack_error(slack_client: WebClient, messages):
     """
     Mark Slack Plan as errored
     """
@@ -657,7 +657,7 @@ def handler(event, context):
         },
     )
 
-    slack_client = None
+    slack_client: WebClient = None
     slack_messages = []
     try:
         # Get events and update user channels

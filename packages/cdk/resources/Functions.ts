@@ -130,7 +130,8 @@ export class Functions extends Construct {
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "DATA_SOURCE_ID": props.dataSourceId,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
-        "SLACK_BOT_ACTIVE_ON_PRS": "false"
+        "SLACK_BOT_ACTIVE_ON_PRS": "true",
+        "AWS_ACCOUNT_ID": props.account
       },
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
     })

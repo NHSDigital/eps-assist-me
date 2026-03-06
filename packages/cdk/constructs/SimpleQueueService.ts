@@ -65,14 +65,10 @@ export class SimpleQueueService extends Construct {
 
     props.functions.forEach(fn => {
       fn.function.addEventSource(eventSource)
-      // fn.function.addEnvironment("SQS_CONNECTION_STRING", queue.queueUrl)
-
       queue.grantConsumeMessages(fn.function)
-      // queue.grantSendMessages(fn.function)
     })
 
     // Grant the Lambda function permissions to consume messages from the queue
-
     this.kmsKey = kmsKey
     this.queue = queue
     this.deadLetterQueue = deadLetterQueue
