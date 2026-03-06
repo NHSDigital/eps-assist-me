@@ -122,35 +122,50 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
-    // Create managed policy for SyncKnowledgeBase Lambda function
-    const syncKnowledgeBasePolicy = new PolicyStatement({
+    const syncKnowledgeBaseBedrockPolicy = new PolicyStatement({
       actions: [
-        // Process items through Bedrock
         "bedrock:StartIngestionJob",
         "bedrock:GetIngestionJob",
-        "bedrock:ListIngestionJobs",
-        // Get properties from SSM
-        "ssm:GetParameter",
-        // Get items and remove them from SQS
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage",
-        // Get items from the s3 bucket and handle it's tags
-        "s3:ListBucket",
+        "bedrock:ListIngestionJobs"
+      ],
+      resources: [
+        props.knowledgeBaseArn
+      ]
+    })
+
+    const syncKnowledgeBaseSSMPolicy = new PolicyStatement({
+      actions: [
+        "ssm:GetParameter"
+      ],
+      resources: [
+        ...slackBotPolicyResources
+      ]
+    })
+
+    const syncKnowledgeBaseS3BucketPolicy = new PolicyStatement({
+      actions: ["s3:ListBucket"],
+      resources: [props.docsBucketArn] // Bucket-level resource for ListBucket
+    })
+
+    const syncKnowledgeBaseS3ObjectPolicy = new PolicyStatement({
+      actions: [
         "s3:GetObject",
         "s3:GetObjectTagging",
         "s3:PutObjectTagging"
       ],
       resources: [
-        props.knowledgeBaseArn,
-        props.dataSourceArn,
-        props.docsBucketArn + "/processed/*",
-        ...slackBotPolicyResources
+        `${props.docsBucketArn}/processed/*`
       ]
     })
 
     this.syncKnowledgeBasePolicy = new ManagedPolicy(this, "SyncKnowledgeBasePolicy", {
       description: "Policy for SyncKnowledgeBase Lambda to trigger ingestion jobs",
-      statements: [syncKnowledgeBasePolicy]
+      statements: [
+        syncKnowledgeBaseBedrockPolicy,
+        syncKnowledgeBaseSSMPolicy,
+        syncKnowledgeBaseS3BucketPolicy,
+        syncKnowledgeBaseS3ObjectPolicy
+      ]
     })
 
     //policy for the preprocessing lambda

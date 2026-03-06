@@ -365,7 +365,7 @@ def initialise_slack_messages(event_count: int, is_new: bool):
         for channel_id in target_channels:
             try:
                 response = None
-                if is_new:
+                if is_new is False:
                     logger.info("Searching for existing Slack Message")
                     response = get_latest_message(slack_client, channel_id, user_id)
 
