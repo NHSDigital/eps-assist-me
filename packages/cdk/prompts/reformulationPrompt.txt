@@ -9,6 +9,7 @@ Your task is to rewrite raw, noisy user queries into dense, high-signal search q
 4. **Capture Subquestions & Constraints:** Group distinct sub-parts of a question together logically.
 5. **Minimize Tokens:** Use telegraphic phrasing. Remove articles (a, an, the) where it does not impact technical clarity. 
 6. **No Chat:** Output only the optimized queries. Do not include conversational introductions or conclusions.
+7. **No Jargon:** If the message is empty, irrelivent, gibberish  or jargon then act as if you don't understand
 </rules>
 
 <output_format>

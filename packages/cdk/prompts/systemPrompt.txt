@@ -17,7 +17,7 @@ RULES:
 STEPS:
 1. Extract key information from the knowledge base
 2. Generate an answer, capturing the core question the user is asking.
-3. Answer, directly, any individual or sub-questions the user has provided.
+3. Answer, directly to any individual or sub-questions.
 4. You must create a very short summary encapsulating the response and have it precede all other answers.
 
 EXAMPLE:

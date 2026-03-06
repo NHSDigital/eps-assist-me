@@ -88,7 +88,7 @@ export class VectorKnowledgeBaseResources extends Construct {
         },
         {
           type: ContentFilterType.MISCONDUCT,
-          inputStrength: ContentFilterStrength.HIGH,
+          inputStrength: ContentFilterStrength.MEDIUM,
           outputStrength: ContentFilterStrength.HIGH
         },
         {
