@@ -58,7 +58,6 @@ def get_unprocessed_files(s3_records) -> tuple[list, str, str, bool]:
             for obj in page["Contents"]:
                 file_key = obj["Key"]
 
-                logger.log("")
                 tag_response = s3_client.get_object_tagging(
                     Bucket=bucket_name, Key=file_key, ExpectedBucketOwner=AWS_ACCOUNT_ID
                 )
@@ -113,6 +112,7 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
     Bedrock Knowledge Base ingestion for supported documents.
     """
 
+    job_id = None
     created = []
     deleted = []
     # Validate if the sync should occur by checking if any files are valid
@@ -174,7 +174,7 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
 
     # If we have at-least 1 valid file, start the sync process
     if not created and not deleted:
-        return False, None, [], []
+        return False, None, [], [], None
 
     # Start Bedrock ingestion job (processes ALL files in data source)
     # For delete events, this re-ingests remaining files and removes deleted ones from vector index
@@ -187,30 +187,33 @@ def process_s3_records(records) -> tuple[bool, str, list, list]:
     if is_create_event:
         description += f"\nFiles added/updated ({len(created)})"
 
-    response = bedrock_agent.start_ingestion_job(
-        knowledgeBaseId=KNOWLEDGEBASE_ID,
-        dataSourceId=DATA_SOURCE_ID,
-        description=description,
-    )
-    ingestion_request_time = time.time() - ingestion_start_time
+    try:
+        response = bedrock_agent.start_ingestion_job(
+            knowledgeBaseId=KNOWLEDGEBASE_ID,
+            dataSourceId=DATA_SOURCE_ID,
+            description=description,
+        )
+        ingestion_request_time = time.time() - ingestion_start_time
 
-    job_id = response["ingestionJob"]["ingestionJobId"]
-    job_status = response["ingestionJob"]["status"]
+        job_id = response["ingestionJob"]["ingestionJobId"]
+        job_status = response["ingestionJob"]["status"]
 
-    # REVERT job_id and job_status
-    logger.info(
-        "Successfully started ingestion job",
-        extra={
-            "job_id": job_id,
-            "job_status": job_status,
-            "knowledge_base_id": KNOWLEDGEBASE_ID,
-            "trigger_file": object_key,
-            "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
-            "description": description,
-        },
-    )
+        logger.info(
+            "Successfully started ingestion job",
+            extra={
+                "job_id": job_id,
+                "job_status": job_status,
+                "knowledge_base_id": KNOWLEDGEBASE_ID,
+                "trigger_file": object_key,
+                "ingestion_request_duration_ms": round(ingestion_request_time * 1000, 2),
+                "description": description,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error starting ingestion: {str(e)}")
+        return True, job_id, created, deleted, e
 
-    return True, job_id, created, deleted
+    return True, job_id, created, deleted, None
 
 
 def handle_client_error(e, start_time, slack_client: WebClient, slack_messages):
@@ -234,10 +237,6 @@ def handle_client_error(e, start_time, slack_client: WebClient, slack_messages):
                 "duration_ms": round((time.time() - start_time) * 1000, 2),
                 "explanation": "Normal when multiple files uploaded quickly",
             },
-        )
-
-        update_slack_complete(
-            slack_client=slack_client, messages=slack_messages, feedback="Update already in progress."
         )
         return {
             "statusCode": 409,
@@ -405,8 +404,7 @@ def update_slack_message(slack_client: WebClient, response, blocks):
 
     try:
         logger.info("Updating Slack channel")
-        result = slack_client.chat_update(channel=channel_id, ts=ts, blocks=blocks)
-        logger.error("Error updating Slack Message.", extra={"response": result})
+        slack_client.chat_update(channel=channel_id, ts=ts, blocks=blocks)
     except SlackApiError as e:
         logger.error(f"Error updating message in {channel_id}: {str(e)}")
     except Exception as e:
@@ -629,6 +627,94 @@ def update_slack_error(slack_client: WebClient, messages):
             )
 
 
+def handle_events(event, start_time):
+    # Get events and update user channels
+    records = event.get("Records", [])
+
+    s3_records = []  # Track completed ingestion items
+
+    # Process each S3 event record in the SQS batch
+    for sqs_index, sqs_record in enumerate(records):
+        try:
+            if sqs_record.get("eventSource") != "aws:sqs":
+                event_time = sqs_record.get("attributes", {}).get("SentTimestamp", "Unknown")
+                logger.info("Event found", extra={"Event Trigger Time": event_time})
+                logger.warning(
+                    "Skipping non-SQS event",
+                    extra={
+                        "event_source": sqs_record.get("eventSource"),
+                        "record_index": sqs_index + 1,
+                    },
+                )
+                continue
+
+            body = json.loads(sqs_record.get("body", "{}"))
+            s3_records += body.get("Records", [])
+
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Failed to parse SQS body: {str(e)}")
+            continue
+
+    # Check if the events are valid, and start syncing if so
+    # Don't stop if not, let the lambda handle it.
+    job_id = ""
+    created = []
+    deleted = []
+    process_error = None
+
+    un_processed, process_key, bucket_name, is_new = get_unprocessed_files(s3_records)
+
+    slack_client, slack_messages = initialise_slack_messages(len(s3_records), is_new)
+
+    if not s3_records:
+        logger.info("No valid S3 records to process", extra={"s3_records": len(records)})
+    else:
+
+        logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
+        success, job_id, created, deleted, process_error = process_s3_records(s3_records)
+
+        if not success:
+            msg = "Could not start sync process"
+            logger.error(
+                msg,
+                extra={
+                    "job_id": job_id,
+                },
+            )
+        else:
+            # Update file messages in Slack (N removed, N added, etc)
+            update_slack_files(
+                slack_client=slack_client, created_files=created, deleted_files=deleted, messages=slack_messages
+            )
+
+    # Check length of session, even if we haven't started syncing
+    total_duration = time.time() - start_time
+
+    # Make sure all tasks are marked as complete in the Slack Plan
+    if not un_processed:
+        update_slack_complete(slack_client=slack_client, messages=slack_messages, feedback=None)
+
+    set_unprocessed_files(s3_records=s3_records, unprocessed_files=un_processed, key=process_key, bucket=bucket_name)
+
+    logger.info(
+        "Knowledge base sync process completed",
+        extra={
+            "status_code": 200,
+            "job_id": job_id,
+            "trigger_files": created + deleted,
+            "total_duration_ms": round(total_duration * 1000, 2),
+            "knowledge_base_id": KNOWLEDGEBASE_ID,
+            "next_steps": "Monitor Bedrock console for ingestion job completion status",
+        },
+    )
+
+    # Still handle conflict error - but don't stop tagging, etc
+    if process_error:
+        raise process_error
+
+    return created, deleted
+
+
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
     """
@@ -660,87 +746,7 @@ def handler(event, context):
     slack_client: WebClient = None
     slack_messages = []
     try:
-        # Get events and update user channels
-        records = event.get("Records", [])
-
-        s3_records = []  # Track completed ingestion items
-
-        # Process each S3 event record in the SQS batch
-        for sqs_index, sqs_record in enumerate(records):
-            try:
-                if sqs_record.get("eventSource") != "aws:sqs":
-                    event_time = sqs_record.get("attributes", {}).get("SentTimestamp", "Unknown")
-                    logger.info("Event found", extra={"Event Trigger Time": event_time})
-                    logger.warning(
-                        "Skipping non-SQS event",
-                        extra={
-                            "event_source": sqs_record.get("eventSource"),
-                            "record_index": sqs_index + 1,
-                        },
-                    )
-                    continue
-
-                body = json.loads(sqs_record.get("body", "{}"))
-                s3_records += body.get("Records", [])
-
-            except (json.JSONDecodeError, KeyError) as e:
-                logger.error(f"Failed to parse SQS body: {str(e)}")
-                continue
-
-        # Check if the events are valid, and start syncing if so
-        # Don't stop if not, let the lambda handle it.
-        job_id = ""
-        created = []
-        deleted = []
-
-        un_processed, process_key, bucket_name, is_new = get_unprocessed_files(s3_records)
-
-        slack_client, slack_messages = initialise_slack_messages(len(s3_records), is_new)
-
-        if not s3_records:
-            logger.info("No valid S3 records to process", extra={"s3_records": len(records)})
-        else:
-
-            logger.info("Processing S3 records", extra={"record_count": len(s3_records)})
-            success, job_id, created, deleted = process_s3_records(s3_records)
-
-            if not success:
-                msg = "Could not start sync process"
-                logger.error(
-                    msg,
-                    extra={
-                        "job_id": job_id,
-                    },
-                )
-                return {"statusCode": 500, "body": msg, "job_id": job_id}
-
-            # Update file messages in Slack (N removed, N added, etc)
-            update_slack_files(
-                slack_client=slack_client, created_files=created, deleted_files=deleted, messages=slack_messages
-            )
-
-        # Check length of session, even if we haven't started syncing
-        total_duration = time.time() - start_time
-
-        # Make sure all tasks are marked as complete in the Slack Plan
-        if not un_processed:
-            update_slack_complete(slack_client=slack_client, messages=slack_messages, feedback=None)
-
-        set_unprocessed_files(
-            s3_records=s3_records, unprocessed_files=un_processed, key=process_key, bucket=bucket_name
-        )
-
-        logger.info(
-            "Knowledge base sync process completed",
-            extra={
-                "status_code": 200,
-                "job_id": job_id,
-                "trigger_files": created + deleted,
-                "total_duration_ms": round(total_duration * 1000, 2),
-                "knowledge_base_id": KNOWLEDGEBASE_ID,
-                "next_steps": "Monitor Bedrock console for ingestion job completion status",
-            },
-        )
+        created, deleted = handle_events(event, start_time)
 
         return {
             "statusCode": 200,

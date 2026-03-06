@@ -236,7 +236,7 @@ def test_handler_conflict_exception(
     mock_time, mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context, s3_event
 ):
     """Test handler with ConflictException (job already running)"""
-    mock_time.side_effect = [1000, 1001, 1002]
+    mock_time.side_effect = [1000, 1001, 1002, 1003]
     error = ClientError(
         error_response={"Error": {"Code": "ConflictException", "Message": "Job already running"}},
         operation_name="StartIngestionJob",
@@ -262,7 +262,7 @@ def test_handler_aws_error(
     mock_time, mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context, s3_event
 ):
     """Test handler with other AWS error"""
-    mock_time.side_effect = [1000, 1001, 1002]
+    mock_time.side_effect = [1000, 1001, 1002, 1003]
     error = ClientError(
         error_response={"Error": {"Code": "AccessDenied", "Message": "Access denied"}},
         operation_name="StartIngestionJob",
@@ -288,7 +288,7 @@ def test_handler_unexpected_error(
     mock_time, mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context, s3_event
 ):
     """Test handler with unexpected error"""
-    mock_time.side_effect = [1000, 1001, 1002]
+    mock_time.side_effect = [1000, 1001, 1002, 1003]
     mock_bedrock = mock_boto_client.return_value
     mock_bedrock.start_ingestion_job.side_effect = Exception("Unexpected error")
     mock_initialise_slack_messages.return_value = (DEFAULT, [])
@@ -474,8 +474,8 @@ def test_handler_unknown_event_type(
 
     result = handler(unknown_event, lambda_context)
 
-    assert result["statusCode"] == 500
-    assert "Could not start sync process" in result["body"]
+    assert result["statusCode"] == 200
+    assert "Successfully triggered ingestion job for 0 trigger file(s)" in result["body"]
     mock_bedrock.start_ingestion_job.assert_not_called()
 
 
