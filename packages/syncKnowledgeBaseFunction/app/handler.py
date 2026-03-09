@@ -6,6 +6,7 @@ documents into the Bedrock Knowledge Base. This ensures the AI assistant always
 has access to the latest documentation for answering user queries.
 """
 
+import json
 import time
 import traceback
 import uuid
@@ -182,7 +183,7 @@ class Slack_Handler:
                             id=self.update_block_id,
                             title="Processing File Changes",
                             details=[],
-                            output=["Initialising"],
+                            outputs=["Initialising"],
                             status="in-progress",
                         ),
                     ],
@@ -296,6 +297,7 @@ class S3_Event_Handler:
 
     @staticmethod
     def validate_s3_event(bucket_name, object_key):
+        logger.info(f"validate_s3_event {bucket_name}, {object_key}")
         if not bucket_name or not object_key:
             logger.warning(
                 "Skipping invalid S3 record",
@@ -346,7 +348,7 @@ class S3_Event_Handler:
             response = bedrock_agent.start_ingestion_job(
                 knowledgeBaseId=KNOWLEDGEBASE_ID,
                 dataSourceId=DATA_SOURCE_ID,
-                description=f"Sync: {bucket_name}/{object_key}/{event_name}.{uuid.uuid4().hex}",
+                description=f"Sync: {bucket_name}",
             )
 
             job_id = response["ingestionJob"]["ingestionJobId"]
@@ -371,9 +373,10 @@ class S3_Event_Handler:
         return result
 
     @staticmethod
-    def process_multiple_s3_events(slack_handler: Slack_Handler, records):
+    def process_multiple_sqs_events(slack_handler: Slack_Handler, sqs_records):
         # TODO: Add documentation
-        for record in records:
+        results = []
+        for record in sqs_records:
             if record.get("eventSource") != "aws:sqs":
                 logger.warning(
                     "Skipping non-SQS event",
@@ -381,9 +384,16 @@ class S3_Event_Handler:
                 )
                 continue
 
-            logger.info("Processing SQS record")
-            result = S3_Event_Handler.process_single_s3_event(record)
-            results.append(result)
+            body = json.loads(record.get("body", {}))
+            for s3_record in body.get("Records", []):
+                result = S3_Event_Handler.process_single_s3_event(s3_record)
+                results.append(result)
+
+        return results
+
+    @staticmethod
+    def process_multiple_s3_events(slack_handler: Slack_Handler, results):
+        logger.info("Processing SQS record")
 
         counts = [
             ("created", len([result for result in results if result.event_type == "ObjectCreated"])),
@@ -397,27 +407,27 @@ class S3_Event_Handler:
             slack_handler.update_task(id=slack_handler.update_block_id, message=message)
 
     @staticmethod
-    def process_queue_events(slack_handler: Slack_Handler, events: list):
+    def process_batched_queue_events(slack_handler: Slack_Handler, events: list):
         # TODO: Add documentation
         processed_files = 0
 
         for event in events:
-            records = event.get("Records", [])
+            s3_records = event.get("Records", [])
 
-            if not records:
+            if not s3_records:
                 logger.warning("No records in event")
                 continue
 
-            logger.info(f"Processing {len(records)} record(s)")
+            logger.info(f"Processing {len(s3_records)} record(s)")
             slack_handler.update_task(
-                id=slack_handler.fetching_block_id, message=f"Found {len(records)} records", replace=True
+                id=slack_handler.fetching_block_id, message=f"Found {len(s3_records)} records", replace=True
             )
 
-            S3_Event_Handler.process_multiple_s3_events(slack_handler, records)
+            _ = S3_Event_Handler.process_multiple_sqs_events(slack_handler, s3_records)
             processed_files += 1
 
         slack_handler.complete_plan()
-        logger.info(f"Completed {len(processed_files)} file(s)")
+        logger.info(f"Completed {processed_files} file(s)")
 
     @staticmethod
     def close_sqs_events(events):
@@ -433,13 +443,20 @@ class S3_Event_Handler:
     def search_sqs_for_events():
         response = sqs.receive_message(QueueUrl=SQS_URL, MaxNumberOfMessages=10, WaitTimeSeconds=2)
 
+        events = []
         messages = response.get("Messages", [])
         if not messages:
             logger.warning("No messages found")
-            return []
+            return events
+
+        for message in messages:
+            body = message.get("Body", {})
+            message_events = json.loads(body)
+            if message_events:
+                events.append(message_events)
 
         logger.info(f"Found {len(messages)} SQS messages")
-        return messages
+        return events
 
 
 def search_and_process_sqs_events(event):
@@ -462,7 +479,7 @@ def search_and_process_sqs_events(event):
         if i > 0:
             S3_Event_Handler.close_sqs_events(events)
 
-        S3_Event_Handler.process_queue_events(slack_handler, events)
+        S3_Event_Handler.process_batched_queue_events(slack_handler, events)
 
         # Search for any events in the sqs queue
         events = S3_Event_Handler.search_sqs_for_events()
