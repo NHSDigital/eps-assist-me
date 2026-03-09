@@ -28,7 +28,7 @@ bedrock_agent = boto3.client("bedrock-agent")
 sqs = boto3.client("sqs")
 
 
-class S3_Event_result:
+class S3EventResult:
     file_name: str
     event_type: str
     processing: bool
@@ -39,7 +39,7 @@ class S3_Event_result:
         self.processing = processing
 
 
-class Slack_Handler:
+class SlackHandler:
 
     def __init__(self):
         self.fetching_block_id: str = uuid.uuid4().hex
@@ -49,7 +49,7 @@ class Slack_Handler:
         self.default_slack_message: str = "Updating Source Files"
 
     def post_message(self, channel_id: str, blocks: list, text_fallback: str):
-        # TODO: Header
+        """Send a new message to Slack"""
         try:
             return self.slack_client.chat_postMessage(channel=channel_id, text=text_fallback, blocks=blocks)
         except SlackApiError as e:
@@ -60,7 +60,7 @@ class Slack_Handler:
             return None
 
     def update_message(self, channel_id: str, ts: str, blocks: list):
-        # TODO: Header
+        """Update an existing Slack Message"""
         try:
             return self.slack_client.chat_update(
                 channel=channel_id, ts=ts, blocks=blocks, text=self.default_slack_message
@@ -77,7 +77,7 @@ class Slack_Handler:
         outputs=None,
         status: Literal["in_progress", "complete"] = "in_progress",
     ):
-        # TODO: Header
+        """Create a new Slack Block Task for a Plan block"""
         task = {
             "task_id": id,
             "title": title,
@@ -156,7 +156,6 @@ class Slack_Handler:
         """
         Create a new slack message to inform user of SQS event process progress
         """
-        default_response = (None, [])
         try:
             # Build blocks for Slack message
             blocks = [
@@ -212,7 +211,7 @@ class Slack_Handler:
 
             if not target_channels:
                 logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
-                return default_response
+                return
 
             # Broadcast Loop
             logger.info(f"Broadcasting to {len(target_channels)} channels...")
@@ -241,10 +240,9 @@ class Slack_Handler:
 
         except Exception as e:
             logger.error(f"Failed to initialise slack messages: {str(e)}")
-            return default_response
 
     def complete_plan(self):
-        # TODO: Header
+        """Finish Slack Plan message block"""
         for slack_message in self.messages:
             try:
                 channel_id = slack_message["channel"]
@@ -275,7 +273,7 @@ class Slack_Handler:
                 )
 
 
-class S3_Event_Handler:
+class S3EventHandler:
     @staticmethod
     def handle_client_error(e):
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
@@ -308,7 +306,7 @@ class S3_Event_Handler:
             )
             return False
 
-        if not S3_Event_Handler.is_supported_file_type(object_key):
+        if not S3EventHandler.is_supported_file_type(object_key):
             logger.info(
                 "Skipping unsupported file type",
                 extra={"file_key": object_key, "supported_types": list(SUPPORTED_FILE_TYPES)},
@@ -317,17 +315,17 @@ class S3_Event_Handler:
         return True
 
     @staticmethod
-    def process_single_s3_event(record) -> S3_Event_result:
-        # TODO: Add documentation
+    def process_single_s3_event(record) -> S3EventResult:
+        """Process single S3 event from SQS"""
         s3_info = record.get("s3", {})
         bucket_name = s3_info.get("bucket", {}).get("name")
         object_key = s3_info.get("object", {}).get("key")
         event_name = record.get("eventName", "Unknown")
 
-        result = S3_Event_result(file_name=object_key, event_type=event_name, processing=False)
+        result = S3EventResult(file_name=object_key, event_type=event_name, processing=False)
 
         # Skip invalid records
-        if not S3_Event_Handler.validate_s3_event(bucket_name, object_key):
+        if not S3EventHandler.validate_s3_event(bucket_name, object_key):
             return result
 
         # Extract additional event metadata for logging
@@ -365,7 +363,7 @@ class S3_Event_Handler:
             )
         except Exception as e:
             # Handle Conflict Exception, we don't want to stop - just inform user
-            S3_Event_Handler.handle_client_error(e)
+            S3EventHandler.handle_client_error(e)
 
             logger.error(f"Error starting ingestion: {str(e)}")
             result.processing = False
@@ -373,8 +371,8 @@ class S3_Event_Handler:
         return result
 
     @staticmethod
-    def process_multiple_sqs_events(slack_handler: Slack_Handler, sqs_records):
-        # TODO: Add documentation
+    def process_multiple_sqs_events(slack_handler: SlackHandler, sqs_records):
+        """Handle multiple individual events from SQS"""
         results = []
         for record in sqs_records:
             if record.get("eventSource") != "aws:sqs":
@@ -386,13 +384,13 @@ class S3_Event_Handler:
 
             body = json.loads(record.get("body", {}))
             for s3_record in body.get("Records", []):
-                result = S3_Event_Handler.process_single_s3_event(s3_record)
+                result = S3EventHandler.process_single_s3_event(s3_record)
                 results.append(result)
 
         return results
 
     @staticmethod
-    def process_multiple_s3_events(slack_handler: Slack_Handler, results):
+    def process_multiple_s3_events(slack_handler: SlackHandler, results):
         logger.info("Processing SQS record")
 
         counts = [
@@ -407,8 +405,8 @@ class S3_Event_Handler:
             slack_handler.update_task(id=slack_handler.update_block_id, message=message)
 
     @staticmethod
-    def process_batched_queue_events(slack_handler: Slack_Handler, events: list):
-        # TODO: Add documentation
+    def process_batched_queue_events(slack_handler: SlackHandler, events: list):
+        """Handle collection of batched queue events"""
         processed_files = 0
 
         for event in events:
@@ -423,7 +421,7 @@ class S3_Event_Handler:
                 id=slack_handler.fetching_block_id, message=f"Found {len(s3_records)} records", replace=True
             )
 
-            _ = S3_Event_Handler.process_multiple_sqs_events(slack_handler, s3_records)
+            _ = S3EventHandler.process_multiple_sqs_events(slack_handler, s3_records)
             processed_files += 1
 
         slack_handler.complete_plan()
@@ -460,13 +458,14 @@ class S3_Event_Handler:
 
 
 def search_and_process_sqs_events(event):
-    # TODO: Add documentation
-    # Check if there are waiting SQS events.
-    # While SQS keep appearing, keep looking - limit to 20 iterations.
+    """
+    Check if there are waiting SQS events.
+    While SQS keep appearing, keep looking - limit to 20 iterations.
+    """
     events = [event]
     loop_count = 20
 
-    slack_handler = Slack_Handler()
+    slack_handler = SlackHandler()
     slack_handler.initialise_slack_messages()
 
     for i in range(loop_count):
@@ -477,14 +476,13 @@ def search_and_process_sqs_events(event):
         # Delete sqs events that we have polled
         # The initial event will cancel with the success of the lambda
         if i > 0:
-            S3_Event_Handler.close_sqs_events(events)
+            S3EventHandler.close_sqs_events(events)
 
-        S3_Event_Handler.process_batched_queue_events(slack_handler, events)
+        S3EventHandler.process_batched_queue_events(slack_handler, events)
 
         # Search for any events in the sqs queue
-        events = S3_Event_Handler.search_sqs_for_events()
+        events = S3EventHandler.search_sqs_for_events()
 
-    # TODO: Close slack message
     slack_handler.complete_plan()
 
 

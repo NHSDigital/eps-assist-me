@@ -193,7 +193,7 @@ def slack_message_event():
     }
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("time.time")
 def test_handler_success(
@@ -222,7 +222,7 @@ def test_handler_success(
     )
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("time.time")
 def test_handler_multiple_files(
@@ -290,7 +290,7 @@ def test_handler_fetch_files(
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.Slack_Handler, "initialise_slack_messages", return_value=(DEFAULT, [])):
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
         result = app.handler.handler(receive_multiple_s3_event, lambda_context)
 
         assert result["statusCode"] == 200
@@ -334,7 +334,7 @@ def test_handler_fetch_multiple_files(
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.Slack_Handler, "initialise_slack_messages", return_value=(DEFAULT, [])):
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
         result = app.handler.handler(receive_multiple_s3_event, lambda_context)
 
         assert result["statusCode"] == 200
@@ -378,7 +378,7 @@ def test_handler_fetch_multiple_files_handle_infinity(
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.Slack_Handler, "initialise_slack_messages", return_value=(DEFAULT, [])):
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
         result = app.handler.handler(receive_multiple_s3_event, lambda_context)
 
         assert result["statusCode"] == 200
@@ -410,8 +410,8 @@ def test_handler_conflict_exception(
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.Slack_Handler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
-        app.handler.S3_Event_Handler, "handle_client_error"
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
+        app.handler.S3EventHandler, "handle_client_error"
     ) as mock_handle_client_error:
 
         result = app.handler.handler(receive_s3_event, lambda_context)
@@ -437,8 +437,8 @@ def test_handler_aws_error(mock_time, mock_boto_client, mock_env, lambda_context
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.Slack_Handler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
-        app.handler.S3_Event_Handler, "handle_client_error"
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
+        app.handler.S3EventHandler, "handle_client_error"
     ) as mock_handle_client_error:
 
         result = app.handler.handler(receive_s3_event, lambda_context)
@@ -460,8 +460,8 @@ def test_handler_unexpected_error(mock_time, mock_boto_client, mock_env, lambda_
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.Slack_Handler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
-        app.handler.S3_Event_Handler, "handle_client_error"
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
+        app.handler.S3EventHandler, "handle_client_error"
     ) as mock_handle_client_error:
 
         result = app.handler.handler(receive_s3_event, lambda_context)
@@ -483,7 +483,7 @@ def test_handler_missing_env_vars(lambda_context, receive_s3_event):
     assert "Configuration error" in result["body"]
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 def test_handler_invalid_s3_record(mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context):
     """Test handler with invalid S3 record"""
@@ -509,7 +509,7 @@ def test_handler_invalid_s3_record(mock_boto_client, mock_initialise_slack_messa
     assert "Successfully polled and processed sqs events" in result["body"]
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 def test_handler_non_s3_event(mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context):
     """Test handler with non-S3 event"""
@@ -531,7 +531,7 @@ def test_handler_non_s3_event(mock_boto_client, mock_initialise_slack_messages, 
     assert "Successfully polled and processed sqs events" in result["body"]
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 def test_handler_empty_records(mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context):
     """Test handler with empty records"""
@@ -546,7 +546,7 @@ def test_handler_empty_records(mock_boto_client, mock_initialise_slack_messages,
     assert "Successfully polled and processed sqs events" in result["body"]
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @pytest.mark.parametrize(
     "filename,expected",
@@ -573,12 +573,12 @@ def test_handler_empty_records(mock_boto_client, mock_initialise_slack_messages,
 )
 def test_is_supported_file_type(mock_boto_client, mock_initialise_slack_messages, filename, expected):
     """Test file type allowlist validation"""
-    from app.handler import S3_Event_Handler
+    from app.handler import S3EventHandler
 
-    assert S3_Event_Handler.is_supported_file_type(filename) is expected
+    assert S3EventHandler.is_supported_file_type(filename) is expected
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 def test_handler_unsupported_file_type(mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context):
     """Test handler skips unsupported file types"""
@@ -604,11 +604,11 @@ def test_handler_unsupported_file_type(mock_boto_client, mock_initialise_slack_m
     assert "Successfully polled and processed sqs events" in result["body"]
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("slack_sdk.WebClient")
 @patch("time.time")
-def test_slack_handler_success(
+def test_SlackHandler_success(
     mock_time,
     mock_slack_client,
     mock_boto_client,
@@ -643,11 +643,11 @@ def test_slack_handler_success(
     mock_instance.chat_update.call_count = 2
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("slack_sdk.WebClient")
 @patch("time.time")
-def test_slack_handler_success_multiple(
+def test_SlackHandler_success_multiple(
     mock_time,
     mock_slack_client,
     mock_boto_client,
@@ -688,11 +688,11 @@ def test_slack_handler_success_multiple(
     mock_instance.chat_update.call_count = 2
 
 
-@patch("app.handler.Slack_Handler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("slack_sdk.WebClient")
 @patch("time.time")
-def test_slack_handler_client_failure(
+def test_SlackHandler_client_failure(
     mock_time,
     mock_slack_client,
     mock_boto_client,
