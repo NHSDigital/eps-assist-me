@@ -142,29 +142,11 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
-    const syncKnowledgeBaseS3BucketPolicy = new PolicyStatement({
-      actions: ["s3:ListBucket"],
-      resources: [props.docsBucketArn] // Bucket-level resource for ListBucket
-    })
-
-    const syncKnowledgeBaseS3ObjectPolicy = new PolicyStatement({
-      actions: [
-        "s3:GetObject",
-        "s3:GetObjectTagging",
-        "s3:PutObjectTagging"
-      ],
-      resources: [
-        `${props.docsBucketArn}/processed/*`
-      ]
-    })
-
     this.syncKnowledgeBasePolicy = new ManagedPolicy(this, "SyncKnowledgeBasePolicy", {
       description: "Policy for SyncKnowledgeBase Lambda to trigger ingestion jobs",
       statements: [
         syncKnowledgeBaseBedrockPolicy,
-        syncKnowledgeBaseSSMPolicy,
-        syncKnowledgeBaseS3BucketPolicy,
-        syncKnowledgeBaseS3ObjectPolicy
+        syncKnowledgeBaseSSMPolicy
       ]
     })
 

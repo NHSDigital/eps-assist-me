@@ -65,6 +65,8 @@ export class SimpleQueueService extends Construct {
 
     props.functions.forEach(fn => {
       fn.function.addEventSource(eventSource)
+      fn.function.addEnvironment("SQS_URL", queue.queueUrl)
+
       queue.grantConsumeMessages(fn.function)
     })
 
