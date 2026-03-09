@@ -183,7 +183,7 @@ class SlackHandler:
                             title="Processing File Changes",
                             details=[],
                             outputs=["Initialising"],
-                            status="in-progress",
+                            status="in_progress",
                         ),
                     ],
                 },
@@ -226,9 +226,11 @@ class SlackHandler:
                         text_fallback="*My knowledge base has been updated!*",
                     )
 
-                    responses.append(response)
-                    if response["ok"] is not True:
+                    if not response or not response.get("ok"):
                         logger.error("Error initialising Slack Message.", extra={"response": response})
+                        continue
+
+                    responses.append(response)
                 except Exception as e:
                     logger.error(
                         f"Failed to initialise slack message for channel: {channel_id}", extra={"exception": e}
