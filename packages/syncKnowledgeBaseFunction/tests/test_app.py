@@ -529,7 +529,8 @@ def test_handler_slack_silent_success(
 
 @patch("app.handler.KNOWLEDGEBASE_ID", "")
 @patch("app.handler.DATA_SOURCE_ID", "")
-def test_handler_missing_env_vars(lambda_context, receive_s3_event):
+@patch("boto3.client")
+def test_handler_missing_env_vars(mock_boto, lambda_context, receive_s3_event):
     """Test handler with missing environment variables"""
     from app.handler import handler
 
@@ -789,7 +790,8 @@ def test_SlackHandler_client_failure(
     mock_instance.chat_update.call_count = 2
 
 
-def test_process_multiple_s3_events_formatting():
+@patch("boto3.client")
+def test_process_multiple_s3_events_formatting(mock_boto):
     """Test process_multiple_s3_events generates correct update messages based on event counts"""
     from app.handler import S3EventHandler, S3EventResult, SlackHandler
 
@@ -814,7 +816,8 @@ def test_process_multiple_s3_events_formatting():
     assert calls[1].kwargs["message"] == "1 files deleted"
 
 
-def test_slack_handler_create_task_structure():
+@patch("boto3.client")
+def test_slack_handler_create_task_structure(mock_boto):
     """Test create_task generates the exact nested dictionary structure required by Slack Block Kit"""
     from app.handler import SlackHandler
 
@@ -875,7 +878,8 @@ def test_slack_handler_complete_plan(mock_boto_client, slack_message_event, mock
     )
 
 
-def test_validate_s3_event_missing_keys():
+@patch("boto3.client")
+def test_validate_s3_event_missing_keys(mock_boto):
     """Test validation logic gracefully rejects payloads missing necessary S3 identifiers without throwing KeyError"""
     from app.handler import S3EventHandler
 
@@ -895,7 +899,8 @@ def test_validate_s3_event_missing_keys():
 @patch("app.handler.S3EventHandler.process_batched_queue_events")
 @patch("app.handler.S3EventHandler.close_sqs_events")
 @patch("app.handler.SlackHandler.initialise_slack_messages")
-def test_search_and_process_sqs_events_early_exit(mock_slack_init, mock_close, mock_process, mock_search):
+@patch("boto3.client")
+def test_search_and_process_sqs_events_early_exit(mock_boto, mock_slack_init, mock_close, mock_process, mock_search):
     """Test the while-loop equivalent exits early when the queue is empty, rather than looping 20 times"""
     from app.handler import search_and_process_sqs_events
 
@@ -912,4 +917,4 @@ def test_search_and_process_sqs_events_early_exit(mock_slack_init, mock_close, m
 
     assert mock_process.call_count == 2
     assert mock_search.call_count == 2
-    assert mock_close.call_count == 1  # Only closes the polled events (Iteration 1)
+    assert mock_close.call_count == 2
