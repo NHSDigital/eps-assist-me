@@ -44,6 +44,11 @@ class SlackHandler:
 
     def __init__(self, silent=True):
         self.silent: bool = silent
+        if self.silent:
+            logger.warning(
+                "Slack has been set to SILENT mode", extra={"SLACK_BOT_ACTIVE": SLACK_BOT_ACTIVE, "silent": silent}
+            )
+
         self.fetching_block_id: str = uuid.uuid4().hex
         self.update_block_id: str = uuid.uuid4().hex
         self.slack_client: WebClient | None = None
@@ -465,7 +470,8 @@ def search_and_process_sqs_events(event):
     events = [event]
     loop_count = 20
 
-    slack_handler = SlackHandler(silent=SLACK_BOT_ACTIVE)
+    is_silent = not SLACK_BOT_ACTIVE  # Mute Slack for PRs
+    slack_handler = SlackHandler(silent=is_silent)
     slack_handler.initialise_slack_messages()
 
     for i in range(loop_count):
@@ -493,7 +499,6 @@ def handler(event, context):
     Main Lambda handler for a queue-service (S3-triggered) knowledge base synchronization
     """
     start_time = time.time()
-    logger.info("log_event", extra=event)
 
     if not KNOWLEDGEBASE_ID or not DATA_SOURCE_ID:
         logger.exception(

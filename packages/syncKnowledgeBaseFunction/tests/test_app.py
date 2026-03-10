@@ -10,16 +10,17 @@ from unittest.mock import Mock, patch, MagicMock, DEFAULT
 TEST_BOT_TOKEN = "test-bot-token"
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_env():
-    """Mock environment variables"""
     env_vars = {
         "KNOWLEDGEBASE_ID": "test-kb-id",
         "DATA_SOURCE_ID": "test-ds-id",
         "AWS_REGION": "eu-west-2",
         "SQS_URL": "example",
+        "SLACK_BOT_ACTIVE": "true",
     }
-    with patch.dict(os.environ, env_vars):
+
+    with patch.dict(os.environ, env_vars, clear=False):
         yield env_vars
 
 
@@ -221,6 +222,20 @@ def test_handler_success(
         dataSourceId="test-ds-id",
         description="Sync: test-bucket",
     )
+
+
+@patch("app.handler.SLACK_BOT_ACTIVE", False)
+@patch("app.handler.SlackHandler.initialise_slack_messages")
+@patch("boto3.client")
+@patch("time.time")
+def test_handler_slack_inactive(
+    mock_time, mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context, receive_s3_event
+):
+    from app.handler import handler
+
+    result = handler(receive_s3_event, lambda_context)
+
+    assert result["statusCode"] == 200
 
 
 @patch("app.handler.SlackHandler.initialise_slack_messages")
@@ -780,11 +795,12 @@ def test_slack_handler_create_task_structure():
     assert plan_block["title"] == "Syncing Documents..."  # Method explicitly alters the plan title
 
 
-def test_slack_handler_complete_plan(slack_message_event):
+@patch("boto3.client")
+def test_slack_handler_complete_plan(mock_boto_client, slack_message_event, mock_env):
     """Test complete_plan correctly mutates the message state and pushes updates"""
     from app.handler import SlackHandler
 
-    handler = SlackHandler()
+    handler = SlackHandler(False)
     handler.slack_client = MagicMock()
 
     # Deep copy the fixture so we don't mutate the global test state
