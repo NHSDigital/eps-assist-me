@@ -24,7 +24,7 @@ export interface LambdaFunctionProps {
   readonly functionName: string
   readonly packageBasePath: string
   readonly handler: string
-  readonly environmentVariables?: {[key: string]: string}
+  readonly environmentVariables?: { [key: string]: string }
   readonly additionalPolicies?: Array<IManagedPolicy>
   readonly logRetentionInDays: number
   readonly logLevel: string
@@ -134,7 +134,15 @@ export class LambdaFunction extends Construct {
       timeout: Duration.seconds(50),
       architecture: Architecture.X86_64,
       handler: props.handler,
-      code: Code.fromAsset(props.packageBasePath),
+      code: Code.fromAsset(props.packageBasePath, {
+        exclude: [
+          "tests",
+          "pytest.ini",
+          ".vscode",
+          "__pycache__",
+          "*.pyc"
+        ]
+      }),
       role,
       environment: {
         ...props.environmentVariables,
