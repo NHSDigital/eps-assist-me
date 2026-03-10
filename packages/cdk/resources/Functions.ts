@@ -129,7 +129,7 @@ export class Functions extends Construct {
       environmentVariables: {
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
-        "SLACK_BOT_ACTIVE_ON_PRS": "true",
+        "SLACK_BOT_ACTIVE": `${!props.isPullRequest}`,
         "DATA_SOURCE_ID": props.dataSourceId
       },
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]

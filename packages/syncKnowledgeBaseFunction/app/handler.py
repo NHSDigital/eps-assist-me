@@ -17,6 +17,7 @@ from app.config.config import (
     DATA_SOURCE_ID,
     SUPPORTED_FILE_TYPES,
     SQS_URL,
+    SLACK_BOT_ACTIVE,
     get_bot_token,
     logger,
 )
@@ -41,7 +42,8 @@ class S3EventResult:
 
 class SlackHandler:
 
-    def __init__(self):
+    def __init__(self, silent=True):
+        self.silent: bool = silent
         self.fetching_block_id: str = uuid.uuid4().hex
         self.update_block_id: str = uuid.uuid4().hex
         self.slack_client: WebClient | None = None
@@ -51,6 +53,10 @@ class SlackHandler:
     def post_message(self, channel_id: str, blocks: list, text_fallback: str):
         """Send a new message to Slack"""
         try:
+            if self.silent:
+                logger.info(f"[SILENT MODE] Would have posted to {channel_id}")
+                return {"ok": True, "channel": channel_id, "ts": "123456", "message": {"blocks": blocks}}
+
             return self.slack_client.chat_postMessage(channel=channel_id, text=text_fallback, blocks=blocks)
         except SlackApiError as e:
             logger.error(f"Error posting to {channel_id}: {str(e)}")
@@ -62,6 +68,10 @@ class SlackHandler:
     def update_message(self, channel_id: str, ts: str, blocks: list):
         """Update an existing Slack Message"""
         try:
+            if self.silent:
+                logger.info(f"[SILENT MODE] Would have posted to {channel_id}")
+                return {"ok": True, "channel": channel_id, "ts": ts, "message": {"blocks": blocks}}
+
             return self.slack_client.chat_update(
                 channel=channel_id, ts=ts, blocks=blocks, text=self.default_slack_message
             )
@@ -455,7 +465,7 @@ def search_and_process_sqs_events(event):
     events = [event]
     loop_count = 20
 
-    slack_handler = SlackHandler()
+    slack_handler = SlackHandler(silent=SLACK_BOT_ACTIVE)
     slack_handler.initialise_slack_messages()
 
     for i in range(loop_count):
