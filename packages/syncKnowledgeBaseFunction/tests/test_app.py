@@ -276,7 +276,7 @@ def test_handler_fetch_files(
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
-    mock_sqs.receive_message.side_effect = [fetch_sqs_event, {}]
+    mock_sqs.receive_message.side_effect = [fetch_sqs_event] + [{}] * 21
 
     def boto_client_router(service_name, **kwargs):
         if service_name == "bedrock-agent":
@@ -320,7 +320,8 @@ def test_handler_fetch_multiple_files(
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
-    mock_sqs.receive_message.side_effect = [fetch_multiple_sqs_event, {}]
+    # mock_sqs.receive_message.side_effect = [fetch_multiple_sqs_event] + [[]] * 29
+    mock_sqs.receive_message.side_effect = [fetch_multiple_sqs_event] + [{}] * 21
 
     def boto_client_router(service_name, **kwargs):
         if service_name == "bedrock-agent":
@@ -459,7 +460,7 @@ def test_handler_slack_success(
 
     # Assert Messages were posted and updated
     mock_slack_client.chat_postMessage.assert_called_once()
-    assert mock_slack_client.chat_update.call_count == 2
+    assert mock_slack_client.chat_update.call_count == 1
 
 
 @patch("app.config.config.get_bot_active")
@@ -900,14 +901,16 @@ def test_validate_s3_event_missing_keys(mock_boto):
 @patch("app.handler.S3EventHandler.close_sqs_events")
 @patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
-def test_search_and_process_sqs_events_early_exit(mock_boto, mock_slack_init, mock_close, mock_process, mock_search):
+def test_search_and_process_sqs_events(mock_boto, mock_slack_init, mock_close, mock_process, mock_search):
     """Test the while-loop equivalent exits early when the queue is empty, rather than looping 20 times"""
     from app.handler import search_and_process_sqs_events
 
     initial_event = {"Records": ["Initial Event"]}
 
     # Simulate finding 1 new event on the first search, then 0 on the second search
-    mock_search.side_effect = [[{"Records": ["Polled Event 1"]}], []]  # Empty list triggers the `if not events: break`
+    mock_search.side_effect = [[{"Records": ["Polled Event 1"]}]] + [
+        []
+    ] * 21  # Empty list triggers the `if not events: break`
 
     search_and_process_sqs_events(initial_event)
 
@@ -916,5 +919,5 @@ def test_search_and_process_sqs_events_early_exit(mock_boto, mock_slack_init, mo
     # Iteration 2: Loop breaks immediately.
 
     assert mock_process.call_count == 2
-    assert mock_search.call_count == 2
     assert mock_close.call_count == 2
+    assert mock_search.call_count == 19

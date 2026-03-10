@@ -489,8 +489,6 @@ def search_and_process_sqs_events(event):
             # Clear the list so the NEXT loop iteration knows to search again
             events = []
 
-    slack_handler.complete_plan()
-
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
