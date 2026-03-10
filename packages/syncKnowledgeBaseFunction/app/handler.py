@@ -72,7 +72,7 @@ class SlackHandler:
         """Update an existing Slack Message"""
         try:
             if self.silent:
-                logger.info(f"[SILENT MODE] Would have posted to {channel_id}")
+                logger.info(f"[SILENT MODE] Would have posted to {channel_id}", extra={"blocks": blocks})
                 return {"ok": True, "channel": channel_id, "ts": ts, "message": {"blocks": blocks}}
 
             return self.slack_client.chat_update(
@@ -441,15 +441,15 @@ class S3EventHandler:
     @staticmethod
     def search_sqs_for_events():
         logger.info("Searching for new events")
-        response = sqs.receive_message(QueueUrl=SQS_URL, MaxNumberOfMessages=10, WaitTimeSeconds=5)
+        response = sqs.receive_message(QueueUrl=SQS_URL, MaxNumberOfMessages=10, WaitTimeSeconds=20)
 
         events = []
         messages = response.get("Messages", [])
         if not messages:
-            logger.warning("No messages found")
+            logger.warning("No messages found", extra={"response": response, "messages": messages})
             return events
 
-        logger.info(f"Found {len(messages)} messages in SQS")
+        logger.info(f"Found {len(messages)} messages in SQS", extra={"response": response, "messages": messages})
         for message in messages:
             body = message.get("Body", {})
             message_events = json.loads(body)

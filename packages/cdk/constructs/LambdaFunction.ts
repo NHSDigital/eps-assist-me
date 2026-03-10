@@ -29,6 +29,7 @@ export interface LambdaFunctionProps {
   readonly logRetentionInDays: number
   readonly logLevel: string
   readonly dependencyLocation?: string
+  readonly reservedConcurrentExecutions?: number
 }
 
 // Lambda Insights layer for enhanced monitoring
@@ -141,7 +142,8 @@ export class LambdaFunction extends Construct {
         POWERTOOLS_LOG_LEVEL: props.logLevel
       },
       logGroup,
-      layers: layers
+      layers: layers,
+      reservedConcurrentExecutions: props.reservedConcurrentExecutions
     })
 
     // Suppress CFN guard rules for Lambda function

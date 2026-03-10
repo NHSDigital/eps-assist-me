@@ -132,7 +132,8 @@ export class Functions extends Construct {
         "SLACK_BOT_ACTIVE": `${!props.isPullRequest}`,
         "DATA_SOURCE_ID": props.dataSourceId
       },
-      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
+      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy],
+      reservedConcurrentExecutions: 1
     })
 
     this.slackBotLambda = slackBotLambda
