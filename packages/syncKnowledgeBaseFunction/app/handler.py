@@ -17,7 +17,7 @@ from app.config.config import (
     DATA_SOURCE_ID,
     SUPPORTED_FILE_TYPES,
     SQS_URL,
-    SLACK_BOT_ACTIVE,
+    get_bot_active,
     get_bot_token,
     logger,
 )
@@ -45,9 +45,7 @@ class SlackHandler:
     def __init__(self, silent=True):
         self.silent: bool = silent
         if self.silent:
-            logger.warning(
-                "Slack has been set to SILENT mode", extra={"SLACK_BOT_ACTIVE": SLACK_BOT_ACTIVE, "silent": silent}
-            )
+            logger.warning("Slack has been set to SILENT mode")
 
         self.fetching_block_id: str = uuid.uuid4().hex
         self.update_block_id: str = uuid.uuid4().hex
@@ -470,7 +468,7 @@ def search_and_process_sqs_events(event):
     events = [event]
     loop_count = 20
 
-    is_silent = not SLACK_BOT_ACTIVE  # Mute Slack for PRs
+    is_silent = not get_bot_active()  # Mute Slack for PRs
     slack_handler = SlackHandler(silent=is_silent)
     slack_handler.initialise_slack_messages()
 

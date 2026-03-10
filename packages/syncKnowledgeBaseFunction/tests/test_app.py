@@ -224,20 +224,6 @@ def test_handler_success(
     )
 
 
-@patch("app.handler.SLACK_BOT_ACTIVE", False)
-@patch("app.handler.SlackHandler.initialise_slack_messages")
-@patch("boto3.client")
-@patch("time.time")
-def test_handler_slack_inactive(
-    mock_time, mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context, receive_s3_event
-):
-    from app.handler import handler
-
-    result = handler(receive_s3_event, lambda_context)
-
-    assert result["statusCode"] == 200
-
-
 @patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("time.time")
@@ -474,6 +460,71 @@ def test_handler_slack_success(
     # Assert Messages were posted and updated
     mock_slack_client.chat_postMessage.assert_called_once()
     assert mock_slack_client.chat_update.call_count == 2
+
+
+@patch("app.config.config.get_bot_active")
+@patch("slack_sdk.WebClient")
+@patch("app.config.config.get_bot_token")
+@patch("boto3.client")
+@patch("time.time")
+def test_handler_slack_silent_success(
+    mock_time,
+    mock_boto_client,
+    mock_get_bot_token,
+    mock_webclient_class,
+    mock_get_bot_active,
+    mock_env,
+    lambda_context,
+    receive_s3_event,
+):
+    """Test successful handler execution with actual Slack WebClient interaction"""
+    # Mock timing
+    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
+
+    # Setup Boto3 Mock
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    # Setup Slack SDK WebClient Mock
+    mock_slack_client = MagicMock()
+    mock_webclient_class.return_value = mock_slack_client
+    mock_get_bot_token.return_value = "test-bot-token"
+    mock_get_bot_active.return_value = False
+
+    # Mock the initial auth and channel fetching
+    mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
+
+    # Needs to be a list because the handler uses: `for result in self.slack_client.conversations_list(...)`
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "123456"}]}]
+
+    # Force module reload to apply new patches from the source modules
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    # Run the handler
+    result = handler(receive_s3_event, lambda_context)
+
+    # --- Assertions ---
+    assert result["statusCode"] == 200
+    assert "Successfully polled and processed sqs events" in result["body"]
+
+    # Assert Boto3 was triggered correctly
+    mock_bedrock.start_ingestion_job.assert_called_once_with(
+        knowledgeBaseId="test-kb-id",
+        dataSourceId="test-ds-id",
+        description="Sync: test-bucket",
+    )
+
+    # Assert Slack WebClient setup calls
+    mock_slack_client.auth_test.assert_called_once()
+    mock_slack_client.conversations_list.assert_called_once_with(types=["private_channel"], limit=1000)
+
+    # Assert Messages were posted and updated
+    mock_slack_client.chat_postMessage.assert_not_called()
+    mock_slack_client.chat_update.asset_not_called()
 
 
 @patch("app.handler.KNOWLEDGEBASE_ID", "")

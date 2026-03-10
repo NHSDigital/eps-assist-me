@@ -20,6 +20,20 @@ SLACK_BOT_ACTIVE = os.environ.get("SLACK_BOT_ACTIVE", False)
 SUPPORTED_FILE_TYPES = {".pdf", ".txt", ".md", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".html", ".json"}
 
 
+def to_bool(value: str | None) -> bool:
+    # 1. Handle None immediately
+    if value is None:
+        return False
+
+    # 2. Normalize the string and check against "false" values
+    # We include '0' as a string and the integer 0 just in case
+    if str(value).lower() in ("false", "0", "none", "f", "n", "no"):
+        return False
+
+    # 3. Otherwise, check if the string has content
+    return bool(value)
+
+
 @lru_cache()
 def get_bot_token() -> Tuple[str, str]:
     try:
@@ -43,6 +57,6 @@ def get_bot_token() -> Tuple[str, str]:
 
 
 @lru_cache()
-def get_bot_on_prs() -> bool:
-    is_active_on_prs_str = os.environ.get("SLACK_BOT_ACTIVE_ON_PRS", "false").lower()
-    return is_active_on_prs_str == "true"
+def get_bot_active() -> bool:
+    is_active = os.environ.get("SLACK_BOT_ACTIVE", "false")
+    return to_bool(is_active)
