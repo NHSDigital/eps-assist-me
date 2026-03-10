@@ -476,14 +476,13 @@ def search_and_process_sqs_events(event):
         logger.info(f"Starting process round {i + 1}")
         # If there are no events, stop
         if not events:
-            break
-
-        # Delete sqs events that we have polled
-        # The initial event will cancel with the success of the lambda
-        if i > 0:
-            S3EventHandler.close_sqs_events(events)
+            continue
 
         S3EventHandler.process_batched_queue_events(slack_handler, events)
+
+        # Delete sqs events that we have polled
+        if len(events) > 0:
+            S3EventHandler.close_sqs_events(events)
 
         # Search for any events in the sqs queue
         events = S3EventHandler.search_sqs_for_events()
