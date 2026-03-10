@@ -474,18 +474,20 @@ def search_and_process_sqs_events(event):
 
     for i in range(loop_count):
         logger.info(f"Starting process round {i + 1}")
-        # If there are no events, stop
+
+        # If we don't have events in hand, search the queue
         if not events:
-            continue
+            logger.info("No events, search")
+            events = S3EventHandler.search_sqs_for_events()
 
-        S3EventHandler.process_batched_queue_events(slack_handler, events)
-
-        # Delete sqs events that we have polled
-        if len(events) > 0:
+        # If we have events (either from the initial seed or the search above), process them
+        if events:
+            logger.info("Founds events, process")
+            S3EventHandler.process_batched_queue_events(slack_handler, events)
             S3EventHandler.close_sqs_events(events)
 
-        # Search for any events in the sqs queue
-        events = S3EventHandler.search_sqs_for_events()
+            # Clear the list so the NEXT loop iteration knows to search again
+            events = []
 
     slack_handler.complete_plan()
 
