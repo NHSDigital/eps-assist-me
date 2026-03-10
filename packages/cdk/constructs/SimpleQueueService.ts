@@ -58,7 +58,7 @@ export class SimpleQueueService extends Construct {
 
     // Add queues as event source for the notify function and sync knowledge base function
     const eventSource = new SqsEventSource(queue, {
-      maxBatchingWindow: Duration.minutes(5),
+      maxBatchingWindow: Duration.seconds(5),
       reportBatchItemFailures: true,
       batchSize: 100
     })

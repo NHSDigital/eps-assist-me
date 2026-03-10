@@ -245,13 +245,15 @@ class SlackHandler:
 
     def complete_plan(self):
         """Finish Slack Plan message block"""
+        logger.info("Completing Plan")
         for slack_message in self.messages:
             try:
-                channel_id = slack_message["channel"]
-                ts = slack_message["ts"]
-
                 if self.slack_client is None or slack_message is None:
                     logger.warning("No Slack client or message, skipping complete task")
+                    continue
+
+                channel_id = slack_message["channel"]
+                ts = slack_message["ts"]
 
                 # Update the event count in the plan block
                 blocks = slack_message["message"]["blocks"]
@@ -276,18 +278,6 @@ class SlackHandler:
 
 
 class S3EventHandler:
-    @staticmethod
-    def handle_client_error(e):
-        error_code = e.response.get("Error", {}).get("Code", "Unknown")
-        error_message = e.response.get("Error", {}).get("Message", str(e))
-
-        # ConflictException is expected when ingestion job already running
-        if error_code == "ConflictException":
-            logger.error(
-                "Ingestion job already in progress - no action required",
-                extra={"status_code": 409, "error_code": error_code, "error_message": error_message},
-            )
-
     @staticmethod
     def is_supported_file_type(file_key):
         """
@@ -364,9 +354,6 @@ class S3EventHandler:
                 },
             )
         except Exception as e:
-            # Handle Conflict Exception, we don't want to stop - just inform user
-            S3EventHandler.handle_client_error(e)
-
             logger.error(f"Error starting ingestion: {str(e)}")
             result.processing = False
 
@@ -423,10 +410,9 @@ class S3EventHandler:
                 id=slack_handler.fetching_block_id, message=f"Found {len(s3_records)} records", replace=True
             )
 
-            _ = S3EventHandler.process_multiple_sqs_events(slack_handler, s3_records)
-            processed_files += 1
+            result = S3EventHandler.process_multiple_sqs_events(slack_handler, s3_records)
+            processed_files += len(result)
 
-        slack_handler.complete_plan()
         logger.info(f"Completed {processed_files} file(s)")
 
     @staticmethod
@@ -441,7 +427,8 @@ class S3EventHandler:
 
     @staticmethod
     def search_sqs_for_events():
-        response = sqs.receive_message(QueueUrl=SQS_URL, MaxNumberOfMessages=10, WaitTimeSeconds=2)
+        logger.info("Searching for new events")
+        response = sqs.receive_message(QueueUrl=SQS_URL, MaxNumberOfMessages=10, WaitTimeSeconds=5)
 
         events = []
         messages = response.get("Messages", [])
@@ -449,13 +436,14 @@ class S3EventHandler:
             logger.warning("No messages found")
             return events
 
+        logger.info(f"Found {len(messages)} messages in SQS")
         for message in messages:
             body = message.get("Body", {})
             message_events = json.loads(body)
             if message_events:
                 events.append(message_events)
 
-        logger.info(f"Found {len(messages)} SQS messages")
+        logger.info(f"Found {len(messages)} total event(s) in SQS messages")
         return events
 
 
@@ -471,6 +459,7 @@ def search_and_process_sqs_events(event):
     slack_handler.initialise_slack_messages()
 
     for i in range(loop_count):
+        logger.info(f"Starting process round {i + 1}")
         # If there are no events, stop
         if not events:
             break
