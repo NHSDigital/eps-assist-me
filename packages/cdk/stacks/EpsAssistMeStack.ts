@@ -65,6 +65,11 @@ export class EpsAssistMeStack extends Stack {
     const deploymentRole = Role.fromRoleArn(this, "deploymentRole", deploymentRoleImport)
     const auditLoggingBucket = Bucket.fromBucketArn(
       this, "AuditLoggingBucket", auditLoggingBucketImport)
+    const assistMeDocumentSyncRole = Role.fromRoleArn(
+      this,
+      "AssistMeDocumentSyncRole",
+      assistMeDocumentSyncRoleArn
+    )
 
     if (!slackBotToken || !slackSigningSecret) {
       throw new Error("Missing required context variables. Please provide slackBotToken and slackSigningSecret")
@@ -95,7 +100,8 @@ export class EpsAssistMeStack extends Stack {
     const storage = new Storage(this, "Storage", {
       stackName: props.stackName,
       deploymentRole: deploymentRole,
-      auditLoggingBucket: auditLoggingBucket
+      auditLoggingBucket: auditLoggingBucket,
+      assistMeDocumentSyncRole: assistMeDocumentSyncRole
     })
 
     // initialize s3 folders for raw and processed documents
@@ -256,16 +262,6 @@ export class EpsAssistMeStack extends Stack {
       })
       regressionTestRole.addManagedPolicy(regressionTestPolicy)
     }
-
-    // Grant Access to Document Sync Role
-    const assistMeDocumentSyncRole = Role.fromRoleArn(
-      this,
-      "AssistMeDocumentSyncRole",
-      assistMeDocumentSyncRoleArn
-    )
-
-    storage.kbDocsBucket.grantRead(assistMeDocumentSyncRole)
-    storage.kbDocsKmsKey.grantDecrypt(assistMeDocumentSyncRole)
 
     // Output: SlackBot Endpoint
     new CfnOutput(this, "SlackBotEventsEndpoint", {

@@ -14,6 +14,7 @@ import {
   AccountRootPrincipal,
   Effect,
   IPrincipal,
+  IRole,
   PolicyDocument,
   PolicyStatement
 } from "aws-cdk-lib/aws-iam"
@@ -23,6 +24,7 @@ export interface S3BucketProps {
   readonly versioned: boolean
   readonly deploymentRole: IPrincipal
   readonly auditLoggingBucket: IBucket
+  readonly documentSyncRole: IRole
 }
 
 export class S3Bucket extends Construct {
@@ -76,6 +78,19 @@ export class S3Bucket extends Construct {
       ]
     })
 
+    const syncPolicy = new PolicyStatement({
+      effect: Effect.ALLOW,
+      principals: [props.documentSyncRole!],
+      actions: [
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*"
+      ],
+      resources: [
+        bucket.bucketArn,
+        bucket.arnForObjects("*")
+      ]
+    })
     const accountRootPrincipal = new AccountRootPrincipal()
     const kmsPolicy = new PolicyDocument({
       statements: [
@@ -93,11 +108,20 @@ export class S3Bucket extends Construct {
             "kms:GenerateDataKey"
           ],
           resources:["*"]
+        }),
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          principals: [props.documentSyncRole!],
+          actions: [
+            "kms:Decrypt"
+          ],
+          resources:["*"]
         })
       ]
     })
 
     bucket.addToResourcePolicy(deploymentPolicy)
+    bucket.addToResourcePolicy(syncPolicy)
 
     const contentBucketKmsKey = (kmsKey.node.defaultChild as CfnKey)
     contentBucketKmsKey.keyPolicy = kmsPolicy.toJSON()
