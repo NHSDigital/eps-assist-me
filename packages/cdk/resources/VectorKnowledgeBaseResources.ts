@@ -88,8 +88,8 @@ export class VectorKnowledgeBaseResources extends Construct {
         },
         {
           type: ContentFilterType.MISCONDUCT,
-          inputStrength: ContentFilterStrength.HIGH,
-          outputStrength: ContentFilterStrength.HIGH
+          inputStrength: ContentFilterStrength.LOW,
+          outputStrength: ContentFilterStrength.LOW
         },
         {
           type: ContentFilterType.PROMPT_ATTACK,
