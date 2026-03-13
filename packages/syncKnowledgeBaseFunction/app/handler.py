@@ -398,7 +398,7 @@ class S3EventHandler:
                     f"Processed a total of {len(records)} record(s)" if (i + 1 == len(message_list)) else None
                 )
                 slack_handler.update_task(
-                    id=slack_handler.update_block_id, message=message, output_message=output_message
+                    id=slack_handler.update_block_id, message=message, output_message=output_message, replace=(i == 0)
                 )
 
     @staticmethod
