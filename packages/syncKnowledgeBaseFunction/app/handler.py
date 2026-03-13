@@ -186,8 +186,7 @@ class SlackHandler:
                 for message in history:
                     try:
                         found_user = message.get("user", "") == user_id
-                        found_title = message.get("blocks")[0]["text"]["text"]
-                        if found_user == user_id and header == found_title:
+                        if found_user == user_id:
                             messages.append(message)
                             break  # Found latest message, stop searching
                     except (IndexError, KeyError, TypeError):
@@ -197,6 +196,7 @@ class SlackHandler:
         except Exception as e:
             logger.error(f"Failed to searching slack message history: {str(e)}")
 
+        logger.info(f"Found {len(messages)} existing messages")
         return messages
 
     def initialise_slack_messages(self):
@@ -224,11 +224,14 @@ class SlackHandler:
                     channels=target_channels, user_id=user_id, header=message_default_text
                 )
 
-                logger.info(f"Found {len(existing_messages)} existing messages")
-
                 if len(existing_messages) > 0:
+                    logger.info(
+                        f"Found {len(existing_messages)} existing messages", extra={"messages": existing_messages}
+                    )
                     self.messages = existing_messages
                     return
+
+                logger.info("No valid existing messages found")
             except Exception as e:
                 logger.error(f"Failed to search for existing slack messages: {str(e)}")
 
@@ -380,6 +383,8 @@ class S3EventHandler:
         self.modified += len([r for r in records if "ObjectModified" in r.get("eventName", "")])
         self.deleted += len([r for r in records if "ObjectRemoved" in r.get("eventName", "")])
 
+        total = self.created + self.modified + self.deleted
+
         counts = [
             ("created", self.created),
             ("modified", self.modified),
@@ -391,11 +396,11 @@ class S3EventHandler:
 
         if message_list and len(message_list) > 0:
             slack_handler.update_task(
-                id=slack_handler.update_block_id, message="", output_message="Processing...", replace=True
+                id=slack_handler.update_block_id, message="Update pending", output_message="Processing...", replace=True
             )
             for i, message in enumerate(message_list):
                 output_message = (
-                    f"Processed a total of {len(records)} record(s)" if (i + 1 == len(message_list)) else None
+                    f"Processed a total of {len(total)} record(s)" if (i + 1 == len(message_list)) else None
                 )
                 slack_handler.update_task(
                     id=slack_handler.update_block_id, message=message, output_message=output_message, replace=(i == 0)
