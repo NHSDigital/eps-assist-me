@@ -29,17 +29,6 @@ bedrock_agent = boto3.client("bedrock-agent")
 sqs = boto3.client("sqs")
 
 
-class S3EventResult:
-    file_name: str
-    event_type: str
-    processing: bool
-
-    def __init__(self, file_name, event_type, processing):
-        self.file_name = file_name
-        self.event_type = event_type
-        self.processing = processing
-
-
 class SlackHandler:
 
     def __init__(self, silent=True):
@@ -123,12 +112,17 @@ class SlackHandler:
         self, id: str, message: str, status: Literal["in_progress", "completed"] = "in_progress", replace=False
     ):
         # Add header
+        if self.slack_client is None:
+            logger.warning("No Slack client found, skipper update all tasks")
+            return
+
         for slack_message in self.messages:
             channel_id = slack_message["channel"]
             ts = slack_message["ts"]
 
-            if self.slack_client is None or slack_message is None:
-                logger.warning("No Slack client or message, skipping update task")
+            if slack_message is None:
+                logger.warning("No Slack message, skipping update task")
+                continue
 
             blocks = slack_message["message"]["blocks"]
             plan = next((block for block in blocks if block["type"] == "plan"), None)
@@ -136,14 +130,19 @@ class SlackHandler:
 
             if tasks is None:
                 logger.warning("No task found, skipping update task")
+                continue
 
             task = next((task for task in tasks if task["task_id"] == id), None)
             if task is None:
                 logger.warning(f"Could not find task with task_id {id}, skipping update task")
+                continue
 
             details = task["details"]
-            detail_elements = details["elements"] if not replace else []
-            detail_elements.append({"type": "rich_text_section", "elements": [{"type": "text", "text": message}]})
+            if replace:
+                logger.warning("Replacing Plan Block details")
+                details["elements"] = []
+
+            details["elements"].append({"type": "rich_text_section", "elements": [{"type": "text", "text": message}]})
 
             task["status"] = status
             task["details"] = details
@@ -165,18 +164,70 @@ class SlackHandler:
 
         return channel_ids
 
+    def search_existing_messages(self, channels, user_id, header):
+        """Get any messages in Slack for the last 20 minutes"""
+        messages = []
+        try:
+            for channel_id in channels:
+                # Search message in the channel
+                history = self.slack_client.conversations_history(
+                    channel=channel_id, limit=20, oldest=str(time.time() - (20 * 60))
+                )
+                for message in history:
+                    try:
+                        found_user = message.get("user", "") == user_id
+                        found_title = message.get("blocks")[0]["text"]["text"]
+                        if found_user == user_id and header == found_title:
+                            messages.append(message)
+                            # Found latest message, break
+                            break
+                    except (IndexError, KeyError, TypeError):
+                        continue
+                        # Handles empty lists, missing keys, or unexpected data types
+                        # Just catch so the loop doesn't break
+        except Exception as e:
+            logger.error(f"Failed to searching slack message history: {str(e)}")
+
     def initialise_slack_messages(self):
         """
         Create a new slack message to inform user of SQS event process progress
         """
         try:
+            # Create new client
+            token = get_bot_token()
+            slack_client = WebClient(token=token)
+            self.slack_client = slack_client
+
+            response = slack_client.auth_test()
+            user_id = response.get("user_id", "unknown")
+            logger.info(f"Authenticated as bot user: {user_id}", extra={"response": response})
+
+            # Get Channels where the Bot is a member
+            logger.info("Find bot channels...")
+            target_channels = self.get_bot_channels()
+
+            # Check if a message already exists
+            message_default_text = "I am currently syncing changes to my knowledge base.\n This may take a few minutes."
+            try:
+                existing_messages = self.search_existing_messages(
+                    channels=target_channels, user_id=user_id, header=message_default_text
+                )
+
+                logger.info(f"Found {len(existing_messages)} existing messages")
+
+                if len(existing_messages) > 0:
+                    self.messages = existing_messages
+                    return
+            except Exception as e:
+                logger.error(f"Failed to search for existing slack messages: {str(e)}")
+
             # Build blocks for Slack message
             blocks = [
                 {
                     "type": "section",
                     "text": {
                         "type": "plain_text",
-                        "text": "I am currently syncing changes to my knowledge base.\n This may take a few minutes.",
+                        "text": message_default_text,
                     },
                 },
                 {
@@ -207,20 +258,6 @@ class SlackHandler:
                     ],
                 },
             ]
-
-            # Create new client
-            token = get_bot_token()
-            slack_client = WebClient(token=token)
-            response = slack_client.auth_test()
-            user_id = response.get("user_id", "unknown")
-
-            self.slack_client = slack_client
-
-            logger.info(f"Authenticated as bot user: {user_id}", extra={"response": response})
-
-            # Get Channels where the Bot is a member
-            logger.info("Find bot channels...")
-            target_channels = self.get_bot_channels()
 
             if not target_channels:
                 logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
@@ -320,85 +357,13 @@ class S3EventHandler:
         return True
 
     @staticmethod
-    def process_single_s3_event(record) -> S3EventResult:
-        """Process single S3 event from SQS"""
-        s3_info = record.get("s3", {})
-        bucket_name = s3_info.get("bucket", {}).get("name")
-        object_key = s3_info.get("object", {}).get("key")
-        event_name = record.get("eventName", "Unknown")
-
-        result = S3EventResult(file_name=object_key, event_type=event_name, processing=False)
-
-        # Skip invalid records
-        if not S3EventHandler.validate_s3_event(bucket_name, object_key):
-            return result
-
-        # Extract additional event metadata for logging
-        event_name = record["eventName"]
-        object_size = s3_info.get("object", {}).get("size", "unknown")
-
-        logger.info(
-            "Found valid S3 event for processing",
-            extra={
-                "event_name": event_name,
-                "bucket": bucket_name,
-                "key": object_key,
-                "object_size_bytes": object_size,
-            },
-        )
-
-        try:
-            response = bedrock_agent.start_ingestion_job(
-                knowledgeBaseId=KNOWLEDGEBASE_ID,
-                dataSourceId=DATA_SOURCE_ID,
-                description=f"Sync: {bucket_name}",
-            )
-
-            job_id = response["ingestionJob"]["ingestionJobId"]
-            job_status = response["ingestionJob"]["status"]
-            result.processing = True
-
-            logger.info(
-                "Successfully started ingestion job",
-                extra={
-                    "job_id": job_id,
-                    "job_status": job_status,
-                    "trigger_file": object_key,
-                },
-            )
-        except Exception as e:
-            logger.error(f"Error starting ingestion: {str(e)}")
-            result.processing = False
-
-        return result
-
-    @staticmethod
-    def process_multiple_sqs_events(slack_handler: SlackHandler, sqs_records):
-        """Handle multiple individual events from SQS"""
-        results = []
-        for record in sqs_records:
-            if record.get("eventSource") != "aws:sqs":
-                logger.warning(
-                    "Skipping non-SQS event",
-                    extra={"event_source": record.get("eventSource")},
-                )
-                continue
-
-            body = json.loads(record.get("body", {}))
-            for s3_record in body.get("Records", []):
-                result = S3EventHandler.process_single_s3_event(s3_record)
-                results.append(result)
-
-        return results
-
-    @staticmethod
-    def process_multiple_s3_events(slack_handler: SlackHandler, results):
+    def process_multiple_s3_events(records: list, slack_handler: SlackHandler):
         logger.info("Processing SQS record")
 
         counts = [
-            ("created", len([result for result in results if result.event_type == "ObjectCreated"])),
-            ("modified", len([result for result in results if result.event_type == "ObjectModified"])),
-            ("deleted", len([result for result in results if result.event_type == "ObjectRemoved"])),
+            ("created", len([r for r in records if "ObjectCreated" in r.get("eventName", "")])),
+            ("modified", len([r for r in records if "ObjectModified" in r.get("eventName", "")])),
+            ("deleted", len([r for r in records if "ObjectRemoved" in r.get("eventName", "")])),
         ]
 
         # Generate the list only for non-zero values
@@ -407,26 +372,60 @@ class S3EventHandler:
             slack_handler.update_task(id=slack_handler.update_block_id, message=message)
 
     @staticmethod
+    def start_ingestion_job():
+        try:
+            response = bedrock_agent.start_ingestion_job(
+                knowledgeBaseId=KNOWLEDGEBASE_ID,
+                dataSourceId=DATA_SOURCE_ID,
+                description=str(time.time()),
+            )
+
+            job_id = response["ingestionJob"]["ingestionJobId"]
+            job_status = response["ingestionJob"]["status"]
+
+            logger.info(
+                "Successfully started ingestion job",
+                extra={"job_id": job_id, "job_status": job_status},
+            )
+        except Exception as e:
+            logger.error(f"Error starting ingestion: {str(e)}")
+
+    @staticmethod
+    def process_multiple_sqs_events(slack_handler: SlackHandler, s3_records):
+        """Handle multiple individual events from SQS"""
+        for record in s3_records:
+            if record.get("eventSource") != "aws:s3":
+                logger.warning(
+                    "Skipping non-s3 event",
+                    extra={"event_source": record.get("eventSource")},
+                )
+                continue
+
+            # Start the ingestion job
+            S3EventHandler.start_ingestion_job()
+
+        # Process event details for the Slack Messages
+        S3EventHandler.process_multiple_s3_events(records=s3_records, slack_handler=slack_handler)
+
+    @staticmethod
     def process_batched_queue_events(slack_handler: SlackHandler, events: list):
         """Handle collection of batched queue events"""
-        processed_files = 0
-
         for event in events:
-            s3_records = event.get("Records", [])
+            body = json.loads(event.get("body", "{}"))
+            sqs_records = body.get("Records", [])
 
-            if not s3_records:
+            if not sqs_records:
                 logger.warning("No records in event")
                 continue
 
-            logger.info(f"Processing {len(s3_records)} record(s)")
+            logger.info(f"Processing {len(sqs_records)} record(s)")
             slack_handler.update_task(
-                id=slack_handler.fetching_block_id, message=f"Found {len(s3_records)} records", replace=True
+                id=slack_handler.fetching_block_id, message=f"Found {len(sqs_records)} records", replace=True
             )
 
-            result = S3EventHandler.process_multiple_sqs_events(slack_handler, s3_records)
-            processed_files += len(result)
+            S3EventHandler.process_multiple_sqs_events(slack_handler, sqs_records)
 
-        logger.info(f"Completed {processed_files} file(s)")
+        logger.info(f"Completed {len(sqs_records)} event(s)")
 
     @staticmethod
     def close_sqs_events(events):
@@ -465,7 +464,7 @@ def search_and_process_sqs_events(event):
     Check if there are waiting SQS events.
     While SQS keep appearing, keep looking - limit to 20 iterations.
     """
-    events = [event]
+    events = event.get("Records", [])
     loop_count = 20
 
     is_silent = not get_bot_active()  # Mute Slack for PRs
@@ -477,17 +476,19 @@ def search_and_process_sqs_events(event):
 
         # If we don't have events in hand, search the queue
         if not events:
-            logger.info("No events, search")
-            events = S3EventHandler.search_sqs_for_events()
+            break
 
         # If we have events (either from the initial seed or the search above), process them
-        if events:
+        if events and len(events) > 0:
             logger.info("Founds events, process")
             S3EventHandler.process_batched_queue_events(slack_handler, events)
             S3EventHandler.close_sqs_events(events)
 
-            # Clear the list so the NEXT loop iteration knows to search again
-            events = []
+        # Clear the list so the NEXT loop iteration knows to search again
+        logger.info("Search for any prompts left in the queue")
+        events = S3EventHandler.search_sqs_for_events()
+
+    slack_handler.complete_plan()
 
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)

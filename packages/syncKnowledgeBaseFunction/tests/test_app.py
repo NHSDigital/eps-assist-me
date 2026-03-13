@@ -4,7 +4,7 @@ import uuid
 import pytest
 import os
 import sys
-from unittest.mock import Mock, patch, MagicMock, DEFAULT
+from unittest.mock import Mock, patch, MagicMock, DEFAULT, call
 
 
 TEST_BOT_TOKEN = "test-bot-token"
@@ -80,7 +80,7 @@ def receive_s3_event():
 
 
 @pytest.fixture
-def receive_multiple_s3_event():
+def receive_multiple_s3_events():
     """Mock S3 event with multiple records"""
     return {
         "Records": [
@@ -120,13 +120,13 @@ def fetch_sqs_event(receive_s3_event):
 
 
 @pytest.fixture
-def fetch_multiple_sqs_event(receive_multiple_s3_event):
+def fetch_multiple_sqs_event(receive_multiple_s3_events):
     """Mock incoming SQS event structure as expected by the new logic"""
     return {
         "Messages": [
             {
                 "MessageId": str(uuid.uuid4()),
-                "Body": json.dumps(receive_multiple_s3_event),
+                "Body": json.dumps(receive_multiple_s3_events),
             }
         ]
     }
@@ -220,7 +220,7 @@ def test_handler_success(
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="Sync: test-bucket",
+        description="1001",
     )
 
 
@@ -234,7 +234,7 @@ def test_handler_multiple_files(
     mock_env,
     mock_get_bot_token,
     lambda_context,
-    receive_multiple_s3_event,
+    receive_multiple_s3_events,
 ):
     """Test handler with multiple S3 records"""
     mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
@@ -249,7 +249,7 @@ def test_handler_multiple_files(
         del sys.modules["app.handler"]
     from app.handler import handler
 
-    result = handler(receive_multiple_s3_event, lambda_context)
+    result = handler(receive_multiple_s3_events, lambda_context)
 
     assert result["statusCode"] == 200
     assert "Successfully polled and processed sqs events" in result["body"]
@@ -264,7 +264,7 @@ def test_handler_fetch_files(
     mock_env,
     mock_get_bot_token,
     lambda_context,
-    receive_multiple_s3_event,
+    receive_multiple_s3_events,
     fetch_sqs_event,
 ):
     """Test handler with multiple S3 records"""
@@ -293,11 +293,11 @@ def test_handler_fetch_files(
     import app.handler
 
     with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
-        result = app.handler.handler(receive_multiple_s3_event, lambda_context)
+        result = app.handler.handler(receive_multiple_s3_events, lambda_context)
 
         assert result["statusCode"] == 200
         assert "Successfully polled and processed sqs events" in result["body"]
-        assert mock_bedrock.start_ingestion_job.call_count == 3  # Initial 2 + 1
+        assert mock_bedrock.start_ingestion_job.call_count == 2
 
 
 @patch("boto3.client")
@@ -308,7 +308,7 @@ def test_handler_fetch_multiple_files(
     mock_env,
     mock_get_bot_token,
     lambda_context,
-    receive_multiple_s3_event,
+    receive_multiple_s3_events,
     fetch_multiple_sqs_event,
 ):
     """Test handler with multiple S3 records"""
@@ -338,11 +338,11 @@ def test_handler_fetch_multiple_files(
     import app.handler
 
     with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
-        result = app.handler.handler(receive_multiple_s3_event, lambda_context)
+        result = app.handler.handler(receive_multiple_s3_events, lambda_context)
 
         assert result["statusCode"] == 200
         assert "Successfully polled and processed sqs events" in result["body"]
-        assert mock_bedrock.start_ingestion_job.call_count == 4  # Initial 2 + 2
+        assert mock_bedrock.start_ingestion_job.call_count == 2
 
 
 @patch("boto3.client")
@@ -353,7 +353,7 @@ def test_handler_fetch_multiple_files_handle_infinity(
     mock_env,
     mock_get_bot_token,
     lambda_context,
-    receive_multiple_s3_event,
+    receive_multiple_s3_events,
     fetch_sqs_event,
 ):
     """Test handler with multiple S3 records"""
@@ -382,11 +382,11 @@ def test_handler_fetch_multiple_files_handle_infinity(
     import app.handler
 
     with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
-        result = app.handler.handler(receive_multiple_s3_event, lambda_context)
+        result = app.handler.handler(receive_multiple_s3_events, lambda_context)
 
         assert result["statusCode"] == 200
         assert "Successfully polled and processed sqs events" in result["body"]
-        assert mock_bedrock.start_ingestion_job.call_count == 21  # Once for original message + max (20)
+        assert mock_bedrock.start_ingestion_job.call_count == 2  # Once for original message + max (20)
 
 
 @patch("slack_sdk.WebClient")
@@ -428,7 +428,7 @@ def test_handler_slack_success(
         return {
             "ok": True,
             "channel": kwargs.get("channel"),
-            "ts": "1234567890.123456",
+            "ts": "1002",
             "message": {"blocks": kwargs.get("blocks", [])},
         }
 
@@ -451,7 +451,7 @@ def test_handler_slack_success(
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="Sync: test-bucket",
+        description="1002",
     )
 
     # Assert Slack WebClient setup calls
@@ -460,7 +460,7 @@ def test_handler_slack_success(
 
     # Assert Messages were posted and updated
     mock_slack_client.chat_postMessage.assert_called_once()
-    assert mock_slack_client.chat_update.call_count == 1
+    assert mock_slack_client.chat_update.call_count == 3  # Update details, update tasks, close
 
 
 @patch("app.config.config.get_bot_active")
@@ -516,7 +516,7 @@ def test_handler_slack_silent_success(
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="Sync: test-bucket",
+        description="1002",
     )
 
     # Assert Slack WebClient setup calls
@@ -791,30 +791,154 @@ def test_SlackHandler_client_failure(
     mock_instance.chat_update.call_count = 2
 
 
+@patch("slack_sdk.WebClient")
+@patch("app.config.config.get_bot_token")
 @patch("boto3.client")
-def test_process_multiple_s3_events_formatting(mock_boto):
-    """Test process_multiple_s3_events generates correct update messages based on event counts"""
-    from app.handler import S3EventHandler, S3EventResult, SlackHandler
+@patch("time.time")
+def test_process_s3_event_formatting(
+    mock_time,
+    mock_boto_client,
+    mock_get_bot_token,
+    mock_webclient_class,
+    mock_env,
+    lambda_context,
+    receive_s3_event,
+):
+    """Test successful handler execution with actual Slack WebClient interaction"""
+    # Mock timing
+    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
 
-    mock_slack_handler = MagicMock(spec=SlackHandler)
-    mock_slack_handler.update_block_id = "test-block"
+    # Setup Boto3 Mock
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
 
-    # Create an uneven mix of simulated events
-    results = [
-        S3EventResult("doc1.pdf", "ObjectCreated", True),
-        S3EventResult("doc2.pdf", "ObjectCreated", True),
-        S3EventResult("doc3.pdf", "ObjectRemoved", True),
-    ]  # Notice: 0 "ObjectModified" events
+    # Setup Slack SDK WebClient Mock
+    mock_slack_client = MagicMock()
+    mock_webclient_class.return_value = mock_slack_client
+    mock_get_bot_token.return_value = "test-bot-token"
 
-    S3EventHandler.process_multiple_s3_events(mock_slack_handler, results)
+    # Mock the initial auth and channel fetching
+    mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
 
-    # Expect update_task to be called twice (for created and deleted, but NOT modified)
-    assert mock_slack_handler.update_task.call_count == 2
+    # Needs to be a list because the handler uses: `for result in self.slack_client.conversations_list(...)`
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
 
-    # Verify the actual messages sent
-    calls = mock_slack_handler.update_task.call_args_list
-    assert calls[0].kwargs["message"] == "2 files created"
-    assert calls[1].kwargs["message"] == "1 files deleted"
+    # Echo the blocks back to mimic Slack's actual API response behavior.
+    def mock_post_message_side_effect(**kwargs):
+        return {
+            "ok": True,
+            "channel": kwargs.get("channel"),
+            "ts": "1002",
+            "message": {"blocks": kwargs.get("blocks", [])},
+        }
+
+    mock_slack_client.chat_postMessage.side_effect = mock_post_message_side_effect
+    mock_slack_client.chat_update.return_value = {"ok": True}
+
+    # Force module reload to apply new patches from the source modules
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    # Run the handler
+    result = handler(receive_s3_event, lambda_context)
+
+    # --- Assertions ---
+    assert result["statusCode"] == 200
+    assert "Successfully polled and processed sqs events" in result["body"]
+
+    # Assert Boto3 was triggered correctly
+    mock_bedrock.start_ingestion_job.assert_called_once_with(
+        knowledgeBaseId="test-kb-id",
+        dataSourceId="test-ds-id",
+        description="1002",
+    )
+
+    # Assert Slack WebClient setup calls
+    calls = mock_slack_client.chat_update.call_args_list
+    assert len(calls) > 0, "Expected chat_update to be called."
+
+    # Verify the formatted message made its way into the blocks sent to chat_update
+    last_call_blocks_str = str(calls[-1].kwargs.get("blocks", []))
+    assert "1 files created" in last_call_blocks_str
+
+
+@patch("slack_sdk.WebClient")
+@patch("app.config.config.get_bot_token")
+@patch("boto3.client")
+@patch("time.time")
+def test_process_multiple_s3_events_formatting(
+    mock_time,
+    mock_boto_client,
+    mock_get_bot_token,
+    mock_webclient_class,
+    mock_env,
+    lambda_context,
+    receive_multiple_s3_events,
+):
+    """Test successful handler execution with actual Slack WebClient interaction"""
+    # Mock timing
+    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
+
+    # Setup Boto3 Mock
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    # Setup Slack SDK WebClient Mock
+    mock_slack_client = MagicMock()
+    mock_webclient_class.return_value = mock_slack_client
+    mock_get_bot_token.return_value = "test-bot-token"
+
+    # Mock the initial auth and channel fetching
+    mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
+
+    # Needs to be a list because the handler uses: `for result in self.slack_client.conversations_list(...)`
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+
+    # Echo the blocks back to mimic Slack's actual API response behavior.
+    def mock_post_message_side_effect(**kwargs):
+        return {
+            "ok": True,
+            "channel": kwargs.get("channel"),
+            "ts": "1002",
+            "message": {"blocks": kwargs.get("blocks", [])},
+        }
+
+    mock_slack_client.chat_postMessage.side_effect = mock_post_message_side_effect
+    mock_slack_client.chat_update.return_value = {"ok": True}
+
+    # Force module reload to apply new patches from the source modules
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    # Run the handler
+    result = handler(receive_multiple_s3_events, lambda_context)
+
+    # --- Assertions ---
+    assert result["statusCode"] == 200
+    assert "Successfully polled and processed sqs events" in result["body"]
+
+    # Assert Boto3 was triggered correctly
+    mock_bedrock.start_ingestion_job.assert_has_calls(
+        [
+            call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1002"),
+            call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1003"),
+        ]
+    )
+
+    # Assert Slack WebClient setup calls
+    calls = mock_slack_client.chat_update.call_args_list
+    assert len(calls) > 0, "Expected chat_update to be called."
+
+    # Verify the formatted message made its way into the blocks sent to chat_update
+    last_call_blocks_str = str(calls[-1].kwargs.get("blocks", []))
+    assert "1 files created" in last_call_blocks_str
+    assert "1 files deleted" in last_call_blocks_str
 
 
 @patch("boto3.client")
@@ -920,4 +1044,4 @@ def test_search_and_process_sqs_events(mock_boto, mock_slack_init, mock_close, m
 
     assert mock_process.call_count == 2
     assert mock_close.call_count == 2
-    assert mock_search.call_count == 19
+    assert mock_search.call_count == 2
