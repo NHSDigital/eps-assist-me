@@ -328,6 +328,12 @@ class SlackHandler:
 
 
 class S3EventHandler:
+
+    def __init__(self):
+        self.created = 0
+        self.modified = 0
+        self.deleted = 0
+
     @staticmethod
     def is_supported_file_type(file_key):
         """
@@ -356,20 +362,26 @@ class S3EventHandler:
             return False
         return True
 
-    @staticmethod
-    def process_multiple_s3_events(records: list, slack_handler: SlackHandler):
+    def process_multiple_s3_events(self, records: list, slack_handler: SlackHandler):
         logger.info("Processing SQS record")
 
+        self.created += len([r for r in records if "ObjectCreated" in r.get("eventName", "")])
+        self.modified += len([r for r in records if "ObjectModified" in r.get("eventName", "")])
+        self.deleted += len([r for r in records if "ObjectRemoved" in r.get("eventName", "")])
+
         counts = [
-            ("created", len([r for r in records if "ObjectCreated" in r.get("eventName", "")])),
-            ("modified", len([r for r in records if "ObjectModified" in r.get("eventName", "")])),
-            ("deleted", len([r for r in records if "ObjectRemoved" in r.get("eventName", "")])),
+            ("created", self.created),
+            ("modified", self.modified),
+            ("deleted", self.deleted),
         ]
 
         # Generate the list only for non-zero values
         message_list = [f"{count} files {action}" for action, count in counts if count > 0]
-        for message in message_list:
-            slack_handler.update_task(id=slack_handler.update_block_id, message=message)
+
+        if message_list and len(message_list) > 0:
+            slack_handler.update_task(id=slack_handler.update_block_id, message="Loading...", replace=True)
+            for message in message_list:
+                slack_handler.update_task(id=slack_handler.update_block_id, message=message)
 
     @staticmethod
     def start_ingestion_job():
@@ -390,9 +402,12 @@ class S3EventHandler:
         except Exception as e:
             logger.error(f"Error starting ingestion: {str(e)}")
 
-    @staticmethod
-    def process_multiple_sqs_events(slack_handler: SlackHandler, s3_records):
+    def process_multiple_sqs_events(self, slack_handler: SlackHandler, s3_records):
         """Handle multiple individual events from SQS"""
+        if s3_records and len(s3_records):
+            # Start the ingestion job
+            S3EventHandler.start_ingestion_job()
+
         for record in s3_records:
             if record.get("eventSource") != "aws:s3":
                 logger.warning(
@@ -401,14 +416,10 @@ class S3EventHandler:
                 )
                 continue
 
-            # Start the ingestion job
-            S3EventHandler.start_ingestion_job()
-
         # Process event details for the Slack Messages
-        S3EventHandler.process_multiple_s3_events(records=s3_records, slack_handler=slack_handler)
+        self.process_multiple_s3_events(records=s3_records, slack_handler=slack_handler)
 
-    @staticmethod
-    def process_batched_queue_events(slack_handler: SlackHandler, events: list):
+    def process_batched_queue_events(self, slack_handler: SlackHandler, events: list):
         """Handle collection of batched queue events"""
         for event in events:
             body = json.loads(event.get("body", "{}"))
@@ -420,10 +431,10 @@ class S3EventHandler:
 
             logger.info(f"Processing {len(sqs_records)} record(s)")
             slack_handler.update_task(
-                id=slack_handler.fetching_block_id, message=f"Found {len(sqs_records)} records", replace=True
+                id=slack_handler.fetching_block_id, message=f"Found {len(sqs_records)} events", replace=True
             )
 
-            S3EventHandler.process_multiple_sqs_events(slack_handler, sqs_records)
+            self.process_multiple_sqs_events(slack_handler, sqs_records)
 
         logger.info(f"Completed {len(sqs_records)} event(s)")
 
@@ -453,7 +464,8 @@ class S3EventHandler:
             body = message.get("Body", {})
             message_events = json.loads(body)
             if message_events:
-                events.append(message_events)
+                s3_event = message_events.get("Records", [])
+                events += s3_event
 
         logger.info(f"Found {len(messages)} total event(s) in SQS messages")
         return events
@@ -471,6 +483,8 @@ def search_and_process_sqs_events(event):
     slack_handler = SlackHandler(silent=is_silent)
     slack_handler.initialise_slack_messages()
 
+    s3_event_handler = S3EventHandler()
+
     for i in range(loop_count):
         logger.info(f"Starting process round {i + 1}")
 
@@ -481,12 +495,12 @@ def search_and_process_sqs_events(event):
         # If we have events (either from the initial seed or the search above), process them
         if events and len(events) > 0:
             logger.info("Founds events, process")
-            S3EventHandler.process_batched_queue_events(slack_handler, events)
-            S3EventHandler.close_sqs_events(events)
+            s3_event_handler.process_batched_queue_events(slack_handler, events)
+            s3_event_handler.close_sqs_events(events)
 
         # Clear the list so the NEXT loop iteration knows to search again
         logger.info("Search for any prompts left in the queue")
-        events = S3EventHandler.search_sqs_for_events()
+        events = s3_event_handler.search_sqs_for_events()
 
     slack_handler.complete_plan()
 
