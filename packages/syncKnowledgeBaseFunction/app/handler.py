@@ -109,7 +109,12 @@ class SlackHandler:
         return task
 
     def update_task(
-        self, id: str, message: str, status: Literal["in_progress", "completed"] = "in_progress", replace=False
+        self,
+        id: str,
+        message: str,
+        status: Literal["in_progress", "completed"] = "in_progress",
+        output_message: str | None = None,
+        replace=False,
     ):
         # Add header
         if self.slack_client is None:
@@ -147,6 +152,11 @@ class SlackHandler:
             task["status"] = status
             task["details"] = details
 
+            if output_message:
+                output = task["output"]
+                output["elements"][0]["elements"][0]["text"] = output_message
+                task["output"] = output
+
             self.update_message(channel_id=channel_id, ts=ts, blocks=blocks)
 
     def get_bot_channels(self) -> list[str]:
@@ -179,14 +189,15 @@ class SlackHandler:
                         found_title = message.get("blocks")[0]["text"]["text"]
                         if found_user == user_id and header == found_title:
                             messages.append(message)
-                            # Found latest message, break
-                            break
+                            break  # Found latest message, stop searching
                     except (IndexError, KeyError, TypeError):
                         continue
                         # Handles empty lists, missing keys, or unexpected data types
                         # Just catch so the loop doesn't break
         except Exception as e:
             logger.error(f"Failed to searching slack message history: {str(e)}")
+
+        return messages
 
     def initialise_slack_messages(self):
         """
@@ -379,9 +390,16 @@ class S3EventHandler:
         message_list = [f"{count} files {action}" for action, count in counts if count > 0]
 
         if message_list and len(message_list) > 0:
-            slack_handler.update_task(id=slack_handler.update_block_id, message="Loading...", replace=True)
-            for message in message_list:
-                slack_handler.update_task(id=slack_handler.update_block_id, message=message)
+            slack_handler.update_task(
+                id=slack_handler.update_block_id, message="", output_message="Processing...", replace=True
+            )
+            for i, message in enumerate(message_list):
+                output_message = (
+                    f"Processed a total of {len(records)} record(s)" if (i + 1 == len(message_list)) else None
+                )
+                slack_handler.update_task(
+                    id=slack_handler.update_block_id, message=message, output_message=output_message
+                )
 
     @staticmethod
     def start_ingestion_job():
@@ -421,7 +439,7 @@ class S3EventHandler:
 
     def process_batched_queue_events(self, slack_handler: SlackHandler, events: list):
         """Handle collection of batched queue events"""
-        for event in events:
+        for i, event in enumerate(events):
             body = json.loads(event.get("body", "{}"))
             sqs_records = body.get("Records", [])
 
@@ -430,8 +448,12 @@ class S3EventHandler:
                 continue
 
             logger.info(f"Processing {len(sqs_records)} record(s)")
+            output_message = "Search Complete" if (i + 1 == len(events)) else None
             slack_handler.update_task(
-                id=slack_handler.fetching_block_id, message=f"Found {len(sqs_records)} events", replace=True
+                id=slack_handler.fetching_block_id,
+                message=f"Found {len(sqs_records)} events",
+                output_message=output_message,
+                replace=True,
             )
 
             self.process_multiple_sqs_events(slack_handler, sqs_records)
