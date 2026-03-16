@@ -45,6 +45,7 @@ class DynamoDbHandler:
         try:
             self.table.put_item(
                 Item={
+                    "user_channel_composite": f"{user_id}#{channel_id}",
                     "user_id": user_id,
                     "channel_id": channel_id,
                     "last_ts": str(ts),
@@ -61,6 +62,7 @@ class DynamoDbHandler:
         try:
             self.table.put_item(
                 Item={
+                    "user_channel_composite": f"{user_id}#{channel_id}",
                     "user_id": user_id,
                     "channel_id": channel_id,
                     "last_ts": str(ts),
