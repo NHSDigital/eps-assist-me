@@ -1233,6 +1233,7 @@ def test_dynamodb_handler_save_last_message(mock_boto, mock_boto_resource, mock_
 
     mock_table.put_item.assert_called_once_with(
         Item={
+            "user_channel_composite": "U123#C456",
             "user_id": "U123",
             "channel_id": "C456",
             "last_ts": "1710581159.123456",
