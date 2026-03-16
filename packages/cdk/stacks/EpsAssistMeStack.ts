@@ -22,6 +22,7 @@ import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {S3LambdaNotification} from "../resources/S3LambdaNotification"
 import {BedrockLoggingConfiguration} from "../resources/BedrockLoggingConfiguration"
 import {Bucket} from "aws-cdk-lib/aws-s3"
+import {BucketDeployment, Source} from "aws-cdk-lib/aws-s3-deployment"
 
 export interface EpsAssistMeStackProps extends StackProps {
   readonly stackName: string
@@ -101,6 +102,12 @@ export class EpsAssistMeStack extends Stack {
       deploymentRole: deploymentRole,
       auditLoggingBucket: auditLoggingBucket,
       assistMeDocumentSyncRole: assistMeDocumentSyncRole
+    })
+
+    // initialize s3 folders for raw and processed documents
+    new BucketDeployment(this, "S3FolderInitializer", {
+      sources: [Source.asset("packages/cdk/assets/s3-folders")],
+      destinationBucket: storage.kbDocsBucket
     })
 
     // Create Bedrock execution role without dependencies
