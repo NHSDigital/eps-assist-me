@@ -81,23 +81,21 @@ class DynamoDbHandler:
         try:
             response = self.table.query(
                 KeyConditionExpression=Key("user_channel_composite").eq(f"{user_id}#{channel_id}"),
-                ScanIndexForward=False,  # This forces Descending order (Latest first)
-                Limit=1,  # Get only the latest result
+                ScanIndexForward=False,
+                Limit=1,
             )
 
-            latest_item = response.get("Items", [{}])[0] if response.get("Items") else None
-            if latest_item:
-                logger.info(
-                    "Found latest item",
-                    extra={"user_id": user_id, "channel_id": channel_id, "ts": latest_item.get("last_ts")},
-                )
-                return latest_item
-            else:
-                logger.info(f"No previous message found for {user_id} in {channel_id}")
+            items = response.get("Items", [])
+            if not items:
+                logger.info(f"No previous record for {user_id} in {channel_id}")
                 return None
 
+            latest_item = items[0]
+            logger.info("Found latest item", extra={"ts": latest_item.get("last_ts")})
+            return latest_item
+
         except ClientError as e:
-            logger.error(f"Failed to read from DynamoDB: {e.response['Error']['Message']}")
+            logger.error(f"DynamoDB Query Error: {e.response['Error']['Message']}")
             return None
 
 
@@ -312,8 +310,11 @@ class SlackHandler:
 
     def get_latest_message(self, user_id, channel_id, blocks, s3_event_handler):
         latest_message = self.db_handler.get_latest_message(user_id, channel_id)
-        last_ts = latest_message.get("last_ts")
 
+        if latest_message is None:
+            return None
+
+        last_ts = latest_message.get("last_ts")
         if last_ts:
             time_since_last = time.time() - float(last_ts)
             # Check if message is less than 10 minutes old (600 seconds)

@@ -132,7 +132,7 @@ export class Functions extends Construct {
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_BOT_ACTIVE": `${!props.isPullRequest}`,
         "DATA_SOURCE_ID": props.dataSourceId,
-        "SLACK_BOT_STATE_TABLE": props.knowledgeSyncStateTable.tableName
+        "KNOWLEDGE_SYNC_STATE_TABLE": props.knowledgeSyncStateTable.tableName
       },
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy],
       reservedConcurrentExecutions: 1
