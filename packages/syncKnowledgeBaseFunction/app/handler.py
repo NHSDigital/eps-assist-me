@@ -17,6 +17,7 @@ from app.config.config import (
     DATA_SOURCE_ID,
     SUPPORTED_FILE_TYPES,
     SQS_URL,
+    KNOWLEDGE_SYNC_STATE_TABLE,
     get_bot_active,
     get_bot_token,
     logger,
@@ -24,9 +25,65 @@ from app.config.config import (
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
+from functools import cached_property
+from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
 
 bedrock_agent = boto3.client("bedrock-agent")
 sqs = boto3.client("sqs")
+
+
+class DynamoDbHandler:
+    @cached_property
+    def table(self):
+        # This will only run once per instance of SlackActivityDB
+        print("Connecting to DynamoDB...")
+        dynamodb = boto3.resource("dynamodb")
+        return dynamodb.Table(KNOWLEDGE_SYNC_STATE_TABLE)
+
+    def save_last_message(self, user_id, channel_id, ts):
+        # You access it like a variable, without parentheses ()
+        try:
+            self.table.put_item(
+                Item={
+                    "user_id": user_id,
+                    "channel_id": channel_id,
+                    "last_ts": str(ts),
+                    "created": 0,
+                    "modified": 0,
+                    "deleted": 0,
+                }
+            )
+            logger.info(f"Successfully saved ts {ts} for user {user_id} in {channel_id}")
+        except ClientError as e:
+            logger.error(f"Failed to save to DynamoDB: {e.response['Error']['Message']}")
+
+    def get_latest_message(self, user_id, channel_id):
+        """
+        Retrieves the latest message timestamp for a user in a specific channel.
+        Returns the timestamp as a string, or None if no record exists.
+        """
+        try:
+            response = self.table.query(
+                KeyConditionExpression=Key("user_channel_composite").eq(f"{user_id}#{channel_id}"),
+                ScanIndexForward=False,  # This forces Descending order (Latest first)
+                Limit=1,  # Get only the latest result
+            )
+
+            latest_item = response.get("Items", [{}])[0] if response.get("Items") else None
+            if latest_item:
+                logger.info(
+                    "Found latest item",
+                    extra={"user_id": user_id, "channel_id": channel_id, "ts": latest_item.get("last_ts")},
+                )
+                return latest_item
+            else:
+                logger.info(f"No previous message found for {user_id} in {channel_id}")
+                return None
+
+        except ClientError as e:
+            logger.error(f"Failed to read from DynamoDB: {e.response['Error']['Message']}")
+            return None
 
 
 class SlackHandler:
@@ -41,13 +98,17 @@ class SlackHandler:
         self.slack_client: WebClient | None = None
         self.messages: list[SlackResponse] = []
         self.default_slack_message: str = "Updating Source Files"
+        self.db_handler = DynamoDbHandler()
+        self.target_channels = []
 
     def post_message(self, channel_id: str, blocks: list, text_fallback: str):
         """Send a new message to Slack"""
         try:
             if self.silent:
-                logger.info(f"[SILENT MODE] Would have posted to {channel_id}")
-                return {"ok": True, "channel": channel_id, "ts": "123456", "message": {"blocks": blocks}}
+                mock_ts = f"{time.time():.6f}"
+                logger.info(f"[SILENT MODE] Would have posted to {channel_id}", extra={"ts": mock_ts, "blocks": blocks})
+
+                return {"ok": True, "channel": channel_id, "ts": mock_ts, "message": {"blocks": blocks}}
 
             return self.slack_client.chat_postMessage(channel=channel_id, text=text_fallback, blocks=blocks)
         except SlackApiError as e:
@@ -129,9 +190,13 @@ class SlackHandler:
                 logger.warning("No Slack message, skipping update task")
                 continue
 
-            blocks = slack_message["message"]["blocks"]
+            blocks = slack_message.get("message", {}).get("blocks", [])
             plan = next((block for block in blocks if block["type"] == "plan"), None)
-            tasks = plan["tasks"]
+
+            if plan is None:
+                continue
+
+            tasks = plan.get("tasks")
 
             if tasks is None:
                 logger.warning("No task found, skipping update task")
@@ -174,132 +239,145 @@ class SlackHandler:
 
         return channel_ids
 
-    def search_existing_messages(self, channels, user_id, header):
-        """Get any messages in Slack for the last 20 minutes"""
-        messages = []
-        try:
-            for channel_id in channels:
-                # Search message in the channel
-                history = self.slack_client.conversations_history(
-                    channel=channel_id, limit=20, oldest=str(time.time() - (20 * 60))
+    def create_default_response(self, channel_id, user_id, ts, blocks):
+        return {
+            "ok": True,
+            "channel": channel_id,
+            "ts": ts,
+            "message": {
+                "type": "message",
+                "text": "*My knowledge base has been updated!*",
+                "user": user_id,
+                "ts": ts,
+                "blocks": blocks,
+            },
+        }
+
+    def get_latest_message(self, user_id, channel_id, blocks, s3_event_handler):
+        latest_message = self.db_handler.get_latest_message(user_id, channel_id)
+        last_ts = latest_message.get("last_ts")
+
+        if last_ts:
+            time_since_last = time.time() - float(last_ts)
+            # Check if message is less than 10 minutes old (600 seconds)
+            if time_since_last < 600:
+                logger.info(
+                    f"Message recently sent to {channel_id} ({int(time_since_last)}s ago). Skipping new message."
                 )
-                for message in history:
-                    try:
-                        found_user = message.get("user", "") == user_id
-                        if found_user == user_id:
-                            messages.append(message)
-                            break  # Found latest message, stop searching
-                    except (IndexError, KeyError, TypeError):
-                        continue
-                        # Handles empty lists, missing keys, or unexpected data types
-                        # Just catch so the loop doesn't break
-        except Exception as e:
-            logger.error(f"Failed to searching slack message history: {str(e)}")
 
-        logger.info(f"Found {len(messages)} existing messages")
-        return messages
+                s3_event_handler.created = int(latest_message.get("created", 0))
+                s3_event_handler.modified = int(latest_message.get("modified", 0))
+                s3_event_handler.deleted = int(latest_message.get("deleted", 0))
+                default = self.create_default_response(
+                    channel_id=channel_id, user_id=user_id, ts=last_ts, blocks=blocks
+                )
+                return default
+        return None
 
-    def initialise_slack_messages(self):
+    def post_initial_message(self, user_id, channel_id, blocks):
+        logger.info("Creating new Slack Message")
+        response = self.post_message(
+            channel_id=channel_id,
+            blocks=blocks,
+            text_fallback="*My knowledge base has been updated!*",
+        )
+
+        if not response or not response.get("ok"):
+            logger.error("Error initialising Slack Message.", extra={"response": response})
+            return None
+
+        new_ts = response.get("ts")
+        if new_ts:
+            self.db_handler.save_last_message(user_id, channel_id, new_ts)
+
+        return response
+
+    def initialise_slack(self):
+        # Create new client
+        token = get_bot_token()
+        slack_client = WebClient(token=token)
+        self.slack_client = slack_client
+
+        response = slack_client.auth_test()
+        user_id = response.get("user_id", "unknown")
+        logger.info(f"Authenticated as bot user: {user_id}", extra={"response": response})
+
+        # Get Channels where the Bot is a member
+        logger.info("Find bot channels...")
+        self.target_channels = self.get_bot_channels()
+
+        if not self.target_channels:
+            logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
+            return user_id, []
+
+        message_default_text = "I am currently syncing changes to my knowledge base.\n This may take a few minutes."
+
+        # Build blocks for Slack message
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "plain_text",
+                    "text": message_default_text,
+                },
+            },
+            {
+                "type": "plan",
+                "plan_id": uuid.uuid4().hex,
+                "title": "Processing File Changes...",
+                "tasks": [
+                    self.create_task(
+                        id=self.fetching_block_id,
+                        title="Fetching changes",
+                        details=[],
+                        outputs=["Searching"],
+                        status="complete",
+                    ),
+                    self.create_task(
+                        id=self.update_block_id,
+                        title="Processing File Changes",
+                        details=[],
+                        outputs=["Initialising"],
+                        status="in_progress",
+                    ),
+                ],
+            },
+            {
+                "type": "context",
+                "elements": [{"type": "plain_text", "text": "Please wait up-to 10 minutes for changes to take effect"}],
+            },
+        ]
+
+        return user_id, blocks
+
+    def initialise_slack_messages(self, s3_event_handler: S3EventHandler):
         """
         Create a new slack message to inform user of SQS event process progress
+        or skip if a message was recently created
         """
         try:
-            # Create new client
-            token = get_bot_token()
-            slack_client = WebClient(token=token)
-            self.slack_client = slack_client
-
-            response = slack_client.auth_test()
-            user_id = response.get("user_id", "unknown")
-            logger.info(f"Authenticated as bot user: {user_id}", extra={"response": response})
-
-            # Get Channels where the Bot is a member
-            logger.info("Find bot channels...")
-            target_channels = self.get_bot_channels()
-
-            # Check if a message already exists
-            message_default_text = "I am currently syncing changes to my knowledge base.\n This may take a few minutes."
-            try:
-                existing_messages = self.search_existing_messages(
-                    channels=target_channels, user_id=user_id, header=message_default_text
-                )
-
-                if len(existing_messages) > 0:
-                    logger.info(
-                        f"Found {len(existing_messages)} existing messages", extra={"messages": existing_messages}
-                    )
-                    self.messages = existing_messages
-                    return
-
-                logger.info("No valid existing messages found")
-            except Exception as e:
-                logger.error(f"Failed to search for existing slack messages: {str(e)}")
-
-            # Build blocks for Slack message
-            blocks = [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "plain_text",
-                        "text": message_default_text,
-                    },
-                },
-                {
-                    "type": "plan",
-                    "plan_id": uuid.uuid4().hex,
-                    "title": "Processing File Changes...",
-                    "tasks": [
-                        self.create_task(
-                            id=self.fetching_block_id,
-                            title="Fetching changes",
-                            details=[],
-                            outputs=["Searching"],
-                            status="complete",
-                        ),
-                        self.create_task(
-                            id=self.update_block_id,
-                            title="Processing File Changes",
-                            details=[],
-                            outputs=["Initialising"],
-                            status="in_progress",
-                        ),
-                    ],
-                },
-                {
-                    "type": "context",
-                    "elements": [
-                        {"type": "plain_text", "text": "Please wait up-to 10 minutes for changes to take effect"}
-                    ],
-                },
-            ]
-
-            if not target_channels:
-                logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
-                return
+            user_id, blocks = self.initialise_slack()
 
             # Broadcast Loop
-            logger.info(f"Broadcasting to {len(target_channels)} channels...")
-
+            logger.info(f"Searching {len(self.target_channels)} channels...")
             responses = []
-            for channel_id in target_channels:
+            for channel_id in self.target_channels:
                 try:
-                    logger.info("Creating new Slack Message")
-                    response = self.post_message(
-                        channel_id=channel_id,
-                        blocks=blocks,
-                        text_fallback="*My knowledge base has been updated!*",
+                    latest_message = self.get_latest_message(
+                        user_id=user_id, channel_id=channel_id, s3_event_handler=s3_event_handler, blocks=blocks
                     )
-
-                    if not response or not response.get("ok"):
-                        logger.error("Error initialising Slack Message.", extra={"response": response})
+                    if latest_message:
+                        responses.append(latest_message)
                         continue
 
-                    responses.append(response)
+                    new_message = self.post_initial_message(user_id=user_id, channel_id=channel_id, blocks=blocks)
+                    if new_message:
+                        responses.append(new_message)
+
                 except Exception as e:
                     logger.error(
                         f"Failed to initialise slack message for channel: {channel_id}", extra={"exception": e}
                     )
-                    continue
 
             logger.info("Broadcast complete.", extra={"responses": len(responses)})
             self.messages = responses
@@ -320,12 +398,13 @@ class SlackHandler:
                 ts = slack_message["ts"]
 
                 # Update the event count in the plan block
-                blocks = slack_message["message"]["blocks"]
+                blocks = slack_message.get("message", {}).get("blocks", [])
                 plan = next((block for block in blocks if block["type"] == "plan"), None)
 
-                plan["title"] = "Processing complete!"
-                for i, task in enumerate(plan["tasks"]):
-                    task["status"] = "complete"
+                if plan:
+                    plan["title"] = "Processing complete!"
+                    for i, task in enumerate(plan["tasks"]):
+                        task["status"] = "complete"
 
                 self.update_message(channel_id=channel_id, ts=ts, blocks=blocks)
             except Exception as e:
@@ -399,9 +478,7 @@ class S3EventHandler:
                 id=slack_handler.update_block_id, message="Update pending", output_message="Processing...", replace=True
             )
             for i, message in enumerate(message_list):
-                output_message = (
-                    f"Processed a total of {len(total)} record(s)" if (i + 1 == len(message_list)) else None
-                )
+                output_message = f"Processed a total of {total} record(s)" if (i + 1 == len(message_list)) else None
                 slack_handler.update_task(
                     id=slack_handler.update_block_id, message=message, output_message=output_message, replace=(i == 0)
                 )
@@ -506,11 +583,11 @@ def search_and_process_sqs_events(event):
     events = event.get("Records", [])
     loop_count = 20
 
+    s3_event_handler = S3EventHandler()
+
     is_silent = not get_bot_active()  # Mute Slack for PRs
     slack_handler = SlackHandler(silent=is_silent)
-    slack_handler.initialise_slack_messages()
-
-    s3_event_handler = S3EventHandler()
+    slack_handler.initialise_slack_messages(s3_event_handler=s3_event_handler)
 
     for i in range(loop_count):
         logger.info(f"Starting process round {i + 1}")

@@ -19,10 +19,26 @@ def mock_env():
         "AWS_REGION": "eu-west-2",
         "SQS_URL": "example",
         "SLACK_BOT_ACTIVE": "true",
+        "KNOWLEDGE_SYNC_STATE_TABLE": "test-state-table",  # <-- ADDED
     }
 
     with patch.dict(os.environ, env_vars, clear=False):
         yield env_vars
+
+
+@pytest.fixture(autouse=True)
+def mock_dynamo_resource():
+    """
+    ADDED: Mocks boto3.resource globally to prevent real AWS DynamoDB calls
+    and simulate an empty table so the 10-minute block is never triggered.
+    """
+    with patch("boto3.resource") as mock_resource:
+        mock_table = MagicMock()
+        # Returning an empty dict simulates a missing record, meaning
+        # "Item" won't be in the response, and the script proceeds normally.
+        mock_table.get_item.return_value = {}
+        mock_resource.return_value.Table.return_value = mock_table
+        yield mock_resource
 
 
 @pytest.fixture
@@ -420,7 +436,7 @@ def test_handler_slack_success(
 ):
     """Test successful handler execution with actual Slack WebClient interaction"""
     # Mock timing
-    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
+    mock_time.side_effect = [999, 1000, 1001, 1002, 1003, 1004, 1005]
 
     # Setup Boto3 Mock
     mock_bedrock = mock_boto_client.return_value
@@ -467,7 +483,7 @@ def test_handler_slack_success(
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="1002",
+        description="1001",
     )
 
     # Assert Slack WebClient setup calls
@@ -496,7 +512,7 @@ def test_handler_slack_silent_success(
 ):
     """Test successful handler execution with actual Slack WebClient interaction"""
     # Mock timing
-    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
+    mock_time.side_effect = [999, 1000, 1001, 1002, 1003, 1004, 1005]
 
     # Setup Boto3 Mock
     mock_bedrock = mock_boto_client.return_value
@@ -1001,7 +1017,7 @@ def test_process_multiple_sqs_events_formatting(
 ):
     """Test successful handler execution with actual Slack WebClient interaction"""
     # Mock timing
-    mock_time.side_effect = itertools.count(start=1000)
+    mock_time.side_effect = itertools.count(start=999)
 
     # Setup Boto3 Mock
     mock_bedrock = MagicMock()
@@ -1059,12 +1075,12 @@ def test_process_multiple_sqs_events_formatting(
     # Assert Boto3 was triggered correctly
     mock_bedrock.start_ingestion_job.assert_has_calls(
         [
+            call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1001"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1002"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1003"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1004"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1005"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1006"),
-            call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1007"),
         ]
     )
 
@@ -1183,3 +1199,181 @@ def test_search_and_process_sqs_events(mock_boto, mock_slack_init, mock_close, m
     assert mock_process.call_count == 2
     assert mock_close.call_count == 2
     assert mock_search.call_count == 2
+
+
+@patch("boto3.resource")
+@patch("boto3.client")
+def test_dynamodb_handler_save_last_message(mock_boto, mock_boto_resource, mock_env):
+    """Test that save_last_message formats the item correctly and calls put_item"""
+    from app.handler import DynamoDbHandler
+
+    mock_table = MagicMock()
+    mock_boto_resource.return_value.Table.return_value = mock_table
+
+    db_handler = DynamoDbHandler()
+    db_handler.save_last_message(user_id="U123", channel_id="C456", ts="1710581159.123456")
+
+    mock_table.put_item.assert_called_once_with(
+        Item={
+            "user_id": "U123",
+            "channel_id": "C456",
+            "last_ts": "1710581159.123456",
+            "created": 0,
+            "modified": 0,
+            "deleted": 0,
+        }
+    )
+
+
+@patch("boto3.resource")
+@patch("boto3.client")
+def test_dynamodb_handler_get_latest_message_exists(mock_boto, mock_boto_resource, mock_env):
+    """Test retrieving a timestamp when a record already exists in the database"""
+    from app.handler import DynamoDbHandler
+
+    mock_table = MagicMock()
+    # Simulate DynamoDB returning a found record
+    mock_table.query.return_value = {"Items": [{"last_ts": "999.999"}]}
+    mock_boto_resource.return_value.Table.return_value = mock_table
+
+    db_handler = DynamoDbHandler()
+    result = db_handler.get_latest_message("U123", "C456")
+
+    assert result.get("last_ts") == "999.999"
+    mock_table.query.assert_called_once()
+
+
+@patch("slack_sdk.WebClient")
+@patch("app.config.config.get_bot_token")
+@patch("boto3.client")
+@patch("time.time")
+def test_handler_slack_skip_recent_update(
+    mock_time,
+    mock_boto_client,
+    mock_get_bot_token,
+    mock_webclient_class,
+    mock_env,
+    lambda_context,
+    receive_s3_event,
+    mock_dynamo_resource,
+):
+    """Test successful handler execution with actual Slack WebClient interaction"""
+    # Mock timing
+    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
+
+    # Setup Boto3 Mock
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    # Setup Slack SDK WebClient Mock
+    mock_slack_client = MagicMock()
+    mock_webclient_class.return_value = mock_slack_client
+    mock_get_bot_token.return_value = "test-bot-token"
+
+    # Mock the initial auth and channel fetching
+    mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
+
+    # Needs to be a list because the handler uses: `for result in self.slack_client.conversations_list(...)`
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+    mock_slack_client.chat_update.return_value = {"ok": True}
+    mock_slack_client.create_default_response = {}
+
+    # Force module reload to apply new patches from the source modules
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    with patch("app.handler.DynamoDbHandler") as mock_db_class:
+        mock_db_instance = mock_db_class.return_value
+        mock_db_instance.get_latest_message.return_value = {"last_ts": 1000}
+
+        # Run the handler
+        result = handler(receive_s3_event, lambda_context)
+
+        # --- Assertions ---
+        assert result["statusCode"] == 200
+        assert "Successfully polled and processed sqs events" in result["body"]
+
+        # Assert Boto3 was triggered correctly
+        mock_bedrock.start_ingestion_job.assert_called_once_with(
+            knowledgeBaseId="test-kb-id",
+            dataSourceId="test-ds-id",
+            description="1002",
+        )
+
+        # Assert Slack WebClient setup calls
+        mock_slack_client.auth_test.assert_called_once()
+        mock_slack_client.conversations_list.assert_called_once_with(types=["private_channel"], limit=1000)
+
+        # Assert Messages were posted and updated
+        mock_slack_client.chat_postMessage.assert_not_called()
+
+
+@patch("slack_sdk.WebClient")
+@patch("app.config.config.get_bot_token")
+@patch("boto3.client")
+@patch("time.time")
+def test_handler_slack_use_recent_update(
+    mock_time,
+    mock_boto_client,
+    mock_get_bot_token,
+    mock_webclient_class,
+    mock_env,
+    lambda_context,
+    receive_s3_event,
+    mock_dynamo_resource,
+):
+    """Test successful handler execution with actual Slack WebClient interaction"""
+    # Mock timing
+    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
+
+    # Setup Boto3 Mock
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    # Setup Slack SDK WebClient Mock
+    mock_slack_client = MagicMock()
+    mock_webclient_class.return_value = mock_slack_client
+    mock_get_bot_token.return_value = "test-bot-token"
+
+    # Mock the initial auth and channel fetching
+    mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
+
+    # Needs to be a list because the handler uses: `for result in self.slack_client.conversations_list(...)`
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+    mock_slack_client.chat_update.return_value = {"ok": True}
+    mock_slack_client.create_default_response = {}
+
+    # Force module reload to apply new patches from the source modules
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    with patch("app.handler.DynamoDbHandler") as mock_db_class:
+        mock_db_instance = mock_db_class.return_value
+        mock_db_instance.get_latest_message.return_value = {"last_ts": 1}
+
+        # Run the handler
+        result = handler(receive_s3_event, lambda_context)
+
+        # --- Assertions ---
+        assert result["statusCode"] == 200
+        assert "Successfully polled and processed sqs events" in result["body"]
+
+        # Assert Boto3 was triggered correctly
+        mock_bedrock.start_ingestion_job.assert_called_once_with(
+            knowledgeBaseId="test-kb-id",
+            dataSourceId="test-ds-id",
+            description="1002",
+        )
+
+        # Assert Slack WebClient setup calls
+        mock_slack_client.auth_test.assert_called_once()
+        mock_slack_client.conversations_list.assert_called_once_with(types=["private_channel"], limit=1000)
+
+        # Assert Messages were posted and updated
+        mock_slack_client.chat_postMessage.assert_called_once()

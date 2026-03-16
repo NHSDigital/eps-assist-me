@@ -37,6 +37,7 @@ export interface FunctionsProps {
   readonly ragModelId: string
   readonly reformulationModelId: string
   readonly docsBucketName: string
+  readonly knowledgeSyncStateTable: TableV2
 }
 
 export class Functions extends Construct {
@@ -130,7 +131,8 @@ export class Functions extends Construct {
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
         "SLACK_BOT_ACTIVE": `${!props.isPullRequest}`,
-        "DATA_SOURCE_ID": props.dataSourceId
+        "DATA_SOURCE_ID": props.dataSourceId,
+        "SLACK_BOT_STATE_TABLE": props.knowledgeSyncStateTable.tableName
       },
       additionalPolicies: [props.syncKnowledgeBaseManagedPolicy],
       reservedConcurrentExecutions: 1

@@ -160,7 +160,9 @@ export class EpsAssistMeStack extends Stack {
       ragModelId: bedrockPromptResources.modelId,
       reformulationModelId: bedrockPromptResources.modelId,
       docsBucketArn: storage.kbDocsBucket.bucketArn,
-      docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn
+      docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn,
+      knowledgeSyncStateTableArn: tables.knowledgeSyncStateTable.table.tableArn,
+      knowledgeSyncStateTableKmsKeyArn: tables.knowledgeSyncStateTable.kmsKey.keyArn
     })
 
     // Create Functions construct with actual values from VectorKB
@@ -193,7 +195,8 @@ export class EpsAssistMeStack extends Stack {
       reformulationModelId: bedrockPromptResources.modelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
-      docsBucketName: storage.kbDocsBucket.bucketName
+      docsBucketName: storage.kbDocsBucket.bucketName,
+      knowledgeSyncStateTable: tables.knowledgeSyncStateTable.table
     })
 
     // Grant preprocessing Lambda access to the KMS key for S3 bucket

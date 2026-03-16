@@ -8,6 +8,8 @@ export interface RuntimePoliciesProps {
   readonly slackSigningSecretParameterName: string
   readonly slackBotStateTableArn: string
   readonly slackBotStateTableKmsKeyArn: string
+  readonly knowledgeSyncStateTableArn: string
+  readonly knowledgeSyncStateTableKmsKeyArn: string
   readonly knowledgeBaseArn: string
   readonly guardrailArn: string
   readonly dataSourceArn: string
@@ -142,11 +144,38 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
+    const knowledgeSyncDynamoDbPolicy = new PolicyStatement({
+      actions: [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:UpdateItem"
+      ],
+      resources: [props.knowledgeSyncStateTableArn]
+    })
+
+    const knowledgeSyncKmsPolicy = new PolicyStatement({
+      actions: [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt",
+        "kms:GenerateDataKey",
+        "kms:DescribeKey"
+      ],
+      resources: [props.knowledgeSyncStateTableKmsKeyArn]
+    })
+
     this.syncKnowledgeBasePolicy = new ManagedPolicy(this, "SyncKnowledgeBasePolicy", {
       description: "Policy for SyncKnowledgeBase Lambda to trigger ingestion jobs",
       statements: [
         syncKnowledgeBaseBedrockPolicy,
-        syncKnowledgeBaseSSMPolicy
+        syncKnowledgeBaseSSMPolicy,
+        knowledgeSyncDynamoDbPolicy,
+        knowledgeSyncKmsPolicy
       ]
     })
 
