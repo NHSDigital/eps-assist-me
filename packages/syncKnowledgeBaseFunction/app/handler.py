@@ -41,8 +41,7 @@ class DynamoDbHandler:
         dynamodb = boto3.resource("dynamodb")
         return dynamodb.Table(KNOWLEDGE_SYNC_STATE_TABLE)
 
-    def save_last_message(self, user_id, channel_id, ts):
-        # You access it like a variable, without parentheses ()
+    def save_message(self, user_id, channel_id, ts):
         try:
             self.table.put_item(
                 Item={
@@ -55,6 +54,22 @@ class DynamoDbHandler:
                 }
             )
             logger.info(f"Successfully saved ts {ts} for user {user_id} in {channel_id}")
+        except ClientError as e:
+            logger.error(f"Failed to save to DynamoDB: {e.response['Error']['Message']}")
+
+    def update_message(self, user_id, channel_id, ts, created, modified, deleted):
+        try:
+            self.table.put_item(
+                Item={
+                    "user_id": user_id,
+                    "channel_id": channel_id,
+                    "last_ts": str(ts),
+                    "created": created,
+                    "modified": modified,
+                    "deleted": deleted,
+                }
+            )
+            logger.info(f"Successfully updated message {ts} for user {user_id} in {channel_id}")
         except ClientError as e:
             logger.error(f"Failed to save to DynamoDB: {e.response['Error']['Message']}")
 
@@ -224,6 +239,48 @@ class SlackHandler:
 
             self.update_message(channel_id=channel_id, ts=ts, blocks=blocks)
 
+    def update_task_db(self, created, modified, deleted):
+        try:
+            for slack_message in self.messages:
+                channel_id = slack_message["channel"]
+                ts = slack_message["ts"]
+
+                logger.info(
+                    "Updating database",
+                    extra={
+                        "channel_id": channel_id,
+                        "ts": ts,
+                        "records_created": created,
+                        "records_modified": modified,
+                        "records_deleted": deleted,
+                    },
+                )
+
+                # Update data in database
+                self.db_handler.update_message(
+                    user_id=self.user_id,
+                    channel_id=channel_id,
+                    ts=ts,
+                    created=created,
+                    modified=modified,
+                    deleted=deleted,
+                )
+        except Exception as e:
+            # Handle unexpected errors
+            logger.error(
+                "Unexpected error occurred",
+                extra={
+                    "status_code": 500,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "channel_id": channel_id,
+                    "ts": ts,
+                    "records_created": created,
+                    "records_modified": modified,
+                    "records_deleted": deleted,
+                },
+            )
+
     def get_bot_channels(self) -> list[str]:
         """
         Fetches all public and private channels the bot is a member of.
@@ -268,6 +325,7 @@ class SlackHandler:
                 s3_event_handler.created = int(latest_message.get("created", 0))
                 s3_event_handler.modified = int(latest_message.get("modified", 0))
                 s3_event_handler.deleted = int(latest_message.get("deleted", 0))
+
                 default = self.create_default_response(
                     channel_id=channel_id, user_id=user_id, ts=last_ts, blocks=blocks
                 )
@@ -288,7 +346,7 @@ class SlackHandler:
 
         new_ts = response.get("ts")
         if new_ts:
-            self.db_handler.save_last_message(user_id, channel_id, new_ts)
+            self.db_handler.save_message(user_id, channel_id, new_ts)
 
         return response
 
@@ -299,8 +357,8 @@ class SlackHandler:
         self.slack_client = slack_client
 
         response = slack_client.auth_test()
-        user_id = response.get("user_id", "unknown")
-        logger.info(f"Authenticated as bot user: {user_id}", extra={"response": response})
+        self.user_id = response.get("user_id", "unknown")
+        logger.info(f"Authenticated as bot user: {self.user_id}", extra={"response": response})
 
         # Get Channels where the Bot is a member
         logger.info("Find bot channels...")
@@ -308,7 +366,7 @@ class SlackHandler:
 
         if not self.target_channels:
             logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
-            return user_id, []
+            return []
 
         message_default_text = "I am currently syncing changes to my knowledge base.\n This may take a few minutes."
 
@@ -348,7 +406,7 @@ class SlackHandler:
             },
         ]
 
-        return user_id, blocks
+        return blocks
 
     def initialise_slack_messages(self, s3_event_handler: S3EventHandler):
         """
@@ -356,7 +414,7 @@ class SlackHandler:
         or skip if a message was recently created
         """
         try:
-            user_id, blocks = self.initialise_slack()
+            blocks = self.initialise_slack()
 
             # Broadcast Loop
             logger.info(f"Searching {len(self.target_channels)} channels...")
@@ -364,13 +422,13 @@ class SlackHandler:
             for channel_id in self.target_channels:
                 try:
                     latest_message = self.get_latest_message(
-                        user_id=user_id, channel_id=channel_id, s3_event_handler=s3_event_handler, blocks=blocks
+                        user_id=self.user_id, channel_id=channel_id, s3_event_handler=s3_event_handler, blocks=blocks
                     )
                     if latest_message:
                         responses.append(latest_message)
                         continue
 
-                    new_message = self.post_initial_message(user_id=user_id, channel_id=channel_id, blocks=blocks)
+                    new_message = self.post_initial_message(user_id=self.user_id, channel_id=channel_id, blocks=blocks)
                     if new_message:
                         responses.append(new_message)
 
@@ -482,6 +540,7 @@ class S3EventHandler:
                 slack_handler.update_task(
                     id=slack_handler.update_block_id, message=message, output_message=output_message, replace=(i == 0)
                 )
+                slack_handler.update_task_db(created=self.created, modified=self.modified, deleted=self.deleted)
 
     @staticmethod
     def start_ingestion_job():

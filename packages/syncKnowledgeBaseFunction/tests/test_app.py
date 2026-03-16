@@ -19,7 +19,7 @@ def mock_env():
         "AWS_REGION": "eu-west-2",
         "SQS_URL": "example",
         "SLACK_BOT_ACTIVE": "true",
-        "KNOWLEDGE_SYNC_STATE_TABLE": "test-state-table",  # <-- ADDED
+        "KNOWLEDGE_SYNC_STATE_TABLE": "test-state-table",
     }
 
     with patch.dict(os.environ, env_vars, clear=False):
@@ -229,10 +229,17 @@ def slack_message_event():
 
 
 @patch("app.handler.SlackHandler.initialise_slack_messages")
+@patch("app.handler.SlackHandler.update_task_db")
 @patch("boto3.client")
 @patch("time.time")
 def test_handler_success(
-    mock_time, mock_boto_client, mock_initialise_slack_messages, mock_env, lambda_context, receive_s3_event
+    mock_time,
+    mock_boto_client,
+    mock_update_task_db,
+    mock_initialise_slack_messages,
+    mock_env,
+    lambda_context,
+    receive_s3_event,
 ):
     """Test successful handler execution"""
     mock_time.side_effect = [1000, 1001, 1002, 1003]
@@ -257,13 +264,11 @@ def test_handler_success(
     )
 
 
-@patch("app.handler.SlackHandler.initialise_slack_messages")
 @patch("boto3.client")
 @patch("time.time")
 def test_handler_multiple_files(
     mock_time,
     mock_boto_client,
-    mock_initialise_slack_messages,
     mock_env,
     mock_get_bot_token,
     lambda_context,
@@ -275,18 +280,20 @@ def test_handler_multiple_files(
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
-    mock_initialise_slack_messages.return_value = (DEFAULT, [])
 
     # Force reload the module to catch the new patches
     if "app.handler" in sys.modules:
         del sys.modules["app.handler"]
-    from app.handler import handler
+    import app.handler
 
-    result = handler(receive_multiple_s3_events, lambda_context)
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
+        app.handler.SlackHandler, "update_task_db"
+    ):
+        result = app.handler.handler(receive_multiple_s3_events, lambda_context)
 
-    assert result["statusCode"] == 200
-    assert "Successfully polled and processed sqs events" in result["body"]
-    assert mock_bedrock.start_ingestion_job.call_count == 1
+        assert result["statusCode"] == 200
+        assert "Successfully polled and processed sqs events" in result["body"]
+        assert mock_bedrock.start_ingestion_job.call_count == 1
 
 
 @patch("boto3.client")
@@ -325,7 +332,9 @@ def test_handler_fetch_files(
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
+        app.handler.SlackHandler, "update_task_db"
+    ):
         result = app.handler.handler(receive_multiple_s3_events, lambda_context)
 
         assert result["statusCode"] == 200
@@ -369,7 +378,9 @@ def test_handler_fetch_multiple_files(
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
+        app.handler.SlackHandler, "update_task_db"
+    ):
         result = app.handler.handler(receive_multiple_s3_events, lambda_context)
 
         assert result["statusCode"] == 200
@@ -413,7 +424,9 @@ def test_handler_fetch_multiple_files_infinite(
         del sys.modules["app.handler"]
     import app.handler
 
-    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])):
+    with patch.object(app.handler.SlackHandler, "initialise_slack_messages", return_value=(DEFAULT, [])), patch.object(
+        app.handler.SlackHandler, "update_task_db"
+    ):
         result = app.handler.handler(receive_multiple_s3_events, lambda_context)
 
         assert result["statusCode"] == 200
@@ -423,11 +436,13 @@ def test_handler_fetch_multiple_files_infinite(
 
 @patch("slack_sdk.WebClient")
 @patch("app.config.config.get_bot_token")
+@patch("boto3.resource")
 @patch("boto3.client")
 @patch("time.time")
 def test_handler_slack_success(
     mock_time,
     mock_boto_client,
+    mock_boto_resource,
     mock_get_bot_token,
     mock_webclient_class,
     mock_env,
@@ -443,6 +458,9 @@ def test_handler_slack_success(
     mock_bedrock.start_ingestion_job.return_value = {
         "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
     }
+
+    mock_dynamo = mock_boto_resource.return_value
+    mock_dynamo.table.return_value = {}
 
     # Setup Slack SDK WebClient Mock
     mock_slack_client = MagicMock()
@@ -1211,7 +1229,7 @@ def test_dynamodb_handler_save_last_message(mock_boto, mock_boto_resource, mock_
     mock_boto_resource.return_value.Table.return_value = mock_table
 
     db_handler = DynamoDbHandler()
-    db_handler.save_last_message(user_id="U123", channel_id="C456", ts="1710581159.123456")
+    db_handler.save_message(user_id="U123", channel_id="C456", ts="1710581159.123456")
 
     mock_table.put_item.assert_called_once_with(
         Item={
