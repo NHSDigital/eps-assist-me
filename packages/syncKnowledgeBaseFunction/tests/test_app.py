@@ -1210,13 +1210,9 @@ def test_search_and_process_sqs_events(mock_boto, mock_slack_init, mock_close, m
 
     search_and_process_sqs_events(initial_event)
 
-    # Iteration 0: Processes initial event, searches SQS (finds 1)
-    # Iteration 1: Closes initial event, processes new event, searches SQS (finds 0)
-    # Iteration 2: Loop breaks immediately.
-
     assert mock_process.call_count == 2
-    assert mock_close.call_count == 2
     assert mock_search.call_count == 2
+    assert mock_close.call_count == 1  # Don't close initial event
 
 
 @patch("boto3.resource")

@@ -659,10 +659,11 @@ def search_and_process_sqs_events(event):
             break
 
         # If we have events (either from the initial seed or the search above), process them
-        if events and len(events) > 0 and i > 0:
+        if events and len(events) > 0:
             logger.info("Founds events, process")
             s3_event_handler.process_batched_queue_events(slack_handler, events)
-            s3_event_handler.close_sqs_events(events)
+            if i > 0:  # Only close if fetched, not received
+                s3_event_handler.close_sqs_events(events)
 
         # Clear the list so the NEXT loop iteration knows to search again
         logger.info("Search for any prompts left in the queue")
