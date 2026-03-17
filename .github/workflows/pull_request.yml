@@ -9,7 +9,7 @@ env:
 
 jobs:
   get_config_values:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@141907b215220e95e3ed3811d0fe8fa18675dbed
+    uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@e208462679dedaded1e066c25c9830b9c0bf1930
     with:
       verify_published_from_main_image: false
 
@@ -29,7 +29,7 @@ jobs:
           echo "commit_message=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@141907b215220e95e3ed3811d0fe8fa18675dbed
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@ac06e5f930985d719de5c926990f18f7702c33fd
     needs: [get_config_values, get_commit_message]
     if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc') }}
     with:
@@ -108,7 +108,7 @@ jobs:
       AUTOMERGE_PEM: ${{ secrets.AUTOMERGE_PEM }}
 
   pr_title_format_check:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/pr_title_check.yml@8404cf6e3a61ac8de4d1644e175e288aa4965815
+    uses: NHSDigital/eps-common-workflows/.github/workflows/pr_title_check.yml@ac06e5f930985d719de5c926990f18f7702c33fd
 
   get_issue_number:
     runs-on: ubuntu-22.04
