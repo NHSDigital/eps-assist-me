@@ -659,7 +659,7 @@ def search_and_process_sqs_events(event):
             break
 
         # If we have events (either from the initial seed or the search above), process them
-        if events and len(events) > 0:
+        if events and len(events) > 0 and i > 0:
             logger.info("Founds events, process")
             s3_event_handler.process_batched_queue_events(slack_handler, events)
             s3_event_handler.close_sqs_events(events)
