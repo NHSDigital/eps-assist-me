@@ -36,7 +36,7 @@ def mock_dynamo_resource():
         mock_table = MagicMock()
         # Returning an empty dict simulates a missing record, meaning
         # "Item" won't be in the response, and the script proceeds normally.
-        mock_table.get_item.return_value = {}
+        mock_table.query.return_value = {}
         mock_resource.return_value.Table.return_value = mock_table
         yield mock_resource
 
@@ -1248,14 +1248,14 @@ def test_dynamodb_handler_get_sync_state_exists(mock_boto, mock_boto_resource, m
 
     mock_table = MagicMock()
     # Simulate DynamoDB returning a found record
-    mock_table.get_item.return_value = {"Items": [{"last_ts": "999.999"}]}
+    mock_table.query.return_value = {"Items": [{"last_ts": "999.999"}]}
     mock_boto_resource.return_value.Table.return_value = mock_table
 
     db_handler = DynamoDbHandler()
     result = db_handler.get_sync_state("U123", "C456")
 
     assert result.get("last_ts") == "999.999"
-    mock_table.get_item.assert_called_once()
+    mock_table.query.assert_called_once()
 
 
 @patch("slack_sdk.WebClient")

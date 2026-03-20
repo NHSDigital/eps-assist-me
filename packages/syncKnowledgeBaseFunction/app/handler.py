@@ -27,6 +27,7 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
 from functools import cached_property
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
 
 bedrock_agent = boto3.client("bedrock-agent")
 sqs = boto3.client("sqs")
@@ -70,9 +71,13 @@ class DynamoDbHandler:
         Returns the timestamp as a string, or None if no record exists.
         """
         try:
-            response = self.table.get_item(Key={"user_channel_composite": f"{user_id}#{channel_id}"})
+            response = self.table.query(
+                KeyConditionExpression=Key("user_channel_composite").eq(f"{user_id}#{channel_id}"),
+                ScanIndexForward=False,
+                Limit=1,
+            )
 
-            items = response.get("Items")
+            items = response.get("Items", [])
             if not items:
                 logger.info(f"No previous record for {user_id} in {channel_id}")
                 return None
