@@ -108,7 +108,7 @@ jobs:
       AUTOMERGE_PEM: ${{ secrets.AUTOMERGE_PEM }}
 
   pr_title_format_check:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/pr_title_check.yml@ac06e5f930985d719de5c926990f18f7702c33fd
+    uses: NHSDigital/eps-common-workflows/.github/workflows/pr_title_check.yml@5ac2707dd9cd60ad127275179495b9c890d74711
 
   get_issue_number:
     runs-on: ubuntu-22.04
