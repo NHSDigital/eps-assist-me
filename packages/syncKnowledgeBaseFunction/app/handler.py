@@ -655,7 +655,7 @@ def search_and_process_sqs_events(event):
 
         # If we have events (either from the initial seed or the search above), process them
         if events and len(events) > 0:
-            logger.info("Founds events, process")
+            logger.info("Found events, process")
             s3_event_handler.process_batched_queue_events(slack_handler, events)
             if i > 0:  # Only close if fetched, not received
                 s3_event_handler.close_sqs_events(events)
