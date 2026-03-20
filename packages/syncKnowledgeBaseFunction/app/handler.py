@@ -27,10 +27,11 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
 from functools import cached_property
 from botocore.exceptions import ClientError
-from boto3.dynamodb.conditions import Key
 
 bedrock_agent = boto3.client("bedrock-agent")
 sqs = boto3.client("sqs")
+
+TaskStatus = Literal["in_progress", "complete"]
 
 
 class DynamoDbHandler:
@@ -42,52 +43,36 @@ class DynamoDbHandler:
         return dynamodb.Table(KNOWLEDGE_SYNC_STATE_TABLE)
 
     def save_message(self, user_id, channel_id, ts):
-        try:
-            self.table.put_item(
-                Item={
-                    "user_channel_composite": f"{user_id}#{channel_id}",
-                    "user_id": user_id,
-                    "channel_id": channel_id,
-                    "last_ts": str(ts),
-                    "created": 0,
-                    "modified": 0,
-                    "deleted": 0,
-                }
-            )
-            logger.info(f"Successfully saved ts {ts} for user {user_id} in {channel_id}")
-        except ClientError as e:
-            logger.error(f"Failed to save to DynamoDB: {e.response['Error']['Message']}")
+        """Saves a new message with default counters set to 0."""
+        return self.update_message(user_id, channel_id, ts, 0, 0, 0)
 
     def update_message(self, user_id, channel_id, ts, created, modified, deleted):
+        """Updates an existing message or creates one with specific counters."""
+        item = {
+            "user_channel_composite": f"{user_id}#{channel_id}",
+            "user_id": user_id,
+            "channel_id": channel_id,
+            "last_ts": str(ts),
+            "created": created,
+            "modified": modified,
+            "deleted": deleted,
+        }
+
         try:
-            self.table.put_item(
-                Item={
-                    "user_channel_composite": f"{user_id}#{channel_id}",
-                    "user_id": user_id,
-                    "channel_id": channel_id,
-                    "last_ts": str(ts),
-                    "created": created,
-                    "modified": modified,
-                    "deleted": deleted,
-                }
-            )
-            logger.info(f"Successfully updated message {ts} for user {user_id} in {channel_id}")
+            self.table.put_item(Item=item)
+            logger.info(f"Successfully processed ts {ts} for user {user_id} in {channel_id}")
         except ClientError as e:
             logger.error(f"Failed to save to DynamoDB: {e.response['Error']['Message']}")
 
-    def get_latest_message(self, user_id, channel_id):
+    def get_sync_state(self, user_id, channel_id):
         """
         Retrieves the latest message timestamp for a user in a specific channel.
         Returns the timestamp as a string, or None if no record exists.
         """
         try:
-            response = self.table.query(
-                KeyConditionExpression=Key("user_channel_composite").eq(f"{user_id}#{channel_id}"),
-                ScanIndexForward=False,
-                Limit=1,
-            )
+            response = self.table.get_item(Key={"user_channel_composite": f"{user_id}#{channel_id}"})
 
-            items = response.get("Items", [])
+            items = response.get("Items")
             if not items:
                 logger.info(f"No previous record for {user_id} in {channel_id}")
                 return None
@@ -153,7 +138,7 @@ class SlackHandler:
         plan=None,
         details=None,
         outputs=None,
-        status: Literal["in_progress", "complete"] = "in_progress",
+        status: TaskStatus = "in_progress",
     ):
         """Create a new Slack Block Task for a Plan block"""
         task = {
@@ -188,13 +173,13 @@ class SlackHandler:
         self,
         id: str,
         message: str,
-        status: Literal["in_progress", "completed"] = "in_progress",
+        status: TaskStatus = "in_progress",
         output_message: str | None = None,
         replace=False,
     ):
         # Add header
         if self.slack_client is None:
-            logger.warning("No Slack client found, skipper update all tasks")
+            logger.warning("No Slack client found, skipped update all tasks")
             return
 
         for slack_message in self.messages:
@@ -311,7 +296,7 @@ class SlackHandler:
         }
 
     def get_latest_message(self, user_id, channel_id, blocks, s3_event_handler):
-        latest_message = self.db_handler.get_latest_message(user_id, channel_id)
+        latest_message = self.db_handler.get_sync_state(user_id, channel_id)
 
         if latest_message is None:
             return None
@@ -569,7 +554,10 @@ class S3EventHandler:
         if s3_records and len(s3_records):
             # Start the ingestion job
             S3EventHandler.start_ingestion_job()
+        else:
+            logger.info("skipping start_ingestion")
 
+        valid_records = []
         for record in s3_records:
             if record.get("eventSource") != "aws:s3":
                 logger.warning(
@@ -577,9 +565,11 @@ class S3EventHandler:
                     extra={"event_source": record.get("eventSource")},
                 )
                 continue
+            valid_records.append(record)
 
         # Process event details for the Slack Messages
-        self.process_multiple_s3_events(records=s3_records, slack_handler=slack_handler)
+        if valid_records:
+            self.process_multiple_s3_events(records=valid_records, slack_handler=slack_handler)
 
     def process_batched_queue_events(self, slack_handler: SlackHandler, events: list):
         """Handle collection of batched queue events"""
@@ -608,8 +598,14 @@ class S3EventHandler:
     def close_sqs_events(events):
         logger.info(f"Closing {len(events)} sqs events")
         for event in events:
+            receipt_handle = event.get("receiptHandle") or event.get("ReceiptHandle")
+
+            if not receipt_handle:
+                logger.warning("No receipt handle found in event, skipping deletion.")
+                continue
+
             try:
-                sqs.delete_message(QueueUrl=SQS_URL, ReceiptHandle=event["ReceiptHandle"])
+                sqs.delete_message(QueueUrl=SQS_URL, ReceiptHandle=receipt_handle)
                 logger.info("Successfully deleted sqs message from queue")
             except Exception as e:
                 logger.error("Failed to delete sqs message from queue", extra={"Exception": e})
@@ -627,11 +623,10 @@ class S3EventHandler:
 
         logger.info(f"Found {len(messages)} messages in SQS", extra={"response": response, "messages": messages})
         for message in messages:
-            body = message.get("Body", {})
+            body = message.get("Body", "{}")
             message_events = json.loads(body)
             if message_events:
-                s3_event = message_events.get("Records", [])
-                events += s3_event
+                events.append({"body": message.get("Body", "{}"), "receiptHandle": message.get("ReceiptHandle")})
 
         logger.info(f"Found {len(messages)} total event(s) in SQS messages")
         return events

@@ -149,7 +149,7 @@ def receive_multiple_s3_events():
 @pytest.fixture
 def fetch_sqs_event(receive_s3_event):
     """Mock incoming SQS event structure as expected by the new logic"""
-    return {"Messages": [{"MessageId": str(uuid.uuid4()), "Body": json.dumps(receive_s3_event)}]}
+    return {"Messages": [{"MessageId": str(uuid.uuid4()), "Body": receive_s3_event["Records"][0]["body"]}]}
 
 
 @pytest.fixture
@@ -159,7 +159,7 @@ def fetch_multiple_sqs_event(receive_multiple_s3_events):
         "Messages": [
             {
                 "MessageId": str(uuid.uuid4()),
-                "Body": json.dumps(receive_multiple_s3_events),
+                "Body": receive_multiple_s3_events["Records"][0]["body"],
             }
         ]
     }
@@ -530,7 +530,7 @@ def test_handler_slack_silent_success(
 ):
     """Test successful handler execution with actual Slack WebClient interaction"""
     # Mock timing
-    mock_time.side_effect = [999, 1000, 1001, 1002, 1003, 1004, 1005]
+    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
 
     # Setup Boto3 Mock
     mock_bedrock = mock_boto_client.return_value
@@ -575,7 +575,7 @@ def test_handler_slack_silent_success(
 
     # Assert Messages were posted and updated
     mock_slack_client.chat_postMessage.assert_not_called()
-    mock_slack_client.chat_update.asset_not_called()
+    mock_slack_client.chat_update.assert_not_called()
 
 
 @patch("app.handler.KNOWLEDGEBASE_ID", "")
@@ -1093,12 +1093,12 @@ def test_process_multiple_sqs_events_formatting(
     # Assert Boto3 was triggered correctly
     mock_bedrock.start_ingestion_job.assert_has_calls(
         [
+            call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1000"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1001"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1002"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1003"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1004"),
             call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1005"),
-            call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1006"),
         ]
     )
 
@@ -1242,20 +1242,20 @@ def test_dynamodb_handler_save_last_message(mock_boto, mock_boto_resource, mock_
 
 @patch("boto3.resource")
 @patch("boto3.client")
-def test_dynamodb_handler_get_latest_message_exists(mock_boto, mock_boto_resource, mock_env):
+def test_dynamodb_handler_get_sync_state_exists(mock_boto, mock_boto_resource, mock_env):
     """Test retrieving a timestamp when a record already exists in the database"""
     from app.handler import DynamoDbHandler
 
     mock_table = MagicMock()
     # Simulate DynamoDB returning a found record
-    mock_table.query.return_value = {"Items": [{"last_ts": "999.999"}]}
+    mock_table.get_item.return_value = {"Items": [{"last_ts": "999.999"}]}
     mock_boto_resource.return_value.Table.return_value = mock_table
 
     db_handler = DynamoDbHandler()
-    result = db_handler.get_latest_message("U123", "C456")
+    result = db_handler.get_sync_state("U123", "C456")
 
     assert result.get("last_ts") == "999.999"
-    mock_table.query.assert_called_once()
+    mock_table.get_item.assert_called_once()
 
 
 @patch("slack_sdk.WebClient")
@@ -1302,7 +1302,7 @@ def test_handler_slack_skip_recent_update(
 
     with patch("app.handler.DynamoDbHandler") as mock_db_class:
         mock_db_instance = mock_db_class.return_value
-        mock_db_instance.get_latest_message.return_value = {"last_ts": 1000}
+        mock_db_instance.get_sync_state.return_value = {"last_ts": 1000}
 
         # Run the handler
         result = handler(receive_s3_event, lambda_context)
@@ -1370,7 +1370,7 @@ def test_handler_slack_use_recent_update(
 
     with patch("app.handler.DynamoDbHandler") as mock_db_class:
         mock_db_instance = mock_db_class.return_value
-        mock_db_instance.get_latest_message.return_value = {"last_ts": 1}
+        mock_db_instance.get_sync_state.return_value = {"last_ts": 1}
 
         # Run the handler
         result = handler(receive_s3_event, lambda_context)
