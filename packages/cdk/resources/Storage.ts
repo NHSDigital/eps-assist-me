@@ -1,6 +1,6 @@
 import {Construct} from "constructs"
 import {S3Bucket} from "../constructs/S3Bucket"
-import {IPrincipal} from "aws-cdk-lib/aws-iam"
+import {IPrincipal, IRole} from "aws-cdk-lib/aws-iam"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {Bucket, IBucket} from "aws-cdk-lib/aws-s3"
 
@@ -8,6 +8,7 @@ export interface StorageProps {
   readonly stackName: string,
   readonly deploymentRole: IPrincipal
   readonly auditLoggingBucket: IBucket
+  readonly assistMeDocumentSyncRole: IRole
 }
 
 export class Storage extends Construct {
@@ -22,7 +23,8 @@ export class Storage extends Construct {
       bucketName: `${props.stackName}-Docs`,
       versioned: true,
       deploymentRole: props.deploymentRole,
-      auditLoggingBucket: props.auditLoggingBucket
+      auditLoggingBucket: props.auditLoggingBucket,
+      documentSyncRole: props.assistMeDocumentSyncRole
     })
     this.kbDocsBucket = kbDocsBucket.bucket
     this.kbDocsKmsKey = kbDocsBucket.kmsKey

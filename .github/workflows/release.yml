@@ -8,12 +8,12 @@ env:
 
 jobs:
   get_config_values:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@8404cf6e3a61ac8de4d1644e175e288aa4965815
+    uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@5ac2707dd9cd60ad127275179495b9c890d74711
     with:
       verify_published_from_main_image: true
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@8404cf6e3a61ac8de4d1644e175e288aa4965815
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@5ac2707dd9cd60ad127275179495b9c890d74711
     needs: [get_config_values]
     with:
       pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
@@ -22,13 +22,20 @@ jobs:
 
   tag_release:
     needs: [quality_checks, get_config_values]
-    uses: NHSDigital/eps-common-workflows/.github/workflows/tag-release-devcontainer.yml@8404cf6e3a61ac8de4d1644e175e288aa4965815
+    uses: NHSDigital/eps-common-workflows/.github/workflows/tag-release-devcontainer.yml@5ac2707dd9cd60ad127275179495b9c890d74711
+    permissions:
+      id-token: write
+      contents: write
     with:
       dry_run: false
       pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
       branch_name: main
       tag_format: ${{ needs.get_config_values.outputs.tag_format }}
-    secrets: inherit
+      update_jira: true
+      jira_release_prefix: "epsam"
+    secrets:
+      EXECUTE_JIRA_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
+  
 
   package_code:
     needs: [tag_release, get_config_values]
@@ -52,10 +59,6 @@ jobs:
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 30
       LOG_LEVEL: "DEBUG"
-      CREATE_INT_RELEASE_NOTES: true
-      CREATE_PROD_RELEASE_NOTES: true
-      MARK_JIRA_RELEASED: false
-      CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
       FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: true
@@ -84,10 +87,6 @@ jobs:
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 30
       LOG_LEVEL: "DEBUG"
-      CREATE_INT_RELEASE_NOTES: false
-      CREATE_PROD_RELEASE_NOTES: false
-      MARK_JIRA_RELEASED: false
-      CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
       FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: true
@@ -116,10 +115,6 @@ jobs:
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 30
       LOG_LEVEL: "DEBUG"
-      CREATE_INT_RELEASE_NOTES: false
-      CREATE_PROD_RELEASE_NOTES: false
-      MARK_JIRA_RELEASED: false
-      CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
       FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: false
@@ -147,10 +142,6 @@ jobs:
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 731
       LOG_LEVEL: "INFO"
-      CREATE_INT_RELEASE_NOTES: true
-      CREATE_PROD_RELEASE_NOTES: true
-      MARK_JIRA_RELEASED: false
-      CREATE_INT_RC_RELEASE_NOTES: true
       IS_PULL_REQUEST: false
       FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: false
@@ -178,10 +169,6 @@ jobs:
       DEPLOY_CODE: true
       LOG_RETENTION_IN_DAYS: 731
       LOG_LEVEL: "INFO"
-      CREATE_INT_RELEASE_NOTES: false
-      CREATE_PROD_RELEASE_NOTES: true
-      MARK_JIRA_RELEASED: true
-      CREATE_INT_RC_RELEASE_NOTES: false
       IS_PULL_REQUEST: false
       FORWARD_CSOC_LOGS: true
       RUN_REGRESSION_TESTS: false

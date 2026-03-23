@@ -35,3 +35,4 @@ cdk.out
 .local_config/
 .dependencies/
 .poetry/
+.trivy_out/
