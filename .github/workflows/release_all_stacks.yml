@@ -30,6 +30,9 @@ on:
       RUN_REGRESSION_TESTS:
         type: boolean
         default: true
+      RUN_RAGAS_EVALUATION:
+        type: boolean
+        default: true
       IS_PULL_REQUEST:
         type: boolean
         default: false
@@ -125,7 +128,6 @@ jobs:
           IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
           RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
 
-
       - name: Deploy code for stack
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
@@ -199,3 +201,16 @@ jobs:
       pinned_image: ${{ inputs.pinned_image }}
     secrets:
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+
+  ragas_evaluation:
+    name: Ragas Quality Evaluation
+    uses: ./.github/workflows/run_ragas_evaluation.yml
+    if: ${{ always() && !failure() && !cancelled() && inputs.RUN_RAGAS_EVALUATION == true }}
+    needs: [release_all_code]
+    with:
+      ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+      VERSION_NUMBER: ${{ inputs.VERSION_NUMBER }}
+      STACK_NAME: ${{ inputs.STACK_NAME }}
+      pinned_image: ${{ inputs.pinned_image }}
+    secrets:
+      CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}

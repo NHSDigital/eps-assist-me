@@ -36,3 +36,5 @@ cdk.out
 .dependencies/
 .poetry/
 .trivy_out/
+# Ragas evaluation results (generated at runtime)
+**/results/
