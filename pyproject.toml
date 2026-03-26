@@ -36,7 +36,7 @@ moto = {extras = ["ssm"], version = "^5.1.22"}
 slack-bolt = "^1.25.0"
 slack-sdk = "^3.41.0"
 boto3 = "^1.42.73"
-requests = "^2.32.5"
+requests = "^2.33.0"
 urllib3 = "^2.6.3"
 aws-lambda-powertools = "^3.26.0"
 boto3-stubs = {extras = ["bedrock-agent", "bedrock-agent-runtime", "bedrock-runtime", "cloudformation", "dynamodb", "lambda"], version = "^1.42.73"}
