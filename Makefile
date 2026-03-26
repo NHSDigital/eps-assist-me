@@ -42,6 +42,9 @@ test:
 	cd packages/preprocessingFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 	cd packages/bedrockLoggingConfigFunction && PYTHONPATH=. COVERAGE_FILE=coverage/.coverage poetry run python -m pytest
 
+ragas-eval:
+	cd packages/ragasEvaluation && PYTHONPATH=. poetry run python -m pytest tests/ -m ragas -v --tb=short
+
 clean:
 	rm -rf packages/cdk/coverage
 	rm -rf packages/cdk/lib

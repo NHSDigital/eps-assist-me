@@ -35,7 +35,6 @@ jobs:
       jira_release_prefix: "epsam"
     secrets:
       EXECUTE_JIRA_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
-  
 
   package_code:
     needs: [tag_release, get_config_values]
@@ -62,6 +61,7 @@ jobs:
       IS_PULL_REQUEST: false
       FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: true
+      RUN_RAGAS_EVALUATION: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_DEPLOY_ROLE }}
       INT_ASSIST_ME_DOCUMENT_SYNC_ROLE: ${{ secrets.INT_ASSIST_ME_DOCUMENT_SYNC_ROLE }}
@@ -90,6 +90,7 @@ jobs:
       IS_PULL_REQUEST: false
       FORWARD_CSOC_LOGS: false
       RUN_REGRESSION_TESTS: true
+      RUN_RAGAS_EVALUATION: true
     secrets:
       CLOUD_FORMATION_DEPLOY_ROLE: ${{ secrets.QA_CLOUD_FORMATION_DEPLOY_ROLE }}
       INT_ASSIST_ME_DOCUMENT_SYNC_ROLE: ${{ secrets.INT_ASSIST_ME_DOCUMENT_SYNC_ROLE }}

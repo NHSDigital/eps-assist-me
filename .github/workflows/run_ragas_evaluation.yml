@@ -1,0 +1,105 @@
+name: Run Ragas Quality Evaluation
+
+on:
+    workflow_call:
+        inputs:
+            ENVIRONMENT:
+                required: true
+                type: string
+            VERSION_NUMBER:
+                required: true
+                type: string
+            STACK_NAME:
+                required: true
+                type: string
+            pinned_image:
+                type: string
+                required: true
+        secrets:
+            CLOUD_FORMATION_DEPLOY_ROLE:
+                required: true
+
+jobs:
+    ragas_evaluation:
+        runs-on: ubuntu-22.04
+        container:
+            image: ${{ inputs.pinned_image }}
+            options: --user 1001:1001 --group-add 128
+        defaults:
+            run:
+                shell: bash
+        permissions:
+            id-token: write
+            contents: read
+
+        steps:
+            - name: copy .tool-versions
+              run: |
+                  cp /home/vscode/.tool-versions "$HOME/.tool-versions"
+
+            - name: Checkout repository
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+              with:
+                  ref: ${{ github.ref }}
+                  fetch-depth: 0
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7
+              with:
+                  aws-region: eu-west-2
+                  role-to-assume: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
+                  role-session-name: eps-assist-me-ragas-evaluation
+
+            - name: Resolve Lambda function name
+              id: resolve_lambda
+              run: |
+                  # Discover the SlackBot Lambda name from CloudFormation stack outputs
+                  STACK_NAME="${{ inputs.STACK_NAME }}-${{ inputs.ENVIRONMENT }}"
+                  FUNCTION_NAME=$(aws cloudformation describe-stacks \
+                    --stack-name "$STACK_NAME" \
+                    --query "Stacks[0].Outputs[?OutputKey=='SlackBotFunctionName'].OutputValue" \
+                    --output text 2>/dev/null || echo "")
+
+                  if [[ -z "$FUNCTION_NAME" || "$FUNCTION_NAME" == "None" ]]; then
+                    # Fallback: list Lambda functions matching the expected naming pattern
+                    FUNCTION_NAME=$(aws lambda list-functions \
+                      --query "Functions[?contains(FunctionName, '${{ inputs.STACK_NAME }}') && contains(FunctionName, 'SlackBot')].FunctionName | [0]" \
+                      --output text 2>/dev/null || echo "")
+                  fi
+
+                  if [[ -z "$FUNCTION_NAME" || "$FUNCTION_NAME" == "None" ]]; then
+                    echo "::error::Could not resolve SlackBot Lambda function name for stack $STACK_NAME"
+                    exit 1
+                  fi
+
+                  echo "lambda_function_name=$FUNCTION_NAME" >> "$GITHUB_OUTPUT"
+                  echo "Resolved Lambda function: $FUNCTION_NAME"
+
+            - name: Install dependencies
+              run: |
+                  poetry install --with ragasEvaluation,dev
+
+            - name: Run Ragas evaluation
+              working-directory: packages/ragasEvaluation
+              env:
+                  RAGAS_LAMBDA_FUNCTION_NAME: ${{ steps.resolve_lambda.outputs.lambda_function_name }}
+                  RAGAS_AWS_REGION: eu-west-2
+                  RAGAS_EVALUATOR_MODEL_ID: eu.anthropic.claude-3-5-sonnet-20241022-v2:0
+                  RAGAS_RESULTS_DIR: results
+              run: |
+                  echo "Running Ragas evaluation against: $RAGAS_LAMBDA_FUNCTION_NAME"
+                  PYTHONPATH=. poetry run python -m pytest tests/ \
+                    -m ragas \
+                    -v \
+                    --tb=short \
+                    --junitxml=results/ragas_junit.xml \
+                    2>&1 | tee results/ragas_output.log
+
+            - name: Upload evaluation results
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ragas-evaluation-${{ inputs.ENVIRONMENT }}-${{ inputs.VERSION_NUMBER }}
+                  path: |
+                      packages/ragasEvaluation/results/
+                  retention-days: 30

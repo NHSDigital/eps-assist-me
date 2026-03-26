@@ -66,5 +66,13 @@ slack-bolt = "^1.25.0"
 slack-sdk = "^3.41.0"
 
 
+[tool.poetry.group.ragasEvaluation.dependencies]
+ragas = "^0.3.0-rc1"
+langchain-aws = "^0.2.0"
+boto3 = "^1.42.68"
+botocore = {extras = ["crt"], version = "^1.42.68"}
+pandas = "^2.2.0"
+
+
 [tool.black]
 line-length = 120
