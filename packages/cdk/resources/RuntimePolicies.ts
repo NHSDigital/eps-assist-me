@@ -8,6 +8,8 @@ export interface RuntimePoliciesProps {
   readonly slackSigningSecretParameterName: string
   readonly slackBotStateTableArn: string
   readonly slackBotStateTableKmsKeyArn: string
+  readonly knowledgeSyncStateTableArn: string
+  readonly knowledgeSyncStateTableKmsKeyArn: string
   readonly knowledgeBaseArn: string
   readonly guardrailArn: string
   readonly dataSourceArn: string
@@ -21,7 +23,6 @@ export interface RuntimePoliciesProps {
 export class RuntimePolicies extends Construct {
   public readonly slackBotPolicy: ManagedPolicy
   public readonly syncKnowledgeBasePolicy: ManagedPolicy
-  public readonly notifyS3UploadFunctionPolicy: ManagedPolicy
   public readonly preprocessingPolicy: ManagedPolicy
 
   constructor(scope: Construct, id: string, props: RuntimePoliciesProps) {
@@ -123,40 +124,59 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
-    // Create managed policy for SyncKnowledgeBase Lambda function
-    const syncKnowledgeBasePolicy = new PolicyStatement({
+    const syncKnowledgeBaseBedrockPolicy = new PolicyStatement({
       actions: [
         "bedrock:StartIngestionJob",
         "bedrock:GetIngestionJob",
         "bedrock:ListIngestionJobs"
       ],
       resources: [
-        props.knowledgeBaseArn,
-        props.dataSourceArn
+        props.knowledgeBaseArn
       ]
     })
 
-    this.syncKnowledgeBasePolicy = new ManagedPolicy(this, "SyncKnowledgeBasePolicy", {
-      description: "Policy for SyncKnowledgeBase Lambda to trigger ingestion jobs",
-      statements: [syncKnowledgeBasePolicy]
-    })
-
-    // Create managed policy for S3UpdateNotification Lambda function
-    const notifyS3UploadFunctionPolicy = new PolicyStatement({
+    const syncKnowledgeBaseSSMPolicy = new PolicyStatement({
       actions: [
-        "ssm:GetParameter",
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage"
+        "ssm:GetParameter"
       ],
       resources: [
-        props.knowledgeBaseArn,
         ...slackBotPolicyResources
       ]
     })
 
-    this.notifyS3UploadFunctionPolicy = new ManagedPolicy(this, "notifyS3UploadFunctionPolicy", {
-      description: "Policy for S3UpdateNotification Lambda to access SSM parameters",
-      statements: [notifyS3UploadFunctionPolicy]
+    const knowledgeSyncDynamoDbPolicy = new PolicyStatement({
+      actions: [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:UpdateItem"
+      ],
+      resources: [props.knowledgeSyncStateTableArn]
+    })
+
+    const knowledgeSyncKmsPolicy = new PolicyStatement({
+      actions: [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt",
+        "kms:GenerateDataKey",
+        "kms:DescribeKey"
+      ],
+      resources: [props.knowledgeSyncStateTableKmsKeyArn]
+    })
+
+    this.syncKnowledgeBasePolicy = new ManagedPolicy(this, "SyncKnowledgeBasePolicy", {
+      description: "Policy for SyncKnowledgeBase Lambda to trigger ingestion jobs",
+      statements: [
+        syncKnowledgeBaseBedrockPolicy,
+        syncKnowledgeBaseSSMPolicy,
+        knowledgeSyncDynamoDbPolicy,
+        knowledgeSyncKmsPolicy
+      ]
     })
 
     //policy for the preprocessing lambda

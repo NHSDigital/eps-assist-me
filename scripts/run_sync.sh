@@ -71,13 +71,11 @@ echo "Installing dependencies locally"
 mkdir -p .dependencies
 poetry show --only=slackBotFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_slackBotFunction
 poetry show --only=syncKnowledgeBaseFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_syncKnowledgeBaseFunction
-poetry show --only=notifyS3UploadFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_notifyS3UploadFunction
 poetry show --only=preprocessingFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_preprocessingFunction
 poetry show --only=bedrockLoggingConfigFunction | grep -E "^[a-zA-Z]" | awk '{print $1"=="$2}' > .dependencies/requirements_bedrockLoggingConfigFunction
 
 pip3 install -r .dependencies/requirements_slackBotFunction -t .dependencies/slackBotFunction/python
 pip3 install -r .dependencies/requirements_syncKnowledgeBaseFunction -t .dependencies/syncKnowledgeBaseFunction/python
-pip3 install -r .dependencies/requirements_notifyS3UploadFunction -t .dependencies/notifyS3UploadFunction/python
 pip3 install -r .dependencies/requirements_preprocessingFunction -t .dependencies/preprocessingFunction/python
 pip3 install -r .dependencies/requirements_bedrockLoggingConfigFunction -t .dependencies/bedrockLoggingConfigFunction/python
 
