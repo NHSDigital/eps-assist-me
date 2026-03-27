@@ -16,6 +16,8 @@ updates:
     open-pull-requests-limit: 20
     commit-message:
       prefix: "Upgrade: [dependabot] - "
+    cooldown:
+      default-days: 3
 
   ###################################
   # NPM workspace  ##################
@@ -30,6 +32,8 @@ updates:
     versioning-strategy: increase
     commit-message:
       prefix: "Upgrade: [dependabot] - "
+    cooldown:
+      default-days: 3
 
   ###################################
   # Poetry  #########################
@@ -44,3 +48,5 @@ updates:
     versioning-strategy: increase
     commit-message:
       prefix: "Upgrade: [dependabot] - "
+    cooldown:
+      default-days: 3
