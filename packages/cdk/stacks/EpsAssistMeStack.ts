@@ -17,7 +17,6 @@ import {RuntimePolicies} from "../resources/RuntimePolicies"
 import {DatabaseTables} from "../resources/DatabaseTables"
 import {BedrockPromptResources} from "../resources/BedrockPromptResources"
 import {VectorIndex} from "../resources/VectorIndex"
-import {BucketDeployment, Source} from "aws-cdk-lib/aws-s3-deployment"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {BedrockPromptSettings} from "../resources/BedrockPromptSettings"
 import {S3LambdaNotification} from "../resources/S3LambdaNotification"
@@ -104,12 +103,6 @@ export class EpsAssistMeStack extends Stack {
       assistMeDocumentSyncRole: assistMeDocumentSyncRole
     })
 
-    // initialize s3 folders for raw and processed documents
-    new BucketDeployment(this, "S3FolderInitializer", {
-      sources: [Source.asset("packages/cdk/assets/s3-folders")],
-      destinationBucket: storage.kbDocsBucket
-    })
-
     // Create Bedrock execution role without dependencies
     const bedrockExecutionRole = new BedrockExecutionRole(this, "BedrockExecutionRole", {
       region,
@@ -173,7 +166,9 @@ export class EpsAssistMeStack extends Stack {
       ragModelId: bedrockPromptResources.modelId,
       reformulationModelId: bedrockPromptResources.modelId,
       docsBucketArn: storage.kbDocsBucket.bucketArn,
-      docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn
+      docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn,
+      knowledgeSyncStateTableArn: tables.knowledgeSyncStateTable.table.tableArn,
+      knowledgeSyncStateTableKmsKeyArn: tables.knowledgeSyncStateTable.kmsKey.keyArn
     })
 
     // Create Functions construct with actual values from VectorKB
@@ -206,14 +201,14 @@ export class EpsAssistMeStack extends Stack {
       reformulationModelId: bedrockPromptResources.modelId,
       isPullRequest: isPullRequest,
       mainSlackBotLambdaExecutionRoleArn: mainSlackBotLambdaExecutionRoleArn,
-      notifyS3UploadFunctionPolicy: runtimePolicies.notifyS3UploadFunctionPolicy,
-      docsBucketName: storage.kbDocsBucket.bucketName
+      docsBucketName: storage.kbDocsBucket.bucketName,
+      knowledgeSyncStateTable: tables.knowledgeSyncStateTable.table
     })
 
     // Grant preprocessing Lambda access to the KMS key for S3 bucket
     storage.kbDocsKmsKey.grantEncryptDecrypt(functions.preprocessingFunction.executionRole)
 
-    // Create S3LambdaNotification to link S3 and NotifyS3UploadFunction
+    // Create AWS Lambdas to link S3
     new S3LambdaNotification(this, "StorageNotificationQueue", {
       stackName: props.stackName,
       functions,

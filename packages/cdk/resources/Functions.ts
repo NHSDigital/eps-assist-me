@@ -36,14 +36,13 @@ export interface FunctionsProps {
   readonly mainSlackBotLambdaExecutionRoleArn : string
   readonly ragModelId: string
   readonly reformulationModelId: string
-  readonly notifyS3UploadFunctionPolicy: ManagedPolicy
   readonly docsBucketName: string
+  readonly knowledgeSyncStateTable: TableV2
 }
 
 export class Functions extends Construct {
   public readonly slackBotLambda: LambdaFunction
   public readonly syncKnowledgeBaseFunction: LambdaFunction
-  public readonly notifyS3UploadFunction: LambdaFunction
   public readonly preprocessingFunction: LambdaFunction
 
   constructor(scope: Construct, id: string, props: FunctionsProps) {
@@ -130,29 +129,17 @@ export class Functions extends Construct {
       dependencyLocation: ".dependencies/syncKnowledgeBaseFunction",
       environmentVariables: {
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
-        "DATA_SOURCE_ID": props.dataSourceId
-      },
-      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
-    })
-
-    const notifyS3UploadFunction = new LambdaFunction(this, "NotifyS3UploadFunction", {
-      stackName: props.stackName,
-      functionName: `${props.stackName}-S3UpdateFunction`,
-      packageBasePath: "packages/notifyS3UploadFunction",
-      handler: "app.handler.handler",
-      logRetentionInDays: props.logRetentionInDays,
-      logLevel: props.logLevel,
-      dependencyLocation: ".dependencies/notifyS3UploadFunction",
-      environmentVariables: {
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
-        "SLACK_BOT_ACTIVE_ON_PRS": "false"
+        "SLACK_BOT_ACTIVE": `${!props.isPullRequest}`,
+        "DATA_SOURCE_ID": props.dataSourceId,
+        "KNOWLEDGE_SYNC_STATE_TABLE": props.knowledgeSyncStateTable.tableName
       },
-      additionalPolicies: [props.notifyS3UploadFunctionPolicy]
+      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy],
+      reservedConcurrentExecutions: 1
     })
 
     this.slackBotLambda = slackBotLambda
     this.preprocessingFunction = preprocessingFunction
     this.syncKnowledgeBaseFunction = syncKnowledgeBaseFunction
-    this.notifyS3UploadFunction = notifyS3UploadFunction
   }
 }

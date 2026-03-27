@@ -29,6 +29,8 @@ export interface LambdaFunctionProps {
   readonly logRetentionInDays: number
   readonly logLevel: string
   readonly dependencyLocation?: string
+  readonly reservedConcurrentExecutions?: number
+  readonly timeout_in_seconds?: Duration
 }
 
 // Lambda Insights layer for enhanced monitoring
@@ -131,7 +133,7 @@ export class LambdaFunction extends Construct {
     const lambdaFunction = new LambdaFunctionResource(this, props.functionName, {
       runtime: Runtime.PYTHON_3_14,
       memorySize: 256,
-      timeout: Duration.seconds(50),
+      timeout: props.timeout_in_seconds ?? Duration.seconds(50),
       architecture: Architecture.X86_64,
       handler: props.handler,
       code: Code.fromAsset(props.packageBasePath, {
@@ -149,7 +151,8 @@ export class LambdaFunction extends Construct {
         POWERTOOLS_LOG_LEVEL: props.logLevel
       },
       logGroup,
-      layers: layers
+      layers: layers,
+      reservedConcurrentExecutions: props.reservedConcurrentExecutions
     })
 
     // Suppress CFN guard rules for Lambda function

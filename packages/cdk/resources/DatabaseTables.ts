@@ -8,6 +8,7 @@ export interface TablesProps {
 
 export class DatabaseTables extends Construct {
   public readonly slackBotStateTable: DynamoDbTable
+  public readonly knowledgeSyncStateTable: DynamoDbTable
 
   constructor(scope: Construct, id: string, props: TablesProps) {
     super(scope, id)
@@ -20,6 +21,19 @@ export class DatabaseTables extends Construct {
       },
       sortKey: {
         name: "sk",
+        type: AttributeType.STRING
+      },
+      timeToLiveAttribute: "ttl"
+    })
+
+    this.knowledgeSyncStateTable = new DynamoDbTable(this, "KnowledgeSyncStateTable", {
+      tableName: `${props.stackName}-KnowledgeSyncState`,
+      partitionKey: {
+        name: "user_channel_composite",
+        type: AttributeType.STRING
+      },
+      sortKey: {
+        name: "last_ts",
         type: AttributeType.STRING
       },
       timeToLiveAttribute: "ttl"
