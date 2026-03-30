@@ -10,6 +10,7 @@ import json
 import time
 import traceback
 import uuid
+from urllib.parse import unquote_plus
 import boto3
 from typing import Literal
 from app.config.config import (
@@ -516,7 +517,8 @@ class S3EventHandler:
         for r in records:
             object_key = r.get("s3", {}).get("object", {}).get("key", "")
             if object_key:
-                file_name = object_key.split("/")[-1]
+                decoded_key = unquote_plus(object_key)
+                file_name = decoded_key.split("/")[-1]
                 if file_name and file_name not in self.document_names:
                     self.document_names.append(file_name)
 
