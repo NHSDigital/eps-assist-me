@@ -152,6 +152,59 @@ typing_extensions = ">=4.4"
 dev = ["black (==24.3.0)", "boto3 (>=1.34.0,<2.0.0)", "boto3-stubs[appconfig,serverlessrepo] (>=1.34.0,<2.0.0)", "coverage (>=5.3,<8)", "dateparser (>=1.1,<2.0)", "mypy (>=1.10.1,<1.11.0)", "parameterized (>=0.7,<1.0)", "pytest (>=6.2,<8)", "pytest-cov (>=2.10,<5)", "pytest-env (>=0.6,<1)", "pytest-rerunfailures (>=9.1,<12)", "pytest-xdist (>=2.5,<4)", "pyyaml (>=6.0,<7.0)", "requests (>=2.28,<3.0)", "ruamel.yaml (==0.17.21)", "ruff (>=0.4.5,<0.5.0)", "tenacity (>=9.0,<10.0)", "types-PyYAML (>=6.0,<7.0)", "types-jsonschema (>=3.2,<4.0)", "types-requests (>=2.28,<3.0)"]
 
 [[package]]
+name = "awscrt"
+version = "0.31.2"
+description = "A common runtime for AWS Python projects"
+optional = false
+python-versions = ">=3.8"
+groups = ["preprocessingfunction"]
+files = [
+    {file = "awscrt-0.31.2-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:f0c179c930ad8e4648bca9e310ab05fc1f6d41b334d5c2b124019822ce05f4ed"},
+    {file = "awscrt-0.31.2-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:28e5ec2fcc4e57e93f5b50dc748c0d2db449871102e390bbeb9e3ccc2c9ced07"},
+    {file = "awscrt-0.31.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:18adbcfc8a92468988ff9fef8f78ec21b1a3b3e705adb7964bae85c61e59d8bb"},
+    {file = "awscrt-0.31.2-cp310-cp310-musllinux_1_1_aarch64.whl", hash = "sha256:333fd850a0352ab53468412663b67350cfacaaabc5006ede696ac69a3e822572"},
+    {file = "awscrt-0.31.2-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:b80b7970c6894b7ae4dddbf2870323e5b81a123027205a2a1597fa72d00a2df2"},
+    {file = "awscrt-0.31.2-cp310-cp310-win32.whl", hash = "sha256:b3f4132550e51098a5a772313dfea38818adf909f314141cfe9ab3319fb0b0f0"},
+    {file = "awscrt-0.31.2-cp310-cp310-win_amd64.whl", hash = "sha256:e13d3b3517f08ddefde3af6c4ecafe561676ec491e799a5fbda66d951613ee8e"},
+    {file = "awscrt-0.31.2-cp311-abi3-macosx_10_15_universal2.whl", hash = "sha256:49c003d7fe40002dc4e26500f6cc63c61b399d44b4e38e66b5065845d296d230"},
+    {file = "awscrt-0.31.2-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:ac9d662de99c2f1393011cde357d0c8730aef9df4eedf258505bdf6ff20a3c01"},
+    {file = "awscrt-0.31.2-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:8387e72f856b7a92f7d08ff9a1dfa6960d6e9ed39509c63c5905e240071af23e"},
+    {file = "awscrt-0.31.2-cp311-abi3-musllinux_1_1_aarch64.whl", hash = "sha256:43b3f774afd5dc2471d38490a16ed3e789814f120b9552c76920cb2fb812376f"},
+    {file = "awscrt-0.31.2-cp311-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:10d5541726b87246fbfeb4c70036373b7aba8b40f489e5ae886eabc09a68ef38"},
+    {file = "awscrt-0.31.2-cp311-abi3-win32.whl", hash = "sha256:14e28cabf7857cfe6d82548821410c688e772a819dbf15d167359d7bc54cdb8d"},
+    {file = "awscrt-0.31.2-cp311-abi3-win_amd64.whl", hash = "sha256:ebd98aaaf348334f72d3a38aed18c29b808fe978c295e7c6bc2e21deac5126c8"},
+    {file = "awscrt-0.31.2-cp313-abi3-macosx_10_15_universal2.whl", hash = "sha256:3eb623d0abfbbe5e6666b9c39780737b472766b0e01168296b048a27ef9d13e8"},
+    {file = "awscrt-0.31.2-cp313-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:03de99bd3077e1b3bbcd1eca9d06a735fdb8fd47b2af8b1d464d43ede00f125a"},
+    {file = "awscrt-0.31.2-cp313-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1a4adc5ff6eae8a46f5bca4ed70ad68d36f1e272e2fcd60afeef71b4d02afe06"},
+    {file = "awscrt-0.31.2-cp313-abi3-musllinux_1_1_aarch64.whl", hash = "sha256:83d45c3ee9e1fe10c2d316b93402157199edb5d20b1584facf24f82981b55190"},
+    {file = "awscrt-0.31.2-cp313-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:a1d1f3e07cdd926bbc9a3715826e5794217780e7a326c329bdbf453533d2141a"},
+    {file = "awscrt-0.31.2-cp313-abi3-win32.whl", hash = "sha256:cf02b5db1181811f5e7c70e772986ef4a6577f722a6b3222842ae377df41d261"},
+    {file = "awscrt-0.31.2-cp313-abi3-win_amd64.whl", hash = "sha256:4b459be11d9aba47d3cb37e10e97702eed2a2858aa381e2586f7f73d15d85bdf"},
+    {file = "awscrt-0.31.2-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:046a514bd37dda049fdf3f76a1bbdef90f9344353080cfa5321dcb5007751455"},
+    {file = "awscrt-0.31.2-cp38-cp38-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:fed3f3686fbe796ea77a2aa3d12f4699aba5f2013acd3628d3065305146892d8"},
+    {file = "awscrt-0.31.2-cp38-cp38-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:65c07cb76907beab233f00f1b840b5d1605abb28c21e2132c10ac8ef9dc7eb83"},
+    {file = "awscrt-0.31.2-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:082c165dc61ef57dcafc8bf31fcc61d5daa6b7a15e36eada9af576ddc5293b49"},
+    {file = "awscrt-0.31.2-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:6b7bde2e6ec049777219513e97aae10d03b6c69654e174ab8e927ccc84387245"},
+    {file = "awscrt-0.31.2-cp38-cp38-musllinux_1_1_aarch64.whl", hash = "sha256:bf568eb0abc09bec507f7b37bd0017618d501b90518bd015d45b0f656face7dd"},
+    {file = "awscrt-0.31.2-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:b8eee6237b8290ead0dae7927b619973f094b1861a3d67c8144c314dc6dcc206"},
+    {file = "awscrt-0.31.2-cp38-cp38-win32.whl", hash = "sha256:9aa7e780d08fd8e36010ada44489791d9ef0c15cfd838edf3fd2c23ebb2e1e0c"},
+    {file = "awscrt-0.31.2-cp38-cp38-win_amd64.whl", hash = "sha256:5b8c9327ce4ea1d5091d119b03bd2c1c91b0547f3ad223cdd118edea1c525b0f"},
+    {file = "awscrt-0.31.2-cp39-cp39-macosx_10_15_universal2.whl", hash = "sha256:5146741645c41dbba47a916d41ab4ced5d953853434e610a719da8c138fa642c"},
+    {file = "awscrt-0.31.2-cp39-cp39-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:a5c36a1ba38492f983fd60bd81d5e604d1f74668ff4808a7c5ad34be17f0cc79"},
+    {file = "awscrt-0.31.2-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:566e646ea06a67f223cb699f050fbf851dd7f342f249caf86f2e07c0729c2a27"},
+    {file = "awscrt-0.31.2-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:dafbef04f4de7e255e2d6be4b5d243af7fe79b7c5e3c94d7b85c176979a9006b"},
+    {file = "awscrt-0.31.2-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:1e042fcc0bb19114ab52a7e5d0f5adc595f8a470738e79a7e4d984a08e2d027d"},
+    {file = "awscrt-0.31.2-cp39-cp39-musllinux_1_1_aarch64.whl", hash = "sha256:52a88455e1db3045212d5ff05d42f78ec993f49ea35f9666ab244675202156ed"},
+    {file = "awscrt-0.31.2-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:cfcabf6410aa2076eadba310ff3d49c4690623a14c51d217fcdb48be853a76e2"},
+    {file = "awscrt-0.31.2-cp39-cp39-win32.whl", hash = "sha256:90a3b579631ada24fc348dc88c86d341d0d286ffdd3a81ef20e53b2afcb49d4e"},
+    {file = "awscrt-0.31.2-cp39-cp39-win_amd64.whl", hash = "sha256:783f988446b4788a87e058219a7119fb8654ce56937f3ece3d58f0dde6bca6ca"},
+    {file = "awscrt-0.31.2.tar.gz", hash = "sha256:552555de1beff02d72a1f6d384cd49c5a7c283418310eae29d21bcb749c65792"},
+]
+
+[package.extras]
+dev = ["autopep8 (>=2.3.1)", "build (>=1.2.2)", "h2 (==4.1.0)", "sphinx (>=7.2.6,<7.3) ; python_version >= \"3.9\"", "websockets (>=13.1)"]
+
+[[package]]
 name = "azure-ai-documentintelligence"
 version = "1.0.2"
 description = "Microsoft Azure AI Document Intelligence Client Library for Python"
@@ -759,6 +812,7 @@ files = [
 ]
 
 [package.dependencies]
+awscrt = {version = "0.31.2", optional = true, markers = "extra == \"crt\""}
 jmespath = ">=0.7.1,<2.0.0"
 python-dateutil = ">=2.1,<3.0.0"
 urllib3 = {version = ">=1.25.4,<2.2.0 || >2.2.0,<3", markers = "python_version >= \"3.10\""}
@@ -3968,4 +4022,4 @@ requests = "*"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.14"
-content-hash = "e46904d90f64903439c5084c53caa88a23e8e06b4eec99960c45194507ed4a4a"
+content-hash = "9cc363a56596feb62d6a0b5e424506a722988668995064eda83f5cd45c51a7bc"
