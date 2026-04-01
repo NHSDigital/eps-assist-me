@@ -17,7 +17,7 @@ updates:
     commit-message:
       prefix: "Upgrade: [dependabot] - "
     cooldown:
-      default-days: 3
+      default-days: 7
 
   ###################################
   # NPM workspace  ##################
@@ -33,7 +33,7 @@ updates:
     commit-message:
       prefix: "Upgrade: [dependabot] - "
     cooldown:
-      default-days: 3
+      default-days: 7
 
   ###################################
   # Poetry  #########################
@@ -49,4 +49,4 @@ updates:
     commit-message:
       prefix: "Upgrade: [dependabot] - "
     cooldown:
-      default-days: 3
+      default-days: 7
