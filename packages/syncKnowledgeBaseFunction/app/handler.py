@@ -378,18 +378,11 @@ class SlackHandler:
             {
                 "type": "plan",
                 "plan_id": uuid.uuid4().hex,
-                "title": "These are the documents that have been added:",
+                "title": "Processing file updates...",
                 "tasks": [
                     self.create_task(
-                        id=self.fetching_block_id,
-                        title="Fetching changes",
-                        details=[],
-                        outputs=["Searching"],
-                        status="complete",
-                    ),
-                    self.create_task(
                         id=self.update_block_id,
-                        title="Processing documents",
+                        title="",
                         details=[],
                         outputs=["Initialising"],
                         status="in_progress",
@@ -529,7 +522,9 @@ class S3EventHandler:
             for i, name in enumerate(self.document_names):
                 total = self.created + self.modified + self.deleted
                 output_message = (
-                    f"Processed a total of {total} record(s)" if (i + 1 == len(self.document_names)) else None
+                    f"Processed {total} file {'update' if total == 1 else 'updates'}"
+                    if (i + 1 == len(self.document_names))
+                    else None
                 )
                 slack_handler.update_task(
                     id=slack_handler.update_block_id, message=name, output_message=output_message, replace=(i == 0)
@@ -588,13 +583,6 @@ class S3EventHandler:
                 continue
 
             logger.info(f"Processing {len(sqs_records)} record(s)")
-            output_message = "Search Complete" if (i + 1 == len(events)) else None
-            slack_handler.update_task(
-                id=slack_handler.fetching_block_id,
-                message=f"Found {len(sqs_records)} events",
-                output_message=output_message,
-                replace=True,
-            )
 
             self.process_multiple_sqs_events(slack_handler, sqs_records)
 

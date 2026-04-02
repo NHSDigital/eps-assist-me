@@ -510,7 +510,8 @@ def test_handler_slack_success(
 
     # Assert Messages were posted and updated
     mock_slack_client.chat_postMessage.assert_called_once()
-    assert mock_slack_client.chat_update.call_count == 4  # Update details, update tasks (+ clear), close
+    # Update pending (replace), update with doc name, complete_plan
+    assert mock_slack_client.chat_update.call_count == 3
 
 
 @patch("app.config.config.get_bot_active")
