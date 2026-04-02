@@ -382,7 +382,7 @@ class SlackHandler:
                 "tasks": [
                     self.create_task(
                         id=self.update_block_id,
-                        title="",
+                        title="Processing file updates...",
                         details=[],
                         outputs=["Initialising"],
                         status="in_progress",
