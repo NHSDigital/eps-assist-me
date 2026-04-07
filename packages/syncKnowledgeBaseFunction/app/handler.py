@@ -10,6 +10,7 @@ import json
 import time
 import traceback
 import uuid
+from urllib.parse import unquote_plus
 import boto3
 from typing import Literal
 from app.config.config import (
@@ -361,7 +362,9 @@ class SlackHandler:
             logger.warning("SKIPPING - Bot is not in any channels. No messages sent.")
             return []
 
-        message_default_text = "I am currently syncing changes to my knowledge base.\n This may take a few minutes."
+        message_default_text = (
+            "The documents I use to answer your questions are being updated. " "This will be completed in 10 minutes."
+        )
 
         # Build blocks for Slack message
         blocks = [
@@ -375,27 +378,16 @@ class SlackHandler:
             {
                 "type": "plan",
                 "plan_id": uuid.uuid4().hex,
-                "title": "Processing File Changes...",
+                "title": "Processing file updates...",
                 "tasks": [
                     self.create_task(
-                        id=self.fetching_block_id,
-                        title="Fetching changes",
-                        details=[],
-                        outputs=["Searching"],
-                        status="complete",
-                    ),
-                    self.create_task(
                         id=self.update_block_id,
-                        title="Processing File Changes",
+                        title="Processing file updates...",
                         details=[],
                         outputs=["Initialising"],
                         status="in_progress",
                     ),
                 ],
-            },
-            {
-                "type": "context",
-                "elements": [{"type": "plain_text", "text": "Please wait up-to 10 minutes for changes to take effect"}],
             },
         ]
 
@@ -477,6 +469,7 @@ class S3EventHandler:
         self.created = 0
         self.modified = 0
         self.deleted = 0
+        self.document_names = []
 
     @staticmethod
     def is_supported_file_type(file_key):
@@ -513,27 +506,30 @@ class S3EventHandler:
         self.modified += len([r for r in records if "ObjectModified" in r.get("eventName", "")])
         self.deleted += len([r for r in records if "ObjectRemoved" in r.get("eventName", "")])
 
-        total = self.created + self.modified + self.deleted
+        # Extract document names from records
+        for r in records:
+            object_key = r.get("s3", {}).get("object", {}).get("key", "")
+            if object_key:
+                decoded_key = unquote_plus(object_key)
+                file_name = decoded_key.split("/")[-1]
+                if file_name and file_name not in self.document_names:
+                    self.document_names.append(file_name)
 
-        counts = [
-            ("created", self.created),
-            ("modified", self.modified),
-            ("deleted", self.deleted),
-        ]
-
-        # Generate the list only for non-zero values
-        message_list = [f"{count} files {action}" for action, count in counts if count > 0]
-
-        if message_list and len(message_list) > 0:
+        if self.document_names:
             slack_handler.update_task(
                 id=slack_handler.update_block_id, message="Update pending", output_message="Processing...", replace=True
             )
-            for i, message in enumerate(message_list):
-                output_message = f"Processed a total of {total} record(s)" if (i + 1 == len(message_list)) else None
-                slack_handler.update_task(
-                    id=slack_handler.update_block_id, message=message, output_message=output_message, replace=(i == 0)
+            for i, name in enumerate(self.document_names):
+                total = self.created + self.modified + self.deleted
+                output_message = (
+                    f"Processed {total} file {'update' if total == 1 else 'updates'}"
+                    if (i + 1 == len(self.document_names))
+                    else None
                 )
-                slack_handler.update_task_db(created=self.created, modified=self.modified, deleted=self.deleted)
+                slack_handler.update_task(
+                    id=slack_handler.update_block_id, message=name, output_message=output_message, replace=(i == 0)
+                )
+            slack_handler.update_task_db(created=self.created, modified=self.modified, deleted=self.deleted)
 
     @staticmethod
     def start_ingestion_job():
@@ -587,13 +583,6 @@ class S3EventHandler:
                 continue
 
             logger.info(f"Processing {len(sqs_records)} record(s)")
-            output_message = "Search Complete" if (i + 1 == len(events)) else None
-            slack_handler.update_task(
-                id=slack_handler.fetching_block_id,
-                message=f"Found {len(sqs_records)} events",
-                output_message=output_message,
-                replace=True,
-            )
 
             self.process_multiple_sqs_events(slack_handler, sqs_records)
 

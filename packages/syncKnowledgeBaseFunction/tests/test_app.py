@@ -510,7 +510,8 @@ def test_handler_slack_success(
 
     # Assert Messages were posted and updated
     mock_slack_client.chat_postMessage.assert_called_once()
-    assert mock_slack_client.chat_update.call_count == 4  # Update details, update tasks (+ clear), close
+    # Update pending (replace), update with doc name, complete_plan
+    assert mock_slack_client.chat_update.call_count == 3
 
 
 @patch("app.config.config.get_bot_active")
@@ -923,9 +924,9 @@ def test_process_s3_event_formatting(
     calls = mock_slack_client.chat_update.call_args_list
     assert len(calls) > 0, "Expected chat_update to be called."
 
-    # Verify the formatted message made its way into the blocks sent to chat_update
+    # Verify the document names made their way into the blocks sent to chat_update
     last_call_blocks_str = str(calls[-1].kwargs.get("blocks", []))
-    assert "2 files created" in last_call_blocks_str
+    assert "test-file.pdf" in last_call_blocks_str
 
 
 @patch("slack_sdk.WebClient")
@@ -1012,11 +1013,13 @@ def test_process_multiple_s3_event_formatting(
     calls = mock_slack_client.chat_update.call_args_list
     assert len(calls) > 0, "Expected chat_update to be called."
 
-    # Verify the formatted message made its way into the blocks sent to chat_update
+    # Verify the document names made their way into the blocks sent to chat_update
     last_call_blocks_str = str(calls[-1].kwargs.get("blocks", []))
-    assert "4 files created" in last_call_blocks_str  # +1 in initial call
-    assert "3 files modified" in last_call_blocks_str
-    assert "6 files deleted" in last_call_blocks_str
+    assert "test-file.pdf" in last_call_blocks_str
+    assert "file1.pdf" in last_call_blocks_str
+    assert "file4.pdf" in last_call_blocks_str
+    assert "file2.pdf" in last_call_blocks_str
+    assert "file3.pdf" in last_call_blocks_str
 
 
 @patch("slack_sdk.WebClient")
@@ -1106,11 +1109,13 @@ def test_process_multiple_sqs_events_formatting(
     calls = mock_slack_client.chat_update.call_args_list
     assert len(calls) > 0, "Expected chat_update to be called."
 
-    # Verify the formatted message made its way into the blocks sent to chat_update
+    # Verify the document names made their way into the blocks sent to chat_update
     last_call_blocks_str = str(calls[-1].kwargs.get("blocks", []))
-    assert "6 files created" in last_call_blocks_str  # +1 initial call
-    assert "5 files modified" in last_call_blocks_str
-    assert "10 files deleted" in last_call_blocks_str
+    assert "test-file.pdf" in last_call_blocks_str
+    assert "file1.pdf" in last_call_blocks_str
+    assert "file4.pdf" in last_call_blocks_str
+    assert "file2.pdf" in last_call_blocks_str
+    assert "file3.pdf" in last_call_blocks_str
 
 
 @patch("boto3.client")
