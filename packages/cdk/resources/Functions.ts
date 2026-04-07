@@ -130,8 +130,7 @@ export class Functions extends Construct {
       environmentVariables: {
         "KNOWLEDGEBASE_ID": props.knowledgeBaseId,
         "SLACK_BOT_TOKEN_PARAMETER": props.slackBotTokenParameter.parameterName,
-        // TODO: Revert to `${!props.isPullRequest}` before merging - temporarily enabled for PR testing
-        "SLACK_BOT_ACTIVE": "true",
+        "SLACK_BOT_ACTIVE": `${!props.isPullRequest}`,
         "DATA_SOURCE_ID": props.dataSourceId,
         "KNOWLEDGE_SYNC_STATE_TABLE": props.knowledgeSyncStateTable.tableName
       },
