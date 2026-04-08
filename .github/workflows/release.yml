@@ -47,6 +47,10 @@ jobs:
   package_code:
     needs: [tag_release, get_config_values]
     uses: ./.github/workflows/cdk_package_code.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
     with:
       STACK_NAME: epsam
       VERSION_NUMBER: ${{needs.tag_release.outputs.version_tag}}
