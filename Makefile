@@ -9,7 +9,7 @@ install-hooks: install-python
 	poetry run pre-commit install --install-hooks --overwrite
 
 install-node:
-	npm ci
+	npm ci --ignore-scripts
 
 compile-node:
 	npx tsc --build tsconfig.build.json

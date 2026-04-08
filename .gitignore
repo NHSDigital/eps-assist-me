@@ -36,3 +36,4 @@ cdk.out
 .dependencies/
 .poetry/
 .trivy_out/
+.sbom/

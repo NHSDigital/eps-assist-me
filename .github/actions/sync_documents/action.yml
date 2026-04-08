@@ -64,8 +64,8 @@ runs:
       shell: bash
       run: |
         printf "\n"
-        echo "Comparing local files with s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}..."
-        DIFFS=$(aws s3 sync ./s3-content s3://${{ steps.find-destination-bucket.outputs.BUCKET_NAME }} --dryrun)
+        echo "Comparing local files with s3://${BUCKET_NAME}..."
+        DIFFS=$(aws s3 sync ./s3-content "s3://${BUCKET_NAME}" --dryrun)
 
         if [ -z "$DIFFS" ]; then
           echo -e "\033[0;32m✔ NO DISCREPANCIES FOUND.\033[0m"
@@ -76,9 +76,12 @@ runs:
           echo "--------------------------------------------------\033[0m"
 
           CLEAN_DIFFS="${DIFFS//$'\n'/'%0A'}"
-          echo "::warning title=Discrepancy Found in ${{ inputs.TARGET_ENVIRONMENT }}::$CLEAN_DIFFS"
+          echo "::warning title=Discrepancy Found in ${TARGET_ENVIRONMENT}::$CLEAN_DIFFS"
         fi
         printf "\n"
+      env:
+        TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
+        BUCKET_NAME: ${{ steps.find-destination-bucket.outputs.BUCKET_NAME }}
 
     - name: Clear Target Environment
       shell: bash
