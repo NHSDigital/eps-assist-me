@@ -196,6 +196,9 @@ jobs:
     name: Regression Tests
     uses: ./.github/workflows/run_regression_tests.yml
     if: ${{ always() && !failure() && !cancelled() && inputs.RUN_REGRESSION_TESTS == true }}
+    permissions:
+      id-token: write
+      contents: write
     needs: [release_all_code]
     with:
       ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
