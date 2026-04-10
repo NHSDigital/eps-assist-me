@@ -29,7 +29,7 @@ jobs:
           echo "commit_message=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@5ac2707dd9cd60ad127275179495b9c890d74711
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@e798d5aee897de6f7dc387dd5623fcd9ba4c8929
     needs: [get_config_values, get_commit_message]
     if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc') }}
     with:
