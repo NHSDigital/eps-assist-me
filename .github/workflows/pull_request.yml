@@ -4,12 +4,15 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+permissions: {}
 
 jobs:
   get_config_values:
     uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@e798d5aee897de6f7dc387dd5623fcd9ba4c8929
+    permissions:
+      attestations: read
+      contents: read
+      packages: read
     with:
       verify_published_from_main_image: false
 
@@ -21,7 +24,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
-          ref: ${{ env.BRANCH_NAME }}
+          persist-credentials: false
           fetch-depth: 0
       - name: Get Commit message
         id: commit_message
@@ -29,8 +32,12 @@ jobs:
           echo "commit_message=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@5ac2707dd9cd60ad127275179495b9c890d74711
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@e798d5aee897de6f7dc387dd5623fcd9ba4c8929
     needs: [get_config_values, get_commit_message]
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
     if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc') }}
     with:
       pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
@@ -103,12 +110,17 @@ jobs:
   dependabot-auto-approve-and-merge:
     needs: quality_gate
     uses: NHSDigital/eps-common-workflows/.github/workflows/dependabot-auto-approve-and-merge.yml@e798d5aee897de6f7dc387dd5623fcd9ba4c8929
+    permissions:
+      contents: write
+      pull-requests: write
     secrets:
       AUTOMERGE_APP_ID: ${{ secrets.AUTOMERGE_APP_ID }}
       AUTOMERGE_PEM: ${{ secrets.AUTOMERGE_PEM }}
 
   pr_title_format_check:
     uses: NHSDigital/eps-common-workflows/.github/workflows/pr_title_check.yml@e798d5aee897de6f7dc387dd5623fcd9ba4c8929
+    permissions:
+      pull-requests: write
 
   get_issue_number:
     runs-on: ubuntu-22.04
@@ -143,6 +155,10 @@ jobs:
       ! contains(needs.*.result, 'failure') &&
       ! contains(needs.*.result, 'cancelled')
     uses: ./.github/workflows/cdk_package_code.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
     with:
       STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
       VERSION_NUMBER: PR-${{ needs.get_issue_number.outputs.issue_number }}
@@ -156,6 +172,9 @@ jobs:
       ! contains(needs.*.result, 'failure') &&
       ! contains(needs.*.result, 'cancelled')
     uses: ./.github/workflows/release_all_stacks.yml
+    permissions:
+      contents: write
+      id-token: write
     with:
       pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
       STACK_NAME: epsam-pr-${{needs.get_issue_number.outputs.issue_number}}
