@@ -17,7 +17,7 @@ jobs:
       verify_published_from_main_image: true
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@e798d5aee897de6f7dc387dd5623fcd9ba4c8929
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@8399c1f015c1304e40771cbd8ccc24c7ed48fdbc
     needs: [get_config_values]
     permissions:
       contents: read
