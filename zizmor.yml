@@ -5,6 +5,6 @@ rules:
       - delete_old_cloudformation_stacks.yml:30:31
   unpinned-images:
     ignore:
-      - run_regression_tests.yml:27:7
-      - release_all_stacks.yml:70:7
-      - cdk_package_code.yml:23:7
+      - run_regression_tests.yml:27:18
+      - release_all_stacks.yml:70:18
+      - cdk_package_code.yml:23:18
