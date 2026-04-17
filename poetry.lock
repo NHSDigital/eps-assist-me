@@ -804,14 +804,14 @@ xray = ["mypy-boto3-xray (>=1.42.0,<1.43.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.42.83"
+version = "1.42.91"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.9"
 groups = ["bedrockloggingconfigfunction", "dev", "preprocessingfunction", "slackbotfunction", "syncknowledgebasefunction"]
 files = [
-    {file = "botocore-1.42.83-py3-none-any.whl", hash = "sha256:ec0c3ecb3772936ed22a3bdda09883b34858933f71004686d460d829bab39d8e"},
-    {file = "botocore-1.42.83.tar.gz", hash = "sha256:34bc8cb64b17ac17f8901f073fe4fc9572a5cac9393a37b2b3ea372a83b87f4a"},
+    {file = "botocore-1.42.91-py3-none-any.whl", hash = "sha256:7a28c3cc6bfab5724ad18899d52402b776a0de7d87fa20c3c5270bcaaf199ce8"},
+    {file = "botocore-1.42.91.tar.gz", hash = "sha256:d252e27bc454afdbf5ed3dc617aa423f2c855c081e98b7963093399483ecc698"},
 ]
 
 [package.dependencies]
@@ -4024,4 +4024,4 @@ requests = "*"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.14"
-content-hash = "d0b3a4100eaf5850a52012f8e4d9aa2cc94d45d09791361fcd1149595e5e41eb"
+content-hash = "e8b83651bacda0a9ee6b5401e7fcad452ba926ff8f6b96b2a779913b7cb25d4e"
