@@ -401,6 +401,7 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     conversation_key, thread_ts = conversation_key_and_root(event)
     user_id = event.get("user", "unknown")
     channel_id = event["channel"]
+
     conversation_key, thread_root = conversation_key_and_root(event=event)
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
@@ -507,6 +508,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         user_id = event["user"]
         channel = event["channel"]
         conversation_key, thread_ts = conversation_key_and_root(event)
+        edited_event = event["edited"]
 
         # Remove Slack user mentions from message text
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()
@@ -523,6 +525,23 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
                 post_params["thread_ts"] = thread_ts
             client.chat_postMessage(**post_params)
             return
+        
+        if edited_event:
+            existing_thread = client.conversation_replied(
+                channel=channel,
+                ts=edited_event["ts"]
+            )
+
+            if len(existing_thread) > 1:
+                logger.info("Found existing thread, clearing replies")
+                for reply in existing_thread[1:]:
+                    reply_ts = reply.get("ts")
+
+                    client.delete(
+                        channel=channel,
+                        ts=reply_ts
+                    )
+                logger.info(f"Deleted {existing_thread - 1} replies")
 
         # conversation continuity: reuse bedrock session across slack messages
         session_data = get_conversation_session_data(conversation_key)
