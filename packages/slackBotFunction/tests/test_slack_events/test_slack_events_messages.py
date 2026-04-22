@@ -866,3 +866,102 @@ def test_convert_markdown_to_slack_multiple_encoding_issues(mock_get_parameter: 
     assert "â¢" not in result
     assert "- Bullet point" in result
     assert "- another bullet" in result
+
+
+# ================================================================
+# Tests for deleted messages after message edit
+# ================================================================
+
+
+@patch("app.services.dynamo.get_state_information")
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session")
+def test_process_slack_message_clears_existing_replies_on_edit(
+    mock_get_session: Mock,
+    mock_process_ai_query: Mock,
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test that editing a message clears previous bot replies in the thread"""
+    mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_update.return_value = {"ok": True}
+
+    # Mocking the returned thread dict to simulate 1 original message and 2 replies
+    mock_client.conversations_replies.return_value = {
+        "messages": [{"ts": "original_123"}, {"ts": "reply_456"}, {"ts": "reply_789"}]
+    }
+
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}},
+    }
+    mock_get_session.return_value = None
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_slack_message
+
+    slack_event_data = {
+        "text": "<@U123> updated question",
+        "user": "U456",
+        "channel": "C789",
+        "ts": "1234567890.123",
+        "edited": {"user": "U456", "ts": "original_123"},
+    }
+
+    process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+
+    # Assertions to ensure it fetched the thread and deleted only the replies
+    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="original_123")
+
+    assert mock_client.delete.call_count == 2
+    mock_client.delete.assert_any_call(channel="C789", ts="reply_456")
+    mock_client.delete.assert_any_call(channel="C789", ts="reply_789")
+
+
+@patch("app.services.dynamo.get_state_information")
+@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session")
+def test_process_slack_message_no_replies_cleared_on_edit(
+    mock_get_session: Mock,
+    mock_process_ai_query: Mock,
+    mock_get_state_information: Mock,
+    mock_get_parameter: Mock,
+    mock_env: Mock,
+):
+    """Test that editing a message without replies doesn't trigger deletions"""
+    mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_update.return_value = {"ok": True}
+
+    # Mocking a thread that only contains the original message (no replies)
+    mock_client.conversations_replies.return_value = {"messages": [{"ts": "original_123"}]}
+
+    mock_process_ai_query.return_value = {
+        "text": "AI response",
+        "session_id": "session-123",
+        "citations": [],
+        "kb_response": {"output": {"text": "AI response"}},
+    }
+    mock_get_session.return_value = None
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_slack_message
+
+    slack_event_data = {
+        "text": "<@U123> updated question",
+        "user": "U456",
+        "channel": "C789",
+        "ts": "1234567890.123",
+        "edited": {"user": "U456", "ts": "original_123"},
+    }
+
+    process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+
+    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="original_123")
+    mock_client.delete.assert_not_called()
