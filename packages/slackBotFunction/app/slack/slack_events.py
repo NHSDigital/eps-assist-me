@@ -3,6 +3,7 @@ Slack event processing
 Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
+from decimal import Decimal
 import re
 import time
 import traceback
@@ -497,6 +498,50 @@ def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
 # ================================================================
 
 
+def _clear_thread_replies(
+    client: WebClient,
+    channel: str,
+    thread_ts: str,
+    original_ts: str,
+    edited_event: Dict[str, Any],
+    event_id: str,
+) -> None:
+    """Clear subsequent bot replies in a thread when the original message is edited."""
+    try:
+        logger.info("Existing conversation found", extra={"event": edited_event})
+        current_thread = client.conversations_replies(channel=channel, ts=thread_ts)
+
+        thread_messages = current_thread.get("messages", [])
+
+        if len(thread_messages) > 1:
+            # Get the original message timestamp
+            previous_edit_ts = Decimal(original_ts)
+
+            logger.info(
+                "Found existing thread, clearing replies",
+                extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
+            )
+
+            for reply in thread_messages[1:]:
+                # If the message is after the original message, delete it
+                reply_ts = Decimal(reply.get("ts"))
+                if reply_ts > previous_edit_ts:
+                    try:
+                        client.chat_delete(channel=channel, ts=reply_ts)
+                    except Exception as e:
+                        logger.error(
+                            f"Couldn't delete message: {e}",
+                            extra={"event_id": event_id, "error": traceback.format_exc()},
+                        )
+
+            logger.info(f"Deleted {len(thread_messages) - 1} replies")
+    except Exception as e:
+        logger.error(
+            f"Error modifying existing messages: {e}",
+            extra={"event_id": event_id, "error": traceback.format_exc()},
+        )
+
+
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
@@ -527,27 +572,14 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             return
 
         if edited_event:
-            logger.info("Existing conversation found", extra={"event": edited_event})
-            current_thread = client.conversations_replies(channel=channel, ts=thread_ts)
-
-            thread_messages = current_thread.get("messages", [])
-
-            if len(thread_messages) > 1:
-                # Get the original message timestamp
-                previous_edit_ts = event["ts"]
-
-                logger.info(
-                    "Found existing thread, clearing replies",
-                    extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
-                )
-
-                for reply in thread_messages[1:]:
-                    # If the message is after the original message, delete it
-                    reply_ts = reply.get("ts")
-                    if reply_ts > previous_edit_ts:
-
-                        client.delete(channel=channel, ts=reply_ts)
-                logger.info(f"Deleted {len(thread_messages) - 1} replies")
+            _clear_thread_replies(
+                client=client,
+                channel=channel,
+                thread_ts=thread_ts,
+                original_ts=event["ts"],
+                edited_event=edited_event,
+                event_id=event_id,
+            )
 
         # conversation continuity: reuse bedrock session across slack messages
         session_data = get_conversation_session_data(conversation_key)
@@ -581,7 +613,8 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
         try:
-            client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
+            response = client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
+            logger.info("Chat Updated", extra={"response": response})
         except Exception as e:
             logger.error(
                 f"Failed to update message: {e}",

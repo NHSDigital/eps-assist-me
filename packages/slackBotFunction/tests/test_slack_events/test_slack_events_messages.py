@@ -885,12 +885,12 @@ def test_process_slack_message_clears_existing_replies_on_edit(
 ):
     """Test that editing a message clears previous bot replies in the thread"""
     mock_client = Mock()
-    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
+    mock_client.chat_postMessage.return_value = {"ts": "123.124"}
     mock_client.chat_update.return_value = {"ok": True}
 
     # Mocking the returned thread dict to simulate 1 original message and 2 replies
     mock_client.conversations_replies.return_value = {
-        "messages": [{"ts": "original_123"}, {"ts": "reply_456"}, {"ts": "reply_789"}]
+        "messages": [{"ts": "997.999"}, {"ts": "998.999"}, {"ts": "999.999"}]
     }
 
     mock_process_ai_query.return_value = {
@@ -909,18 +909,21 @@ def test_process_slack_message_clears_existing_replies_on_edit(
         "text": "<@U123> updated question",
         "user": "U456",
         "channel": "C789",
-        "ts": "1234567890.123",
-        "edited": {"user": "U456", "ts": "original_123"},
+        "ts": "123.123",
+        "event_ts": "123.123",
+        "edited": {"user": "U456", "ts": "456.789"},
     }
 
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # Assertions to ensure it fetched the thread and deleted only the replies
-    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="1234567890.123")
+    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="123.123")
 
-    assert mock_client.delete.call_count == 2
-    mock_client.delete.assert_any_call(channel="C789", ts="reply_456")
-    mock_client.delete.assert_any_call(channel="C789", ts="reply_789")
+    from decimal import Decimal
+
+    assert mock_client.chat_delete.call_count == 2
+    mock_client.chat_delete.assert_any_call(channel="C789", ts=Decimal("998.999"))
+    mock_client.chat_delete.assert_any_call(channel="C789", ts=Decimal("999.999"))
 
 
 @patch("app.services.dynamo.get_state_information")
@@ -964,4 +967,4 @@ def test_process_slack_message_no_replies_cleared_on_edit(
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
     mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="1234567890.123")
-    mock_client.delete.assert_not_called()
+    mock_client.chat_delete.assert_not_called()
