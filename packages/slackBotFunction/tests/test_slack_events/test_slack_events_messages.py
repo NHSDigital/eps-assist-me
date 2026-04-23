@@ -1,6 +1,6 @@
 import sys
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import ANY, Mock, patch, MagicMock
 
 
 @pytest.fixture
@@ -873,98 +873,173 @@ def test_convert_markdown_to_slack_multiple_encoding_issues(mock_get_parameter: 
 # ================================================================
 
 
-@patch("app.services.dynamo.get_state_information")
-@patch("app.services.ai_processor.process_ai_query")
-@patch("app.slack.slack_events.get_conversation_session")
-def test_process_slack_message_clears_existing_replies_on_edit(
-    mock_get_session: Mock,
-    mock_process_ai_query: Mock,
-    mock_get_state_information: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
-):
-    """Test that editing a message clears previous bot replies in the thread"""
-    mock_client = Mock()
-    mock_client.chat_postMessage.return_value = {"ts": "123.124"}
-    mock_client.chat_update.return_value = {"ok": True}
+def test_handle_modified_messages_last_user_message_in_chain():
+    """If the message is the last in the chain, delete reply and continue"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _handle_modified_messages
 
-    # Mocking the returned thread dict to simulate 1 original message and 2 replies
+    mock_client = Mock()
+    # Mock conversation history: Original user message + 2 Bot replies
     mock_client.conversations_replies.return_value = {
-        "messages": [{"ts": "997.999"}, {"ts": "998.999"}, {"ts": "999.999"}]
+        "messages": [
+            {"ts": "100.000", "user": "U123"},
+            {"ts": "101.000", "user": "BOT_ID"},
+            {"ts": "102.000", "user": "BOT_ID"},
+        ]
     }
 
-    mock_process_ai_query.return_value = {
-        "text": "AI response",
-        "session_id": "session-123",
-        "citations": [],
-        "kb_response": {"output": {"text": "AI response"}},
-    }
-    mock_get_session.return_value = None
+    result = _handle_modified_messages(
+        client=mock_client,
+        channel="C123",
+        thread_ts="100.000",
+        original_ts="100.000",
+        edited_event={"ts": "105.000"},
+        event_id="evt123",
+        user_id="U123",
+    )
 
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
-    from app.slack.slack_events import process_slack_message
-
-    slack_event_data = {
-        "text": "<@U123> updated question",
-        "user": "U456",
-        "channel": "C789",
-        "ts": "123.123",
-        "event_ts": "123.123",
-        "edited": {"user": "U456", "ts": "456.789"},
-    }
-
-    process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
-
-    # Assertions to ensure it fetched the thread and deleted only the replies
-    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="123.123")
-
-    from decimal import Decimal
-
+    # Assertions
+    assert result is True
     assert mock_client.chat_delete.call_count == 2
-    mock_client.chat_delete.assert_any_call(channel="C789", ts=Decimal("998.999"))
-    mock_client.chat_delete.assert_any_call(channel="C789", ts=Decimal("999.999"))
+    mock_client.chat_postEphemeral.assert_not_called()
 
 
-@patch("app.services.dynamo.get_state_information")
-@patch("app.services.ai_processor.process_ai_query")
-@patch("app.slack.slack_events.get_conversation_session")
-def test_process_slack_message_no_replies_cleared_on_edit(
-    mock_get_session: Mock,
-    mock_process_ai_query: Mock,
-    mock_get_state_information: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
-):
-    """Test that editing a message without replies doesn't trigger deletions"""
+def test_handle_modified_messages_not_last_user_message_in_chain():
+    """If the message is not the last user message, post ephemeral msg and return False"""
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import _handle_modified_messages
+
     mock_client = Mock()
-    mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
-    mock_client.chat_update.return_value = {"ok": True}
-
-    # Mocking a thread that only contains the original message (no replies)
-    mock_client.conversations_replies.return_value = {"messages": [{"ts": "original_123"}]}
-
-    mock_process_ai_query.return_value = {
-        "text": "AI response",
-        "session_id": "session-123",
-        "citations": [],
-        "kb_response": {"output": {"text": "AI response"}},
+    # Mock conversation history: Original message + Bot reply + Another user message (user replied again)
+    mock_client.conversations_replies.return_value = {
+        "messages": [
+            {"ts": "100.000", "user": "U123"},
+            {"ts": "101.000", "user": "BOT_ID"},
+            {"ts": "102.000", "user": "U123"},
+        ]
     }
-    mock_get_session.return_value = None
+
+    result = _handle_modified_messages(
+        client=mock_client,
+        channel="C123",
+        thread_ts="100.000",
+        original_ts="100.000",
+        edited_event={"ts": "105.000"},
+        event_id="evt123",
+        user_id="U123",
+    )
+
+    # Assertions
+    assert result is False
+    mock_client.chat_delete.assert_not_called()
+    mock_client.chat_postEphemeral.assert_called_once_with(
+        channel="C123",
+        user="U123",
+        thread_ts="100.000",
+        text="It looks like the conversation has diverged, please start a new conversation",
+    )
+
+
+def test_process_slack_message_halts_on_false_modified_handler(
+    mock_env: Mock,
+    mock_get_parameter: Mock,
+):
+    """Test that process_slack_message stops processing if the edit is rejected (not last in chain)"""
+    mock_client = Mock()
 
     if "app.slack.slack_events" in sys.modules:
         del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_slack_message
 
-    slack_event_data = {
-        "text": "<@U123> updated question",
-        "user": "U456",
-        "channel": "C789",
-        "ts": "1234567890.123",
-        "edited": {"user": "U456", "ts": "original_123"},
+    event = {
+        "text": "updated question",
+        "user": "U123",
+        "channel": "C123",
+        "ts": "123.123",
+        "edited": {"ts": "456.789"},
+        "thread_ts": "123.123",
     }
 
-    process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+    # Patch dynamically inside the test body to avoid the module reload issue
+    with patch("app.slack.slack_events._handle_modified_messages") as mock_handle_modified_messages, patch(
+        "app.slack.slack_events.get_conversation_session_data"
+    ) as mock_get_conversation_session_data:
 
-    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="1234567890.123")
-    mock_client.chat_delete.assert_not_called()
+        mock_handle_modified_messages.return_value = False
+
+        process_slack_message(event=event, event_id="evt123", client=mock_client)
+
+        # Assertions
+        mock_handle_modified_messages.assert_called_once_with(
+            client=mock_client,
+            channel="C123",
+            thread_ts="123.123",
+            original_ts="123.123",
+            edited_event={"ts": "456.789"},
+            event_id="evt123",
+            user_id="U123",
+        )
+
+        # Ensure it stopped execution and didn't try to fetch conversation memory / call Bedrock
+        mock_get_conversation_session_data.assert_not_called()
+        mock_client.chat_postMessage.assert_not_called()
+
+
+def test_process_slack_message_continues_on_true_modified_handler(mock_env: Mock, mock_get_parameter: Mock):
+    """Test that process_slack_message completes if the edit is accepted"""
+    mock_client = Mock()
+    # Mock the response for the "Processing..." message
+    mock_client.chat_postMessage.return_value = {"ts": "999.999"}
+
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_slack_message
+
+    event = {
+        "text": "updated question",
+        "user": "U123",
+        "channel": "C123",
+        "ts": "123.123",
+        "edited": {"ts": "456.789"},
+        "thread_ts": "123.123",
+        "event_ts": "123.123",  # Required by log_query_stats
+        "channel_type": "channel",
+    }
+
+    # Patch dynamically inside the test body to avoid the module reload issue wiping the mocks
+    with patch("app.slack.slack_events._handle_modified_messages") as mock_handle_modified_messages, patch(
+        "app.slack.slack_events.get_conversation_session_data"
+    ) as mock_get_conversation_session_data, patch(
+        "app.slack.slack_events.process_formatted_bedrock_query"
+    ) as mock_process_formatted_bedrock_query, patch(
+        "app.slack.slack_events._handle_session_management"
+    ), patch(
+        "app.slack.slack_events.store_qa_pair"
+    ), patch(
+        "app.slack.slack_events.log_query_stats"
+    ):
+
+        mock_handle_modified_messages.return_value = True
+
+        mock_get_conversation_session_data.return_value = {"session_id": "session-123"}
+        mock_process_formatted_bedrock_query.return_value = ({"sessionId": "session-123"}, "AI response", [])
+
+        process_slack_message(event=event, event_id="evt123", client=mock_client)
+
+        mock_handle_modified_messages.assert_called_once()
+        mock_get_conversation_session_data.assert_called_once()
+
+        # Check it posted the "Processing..." message
+        mock_client.chat_postMessage.assert_called_once_with(channel="C123", text="Processing...", thread_ts="123.123")
+
+        mock_process_formatted_bedrock_query.assert_called_once()
+
+        # Check it updated the slack message
+        mock_client.chat_update.assert_called_once_with(
+            channel="C123",
+            ts="999.999",  # This matches the mock_client.chat_postMessage.return_value
+            text="AI response",
+            blocks=ANY,
+        )

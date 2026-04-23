@@ -498,14 +498,15 @@ def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
 # ================================================================
 
 
-def _clear_thread_replies(
+def _handle_modified_messages(
     client: WebClient,
     channel: str,
     thread_ts: str,
     original_ts: str,
     edited_event: Dict[str, Any],
     event_id: str,
-) -> None:
+    user_id: str,
+) -> bool:
     """Clear subsequent bot replies in a thread when the original message is edited."""
     try:
         logger.info("Existing conversation found", extra={"event": edited_event})
@@ -517,29 +518,55 @@ def _clear_thread_replies(
             # Get the original message timestamp
             previous_edit_ts = Decimal(original_ts)
 
-            logger.info(
-                "Found existing thread, clearing replies",
-                extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
-            )
+            # Filter messages that came after the edited message
+            subsequent_messages = [msg for msg in thread_messages if Decimal(msg.get("ts", "0")) > previous_edit_ts]
 
-            for reply in thread_messages[1:]:
-                # If the message is after the original message, delete it
-                reply_ts = Decimal(reply.get("ts"))
-                if reply_ts > previous_edit_ts:
-                    try:
-                        client.chat_delete(channel=channel, ts=reply_ts)
-                    except Exception as e:
-                        logger.error(
-                            f"Couldn't delete message: {e}",
-                            extra={"event_id": event_id, "error": traceback.format_exc()},
-                        )
+            # Check if there are any subsequent messages from the user
+            has_user_replies = any(msg.get("user") == user_id for msg in subsequent_messages)
 
-            logger.info(f"Deleted {len(thread_messages) - 1} replies")
+            if has_user_replies:
+                # Not the last user message in the chain
+                try:
+                    client.chat_postEphemeral(
+                        channel=channel,
+                        user=user_id,
+                        thread_ts=thread_ts,
+                        text="It looks like the conversation has diverged, please start a new conversation",
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Couldn't post ephemeral message: {e}",
+                        extra={"event_id": event_id, "error": traceback.format_exc()},
+                    )
+                return False
+            else:
+                logger.info(
+                    "Found existing thread, clearing replies",
+                    extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
+                )
+                deleted_count = 0
+                for reply in subsequent_messages:
+                    reply_ts = reply.get("ts")
+                    if reply_ts:
+                        try:
+                            client.chat_delete(channel=channel, ts=reply_ts)
+                            deleted_count += 1
+                        except Exception as e:
+                            logger.error(
+                                f"Couldn't delete message: {e}",
+                                extra={"event_id": event_id, "error": traceback.format_exc()},
+                            )
+
+                logger.info(f"Deleted {deleted_count} replies")
+                return True
+
+        return True
     except Exception as e:
         logger.error(
             f"Error modifying existing messages: {e}",
             extra={"event_id": event_id, "error": traceback.format_exc()},
         )
+        return False
 
 
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
@@ -572,14 +599,18 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             return
 
         if edited_event:
-            _clear_thread_replies(
+            has_modified = _handle_modified_messages(
                 client=client,
                 channel=channel,
                 thread_ts=thread_ts,
                 original_ts=event["ts"],
                 edited_event=edited_event,
                 event_id=event_id,
+                user_id=user_id,
             )
+
+            if not has_modified:
+                return
 
         # conversation continuity: reuse bedrock session across slack messages
         session_data = get_conversation_session_data(conversation_key)
