@@ -527,16 +527,26 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
             return
 
         if edited_event:
-            existing_thread = client.conversations_replies(channel=channel, ts=edited_event["ts"])
+            logger.info("Existing conversation found", extra={"event": edited_event})
+            current_thread = client.conversations_replies(channel=channel, ts=thread_ts)
 
-            thread_messages = existing_thread.get("messages", [])
+            thread_messages = current_thread.get("messages", [])
 
             if len(thread_messages) > 1:
-                logger.info("Found existing thread, clearing replies")
-                for reply in thread_messages[1:]:
-                    reply_ts = reply.get("ts")
+                # Get the original message timestamp
+                previous_edit_ts = event["ts"]
 
-                    client.delete(channel=channel, ts=reply_ts)
+                logger.info(
+                    "Found existing thread, clearing replies",
+                    extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
+                )
+
+                for reply in thread_messages[1:]:
+                    # If the message is after the original message, delete it
+                    reply_ts = reply.get("ts")
+                    if reply_ts > previous_edit_ts:
+
+                        client.delete(channel=channel, ts=reply_ts)
                 logger.info(f"Deleted {len(thread_messages) - 1} replies")
 
         # conversation continuity: reuse bedrock session across slack messages

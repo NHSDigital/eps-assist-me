@@ -916,7 +916,7 @@ def test_process_slack_message_clears_existing_replies_on_edit(
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
     # Assertions to ensure it fetched the thread and deleted only the replies
-    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="original_123")
+    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="1234567890.123")
 
     assert mock_client.delete.call_count == 2
     mock_client.delete.assert_any_call(channel="C789", ts="reply_456")
@@ -963,5 +963,5 @@ def test_process_slack_message_no_replies_cleared_on_edit(
 
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
-    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="original_123")
+    mock_client.conversations_replies.assert_called_once_with(channel="C789", ts="1234567890.123")
     mock_client.delete.assert_not_called()
