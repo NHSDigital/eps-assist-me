@@ -27,7 +27,7 @@ jobs:
         run: |
           echo "commit_message=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@8399c1f015c1304e40771cbd8ccc24c7ed48fdbc
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@bda627e2ce1a32ea56bcc815aec57b06cfa63c9d
     needs: [get_config_values, get_commit_message]
     permissions:
       contents: read
