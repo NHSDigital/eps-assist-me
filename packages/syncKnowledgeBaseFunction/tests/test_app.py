@@ -7,7 +7,6 @@ import sys
 import itertools
 from unittest.mock import Mock, patch, MagicMock, DEFAULT, call
 
-
 TEST_BOT_TOKEN = "test-bot-token"
 
 
