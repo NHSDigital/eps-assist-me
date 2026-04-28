@@ -1,7 +1,6 @@
-import sys
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from botocore.exceptions import ClientError
+from app.core.config import bot_messages
 
 
 @pytest.fixture
@@ -9,61 +8,56 @@ def mock_logger():
     return MagicMock()
 
 
-@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
+@patch("app.slack.slack_events.forward_to_pull_request_lambda")
 def test_process_async_slack_event_normal_message(
-    mock_forward_to_pull_request_lambda: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
+    mock_forward_events: Mock,
 ):
     """Test successful async event processing"""
-    # set up mocks
     mock_client = Mock()
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_async_slack_event
 
-    # perform operation
-    slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    slack_event_data = {
+        "text": "<@U123> test question",
+        "user": "U456",
+        "channel": "D789",
+        "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "im",
+    }
     with patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event, patch(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_to_pull_request_lambda.assert_not_called()
+        mock_forward_events.assert_not_called()
         mock_process_feedback_event.assert_not_called()
         mock_process_slack_message.assert_called_once_with(
             event=slack_event_data, event_id="evt123", client=mock_client
         )
 
 
-@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
+@patch("app.slack.slack_events.forward_to_pull_request_lambda")
 def test_process_async_slack_event_pull_request_with_mention(
-    mock_forward_to_pull_request_lambda: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
+    mock_forward_events: Mock,
 ):
     """Test successful async event processing"""
-    # set up mocks
     mock_client = Mock()
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_async_slack_event
 
-    # perform operation
     slack_event_data = {
         "text": "<@U123> pr: 123 test question",
         "user": "U456",
         "channel": "C789",
         "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "channel",
     }
     with patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event, patch(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_to_pull_request_lambda.assert_called_once_with(
+        mock_forward_events.assert_called_once_with(
             body={},
             pull_request_id="123",
             event=slack_event_data,
@@ -75,33 +69,28 @@ def test_process_async_slack_event_pull_request_with_mention(
         mock_process_slack_message.assert_not_called()
 
 
-@patch("app.utils.handler_utils.forward_to_pull_request_lambda")
+@patch("app.slack.slack_events.forward_to_pull_request_lambda")
 def test_process_async_slack_event_pull_request_with_no_mention(
-    mock_forward_to_pull_request_lambda: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
+    mock_forward_events: Mock,
 ):
     """Test successful async event processing"""
-    # set up mocks
     mock_client = Mock()
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_async_slack_event
 
-    # perform operation
     slack_event_data = {
         "text": "pr: 123 test question",
         "user": "U456",
         "channel": "C789",
         "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "channel",
     }
     with patch("app.slack.slack_events.process_feedback_event") as mock_process_feedback_event, patch(
         "app.slack.slack_events.process_slack_message"
     ) as mock_process_slack_message:
         process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
-        mock_forward_to_pull_request_lambda.assert_called_once_with(
+        mock_forward_events.assert_called_once_with(
             body={},
             pull_request_id="123",
             event=slack_event_data,
@@ -113,45 +102,35 @@ def test_process_async_slack_event_pull_request_with_no_mention(
         mock_process_slack_message.assert_not_called()
 
 
-def test_process_slack_message_empty_query(mock_get_parameter: Mock, mock_env: Mock):
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
+def test_process_slack_message_empty_query(mock_is_duplicate_event: Mock):
     """Test async event processing with empty query"""
-    # set up mocks
     mock_client = Mock()
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_slack_message
 
-    # perform operation
     slack_event_data = {
-        "text": "<@U123>",  # Only mention, no actual query
+        "text": "<@U123>",
         "user": "U456",
-        "channel": "C789",
+        "channel": "D789",
         "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "im",
     }
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
-    # assertions
     mock_client.chat_postMessage.assert_called_once_with(
-        channel="C789",
-        text="Hi there! Please ask me a question and I'll help you find information from our knowledge base.",
-        thread_ts="1234567890.123",
+        channel="D789", text=bot_messages.EMPTY_QUERY, thread_ts="1234567890.123"
     )
 
 
-@patch("app.services.dynamo.get_state_information")
-@patch("app.services.ai_processor.process_ai_query")
-@patch("app.slack.slack_events.get_conversation_session")
+@patch("app.slack.slack_events.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session_data", return_value={})
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
 def test_process_slack_message_with_thread_ts(
-    mock_get_session: Mock,
-    mock_process_ai_query: Mock,
-    mock_get_state_information: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
+    mock_is_duplicate_event: Mock, mock_get_session: Mock, mock_process_ai_query: Mock
 ):
     """Test async event processing with existing thread_ts"""
-    # set up mocks
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.return_value = {"ok": True}
@@ -161,82 +140,66 @@ def test_process_slack_message_with_thread_ts(
         "citations": [],
         "kb_response": {"output": {"text": "AI response"}},
     }
-    mock_get_session.return_value = None  # No existing session
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
-        from app.slack.slack_events import process_slack_message
+    from app.slack.slack_events import process_slack_message
 
-    # perform operation
     slack_event_data = {
         "text": "<@U123> test question",
         "user": "U456",
         "channel": "C789",
         "ts": "1234567890.123",
-        "thread_ts": "1234567888.111",  # Existing thread
+        "event_ts": "1234567890.123",
+        "channel_type": "channel",
+        "thread_ts": "1234567888.111",
     }
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
-    # assertions
-    # Should be called at least once with the correct thread_ts
     assert mock_client.chat_postMessage.call_count >= 1
     first_call = mock_client.chat_postMessage.call_args_list[0]
     assert first_call[1]["thread_ts"] == "1234567888.111"
     assert first_call[1]["text"] == "Processing..."
 
 
-@patch("app.services.dynamo.get_state_information")
-@patch("app.services.ai_processor.process_ai_query")
-@patch("app.slack.slack_events.get_conversation_session")
-def test_regex_text_processing(
-    mock_get_session: Mock,
-    mock_process_ai_query: Mock,
-    mock_get_state_information: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
-):
+@patch("app.slack.slack_events.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session_data", return_value={})
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
+def test_regex_text_processing(mock_is_duplicate_event: Mock, mock_get_session: Mock, mock_process_ai_query: Mock):
     """Test regex text processing functionality within process_async_slack_event"""
-    # set up mocks
     mock_client = Mock()
-    mock_client.chat_postMessage.return_value = {"ts": ""}
+    mock_client.chat_postMessage.return_value = {"ts": "123"}
     mock_process_ai_query.return_value = {
         "text": "AI response",
         "session_id": "session-123",
         "citations": [],
         "kb_response": {"output": {"text": "AI response"}},
     }
-    mock_get_session.return_value = None  # No existing session
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_slack_message
 
-    # perform operation
-    slack_event_data = {"text": "<@U123456> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    slack_event_data = {
+        "text": "<@U123456> test question",
+        "user": "U456",
+        "channel": "D789",
+        "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "im",
+    }
 
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
-    # assertions
-    # Verify that the message was processed (process_ai_query was called)
     mock_process_ai_query.assert_called_once()
-    # The actual regex processing happens inside the function
     assert mock_client.chat_postMessage.called
 
 
-@patch("app.services.dynamo.get_state_information")
-@patch("app.services.dynamo.store_state_information")
-@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.store_state_information")
+@patch("app.slack.slack_events.process_ai_query")
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
 def test_process_slack_message_with_session_storage(
+    mock_is_duplicate_event: Mock,
     mock_process_ai_query: Mock,
     mock_store_state_information: Mock,
-    mock_get_state_information: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
 ):
     """Test async event processing that stores a new session"""
-    # set up mocks
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.return_value = {"ok": True}
@@ -248,39 +211,29 @@ def test_process_slack_message_with_session_storage(
         "kb_response": {"output": {"text": "AI response"}, "sessionId": "new-session-123"},
     }
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_slack_message
 
-    # perform operation
     slack_event_data = {
         "text": "test question",
         "user": "U456",
-        "channel": "C789",
+        "channel": "D789",
         "ts": "1234567890.123",
-        "event_ts": "123",
+        "event_ts": "1234567890.123",
+        "channel_type": "im",
     }
 
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
-    # assertions
-    # Verify session was stored - should be called twice (Q&A pair + session)
     assert mock_store_state_information.call_count >= 1
 
 
-@patch("app.services.dynamo.get_state_information")
-@patch("app.services.ai_processor.process_ai_query")
-@patch("app.slack.slack_events.get_conversation_session")
+@patch("app.slack.slack_events.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session_data", return_value={})
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
 def test_process_slack_message_chat_update_no_error(
-    mock_get_session: Mock,
-    mock_process_ai_query: Mock,
-    mock_get_state_information: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
+    mock_is_duplicate_event: Mock, mock_get_session: Mock, mock_process_ai_query: Mock
 ):
     """Test process_async_slack_event with chat_update error"""
-    # set up mocks
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.side_effect = Exception("Update failed")
@@ -290,37 +243,31 @@ def test_process_slack_message_chat_update_no_error(
         "citations": [],
         "kb_response": {"output": {"text": "AI response"}},
     }
-    mock_get_session.return_value = None  # No existing session
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_slack_message
 
-    # perform operation
-    slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
+    slack_event_data = {
+        "text": "<@U123> test question",
+        "user": "U456",
+        "channel": "D789",
+        "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "im",
+    }
     process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
-    # assertions
-    # no assertions as we are just checking it does not throw an error
 
-
-@patch("app.slack.slack_events.get_conversation_session")
-@patch("app.slack.slack_events.get_conversation_session_data")
-@patch("app.slack.slack_events.cleanup_previous_unfeedback_qa")
-@patch("app.slack.slack_events.update_session_latest_message")
-@patch("app.services.ai_processor.process_ai_query")
+@patch("app.slack.slack_events.update_state_information")
+@patch("app.slack.slack_events.get_conversation_session_data", return_value={"session_id": "session-123"})
+@patch("app.slack.slack_events.process_ai_query")
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
 def test_process_slack_message_chat_update_cleanup(
+    mock_is_duplicate_event: Mock,
     mock_process_ai_query: Mock,
-    mock_update_session_latest_message: Mock,
-    mock_cleanup_previous_unfeedback_qa: Mock,
     mock_get_conversation_session_data: Mock,
-    mock_get_session: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
+    mock_update_state_information: Mock,
 ):
     """Test process_async_slack_event with chat_update error"""
-    # set up mocks
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "1234567890.124"}
     mock_client.chat_update.side_effect = Exception("Update failed")
@@ -330,35 +277,29 @@ def test_process_slack_message_chat_update_cleanup(
         "citations": [],
         "kb_response": {"output": {"text": "AI response"}},
     }
-    mock_get_conversation_session_data.return_value = {"session_id": "session-123"}
-    mock_get_session.return_value = None  # No existing session
-    mock_cleanup_previous_unfeedback_qa.return_value = {"test": "123"}
 
-    # delete and import module to test
     from app.slack.slack_events import process_slack_message
 
-    # perform operation
-    slack_event_data = {"text": "<@U123> test question", "user": "U456", "channel": "C789", "ts": "1234567890.123"}
-    with patch("app.slack.slack_events.get_conversation_session_data", mock_get_conversation_session_data):
-        process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
+    slack_event_data = {
+        "text": "<@U123> test question",
+        "user": "U456",
+        "channel": "D789",
+        "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "im",
+    }
+    process_slack_message(event=slack_event_data, event_id="evt123", client=mock_client)
 
-        # assertions
-        mock_cleanup_previous_unfeedback_qa.assert_called_once()
-        mock_update_session_latest_message.assert_called_once()
+    mock_update_state_information.assert_called_once()
 
 
-@patch("app.services.dynamo.get_state_information")
-@patch("app.services.ai_processor.process_ai_query")
-@patch("app.slack.slack_events.get_conversation_session")
+@patch("app.slack.slack_events.process_ai_query")
+@patch("app.slack.slack_events.get_conversation_session_data", return_value={})
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
 def test_process_slack_message_dm_context(
-    mock_get_session: Mock,
-    mock_process_ai_query: Mock,
-    mock_get_state_information: Mock,
-    mock_get_parameter: Mock,
-    mock_env: Mock,
+    mock_is_duplicate_event: Mock, mock_get_session: Mock, mock_process_ai_query: Mock
 ):
     """Test process_async_slack_event with DM context"""
-    # set up mocks
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "123"}
     mock_process_ai_query.return_value = {
@@ -367,28 +308,23 @@ def test_process_slack_message_dm_context(
         "citations": [],
         "kb_response": {"output": {"text": "AI response"}, "sessionId": "new-session"},
     }
-    mock_get_session.return_value = None
 
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_async_slack_event
 
-    # perform operation
     slack_event_data = {
         "text": "test question",
         "user": "U456",
         "channel": "D789",
         "ts": "123",
-        "channel_type": "im",  # DM context
+        "event_ts": "123",
+        "channel_type": "im",
     }
-    process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
+    with patch("app.slack.slack_events.process_slack_message") as mock_process_slack_message:
+        process_async_slack_event(event=slack_event_data, event_id="evt123", client=mock_client)
+        mock_process_slack_message.assert_called_once()
 
-    # assertions
-    # no assertions as we are just checking it does not throw an error
 
-
-@patch("app.services.dynamo.delete_state_information")
+@patch("app.slack.slack_events.delete_state_information")
 def test_cleanup_previous_unfeedback_qa_no_previous_message(
     mock_delete_state_information: Mock,
 ):
@@ -397,118 +333,75 @@ def test_cleanup_previous_unfeedback_qa_no_previous_message(
     current_message_ts = "1234567890.124"
     session_data = {}
 
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import cleanup_previous_unfeedback_qa
 
-    # perform operation
     cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data)
-
-    # assertions
     mock_delete_state_information.assert_not_called()
 
 
-@patch("app.services.dynamo.delete_state_information")
+@patch("app.slack.slack_events.delete_state_information")
 def test_cleanup_previous_unfeedback_qa_same_message(
     mock_delete_state_information: Mock,
 ):
     """Test cleanup skipped when previous message is same as current"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
-
     conversation_key = "conv-123"
     current_message_ts = "1234567890.123"
     session_data = {"latest_message_ts": "1234567890.123"}
 
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import cleanup_previous_unfeedback_qa
 
-    # perform operation
     cleanup_previous_unfeedback_qa(conversation_key, current_message_ts, session_data)
-
-    # assertions
     mock_delete_state_information.assert_not_called()
 
 
-def test_create_response_body_creates_body_with_markdown_formatting(
-    mock_get_parameter: Mock,
-    mock_env: Mock,
-):
+def test_create_response_body_creates_body_with_markdown_formatting():
     """Test regex text processing functionality within process_async_slack_event"""
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_response_body
 
-    # perform operation
     response = _create_response_body(
         citations=[],
         feedback_data={},
         response_text="**Bold**, __italics__, and `code`.",
     )
 
-    # assertions
     assert len(response) > 0
     assert response[0]["type"] == "section"
-
     response_value = response[0]["text"]["text"]
-
     assert "*Bold*, _italics_, and `code`." in response_value
 
 
-def test_create_response_body_creates_body_with_lists(
-    mock_get_parameter: Mock,
-    mock_env: Mock,
-):
+def test_create_response_body_creates_body_with_lists():
     """Test regex text processing functionality within process_async_slack_event"""
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_response_body
 
     dirty_input = "Header text - Standard Dash -No Space Dash • Standard Bullet  -DoubleSpace-NoSpace"
 
-    # perform operation
     response = _create_response_body(
         citations=[],
         feedback_data={},
         response_text=dirty_input,
     )
 
-    # assertions
     assert len(response) > 0
     assert response[0]["type"] == "section"
-
     response_value = response[0]["text"]["text"]
-
     expected_output = "Header text - Standard Dash -No Space Dash - Standard Bullet  -DoubleSpace-NoSpace"
     assert expected_output in response_value
 
 
-def test_create_response_body_creates_body_without_encoding_errors(
-    mock_get_parameter: Mock,
-    mock_env: Mock,
-):
+def test_create_response_body_creates_body_without_encoding_errors():
     """Test regex text processing functionality within process_async_slack_event"""
-    # delete and import module to test
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_response_body
 
-    # perform operation
     response = _create_response_body(
         citations=[],
         feedback_data={},
         response_text="» Tabbing Issue. â¢ Bullet point issue.",
     )
 
-    # assertions
     assert len(response) > 0
     assert response[0]["type"] == "section"
-
     response_value = response[0]["text"]["text"]
-
     assert "Tabbing Issue. - Bullet point issue." in response_value
 
 
@@ -517,10 +410,8 @@ def test_create_response_body_creates_body_without_encoding_errors(
 # ================================================================
 
 
-def test_create_citation_high_relevance_score(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_high_relevance_score():
     """Test citation creation with high relevance score"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
     citation = {
@@ -542,17 +433,15 @@ def test_create_citation_high_relevance_score(mock_get_parameter: Mock, mock_env
     assert result["response_text"] == "Response with [1] citation"
 
 
-def test_create_citation_low_relevance_score(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_low_relevance_score():
     """Test citation is skipped when relevance score is low"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
     citation = {
         "source_number": "2",
         "title": "Low Relevance Doc",
         "excerpt": "This is low relevance",
-        "relevance_score": "0.5",  # Below 0.6 threshold
+        "relevance_score": "0.5",
     }
     feedback_data = {"ck": "conv-123"}
     response_text = "Response with [cit_2]"
@@ -563,10 +452,8 @@ def test_create_citation_low_relevance_score(mock_get_parameter: Mock, mock_env:
     assert result["response_text"] == "Response with [cit_2]"
 
 
-def test_create_citation_missing_excerpt(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_missing_excerpt():
     """Test citation with missing excerpt uses default message"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
     citation = {
@@ -586,10 +473,8 @@ def test_create_citation_missing_excerpt(mock_get_parameter: Mock, mock_env: Moc
     assert button_data["body"] == "No document excerpt available."
 
 
-def test_create_citation_missing_title_uses_filename(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_missing_title_uses_filename():
     """Test citation uses filename when title is missing"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
     citation = {
@@ -607,10 +492,8 @@ def test_create_citation_missing_title_uses_filename(mock_get_parameter: Mock, m
     assert result["action_buttons"][0]["text"]["text"] == "[4] document.pdf"
 
 
-def test_create_citation_fallback_source_when_missing(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_fallback_source_when_missing():
     """Test citation uses 'Source' when both title and filename are missing"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
     citation = {
@@ -627,13 +510,11 @@ def test_create_citation_fallback_source_when_missing(mock_get_parameter: Mock, 
     assert result["action_buttons"][0]["text"]["text"] == "[5] Source"
 
 
-def test_create_citation_button_text_truncation(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_button_text_truncation():
     """Test citation button text is truncated when exceeds 75 characters"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
-    long_title = "A" * 80  # Title longer than 75 chars
+    long_title = "A" * 80
     citation = {
         "source_number": "6",
         "title": long_title,
@@ -646,14 +527,12 @@ def test_create_citation_button_text_truncation(mock_get_parameter: Mock, mock_e
     result = _create_citation(citation, feedback_data, response_text)
 
     button_text = result["action_buttons"][0]["text"]["text"]
-    assert len(button_text) <= 77  # "[X] " + 70 chars + "..."
+    assert len(button_text) <= 77
     assert button_text.endswith("...")
 
 
-def test_create_citation_removes_newlines_from_source_number(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_removes_newlines_from_source_number():
     """Test citation removes newlines from source number"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
     citation = {
@@ -671,10 +550,8 @@ def test_create_citation_removes_newlines_from_source_number(mock_get_parameter:
     assert result["action_buttons"][0]["action_id"] == "cite_7"
 
 
-def test_create_citation_zero_relevance_score(mock_get_parameter: Mock, mock_env: Mock):
+def test_create_citation_zero_relevance_score():
     """Test citation with zero relevance score is skipped"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import _create_citation
 
     citation = {
@@ -696,46 +573,35 @@ def test_create_citation_zero_relevance_score(mock_get_parameter: Mock, mock_env
 # ================================================================
 
 
-def test_convert_markdown_to_slack_bold_formatting(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_bold_formatting():
     """Test conversion of markdown bold to Slack formatting"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     markdown_text = "This is **bold text** in markdown"
     result = convert_markdown_to_slack(markdown_text)
-
     assert "*bold text*" in result
 
 
-def test_convert_markdown_to_slack_italic_formatting(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_italic_formatting():
     """Test conversion of markdown italics to Slack formatting"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     markdown_text = "This is __italic text__ in markdown"
     result = convert_markdown_to_slack(markdown_text)
-
     assert "_italic text_" in result
 
 
-def test_convert_markdown_to_slack_links(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_links():
     """Test conversion of markdown links to Slack formatting"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     markdown_text = "Check out [this link](https://example.com)"
     result = convert_markdown_to_slack(markdown_text)
-
     assert "<https://example.com|this link>" in result
 
 
-def test_convert_markdown_to_slack_encoding_issues_arrow(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_encoding_issues_arrow():
     """Test conversion removes arrow encoding issues"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text_with_encoding = "» Tab issue"
@@ -745,10 +611,8 @@ def test_convert_markdown_to_slack_encoding_issues_arrow(mock_get_parameter: Moc
     assert "Tab issue" in result
 
 
-def test_convert_markdown_to_slack_encoding_issues_bullet(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_encoding_issues_bullet():
     """Test conversion fixes bullet point encoding issues"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text_with_encoding = "â¢ Bullet point"
@@ -758,32 +622,24 @@ def test_convert_markdown_to_slack_encoding_issues_bullet(mock_get_parameter: Mo
     assert "- Bullet point" in result
 
 
-def test_convert_markdown_to_slack_empty_string(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_empty_string():
     """Test conversion of empty string"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     result = convert_markdown_to_slack("")
-
     assert result == ""
 
 
-def test_convert_markdown_to_slack_none_string(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_none_string():
     """Test conversion of None string"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     result = convert_markdown_to_slack(None)
-
     assert result == ""
 
 
-def test_convert_markdown_to_slack_combined_formatting(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_combined_formatting():
     """Test conversion with multiple formatting types"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text = "Check **bold** and __italic__ with [link](https://test.com)"
@@ -794,70 +650,53 @@ def test_convert_markdown_to_slack_combined_formatting(mock_get_parameter: Mock,
     assert "<https://test.com|link>" in result
 
 
-def test_convert_markdown_to_slack_link_with_newlines_no_space(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_link_with_newlines_no_space():
     """Test link conversion removes newlines from link text"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text = "Check [link\ntext](https://example.com)"
     result = convert_markdown_to_slack(text)
-
     assert "<https://example.com|link text>" in result
 
 
-def test_convert_markdown_to_slack_link_with_newlines_with_space(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_link_with_newlines_with_space():
     """Test link conversion removes newlines from link text"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text = "Check [link \n text](https://example.com)"
     result = convert_markdown_to_slack(text)
-
     assert "<https://example.com|link   text>" in result
 
 
-def test_convert_markdown_to_slack_link_with_newlines_with_dash(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_link_with_newlines_with_dash():
     """Test link conversion removes newlines from link text"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text = "Check [link-text](https://example.com)"
     result = convert_markdown_to_slack(text)
-
     assert "<https://example.com|link-text>" in result
 
 
-def test_convert_markdown_to_slack_link_with_newlines_with_dash_and_space(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_link_with_newlines_with_dash_and_space():
     """Test link conversion removes newlines from link text"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text = "Check [link - text](https://example.com)"
     result = convert_markdown_to_slack(text)
-
     assert "<https://example.com|link - text>" in result
 
 
-def test_convert_markdown_to_slack_whitespace_stripped(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_whitespace_stripped():
     """Test conversion strips leading/trailing whitespace"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text = "  Some text with spaces  "
     result = convert_markdown_to_slack(text)
-
     assert result == "Some text with spaces"
 
 
-def test_convert_markdown_to_slack_multiple_encoding_issues(mock_get_parameter: Mock, mock_env: Mock):
+def test_convert_markdown_to_slack_multiple_encoding_issues():
     """Test conversion handles multiple encoding issues"""
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import convert_markdown_to_slack
 
     text = "» Tab issue. â¢ Bullet point â¢ another bullet"
@@ -874,9 +713,16 @@ def test_convert_markdown_to_slack_multiple_encoding_issues(mock_get_parameter: 
 # ================================================================
 
 
-@patch("app.slack.slack_events.get_conversation_session_data")
+@patch("app.slack.slack_events.get_conversation_session_data", return_value={})
 @patch("app.slack.slack_events.process_formatted_bedrock_query")
-def test_process_slack_message_handles_conflict_exception(mock_env: Mock, mock_get_parameter: Mock):
+@patch("app.slack.slack_events.is_duplicate_event", return_value=False)
+def test_process_slack_message_handles_conflict_exception(
+    mock_is_duplicate: Mock,
+    mock_process_bedrock: Mock,
+    mock_get_session: Mock,
+    mock_env: Mock,
+    mock_get_parameter: Mock,
+):
     """
     GIVEN the bot has posted a 'Processing...' placeholder
     WHEN Bedrock throws a ConflictException due to a race condition on the session ID
@@ -886,89 +732,67 @@ def test_process_slack_message_handles_conflict_exception(mock_env: Mock, mock_g
     mock_client = Mock()
     mock_client.chat_postMessage.return_value = {"ts": "placeholder_ts_123"}
 
-    # Reload module to ensure clean state BEFORE patching
-    if "app.slack.slack_events" in sys.modules:
-        del sys.modules["app.slack.slack_events"]
     from app.slack.slack_events import process_slack_message
+    from botocore.exceptions import ClientError
+    from app.core.config import bot_messages
 
-    with patch("app.slack.slack_events.process_formatted_bedrock_query") as mock_process_bedrock:
+    error_response = {"Error": {"Code": "ConflictException", "Message": "Session is currently being used"}}
+    mock_process_bedrock.side_effect = ClientError(error_response, "RetrieveAndGenerate")
 
-        # Simulate the Bedrock race condition ConflictException
-        error_response = {"Error": {"Code": "ConflictException", "Message": "Session is currently being used"}}
-        mock_process_bedrock.side_effect = ClientError(error_response, "RetrieveAndGenerate")
+    event = {
+        "text": "<@U123> test question",
+        "user": "U456",
+        "channel": "D789",
+        "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "channel_type": "im",
+    }
 
-        event = {
-            "text": "<@U123> test question",
-            "user": "U456",
-            "channel": "C789",
-            "ts": "1234567890.123",
-            "event_ts": "123",
-            "channel_type": "channel",
-        }
+    process_slack_message(event=event, event_id="evt123", client=mock_client)
 
-        process_slack_message(event=event, event_id="evt123", client=mock_client)
-
-        mock_client.chat_postMessage.assert_called_once_with(
-            channel="C789", text="Processing...", thread_ts="1234567890.123"
-        )
-
-        mock_client.chat_update.assert_called_once_with(
-            channel="C789", ts="placeholder_ts_123", text="An error occurred, please try again.", blocks=[]
-        )
+    mock_client.chat_postMessage.assert_any_call(channel="D789", text="Processing...", thread_ts="1234567890.123")
+    mock_client.chat_postMessage.assert_any_call(
+        channel="D789", text=bot_messages.ERROR_RESPONSE, thread_ts="1234567890.123"
+    )
 
 
-def test_should_reply_to_message_rejects_raw_message_in_public_channel(mock_env: Mock):
+def test_should_reply_to_message_rejects_raw_message_in_public_channel():
     """
     GIVEN the bot is installed in a public channel
     WHEN a user @mentions the bot, firing a duplicate 'message' event alongside 'app_mention'
     THEN the 'message' event should be dropped to prevent a ConflictException race condition
     """
-    import sys
-
-    if "app.utils.handler_utils" in sys.modules:
-        del sys.modules["app.utils.handler_utils"]
     from app.utils.handler_utils import should_reply_to_message
 
     event = {"channel_type": "channel", "type": "message", "channel": "C123", "ts": "123"}
-
     result = should_reply_to_message(event)
 
     assert result is False
 
 
-def test_should_reply_to_message_accepts_app_mention_in_public_channel(mock_env: Mock):
+def test_should_reply_to_message_accepts_app_mention_in_public_channel():
     """
     GIVEN the bot is installed in a public channel
     WHEN a user @mentions the bot, firing the 'app_mention' event
     THEN the event should proceed normally without being blocked
     """
-    import sys
-
-    if "app.utils.handler_utils" in sys.modules:
-        del sys.modules["app.utils.handler_utils"]
     from app.utils.handler_utils import should_reply_to_message
 
     event = {"channel_type": "channel", "type": "app_mention", "channel": "C123", "ts": "123"}
-
     result = should_reply_to_message(event)
 
     assert result is True
 
 
-def test_should_reply_to_message_accepts_dm_message(mock_env: Mock):
+def test_should_reply_to_message_accepts_dm_message():
     """
     GIVEN the bot is installed
     WHEN a user DMs the bot with a prompt (which only fires a 'message' event)
     THEN the event should proceed normally without being blocked
     """
-    import sys
-
-    if "app.utils.handler_utils" in sys.modules:
-        del sys.modules["app.utils.handler_utils"]
     from app.utils.handler_utils import should_reply_to_message
 
     event = {"channel_type": "im", "type": "message", "channel": "D123", "ts": "123"}
-
     result = should_reply_to_message(event)
 
     assert result is True

@@ -508,6 +508,12 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         channel = event["channel"]
         conversation_key, thread_ts = conversation_key_and_root(event)
 
+        if channel and thread_ts:
+            message_duplication_id = f"msg_{channel}_{thread_ts}"
+            if is_duplicate_event(message_duplication_id):
+                logger.info(f"Skipping overlapping app_mention/message event: {message_duplication_id}")
+                return
+
         # Remove Slack user mentions from message text
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()
 
@@ -539,24 +545,9 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         feedback_data = {"channel": channel, "message_ts": message_ts, "thread_ts": thread_ts}
 
         # Call Bedrock to process the user query
-        try:
-            kb_response, response_text, blocks = process_formatted_bedrock_query(
-                user_query=user_query, session_id=session_id, feedback_data={**feedback_data, "ck": conversation_key}
-            )
-        except Exception as e:
-            error_code = e.response.get("Error", {}).get("Code")
-            if error_code == "ConflictException":
-                logger.warning(
-                    f"ConflictException caught for session {session_id}",
-                    extra={"event_id": event_id, "error": traceback.format_exc()},
-                )
-            client.chat_update(
-                channel=channel,
-                ts=message_ts,
-                text="An error occurred, please try again.",
-                blocks=[],
-            )
-            return
+        kb_response, response_text, blocks = process_formatted_bedrock_query(
+            user_query=user_query, session_id=session_id, feedback_data={**feedback_data, "ck": conversation_key}
+        )
 
         _handle_session_management(
             **feedback_data,
@@ -577,8 +568,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
                 f"Failed to update message: {e}",
                 extra={"event_id": event_id, "message_ts": message_ts, "error": traceback.format_exc()},
             )
-            log_query_stats(user_query, event, channel, client, thread_ts)
-            return
+        log_query_stats(user_query, event, channel, client, thread_ts)
     except Exception as e:
         logger.error(f"Error processing message: {e}", extra={"event_id": event_id, "error": traceback.format_exc()})
 
