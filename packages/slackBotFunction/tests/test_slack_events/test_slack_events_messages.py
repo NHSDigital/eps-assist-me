@@ -796,3 +796,60 @@ def test_should_reply_to_message_accepts_dm_message():
     result = should_reply_to_message(event)
 
     assert result is True
+
+
+@patch("app.slack.slack_events.is_duplicate_event")
+@patch("app.slack.slack_events.logger")
+def test_process_slack_message_duplicate_msg_id(mock_logger: Mock, mock_is_duplicate_event: Mock):
+    """Test that overlapping app_mention/message events are skipped"""
+    from app.slack.slack_events import process_slack_message
+
+    # Setup
+    mock_client = Mock()
+    mock_is_duplicate_event.return_value = True  # Simulate a duplicate event
+
+    event = {
+        "user": "U123",
+        "channel": "C123",
+        "event_ts": "1234567890.123",
+        "ts": "1234567890.123",
+        "text": "test question",
+        "channel_type": "channel",
+    }
+
+    # Execute
+    process_slack_message(event=event, event_id="evt123", client=mock_client)
+
+    # Assertions
+    mock_is_duplicate_event.assert_called_with("msg_C123_1234567890.123")
+    mock_logger.info.assert_called_with("Skipping overlapping app_mention/message event: msg_C123_1234567890.123")
+    mock_client.chat_postMessage.assert_not_called()  # Ensure it returns early
+
+
+@patch("app.slack.slack_events.is_duplicate_event")
+@patch("app.slack.slack_events.logger")
+def test_process_slack_message_overlapping_event(mock_logger: Mock, mock_is_duplicate_event: Mock):
+    """Test that overlapping app_mention/message events are skipped"""
+    from app.slack.slack_events import process_slack_message
+
+    mock_client = Mock()
+    # Simulate that this message was already processed
+    mock_is_duplicate_event.return_value = True
+
+    event = {
+        "user": "U123",
+        "channel": "C123",
+        "ts": "1234567890.123",
+        "event_ts": "1234567890.123",
+        "text": "test question",
+        "channel_type": "channel",
+    }
+
+    process_slack_message(event=event, event_id="evt123", client=mock_client)
+
+    # Assert the new logic from the PR is triggered
+    mock_is_duplicate_event.assert_called_with("msg_C123_1234567890.123")
+    mock_logger.info.assert_called_with("Skipping overlapping app_mention/message event: msg_C123_1234567890.123")
+
+    # Ensure execution returns early before calling Bedrock or Slack
+    mock_client.chat_postMessage.assert_not_called()
