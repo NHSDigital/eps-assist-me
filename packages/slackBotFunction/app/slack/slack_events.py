@@ -539,9 +539,24 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         feedback_data = {"channel": channel, "message_ts": message_ts, "thread_ts": thread_ts}
 
         # Call Bedrock to process the user query
-        kb_response, response_text, blocks = process_formatted_bedrock_query(
-            user_query=user_query, session_id=session_id, feedback_data={**feedback_data, "ck": conversation_key}
-        )
+        try:
+            kb_response, response_text, blocks = process_formatted_bedrock_query(
+                user_query=user_query, session_id=session_id, feedback_data={**feedback_data, "ck": conversation_key}
+            )
+        except Exception as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code == "ConflictException":
+                logger.warning(
+                    f"ConflictException caught for session {session_id}",
+                    extra={"event_id": event_id, "error": traceback.format_exc()},
+                )
+            client.chat_update(
+                channel=channel,
+                ts=message_ts,
+                text="An error occurred, please try again.",
+                blocks=[],
+            )
+            return
 
         _handle_session_management(
             **feedback_data,
@@ -562,7 +577,8 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
                 f"Failed to update message: {e}",
                 extra={"event_id": event_id, "message_ts": message_ts, "error": traceback.format_exc()},
             )
-        log_query_stats(user_query, event, channel, client, thread_ts)
+            log_query_stats(user_query, event, channel, client, thread_ts)
+            return
     except Exception as e:
         logger.error(f"Error processing message: {e}", extra={"event_id": event_id, "error": traceback.format_exc()})
 

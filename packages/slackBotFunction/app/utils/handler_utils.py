@@ -148,6 +148,16 @@ def gate_common(event: Dict[str, Any], body: Dict[str, Any]) -> str | None:
         logger.info(f"Skipping duplicate event: {event_id}")
         return None
 
+    # Check if the message is a duplicate
+    channel = event.get("channel")
+    message_ts = event.get("ts")
+    if channel and message_ts:
+        # Create a unique ID for the physical message to catch the overlap
+        msg_dupe_id = f"msg_{channel}_{message_ts}"
+        if is_duplicate_event(msg_dupe_id):
+            logger.info(f"Skipping overlapping app_mention/message event: {msg_dupe_id}")
+            return None
+
     return event_id
 
 
@@ -319,7 +329,11 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
     logger.debug("Checking if should reply to message", extra={"event": event, "client": client})
 
     # we don't reply to non-threaded messages in group chats
-    if event.get("channel_type") == "group" and event.get("type") == "message" and event.get("thread_ts") is None:
+    if (
+        (event.get("channel_type") == "group" or event.get("channel_type") == "channel")
+        and event.get("type") == "message"
+        and event.get("thread_ts") is None
+    ):
         return False
 
     # for channel or group threads, check if bot was mentioned anywhere in the thread history

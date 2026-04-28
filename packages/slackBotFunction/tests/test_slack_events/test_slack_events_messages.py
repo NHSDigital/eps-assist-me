@@ -1,6 +1,7 @@
 import sys
 import pytest
 from unittest.mock import Mock, patch, MagicMock
+from botocore.exceptions import ClientError
 
 
 @pytest.fixture
@@ -866,3 +867,108 @@ def test_convert_markdown_to_slack_multiple_encoding_issues(mock_get_parameter: 
     assert "â¢" not in result
     assert "- Bullet point" in result
     assert "- another bullet" in result
+
+
+# ================================================================
+# Tests for duplicate message handling
+# ================================================================
+
+
+@patch("app.slack.slack_events.get_conversation_session_data")
+@patch("app.slack.slack_events.process_formatted_bedrock_query")
+def test_process_slack_message_handles_conflict_exception(mock_env: Mock, mock_get_parameter: Mock):
+    """
+    GIVEN the bot has posted a 'Processing...' placeholder
+    WHEN Bedrock throws a ConflictException due to a race condition on the session ID
+    THEN the placeholder should be cleared/updated with a friendly error
+    AND the bot does not stay stuck in 'Processing...'
+    """
+    mock_client = Mock()
+    mock_client.chat_postMessage.return_value = {"ts": "placeholder_ts_123"}
+
+    # Reload module to ensure clean state BEFORE patching
+    if "app.slack.slack_events" in sys.modules:
+        del sys.modules["app.slack.slack_events"]
+    from app.slack.slack_events import process_slack_message
+
+    with patch("app.slack.slack_events.process_formatted_bedrock_query") as mock_process_bedrock:
+
+        # Simulate the Bedrock race condition ConflictException
+        error_response = {"Error": {"Code": "ConflictException", "Message": "Session is currently being used"}}
+        mock_process_bedrock.side_effect = ClientError(error_response, "RetrieveAndGenerate")
+
+        event = {
+            "text": "<@U123> test question",
+            "user": "U456",
+            "channel": "C789",
+            "ts": "1234567890.123",
+            "event_ts": "123",
+            "channel_type": "channel",
+        }
+
+        process_slack_message(event=event, event_id="evt123", client=mock_client)
+
+        mock_client.chat_postMessage.assert_called_once_with(
+            channel="C789", text="Processing...", thread_ts="1234567890.123"
+        )
+
+        mock_client.chat_update.assert_called_once_with(
+            channel="C789", ts="placeholder_ts_123", text="An error occurred, please try again.", blocks=[]
+        )
+
+
+def test_should_reply_to_message_rejects_raw_message_in_public_channel(mock_env: Mock):
+    """
+    GIVEN the bot is installed in a public channel
+    WHEN a user @mentions the bot, firing a duplicate 'message' event alongside 'app_mention'
+    THEN the 'message' event should be dropped to prevent a ConflictException race condition
+    """
+    import sys
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import should_reply_to_message
+
+    event = {"channel_type": "channel", "type": "message", "channel": "C123", "ts": "123"}
+
+    result = should_reply_to_message(event)
+
+    assert result is False
+
+
+def test_should_reply_to_message_accepts_app_mention_in_public_channel(mock_env: Mock):
+    """
+    GIVEN the bot is installed in a public channel
+    WHEN a user @mentions the bot, firing the 'app_mention' event
+    THEN the event should proceed normally without being blocked
+    """
+    import sys
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import should_reply_to_message
+
+    event = {"channel_type": "channel", "type": "app_mention", "channel": "C123", "ts": "123"}
+
+    result = should_reply_to_message(event)
+
+    assert result is True
+
+
+def test_should_reply_to_message_accepts_dm_message(mock_env: Mock):
+    """
+    GIVEN the bot is installed
+    WHEN a user DMs the bot with a prompt (which only fires a 'message' event)
+    THEN the event should proceed normally without being blocked
+    """
+    import sys
+
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import should_reply_to_message
+
+    event = {"channel_type": "im", "type": "message", "channel": "D123", "ts": "123"}
+
+    result = should_reply_to_message(event)
+
+    assert result is True
