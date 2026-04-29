@@ -240,7 +240,8 @@ export class EpsAssistMeStack extends Stack {
         statements: [
           new PolicyStatement({
             actions: [
-              "lambda:InvokeFunction"
+              "lambda:InvokeFunction",
+              "lambda:GetFunctionConfiguration"
             ],
             resources: [
               functions.slackBotLambda.function.functionArn
