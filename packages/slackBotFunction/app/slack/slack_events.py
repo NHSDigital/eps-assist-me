@@ -498,8 +498,43 @@ def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
 # ================================================================
 
 
+def _notify_diverged_conversation(client, channel: str, user_id: str, thread_ts: str, event_id: str) -> None:
+    """Helper to post an ephemeral message if the conversation diverged."""
+    try:
+        client.chat_postEphemeral(
+            channel=channel,
+            user=user_id,
+            thread_ts=thread_ts,
+            text="It looks like the conversation has diverged, please start a new conversation",
+        )
+    except Exception as e:
+        logger.error(
+            f"Couldn't post ephemeral message: {e}",
+            extra={"event_id": event_id, "error": traceback.format_exc()},
+        )
+
+
+def _delete_subsequent_replies(client, channel: str, messages: list, event_id: str) -> int:
+    """Helper to iterate through and delete bot replies."""
+    deleted_count = 0
+    for reply in messages:
+        reply_ts = reply.get("ts")
+        if not reply_ts:
+            continue
+
+        try:
+            client.chat_delete(channel=channel, ts=reply_ts)
+            deleted_count += 1
+        except Exception as e:
+            logger.error(
+                f"Couldn't delete message: {e}",
+                extra={"event_id": event_id, "error": traceback.format_exc()},
+            )
+    return deleted_count
+
+
 def _handle_modified_messages(
-    client: WebClient,
+    client,  # Type hint with your WebClient
     channel: str,
     thread_ts: str,
     original_ts: str,
@@ -511,56 +546,32 @@ def _handle_modified_messages(
     try:
         logger.info("Existing conversation found", extra={"event": edited_event})
         current_thread = client.conversations_replies(channel=channel, ts=thread_ts)
-
         thread_messages = current_thread.get("messages", [])
 
-        if len(thread_messages) > 1:
-            # Get the original message timestamp
-            previous_edit_ts = Decimal(original_ts)
+        # Early return if there are no subsequent messages
+        if len(thread_messages) <= 1:
+            return True
 
-            # Filter messages that came after the edited message
-            subsequent_messages = [msg for msg in thread_messages if Decimal(msg.get("ts", "0")) > previous_edit_ts]
+        previous_edit_ts = Decimal(original_ts)
+        subsequent_messages = [msg for msg in thread_messages if Decimal(msg.get("ts", "0")) > previous_edit_ts]
 
-            # Check if there are any subsequent messages from the user
-            has_user_replies = any(msg.get("user") == user_id for msg in subsequent_messages)
+        has_user_replies = any(msg.get("user") == user_id for msg in subsequent_messages)
 
-            if has_user_replies:
-                # Not the last user message in the chain
-                try:
-                    client.chat_postEphemeral(
-                        channel=channel,
-                        user=user_id,
-                        thread_ts=thread_ts,
-                        text="It looks like the conversation has diverged, please start a new conversation",
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Couldn't post ephemeral message: {e}",
-                        extra={"event_id": event_id, "error": traceback.format_exc()},
-                    )
-                return False
-            else:
-                logger.info(
-                    "Found existing thread, clearing replies",
-                    extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
-                )
-                deleted_count = 0
-                for reply in subsequent_messages:
-                    reply_ts = reply.get("ts")
-                    if reply_ts:
-                        try:
-                            client.chat_delete(channel=channel, ts=reply_ts)
-                            deleted_count += 1
-                        except Exception as e:
-                            logger.error(
-                                f"Couldn't delete message: {e}",
-                                extra={"event_id": event_id, "error": traceback.format_exc()},
-                            )
+        if has_user_replies:
+            _notify_diverged_conversation(client, channel, user_id, thread_ts, event_id)
+            return False
 
-                logger.info(f"Deleted {deleted_count} replies")
-                return True
+        # If no user replies, proceed with deletion
+        logger.info(
+            "Found existing thread, clearing replies",
+            extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
+        )
+
+        deleted_count = _delete_subsequent_replies(client, channel, subsequent_messages, event_id)
+        logger.info(f"Deleted {deleted_count} replies")
 
         return True
+
     except Exception as e:
         logger.error(
             f"Error modifying existing messages: {e}",

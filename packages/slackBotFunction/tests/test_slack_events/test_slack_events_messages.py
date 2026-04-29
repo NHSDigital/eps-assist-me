@@ -1043,3 +1043,35 @@ def test_process_slack_message_continues_on_true_modified_handler(mock_env: Mock
             text="AI response",
             blocks=ANY,
         )
+
+
+def test_notify_diverged_conversation_success():
+    """Test successful posting of the ephemeral warning message."""
+    mock_client = Mock()
+
+    from app.slack.slack_events import _notify_diverged_conversation
+
+    _notify_diverged_conversation(mock_client, "C123", "U123", "100.000", "evt123")
+
+    mock_client.chat_postEphemeral.assert_called_once_with(
+        channel="C123",
+        user="U123",
+        thread_ts="100.000",
+        text="It looks like the conversation has diverged, please start a new conversation",
+    )
+
+
+@patch("app.slack.slack_events.logger")
+def test_notify_diverged_conversation_exception(mock_logger):
+    """Test that exceptions during ephemeral posting are caught and logged."""
+    mock_client = Mock()
+    mock_client.chat_postEphemeral.side_effect = Exception("API error")
+
+    from app.slack.slack_events import _notify_diverged_conversation
+
+    # Should not raise an exception
+    _notify_diverged_conversation(mock_client, "C123", "U123", "100.000", "evt123")
+
+    mock_client.chat_postEphemeral.assert_called_once()
+    mock_logger.error.assert_called_once()
+    assert "Couldn't post ephemeral message: API error" in mock_logger.error.call_args[0][0]
