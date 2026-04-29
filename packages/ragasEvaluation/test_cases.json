@@ -1,0 +1,167 @@
+[
+  {
+    "id": "endorsements-multiple-per-item",
+    "query": "Can a prescribed item have more than one endorsement or is it expected that a single item has no more than one endorsement?",
+    "ground_truth": "A prescribed item can have more than one endorsement. The Extension-DM-PrescriptionEndorsement field allows multiple endorsements to be associated with a single line item. This is indicated by the cardinality 0..*, meaning zero or more endorsements are permitted per line item.",
+    "smoke": true,
+    "failure_mode": null,
+    "notes": "Area: Endorsements. Bot was Correct."
+  },
+  {
+    "id": "non-repudiation-note-type",
+    "query": "For the non-repudiation screen, is the Note field a note to pharmacy or a note to patient?",
+    "ground_truth": "The non-repudiation screen must present all relevant prescription data prior to signing, including both clinical and patient-facing notes. Notes associated with the MedicationRequest resource, such as dispensing instructions, should be clearly labelled as 'Note to Dispenser'. Patient-facing instructions, captured via the CommunicationRequest resource, must be labelled as 'Note to Patient'. The 'patient communication text' on the non-repudiation screen refers specifically to the Note to Patient.",
+    "smoke": false,
+    "failure_mode": "faithfulness",
+    "notes": "Area: Non repudiation screen. Bot was Incorrect: it said the note refers only to patient communication text and did not distinguish Note to Dispenser."
+  },
+  {
+    "id": "dss-unauthorised-error",
+    "query": "We are getting an error from DSS 'Unauthorised'. We have checked the credentials and they appear to be correct. What could be the cause? Note that the CIS2 key is different to the key used in the EPS application (which has the signing API attached to it).",
+    "ground_truth": "Potential causes include: a CIS2 key mismatch between the authentication key and the EPS application signing key; insufficient RBAC permissions for the user's role; an incorrect API endpoint; an expired authentication token; incorrect JWT signing key used for application-restricted access — EPS only supports CIS2 separate authentication and authorisation, so ensure the correct signing key is used for each access mode; SDS details (user identifier, role profile ID, job role code) missing or incorrect in user-restricted messages; network connectivity issues to HSCN or the internet-facing alternative.",
+    "smoke": false,
+    "failure_mode": null,
+    "notes": "Area: Credentials. Bot gave a detailed response covering likely causes."
+  },
+  {
+    "id": "prescription-monitoring-requirement",
+    "query": "Can you clarify this requirement: 'The connecting system must monitor the sending of prescription order request and alert the NHSE service desk if requests fail to send as expected'. Specifically: a) Is this meant to be an automated process or a user option to send an email? b) What email address is used? c) Is there a required format for the report? d) Should this only trigger after 2 hours of retries?",
+    "ground_truth": "a) This should be an automated process — the system must automatically detect failures and trigger the alert rather than relying on a user to manually send an email. b) The requirement does not specify an email address; confirm the exact address with NHSE. c) No specific report format is mandated; include essential information such as the timestamp, prescription ID, and error code. d) No 2-hour retry period is specified; the alert should be sent upon detection of a failure, with retry logic defined by the system's own retry policy.",
+    "smoke": false,
+    "failure_mode": null,
+    "notes": "Area: Prescription sending monitoring. Bot was Correct."
+  },
+  {
+    "id": "cross-border-patient-identification",
+    "query": "How do we find if a patient is a cross-border patient?",
+    "ground_truth": "To determine if a patient is a cross-border patient, check the patient's address details in the FHIR resource. Examine the postalCode field and the address lines for postal codes or locations indicating residence outside England and Wales (e.g. Scottish postcodes such as EH1 1AA, or locations indicating Northern Ireland such as Belfast). If the address indicates a location outside England and Wales, the patient can be classified as a cross-border patient.",
+    "smoke": false,
+    "skip_contextual": true,
+    "failure_mode": null,
+    "notes": "Area: Patient location. Bot was Correct. Answer derived from reasoning over general patient data, not a specific KB document."
+  },
+  {
+    "id": "cancelled-prescription-bulk-download",
+    "query": "When a prescription has only one prescribed item and the prescriber cancels the prescribed item, will the prescription be downloaded when a bulk download request is made to /FHIR/R4/Task/$release?",
+    "ground_truth": "No. When a prescription's only item is cancelled, the prescription is no longer active and will not be returned in a bulk download request to /FHIR/R4/Task/$release. The overall prescription status is updated to reflect the cancellation via the Prescription Tracker API.",
+    "smoke": true,
+    "failure_mode": null,
+    "notes": "Area: Cancelled prescriptions. Bot was Correct."
+  },
+  {
+    "id": "smartcard-removal-cis2",
+    "query": "When I have authenticated with a smartcard using CIS2 over an HSCN connection, what happens when the smartcard is removed?",
+    "ground_truth": "When a smartcard is removed during a CIS2 authenticated session over HSCN, the session is terminated immediately. The smartcard provides the necessary credentials and cryptographic keys; without it the session cannot maintain its authenticated state. The user must re-authenticate using their smartcard to regain access.",
+    "smoke": false,
+    "skip_contextual": true,
+    "failure_mode": null,
+    "notes": "Area: Authentication. Answer derived from general CIS2 security knowledge, not a specific KB document."
+  },
+  {
+    "id": "out-of-scope-software-uninstall",
+    "query": "Define the process to uninstall the Oberthur component.",
+    "ground_truth": "This question relates to third-party hardware/software installation and is not covered by EPS documentation. The EPS Assist Me assistant cannot answer questions about uninstalling the Oberthur component; please refer to the manufacturer's documentation or contact your IT support team.",
+    "smoke": false,
+    "skip_contextual": true,
+    "failure_mode": "answer_relevancy",
+    "notes": "Area: Software. Intentionally out-of-scope — no KB content expected. Only answer relevancy matters (bot should decline, not fabricate)."
+  },
+  {
+    "id": "claim-notification-expired-items",
+    "query": "Should the Dispensing system send a Claim notification message when all the prescription items on the prescription have expired, and if it should then what value should be sent for the overall prescription form status for the FHIR API extension 'https://fhir.nhs.uk/StructureDefinition/Extension-EPS-TaskBusinessStatus'?",
+    "ground_truth": "The dispensing system must not set an item status to expired, as per SCAL Requirement 2.2.4. Therefore, the dispensing system should not send a Claim notification message with an overall prescription form status indicating that all prescription items have expired. Expired prescriptions are managed by the prescribing system. For the FHIR API extension Extension-EPS-TaskBusinessStatus, the dispensing system should use values reflecting the actual dispensing status such as 'claimed', 'not dispensed', or 'partial'.",
+    "smoke": false,
+    "failure_mode": null,
+    "notes": "Area: Claim notification message. Bot correctly identified that dispensing systems must not set expired status."
+  },
+  {
+    "id": "dispense-notification-on-hold-status",
+    "query": "For an EPS FHIR API Dispense Notification message, when should the value 'on-hold' be used for the MedicationDispense status field?",
+    "ground_truth": "The value 'on-hold' should not be used in a dispense notification message. The dispensing system must use the specific item-level status codes defined in SCAL Requirement 2.2.4 (e.g. 0001 for fully dispensed, 0002 for not dispensed). 'on-hold' is not a valid or expected status in this context.",
+    "smoke": false,
+    "failure_mode": null,
+    "notes": "Area: Dispense notification. Old bot was Correct (do not use on-hold)."
+  },
+  {
+    "id": "max-prescription-line-items",
+    "query": "How many lines can a prescription have?",
+    "ground_truth": "A prescription can have a maximum of 4 line items. If a prescriber needs to prescribe more than 4 items, these must be split across multiple prescriptions, each with its own unique identifier.",
+    "smoke": true,
+    "failure_mode": null,
+    "notes": "Area: Prescription items. Bot was Correct."
+  },
+  {
+    "id": "controlled-drug-schedule-user-selected",
+    "query": "Is extension:controlledDrugSchedule.value.userSelected used for EPS?",
+    "ground_truth": "The extension:controlledDrugSchedule.value.userSelected field is defined in the EPS FHIR specification. It can be found in the UK NHSD R4 package on Simplifier (uk.nhsdigital.r4 version 2.6.0). The bot should be able to confirm its usage based on the FHIR profile definitions ingested into the knowledge base.",
+    "smoke": false,
+    "failure_mode": "contextual_recall",
+    "notes": "Area: Extensions used. Bot could not confirm from the documents. Contextual recall should score low if the knowledge base does not surface the relevant profile definition."
+  },
+  {
+    "id": "dosage-bounds-period-usage",
+    "query": "Can we use dosageInstruction.timing.repeat.boundsPeriod.start or dosageInstruction.timing.repeat.boundsPeriod.end?",
+    "ground_truth": "The EPS documentation specifies boundsDuration for the dosageInstruction.timing.repeat field, not boundsPeriod.start or boundsPeriod.end. These fields are not explicitly included in the provided EPS documentation. You would need to confirm their availability in the API's implementation or specification beyond what is described in the current EPS FHIR profiles.",
+    "smoke": false,
+    "failure_mode": null,
+    "notes": "Area: Dosage instructions. Bot correctly identified that only boundsDuration is mentioned."
+  },
+  {
+    "id": "successful-prescription-response-example",
+    "query": "Show me an example of a prescription successfully created response within the Electronic Prescribing System (EPS), where a unique identifier for the prescription, often referred to as the prescription ID, is shown.",
+    "ground_truth": "A successful prescription creation response from the EPS FHIR API returns a FHIR Bundle containing a MessageHeader and the created resources. The response includes the prescription's unique identifier (prescription ID) in the groupIdentifier of the MedicationRequest resources. The actual format follows the FHIR R4 specification — it is a FHIR Bundle of type 'message', not a custom JSON structure with 'status' and 'data' fields.",
+    "smoke": false,
+    "failure_mode": "faithfulness",
+    "notes": "Area: Successful prescription response. Bot gave a hypothetical non-FHIR JSON example that does not match the actual EPS API response format. Faithfulness should score low."
+  },
+  {
+    "id": "prescribing-token-documentation-link",
+    "query": "Please provide a documentation link where I can find the specific format of a prescribing token.",
+    "ground_truth": "The EPS assistant cannot provide direct links to external documentation in real time. For the specific format of a prescribing token, refer to the EPS FHIR API documentation provided by NHS Digital, the developer or integrator guide for the electronic prescribing system, or the official FHIR documentation from HL7 (Health Level Seven International).",
+    "smoke": false,
+    "skip_contextual": true,
+    "failure_mode": null,
+    "notes": "Area: Help finding documentation. Bot appropriately directed to official sources. Contextual metrics not applicable — answer is a redirect, not KB-grounded."
+  },
+  {
+    "id": "cancel-response-includes-pharmacy",
+    "query": "Does a Cancel request for a medication that has been downloaded include the pharmacy details of the pharmacy that downloaded the medication in the response?",
+    "ground_truth": "Yes. When a cancellation is unsuccessful because the prescription is already with a dispenser, the cancellation response includes information about the dispenser. This allows the prescriber to understand where the prescription is in its journey and to contact the dispenser if necessary.",
+    "smoke": false,
+    "failure_mode": null,
+    "notes": "Area: Cancel request. Bot was Correct."
+  },
+  {
+    "id": "long-form-prescription-id-field",
+    "query": "For MedicationRequest entry.resource.groupIdentifier.extension.valueIdentifier, what is the Long-form Prescription ID?",
+    "ground_truth": "The Long-form Prescription ID is represented by the value property within the valueIdentifier object. It is a required field. The system property within valueIdentifier provides the Codesystem URL for the long-form Prescription ID.",
+    "smoke": false,
+    "failure_mode": null,
+    "notes": "Area: Long form prescription ID. Bot response appeared accurate."
+  },
+  {
+    "id": "non-repudiation-patient-friendly-dosage",
+    "query": "For the non-repudiation screen, do we use the patient-friendly text for dosage information?",
+    "ground_truth": "Yes. The non-repudiation screen must include the patient communication text (patient-friendly dosage instructions) for each medication. The required prescription details on the screen include the medication drug name, endorsements, quantity, quantity in words (where appropriate for schedule 2/3 controlled drugs), unit of measure, dosage, notes, and patient communication text.",
+    "smoke": false,
+    "failure_mode": "faithfulness",
+    "notes": "Area: Dosage instructions. Bot was Incorrect: it said dosage instructions are not explicitly patient-friendly text."
+  },
+  {
+    "id": "api-multiple-callback-urls",
+    "query": "Can an API have multiple callback URLs?",
+    "ground_truth": "The EPS FHIR API documentation does not specifically discuss callback URLs. The documentation covers base URLs for different environments (sandbox, integration, production). Callback URLs are typically used in webhook or asynchronous operation contexts. Whether a given API supports multiple callback URLs depends on the specific API implementation and is not addressed in the EPS specification.",
+    "smoke": false,
+    "skip_contextual": true,
+    "failure_mode": null,
+    "notes": "Area: API callback URLs. Topic is not in the KB by design. Bot correctly noted EPS docs do not mention callback URLs."
+  },
+  {
+    "id": "dispense-reason-codes-004-005-009",
+    "query": "Confirm if dispensing systems are required to include an option for the user to select the MedicationDispenseReasonCodes 004, 005, and 009.",
+    "ground_truth": "Yes. Dispensing systems are required to handle non-dispensing reason codes including 004 (Clinically unsuitable), 005 (Owings note issued to patient), and 009 (Prescription cancellation due to death). These codes allow dispensing systems to accurately reflect the status of prescriptions and provide appropriate reasons for non-dispensing.",
+    "smoke": false,
+    "failure_mode": "faithfulness",
+    "notes": "Area: Medication dispense reason codes. Bot was Incorrect: it said it could not confirm from the documents, but the codes are defined in the specification."
+  }
+]

@@ -1,4 +1,4 @@
-.PHONY: install build test publish release clean lint cdk-synth
+.PHONY: install build test publish release clean lint cdk-synth eval-smoke eval-full
 
 install: install-python install-hooks install-node
 
@@ -59,6 +59,12 @@ deep-clean: clean
 	rm -rf .venv
 	rm -rf .poetry
 	find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +
+
+eval-smoke: guard-CHATBOT_STACK_NAME
+	cd packages/ragasEvaluation && PYTHONPATH=. poetry run python -m pytest -m smoke
+
+eval-full: guard-CHATBOT_STACK_NAME
+	cd packages/ragasEvaluation && PYTHONPATH=. poetry run python -m pytest
 
 cdk-deploy: guard-STACK_NAME
 	REQUIRE_APPROVAL="$${REQUIRE_APPROVAL:-any-change}" && \
