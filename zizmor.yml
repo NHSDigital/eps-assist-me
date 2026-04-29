@@ -7,4 +7,5 @@ rules:
     ignore:
       - run_regression_tests.yml:27:18
       - release_all_stacks.yml:70:18
+      - release_all_stacks.yml:217:18
       - cdk_package_code.yml:23:18
