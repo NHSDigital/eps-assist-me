@@ -506,7 +506,14 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
     try:
         user_id = event["user"]
         channel = event["channel"]
+        event_ts = event["event_ts"]
         conversation_key, thread_ts = conversation_key_and_root(event)
+
+        if channel and event_ts:
+            message_duplication_id = f"msg_{channel}_{event_ts}"
+            if is_duplicate_event(message_duplication_id):
+                logger.info(f"Skipping overlapping app_mention/message event: {message_duplication_id}")
+                return
 
         # Remove Slack user mentions from message text
         user_query = re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", event["text"]).strip()
