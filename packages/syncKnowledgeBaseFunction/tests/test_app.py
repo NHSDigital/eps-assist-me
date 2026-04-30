@@ -39,7 +39,7 @@ def lambda_context():
     context = Mock()
     context.function_name = "test-function"
     context.aws_request_id = "test-request-id"
-    context.getRemainingTimeInMillis.return_value = 5000
+    context.get_remaining_time_in_millis.return_value = 5000
     return context
 
 
