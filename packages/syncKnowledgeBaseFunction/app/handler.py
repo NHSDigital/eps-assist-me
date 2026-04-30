@@ -29,6 +29,7 @@ from slack_sdk.web import SlackResponse
 from functools import cached_property
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
 bedrock_agent = boto3.client("bedrock-agent")
 sqs = boto3.client("sqs")
@@ -572,17 +573,17 @@ class S3EventHandler:
         if valid_records:
             self.process_multiple_s3_events(records=valid_records, slack_handler=slack_handler)
 
-    def process_batched_queue_events(self, slack_handler: SlackHandler, events: list, context) -> list[str]:
+    def process_batched_queue_events(
+        self, slack_handler: SlackHandler, events: list, context: LambdaContext
+    ) -> list[str]:
         """Handle collection of batched queue events natively triggered by Lambda"""
         failed_message_ids = [event.get("messageId") for event in events]
 
         for i, event in enumerate(events):
             try:
-                remainingTimeInMillis = context.getRemainingTimeInMillis()
-                if remainingTimeInMillis < 1000:
-                    logger.warning(
-                        f"Context remaining time {remainingTimeInMillis}, returning all remaining events for retry"
-                    )
+                remaining_time = context.get_remaining_time_in_millis()
+                if remaining_time < 1000:
+                    logger.warning(f"Context remaining time {remaining_time}, returning all remaining events for retry")
                     break
                 body = json.loads(event.get("body", "{}"))
                 sqs_records = body.get("Records", [])
