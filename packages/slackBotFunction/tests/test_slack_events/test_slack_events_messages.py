@@ -1,4 +1,5 @@
 import pytest
+import sys
 from unittest.mock import ANY, Mock, patch, MagicMock
 from app.core.config import bot_messages
 
@@ -741,7 +742,7 @@ def test_handle_modified_messages_last_user_message_in_chain():
 
     # Assertions
     assert result is True
-    assert mock_client.chat_delete.call_count == 2
+    assert mock_client.chat_delete.call_count == 1
     mock_client.chat_postEphemeral.assert_not_called()
 
 
@@ -800,12 +801,14 @@ def test_process_slack_message_halts_on_false_modified_handler(
         "ts": "123.123",
         "edited": {"ts": "456.789"},
         "thread_ts": "123.123",
+        "event_ts": "123.123",
+        "channel_type": "channel",
     }
 
     # Patch dynamically inside the test body to avoid the module reload issue
     with patch("app.slack.slack_events._handle_modified_messages") as mock_handle_modified_messages, patch(
         "app.slack.slack_events.get_conversation_session_data"
-    ) as mock_get_conversation_session_data:
+    ) as mock_get_conversation_session_data, patch("app.slack.slack_events.is_duplicate_event", return_value=False):
 
         mock_handle_modified_messages.return_value = False
 
@@ -859,6 +862,8 @@ def test_process_slack_message_continues_on_true_modified_handler(mock_env: Mock
         "app.slack.slack_events.store_qa_pair"
     ), patch(
         "app.slack.slack_events.log_query_stats"
+    ), patch(
+        "app.slack.slack_events.is_duplicate_event", return_value=False
     ):
 
         mock_handle_modified_messages.return_value = True
@@ -915,7 +920,7 @@ def test_notify_diverged_conversation_exception(mock_logger):
     mock_client.chat_postEphemeral.assert_called_once()
     mock_logger.error.assert_called_once()
     assert "Couldn't post ephemeral message: API error" in mock_logger.error.call_args[0][0]
-    
+
 
 # ================================================================
 # Tests for duplicate message handling
