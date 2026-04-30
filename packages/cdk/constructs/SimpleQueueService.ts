@@ -48,7 +48,7 @@ export class SimpleQueueService extends Construct {
         encryptionMasterKey: kmsKey,
         deadLetterQueue: {
           queue: deadLetterQueue,
-          maxReceiveCount: 1 // Move to DLQ after a failed attempt
+          maxReceiveCount: 3
         },
         deliveryDelay: Duration.seconds(10),
         visibilityTimeout: Duration.hours(1), // Really high visibility to prevent multiple calls
@@ -59,7 +59,8 @@ export class SimpleQueueService extends Construct {
     // Add queues as event source for the notify function and sync knowledge base function
     const eventSource = new SqsEventSource(queue, {
       maxBatchingWindow: Duration.seconds(30),
-      batchSize: 20
+      batchSize: 10,
+      reportBatchItemFailures: true
     })
 
     props.functions.forEach(fn => {

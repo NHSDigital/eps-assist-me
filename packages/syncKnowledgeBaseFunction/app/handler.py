@@ -572,24 +572,37 @@ class S3EventHandler:
         if valid_records:
             self.process_multiple_s3_events(records=valid_records, slack_handler=slack_handler)
 
-    def process_batched_queue_events(self, slack_handler: SlackHandler, events: list):
-        """Handle collection of batched queue events"""
+    def process_batched_queue_events(self, slack_handler: SlackHandler, events: list, context) -> list[str]:
+        """Handle collection of batched queue events natively triggered by Lambda"""
+        failed_message_ids = [event.get("messageId") for event in events]
+
         for i, event in enumerate(events):
             try:
+                remainingTimeInMillis = context.getRemainingTimeInMillis()
+                if remainingTimeInMillis < 1000:
+                    logger.warning(
+                        f"Context remaining time {remainingTimeInMillis}, returning all remaining events for retry"
+                    )
+                    break
                 body = json.loads(event.get("body", "{}"))
                 sqs_records = body.get("Records", [])
 
                 if not sqs_records:
-                    logger.warning("No records in event")
+                    logger.warning("No records in event body")
                     continue
 
                 logger.info(f"Processing {len(sqs_records)} record(s)")
-
                 self.process_multiple_sqs_events(slack_handler, sqs_records)
-            except Exception as e:
-                logger.error("Failed to process queue events", extra={"Exception": e})
 
-        logger.info(f"Completed {len(sqs_records)} event(s)")
+                # Remove successful event from failed Ids
+                message_id = event.get("messageId")
+                if message_id:
+                    failed_message_ids.remove(message_id)
+            except Exception as e:
+                logger.error("Failed to process queue event", extra={"Exception": e})
+
+        logger.info(f"Completed processing batch of {len(events)} SQS event(s)")
+        return failed_message_ids
 
     @staticmethod
     def close_sqs_events(events):
@@ -629,42 +642,32 @@ class S3EventHandler:
         return events
 
 
-def search_and_process_sqs_events(event):
+def process_events(event, context) -> list[str]:
     """
-    Check if there are waiting SQS events.
-    While SQS keep appearing, keep looking - limit to 20 iterations.
+    Process the exact batch of SQS events provided by the Lambda trigger.
     """
-    events = event.get("Records", [])
-    loop_count = 20
+    sqs_records = event.get("Records", [])
+    if not sqs_records:
+        logger.info("No SQS records found in trigger event.")
+        return []
 
-    s3_event_handler = S3EventHandler()
-
-    is_silent = not get_bot_active()  # Mute Slack for PRs
-    slack_handler = SlackHandler(silent=is_silent)
-    slack_handler.initialise_slack_messages(s3_event_handler=s3_event_handler)
+    failed_ids = []
 
     try:
-        for i in range(loop_count):
-            logger.info(f"Starting process round {i + 1}")
+        s3_event_handler = S3EventHandler()
+        is_silent = not get_bot_active()
+        slack_handler = SlackHandler(silent=is_silent)
+        slack_handler.initialise_slack_messages(s3_event_handler=s3_event_handler)
 
-            # If we don't have events in hand, search the queue
-            if not events:
-                break
-
-            # If we have events (either from the initial seed or the search above), process them
-            if events and len(events) > 0:
-                logger.info("Found events, process")
-                s3_event_handler.process_batched_queue_events(slack_handler, events)
-                if i > 0:  # Only close if fetched, not received
-                    s3_event_handler.close_sqs_events(events)
-
-            # Clear the list so the NEXT loop iteration knows to search again
-            logger.info("Search for any prompts left in the queue")
-            events = s3_event_handler.search_sqs_for_events()
+        logger.info(f"Starting process for {len(sqs_records)} triggered records")
+        failed_ids = s3_event_handler.process_batched_queue_events(slack_handler, sqs_records, context)
     except Exception as e:
-        logger.error("Failed processing sqs events", extra={"Exception": e})
+        slack_handler.complete_plan()
+        logger.error("Critical failure during batch processing", extra={"Exception": e})
+        raise e  # Let the top-level handler catch it and fail the whole execution
 
     slack_handler.complete_plan()
+    return failed_ids
 
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)
@@ -678,12 +681,11 @@ def handler(event, context):
         logger.exception(
             "Missing required environment variables",
             extra={
-                "status_code": 500,
                 "knowledge_base_id": bool(KNOWLEDGEBASE_ID),
                 "data_source_id": bool(DATA_SOURCE_ID),
             },
         )
-        return {"statusCode": 500, "body": "Configuration error"}
+        raise ValueError("Configuration error: Missing KNOWLEDGEBASE_ID or DATA_SOURCE_ID")
 
     logger.info(
         "Starting knowledge base sync process",
@@ -694,24 +696,25 @@ def handler(event, context):
     )
 
     try:
-        search_and_process_sqs_events(event)
+        # Get the list of failed message IDs
+        failed_ids = process_events(event, context)
 
         total_duration = time.time() - start_time
-        logger.info("Completed search and processing of sqs events", extra={"process_time": total_duration})
-        return {
-            "statusCode": 200,
-            "body": ("Successfully polled and processed sqs events"),
-        }
+        logger.info("Completed processing of SQS events", extra={"process_time": total_duration})
+
+        # Return the specific JSON schema required by SQS for partial batch responses
+        return {"batchItemFailures": [{"itemIdentifier": msg_id} for msg_id in failed_ids]}
+
     except Exception as e:
-        # Handle unexpected errors
         logger.error(
-            "Unexpected error occurred",
+            "Unexpected error occurred. Failing entire batch.",
             extra={
-                "status_code": 500,
                 "error_type": type(e).__name__,
                 "error_message": str(e),
                 "duration_ms": round((time.time() - start_time) * 1000, 2),
                 "error": traceback.format_exc(),
             },
         )
-        return {"statusCode": 500, "body": f"Unexpected error: {str(e)}"}
+        # Re-raise the exception so SQS knows the entire execution failed
+        # and retries the whole batch according to the maxReceiveCount.
+        raise e
