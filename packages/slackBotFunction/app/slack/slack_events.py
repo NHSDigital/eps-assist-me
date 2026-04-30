@@ -514,25 +514,6 @@ def _notify_diverged_conversation(client, channel: str, user_id: str, thread_ts:
         )
 
 
-def _delete_subsequent_replies(client, channel: str, messages: list, event_id: str) -> int:
-    """Helper to iterate through and delete bot replies."""
-    deleted_count = 0
-    for reply in messages:
-        reply_ts = reply.get("ts")
-        if not reply_ts:
-            continue
-
-        try:
-            client.chat_delete(channel=channel, ts=reply_ts)
-            deleted_count += 1
-        except Exception as e:
-            logger.error(
-                f"Couldn't delete message: {e}",
-                extra={"event_id": event_id, "error": traceback.format_exc()},
-            )
-    return deleted_count
-
-
 def _handle_modified_messages(
     client,  # Type hint with your WebClient
     channel: str,
@@ -567,8 +548,15 @@ def _handle_modified_messages(
             extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
         )
 
-        deleted_count = _delete_subsequent_replies(client, channel, subsequent_messages, event_id)
-        logger.info(f"Deleted {deleted_count} replies")
+        reply_ts = subsequent_messages[-1].get("ts")
+        if reply_ts:
+            try:
+                client.chat_delete(channel=channel, ts=reply_ts)
+            except Exception as e:
+                logger.error(
+                    f"Couldn't delete message: {e}",
+                    extra={"event_id": event_id, "error": traceback.format_exc()},
+                )
 
         return True
 
