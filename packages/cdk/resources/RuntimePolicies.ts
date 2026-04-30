@@ -18,6 +18,9 @@ export interface RuntimePoliciesProps {
   readonly reformulationModelId: string
   readonly docsBucketArn: string
   readonly docsBucketKmsKeyArn: string
+  readonly secretsKmsKeyArn: string
+  readonly slackBotTokenSecretArn: string
+  readonly slackSigningSecretArn: string
 }
 
 export class RuntimePolicies extends Construct {
@@ -65,6 +68,14 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
+    const slackBotSecretPolicy = new PolicyStatement({
+      actions: ["secretsmanager:GetSecretValue"],
+      resources: [
+        props.slackBotTokenSecretArn,
+        props.slackSigningSecretArn
+      ]
+    })
+
     const slackBotLambdaPolicy = new PolicyStatement({
       actions: ["lambda:InvokeFunction"],
       resources: [`arn:aws:lambda:${props.region}:${props.account}:function:epsam*`]
@@ -97,7 +108,7 @@ export class RuntimePolicies extends Construct {
         "kms:GenerateDataKey",
         "kms:DescribeKey"
       ],
-      resources: [props.slackBotStateTableKmsKeyArn]
+      resources: [props.slackBotStateTableKmsKeyArn, props.secretsKmsKeyArn]
     })
 
     const slackBotDescribeCfStacks = new PolicyStatement({
@@ -116,6 +127,7 @@ export class RuntimePolicies extends Construct {
         slackBotPromptPolicy,
         slackBotKnowledgeBasePolicy,
         slackBotSSMPolicy,
+        slackBotSecretPolicy,
         slackBotLambdaPolicy,
         slackBotGuardrailPolicy,
         slackBotDynamoDbPolicy,
@@ -144,6 +156,14 @@ export class RuntimePolicies extends Construct {
       ]
     })
 
+    const syncKnowledgeBaseSecretPolicy = new PolicyStatement({
+      actions: ["secretsmanager:GetSecretValue"],
+      resources: [
+        props.slackBotTokenSecretArn,
+        props.slackSigningSecretArn
+      ]
+    })
+
     const knowledgeSyncDynamoDbPolicy = new PolicyStatement({
       actions: [
         "dynamodb:GetItem",
@@ -166,7 +186,7 @@ export class RuntimePolicies extends Construct {
         "kms:GenerateDataKey",
         "kms:DescribeKey"
       ],
-      resources: [props.knowledgeSyncStateTableKmsKeyArn]
+      resources: [props.knowledgeSyncStateTableKmsKeyArn, props.secretsKmsKeyArn]
     })
 
     this.syncKnowledgeBasePolicy = new ManagedPolicy(this, "SyncKnowledgeBasePolicy", {
@@ -174,6 +194,7 @@ export class RuntimePolicies extends Construct {
       statements: [
         syncKnowledgeBaseBedrockPolicy,
         syncKnowledgeBaseSSMPolicy,
+        syncKnowledgeBaseSecretPolicy,
         knowledgeSyncDynamoDbPolicy,
         knowledgeSyncKmsPolicy
       ]

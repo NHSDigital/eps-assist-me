@@ -168,7 +168,10 @@ export class EpsAssistMeStack extends Stack {
       docsBucketArn: storage.kbDocsBucket.bucketArn,
       docsBucketKmsKeyArn: storage.kbDocsKmsKey.keyArn,
       knowledgeSyncStateTableArn: tables.knowledgeSyncStateTable.table.tableArn,
-      knowledgeSyncStateTableKmsKeyArn: tables.knowledgeSyncStateTable.kmsKey.keyArn
+      knowledgeSyncStateTableKmsKeyArn: tables.knowledgeSyncStateTable.kmsKey.keyArn,
+      secretsKmsKeyArn: secrets.secretsKmsKey.keyArn,
+      slackBotTokenSecretArn: secrets.slackBotTokenSecret.secretArn,
+      slackSigningSecretArn: secrets.slackBotSigningSecret.secretArn
     })
 
     // Create Functions construct with actual values from VectorKB
