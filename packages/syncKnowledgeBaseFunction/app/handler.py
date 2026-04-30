@@ -575,16 +575,19 @@ class S3EventHandler:
     def process_batched_queue_events(self, slack_handler: SlackHandler, events: list):
         """Handle collection of batched queue events"""
         for i, event in enumerate(events):
-            body = json.loads(event.get("body", "{}"))
-            sqs_records = body.get("Records", [])
+            try:
+                body = json.loads(event.get("body", "{}"))
+                sqs_records = body.get("Records", [])
 
-            if not sqs_records:
-                logger.warning("No records in event")
-                continue
+                if not sqs_records:
+                    logger.warning("No records in event")
+                    continue
 
-            logger.info(f"Processing {len(sqs_records)} record(s)")
+                logger.info(f"Processing {len(sqs_records)} record(s)")
 
-            self.process_multiple_sqs_events(slack_handler, sqs_records)
+                self.process_multiple_sqs_events(slack_handler, sqs_records)
+            except Exception as e:
+                logger.error("Failed to process queue events", extra={"Exception": e})
 
         logger.info(f"Completed {len(sqs_records)} event(s)")
 
@@ -640,23 +643,26 @@ def search_and_process_sqs_events(event):
     slack_handler = SlackHandler(silent=is_silent)
     slack_handler.initialise_slack_messages(s3_event_handler=s3_event_handler)
 
-    for i in range(loop_count):
-        logger.info(f"Starting process round {i + 1}")
+    try:
+        for i in range(loop_count):
+            logger.info(f"Starting process round {i + 1}")
 
-        # If we don't have events in hand, search the queue
-        if not events:
-            break
+            # If we don't have events in hand, search the queue
+            if not events:
+                break
 
-        # If we have events (either from the initial seed or the search above), process them
-        if events and len(events) > 0:
-            logger.info("Found events, process")
-            s3_event_handler.process_batched_queue_events(slack_handler, events)
-            if i > 0:  # Only close if fetched, not received
-                s3_event_handler.close_sqs_events(events)
+            # If we have events (either from the initial seed or the search above), process them
+            if events and len(events) > 0:
+                logger.info("Found events, process")
+                s3_event_handler.process_batched_queue_events(slack_handler, events)
+                if i > 0:  # Only close if fetched, not received
+                    s3_event_handler.close_sqs_events(events)
 
-        # Clear the list so the NEXT loop iteration knows to search again
-        logger.info("Search for any prompts left in the queue")
-        events = s3_event_handler.search_sqs_for_events()
+            # Clear the list so the NEXT loop iteration knows to search again
+            logger.info("Search for any prompts left in the queue")
+            events = s3_event_handler.search_sqs_for_events()
+    except Exception as e:
+        logger.error("Failed processing sqs events", extra={"Exception": e})
 
     slack_handler.complete_plan()
 
