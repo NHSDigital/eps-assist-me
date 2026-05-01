@@ -17,7 +17,6 @@ from app.config.config import (
     KNOWLEDGEBASE_ID,
     DATA_SOURCE_ID,
     SUPPORTED_FILE_TYPES,
-    SQS_URL,
     KNOWLEDGE_SYNC_STATE_TABLE,
     get_bot_active,
     get_bot_token,
@@ -32,7 +31,6 @@ from boto3.dynamodb.conditions import Key
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 bedrock_agent = boto3.client("bedrock-agent")
-sqs = boto3.client("sqs")
 
 TaskStatus = Literal["in_progress", "complete"]
 
@@ -46,11 +44,14 @@ class DynamoDbHandler:
         return dynamodb.Table(KNOWLEDGE_SYNC_STATE_TABLE)
 
     def save_message(self, user_id, channel_id, ts):
-        """Saves a new message with default counters set to 0."""
-        return self.update_message(user_id, channel_id, ts, 0, 0, 0)
+        """Saves a new message with default counters set to 0 and an empty document list."""
+        return self.update_message(user_id, channel_id, ts, 0, 0, 0, [])
 
-    def update_message(self, user_id, channel_id, ts, created, modified, deleted):
-        """Updates an existing message or creates one with specific counters."""
+    def update_message(self, user_id, channel_id, ts, created, modified, deleted, document_names=None):
+        """Updates an existing message or creates one with specific counters and documents."""
+        if document_names is None:
+            document_names = []
+
         item = {
             "user_channel_composite": f"{user_id}#{channel_id}",
             "user_id": user_id,
@@ -59,6 +60,7 @@ class DynamoDbHandler:
             "created": created,
             "modified": modified,
             "deleted": deleted,
+            "document_names": document_names,
         }
 
         try:
@@ -231,7 +233,10 @@ class SlackHandler:
 
             self.update_message(channel_id=channel_id, ts=ts, blocks=blocks)
 
-    def update_task_db(self, created, modified, deleted):
+    def update_task_db(self, created, modified, deleted, document_names=None):
+        if document_names is None:
+            document_names = []
+
         try:
             for slack_message in self.messages:
                 channel_id = slack_message["channel"]
@@ -245,6 +250,7 @@ class SlackHandler:
                         "records_created": created,
                         "records_modified": modified,
                         "records_deleted": deleted,
+                        "document_count": len(document_names),
                     },
                 )
 
@@ -256,6 +262,7 @@ class SlackHandler:
                     created=created,
                     modified=modified,
                     deleted=deleted,
+                    document_names=document_names,
                 )
         except Exception as e:
             # Handle unexpected errors
@@ -280,8 +287,8 @@ class SlackHandler:
         channel_ids = []
         try:
             for result in self.slack_client.conversations_list(types=["private_channel"], limit=1000):
-                for channel in result["channels"]:
-                    channel_ids.append(channel["id"])
+                # Filters out archived channels and extracts the ID
+                channel_ids.extend(c["id"] for c in result["channels"] if not c["is_archived"])
         except Exception as e:
             logger.error(f"Network error listing channels: {str(e)}")
             return []
@@ -320,6 +327,11 @@ class SlackHandler:
                 s3_event_handler.created = int(latest_message.get("created", 0))
                 s3_event_handler.modified = int(latest_message.get("modified", 0))
                 s3_event_handler.deleted = int(latest_message.get("deleted", 0))
+
+                existing_docs = latest_message.get("document_names", [])
+                for doc in existing_docs:
+                    if doc not in s3_event_handler.document_names:
+                        s3_event_handler.document_names.append(doc)
 
                 default = self.create_default_response(
                     channel_id=channel_id, user_id=user_id, ts=last_ts, blocks=blocks
@@ -517,20 +529,27 @@ class S3EventHandler:
                     self.document_names.append(file_name)
 
         if self.document_names:
+            # Only show last three
+            display_names = self.document_names[-3:]
+            remaining_count = len(self.document_names) - 3
+
+            message_text = "\n".join(display_names)
+            if remaining_count > 0:
+                message_text += f"\nAnd {remaining_count} more"
+
+            total = self.created + self.modified + self.deleted
+            output_message = f"Processed {total} file {'update' if total == 1 else 'updates'}"
+
             slack_handler.update_task(
-                id=slack_handler.update_block_id, message="Update pending", output_message="Processing...", replace=True
+                id=slack_handler.update_block_id, message=message_text, output_message=output_message, replace=True
             )
-            for i, name in enumerate(self.document_names):
-                total = self.created + self.modified + self.deleted
-                output_message = (
-                    f"Processed {total} file {'update' if total == 1 else 'updates'}"
-                    if (i + 1 == len(self.document_names))
-                    else None
-                )
-                slack_handler.update_task(
-                    id=slack_handler.update_block_id, message=name, output_message=output_message, replace=(i == 0)
-                )
-            slack_handler.update_task_db(created=self.created, modified=self.modified, deleted=self.deleted)
+
+            slack_handler.update_task_db(
+                created=self.created,
+                modified=self.modified,
+                deleted=self.deleted,
+                document_names=self.document_names,  # Pass the combined list
+            )
 
     @staticmethod
     def start_ingestion_job():
@@ -581,6 +600,8 @@ class S3EventHandler:
 
         for i, event in enumerate(events):
             try:
+                # Safely return incomplete items before timeout
+                # "Failed" items will be processed in the retry
                 remaining_time = context.get_remaining_time_in_millis()
                 if remaining_time < 1000:
                     logger.warning(f"Context remaining time {remaining_time}, returning all remaining events for retry")
@@ -604,43 +625,6 @@ class S3EventHandler:
 
         logger.info(f"Completed processing batch of {len(events)} SQS event(s)")
         return failed_message_ids
-
-    @staticmethod
-    def close_sqs_events(events):
-        logger.info(f"Closing {len(events)} sqs events")
-        for event in events:
-            receipt_handle = event.get("receiptHandle") or event.get("ReceiptHandle")
-
-            if not receipt_handle:
-                logger.warning("No receipt handle found in event, skipping deletion.")
-                continue
-
-            try:
-                sqs.delete_message(QueueUrl=SQS_URL, ReceiptHandle=receipt_handle)
-                logger.info("Successfully deleted sqs message from queue")
-            except Exception as e:
-                logger.error("Failed to delete sqs message from queue", extra={"Exception": e})
-
-    @staticmethod
-    def search_sqs_for_events():
-        logger.info("Searching for new events")
-        response = sqs.receive_message(QueueUrl=SQS_URL, MaxNumberOfMessages=10, WaitTimeSeconds=20)
-
-        events = []
-        messages = response.get("Messages", [])
-        if not messages:
-            logger.warning("No messages found", extra={"response": response, "messages": messages})
-            return events
-
-        logger.info(f"Found {len(messages)} messages in SQS", extra={"response": response, "messages": messages})
-        for message in messages:
-            body = message.get("Body", "{}")
-            message_events = json.loads(body)
-            if message_events:
-                events.append({"body": message.get("Body", "{}"), "receiptHandle": message.get("ReceiptHandle")})
-
-        logger.info(f"Found {len(messages)} total event(s) in SQS messages")
-        return events
 
 
 def process_events(event, context) -> list[str]:

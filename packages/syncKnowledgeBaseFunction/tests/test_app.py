@@ -305,7 +305,7 @@ def test_handler_slack_success(
     mock_get_bot_token.return_value = "test-bot-token"
 
     mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
-    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456", "is_archived": False}]}]
 
     def mock_post_message_side_effect(**kwargs):
         return {
@@ -334,7 +334,7 @@ def test_handler_slack_success(
     mock_slack_client.auth_test.assert_called_once()
     mock_slack_client.conversations_list.assert_called_once_with(types=["private_channel"], limit=1000)
     mock_slack_client.chat_postMessage.assert_called_once()
-    assert mock_slack_client.chat_update.call_count == 3
+    assert mock_slack_client.chat_update.call_count == 2
 
 
 @patch("app.config.config.get_bot_active")
@@ -366,7 +366,7 @@ def test_handler_slack_silent_success(
     mock_get_bot_active.return_value = False
 
     mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
-    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "123456"}]}]
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "123456", "is_archived": False}]}]
 
     if "app.handler" in sys.modules:
         del sys.modules["app.handler"]
@@ -653,7 +653,7 @@ def test_process_s3_event_formatting(
     mock_get_bot_token.return_value = "test-bot-token"
 
     mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
-    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456", "is_archived": False}]}]
 
     def mock_post_message_side_effect(**kwargs):
         return {
@@ -674,7 +674,6 @@ def test_process_s3_event_formatting(
 
     assert result == {"batchItemFailures": []}
 
-    # UPDATED: Expect the timestamp to be 1001
     mock_bedrock.start_ingestion_job.assert_has_calls(
         [call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1001")]
     )
@@ -712,7 +711,7 @@ def test_process_multiple_s3_event_formatting(
     mock_get_bot_token.return_value = "test-bot-token"
 
     mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
-    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456", "is_archived": False}]}]
 
     def mock_post_message_side_effect(**kwargs):
         return {
@@ -733,7 +732,6 @@ def test_process_multiple_s3_event_formatting(
 
     assert result == {"batchItemFailures": []}
 
-    # UPDATED: Expect the timestamp to be 1001, and only called once per batch.
     mock_bedrock.start_ingestion_job.assert_has_calls(
         [call(knowledgeBaseId="test-kb-id", dataSourceId="test-ds-id", description="1001")]
     )
@@ -742,10 +740,14 @@ def test_process_multiple_s3_event_formatting(
     assert len(calls) > 0, "Expected chat_update to be called."
 
     last_call_blocks_str = str(calls[-1].kwargs.get("blocks", []))
+
     assert "file1.pdf" in last_call_blocks_str
-    assert "file4.pdf" in last_call_blocks_str
     assert "file2.pdf" in last_call_blocks_str
     assert "file3.pdf" in last_call_blocks_str
+
+    # file4.pdf is truncated out because it's the first in the mocked batch of 4
+    assert "file4.pdf" not in last_call_blocks_str
+    assert "And 1 more" in last_call_blocks_str
 
 
 @patch("boto3.client")
@@ -830,6 +832,7 @@ def test_dynamodb_handler_save_last_message(mock_boto, mock_boto_resource, mock_
             "created": 0,
             "modified": 0,
             "deleted": 0,
+            "document_names": [],
         }
     )
 
@@ -862,7 +865,6 @@ def test_handler_slack_skip_recent_update(
     mock_env,
     lambda_context,
     receive_s3_event,
-    mock_dynamo_resource,
 ):
     mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
 
@@ -876,7 +878,7 @@ def test_handler_slack_skip_recent_update(
     mock_get_bot_token.return_value = "test-bot-token"
 
     mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
-    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456", "is_archived": False}]}]
     mock_slack_client.chat_update.return_value = {"ok": True}
     mock_slack_client.create_default_response = {}
 
@@ -886,7 +888,7 @@ def test_handler_slack_skip_recent_update(
 
     with patch("app.handler.DynamoDbHandler") as mock_db_class:
         mock_db_instance = mock_db_class.return_value
-        mock_db_instance.get_sync_state.return_value = {"last_ts": 1000}
+        mock_db_instance.get_sync_state.return_value = {"last_ts": 1000, "document_names": ["previous_file.pdf"]}
 
         result = handler(receive_s3_event, lambda_context)
 
@@ -915,7 +917,6 @@ def test_handler_slack_use_recent_update(
     mock_env,
     lambda_context,
     receive_s3_event,
-    mock_dynamo_resource,
 ):
     mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
 
@@ -929,7 +930,7 @@ def test_handler_slack_use_recent_update(
     mock_get_bot_token.return_value = "test-bot-token"
 
     mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
-    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456"}]}]
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456", "is_archived": False}]}]
     mock_slack_client.chat_update.return_value = {"ok": True}
     mock_slack_client.create_default_response = {}
 
@@ -939,7 +940,7 @@ def test_handler_slack_use_recent_update(
 
     with patch("app.handler.DynamoDbHandler") as mock_db_class:
         mock_db_instance = mock_db_class.return_value
-        mock_db_instance.get_sync_state.return_value = {"last_ts": 1}
+        mock_db_instance.get_sync_state.return_value = {"last_ts": 1, "document_names": ["old_file.pdf"]}
 
         result = handler(receive_s3_event, lambda_context)
 
@@ -965,7 +966,7 @@ def test_handler_timeout_scenario(mock_boto_client, mock_initialise_slack, mock_
     # Create a context that is about to timeout (e.g., 500ms remaining)
     timeout_context = Mock()
     timeout_context.function_name = "test-function"
-    timeout_context.getRemainingTimeInMillis.return_value = 500
+    timeout_context.get_remaining_time_in_millis.return_value = 500
 
     from app.handler import handler
 
