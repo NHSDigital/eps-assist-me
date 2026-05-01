@@ -37,7 +37,7 @@ export class EpsAssistMeStack extends Stack {
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
     const deploymentRoleImport = Fn.importValue("iam-cdk:IAM:CloudFormationDeployRole:Arn")
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
-    const regressionTestRoleArn = Fn.importValue("iam-stack:IAM:AssistMeRegressionTestRole:Arn")
+    const regressionTestRoleArn = Fn.importValue("iam-cdk:IAM:AssistMeRegressionTestRole:Arn")
     const auditLoggingBucketImport = Fn.importValue("account-resources-cdk-uk:Bucket:AuditLoggingBucket:Arn")
 
     // document sync role
