@@ -22,7 +22,7 @@ def test_get_friendly_channel_name_returns_name_for_public_channel():
     assert result == "general"
 
 
-def test_log_query_stats_masks_dm_channel(mock_env, mock_get_parameter):
+def test_log_query_stats_masks_dm_channel():
     # reload module to ensure clean state and correct patching
     if "app.slack.slack_events" in sys.modules:
         del sys.modules["app.slack.slack_events"]
@@ -47,12 +47,16 @@ def test_log_query_stats_masks_dm_channel(mock_env, mock_get_parameter):
         mock_client.conversations_info.assert_not_called()
 
 
-def test_process_slack_message_log_privacy(mock_env, mock_get_parameter):
+def test_process_slack_message_log_privacy():
     if "app.slack.slack_events" in sys.modules:
         del sys.modules["app.slack.slack_events"]
 
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+
     from app.slack.slack_events import process_slack_message
     import app.slack.slack_events
+    import app.utils.handler_utils
 
     with patch.object(app.slack.slack_events, "logger") as mock_logger, patch.object(
         app.slack.slack_events, "conversation_key_and_root", return_value=("key", "ts")
@@ -60,7 +64,11 @@ def test_process_slack_message_log_privacy(mock_env, mock_get_parameter):
         app.slack.slack_events, "get_friendly_channel_name"
     ), patch.object(
         app.slack.slack_events, "process_ai_query"
-    ) as mock_process_ai:
+    ) as mock_process_ai, patch.object(
+        app.slack.slack_events, "is_duplicate_event", return_value=False
+    ), patch.object(
+        app.slack.slack_events, "store_qa_pair"
+    ):
 
         mock_client = Mock()
         mock_client.chat_postMessage.return_value = {"ts": "123"}

@@ -319,7 +319,11 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
     logger.debug("Checking if should reply to message", extra={"event": event, "client": client})
 
     # we don't reply to non-threaded messages in group chats
-    if event.get("channel_type") == "group" and event.get("type") == "message" and event.get("thread_ts") is None:
+    if (
+        (event.get("channel_type") == "group" or event.get("channel_type") == "channel")
+        and event.get("type") == "message"
+        and event.get("thread_ts") is None
+    ):
         return False
 
     # for channel or group threads, check if bot was mentioned anywhere in the thread history

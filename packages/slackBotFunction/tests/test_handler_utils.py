@@ -76,7 +76,7 @@ def test_is_latest_message_exception(mock_get_state_information: Mock):
     assert result is False
 
 
-def test_gate_common_missing_event_id(mock_env: Mock):
+def test_gate_common_missing_event_id():
     """Test _gate_common with missing event_id"""
     # setup mocks
 
@@ -95,7 +95,7 @@ def test_gate_common_missing_event_id(mock_env: Mock):
     assert result is None
 
 
-def test_gate_common_bot_message(mock_env: Mock):
+def test_gate_common_bot_message():
     """Test _gate_common with bot message"""
     # setup mocks
 
@@ -114,7 +114,7 @@ def test_gate_common_bot_message(mock_env: Mock):
     assert result is None
 
 
-def test_gate_common_subtype_message(mock_env: Mock):
+def test_gate_common_subtype_message():
     """Test _gate_common with subtype message"""
     # setup mocks
 
@@ -133,7 +133,7 @@ def test_gate_common_subtype_message(mock_env: Mock):
     assert result is None
 
 
-def test_strip_mentions_with_alias(mock_env: Mock):
+def test_strip_mentions_with_alias():
     """Test _strip_mentions with user alias"""
     # setup mocks
     # delete and import module to test
@@ -149,7 +149,7 @@ def test_strip_mentions_with_alias(mock_env: Mock):
     assert result == "hello world"
 
 
-def test_gate_common_empty_vars(mock_env: Mock):
+def test_gate_common_empty_vars():
     """Test that empty feedback doesn't crash"""
     # set up mocks
 
@@ -165,7 +165,7 @@ def test_gate_common_empty_vars(mock_env: Mock):
     assert result is None
 
 
-def test_gate_common_populated_vars(mock_env: Mock):
+def test_gate_common_populated_vars():
     """Test that empty feedback doesn't crash"""
     # set up mocks
 
@@ -181,7 +181,7 @@ def test_gate_common_populated_vars(mock_env: Mock):
     assert result is None
 
 
-def test_strip_mentions(mock_env: Mock):
+def test_strip_mentions():
     """Test that empty feedback doesn't crash"""
     # set up mocks
 
@@ -197,7 +197,7 @@ def test_strip_mentions(mock_env: Mock):
     assert result == "hello world"
 
 
-def test_extract_key_and_root(mock_env: Mock):
+def test_extract_key_and_root():
     """Test that empty feedback doesn't crash"""
     # set up mocks
 
@@ -215,10 +215,7 @@ def test_extract_key_and_root(mock_env: Mock):
     assert root == "456"
 
 
-def test_respond_with_eyes_on_success(
-    mock_env: Mock,
-    mock_get_parameter: Mock,
-):
+def test_respond_with_eyes_on_success():
     """Test that respond with eyes"""
     # set up mocks
     mock_client = Mock()
@@ -236,10 +233,7 @@ def test_respond_with_eyes_on_success(
     # just need to make sure it does not error
 
 
-def test_respond_with_eyes_on_failure(
-    mock_env: Mock,
-    mock_get_parameter: Mock,
-):
+def test_respond_with_eyes_on_failure():
     """Test that respond with eyes"""
     # set up mocks
     mock_client = Mock()
@@ -259,10 +253,7 @@ def test_respond_with_eyes_on_failure(
 
 
 @patch("app.services.dynamo.store_state_information")
-def test_is_duplicate_event_returns_true_when_conditional_check_fails(
-    mock_store_state_information: Mock,
-    mock_env: Mock,
-):
+def test_is_duplicate_event_returns_true_when_conditional_check_fails(mock_store_state_information: Mock):
     """Test duplicate event detection with conditional put"""
     # set up mocks
     error = ClientError(error_response={"Error": {"Code": "ConditionalCheckFailedException"}}, operation_name="PutItem")
@@ -304,21 +295,15 @@ def test_is_duplicate_event_client_error(
 
 @patch("app.services.dynamo.store_state_information")
 def test_is_duplicate_event_no_item(
-    mock_store_state_information: Mock,
+    mock_store_state_information: Mock,  # <-- This was missing!
     mock_env: Mock,
 ):
     """Test is_duplicate_event when no item exists (successful put)"""
-    # set up mocks
-
-    # delete and import module to test
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
     from app.utils.handler_utils import is_duplicate_event
 
-    # perform operation
     result = is_duplicate_event("test-event")
-
-    # assertions
     assert result is False
 
 
@@ -361,7 +346,7 @@ def test_extract_pull_request_id_extracts_when_there_is_a_mention():
     assert text == "<@U123> some question"
 
 
-def test_was_bot_mentioned_in_thread_root_with_mention(mock_env: Mock):
+def test_was_bot_mentioned_in_thread_root_with_mention():
     """test that was_bot_mentioned_in_thread_root returns true when this bot is mentioned"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
@@ -380,7 +365,7 @@ def test_was_bot_mentioned_in_thread_root_with_mention(mock_env: Mock):
     mock_client.conversations_replies.assert_called_once_with(channel="C123", ts="1234567890.123456", inclusive=True)
 
 
-def test_was_bot_mentioned_in_thread_root_without_mention(mock_env: Mock):
+def test_was_bot_mentioned_in_thread_root_without_mention():
     """test that was_bot_mentioned_in_thread_root returns false when bot is not mentioned"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
@@ -398,7 +383,7 @@ def test_was_bot_mentioned_in_thread_root_without_mention(mock_env: Mock):
     assert result is False
 
 
-def test_was_bot_mentioned_in_thread_root_exception(mock_env: Mock):
+def test_was_bot_mentioned_in_thread_root_exception():
     """tes that was_bot_mentioned_in_thread_root fails open on exception"""
     mock_client = Mock()
     mock_client.conversations_replies.side_effect = Exception("API Error")
@@ -412,7 +397,7 @@ def test_was_bot_mentioned_in_thread_root_exception(mock_env: Mock):
     assert result is True
 
 
-def test_should_reply_to_message_dm(mock_env: Mock):
+def test_should_reply_to_message_dm():
     """test should_reply_to_message returns True for DMs"""
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
@@ -424,7 +409,7 @@ def test_should_reply_to_message_dm(mock_env: Mock):
     assert result is True
 
 
-def test_should_reply_to_message_group_without_thread(mock_env: Mock):
+def test_should_reply_to_message_group_without_thread():
     """test should_reply_to_message returns False for group messages without thread"""
     if "app.utils.handler_utils" in sys.modules:
         del sys.modules["app.utils.handler_utils"]
@@ -436,7 +421,7 @@ def test_should_reply_to_message_group_without_thread(mock_env: Mock):
     assert result is False
 
 
-def test_should_reply_to_message_channel_thread_with_bot_mention(mock_env: Mock):
+def test_should_reply_to_message_channel_thread_with_bot_mention():
     """test should_reply_to_message returns True for channel thread where bot was mentioned"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123"}
@@ -455,7 +440,7 @@ def test_should_reply_to_message_channel_thread_with_bot_mention(mock_env: Mock)
     assert result is True
 
 
-def test_should_reply_to_message_channel_thread_without_bot_mention(mock_env: Mock):
+def test_should_reply_to_message_channel_thread_without_bot_mention():
     """test should_reply_to_message returns False for channel thread where bot was not mentioned"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123"}
@@ -474,7 +459,7 @@ def test_should_reply_to_message_channel_thread_without_bot_mention(mock_env: Mo
     assert result is False
 
 
-def test_should_reply_to_message_channel_thread_no_client(mock_env: Mock):
+def test_should_reply_to_message_channel_thread_no_client():
     """test should_reply_to_message fails open when no client provided"""
     # setup mocks
     if "app.utils.handler_utils" in sys.modules:
@@ -487,7 +472,7 @@ def test_should_reply_to_message_channel_thread_no_client(mock_env: Mock):
     assert result is True
 
 
-def test_was_bot_mentioned_in_thread_different_bot(mock_env: Mock):
+def test_was_bot_mentioned_in_thread_different_bot():
     """test that was_bot_mentioned_in_thread_root returns false when a different bot is mentioned"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
@@ -505,7 +490,7 @@ def test_was_bot_mentioned_in_thread_different_bot(mock_env: Mock):
     assert result is False
 
 
-def test_was_bot_mentioned_later_in_thread(mock_env: Mock):
+def test_was_bot_mentioned_later_in_thread():
     """test that bot mention later in thread is detected"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
@@ -527,7 +512,7 @@ def test_was_bot_mentioned_later_in_thread(mock_env: Mock):
     assert result is True
 
 
-def test_should_reply_to_message_group_thread_with_bot_mention(mock_env: Mock):
+def test_should_reply_to_message_group_thread_with_bot_mention():
     """test should_reply_to_message returns True for group thread where bot was mentioned"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123"}
@@ -546,7 +531,7 @@ def test_should_reply_to_message_group_thread_with_bot_mention(mock_env: Mock):
     assert result is True
 
 
-def test_should_reply_to_message_group_thread_without_bot_mention(mock_env: Mock):
+def test_should_reply_to_message_group_thread_without_bot_mention():
     """test should_reply_to_message returns False for group thread where bot was not mentioned"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123"}
@@ -565,7 +550,7 @@ def test_should_reply_to_message_group_thread_without_bot_mention(mock_env: Mock
     assert result is False
 
 
-def test_get_bot_user_id_auth_test_fails(mock_env: Mock):
+def test_get_bot_user_id_auth_test_fails():
     """test get_bot_user_id returns None when auth_test fails"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": False}
@@ -582,7 +567,7 @@ def test_get_bot_user_id_auth_test_fails(mock_env: Mock):
     assert result is None
 
 
-def test_get_bot_user_id_exception(mock_env: Mock):
+def test_get_bot_user_id_exception():
     """test get_bot_user_id returns None when exception occurs"""
     mock_client = Mock()
     mock_client.auth_test.side_effect = Exception("Auth failed")
@@ -599,7 +584,7 @@ def test_get_bot_user_id_exception(mock_env: Mock):
     assert result is None
 
 
-def test_was_bot_mentioned_no_messages_in_response(mock_env: Mock):
+def test_was_bot_mentioned_no_messages_in_response():
     """test fail when API returns no messages"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
@@ -614,7 +599,7 @@ def test_was_bot_mentioned_no_messages_in_response(mock_env: Mock):
     assert result is True
 
 
-def test_was_bot_mentioned_api_not_ok(mock_env: Mock):
+def test_was_bot_mentioned_api_not_ok():
     """test fail when API returns ok: False"""
     mock_client = Mock()
     mock_client.auth_test.return_value = {"ok": True, "user_id": "U123ABC"}
@@ -627,3 +612,21 @@ def test_was_bot_mentioned_api_not_ok(mock_env: Mock):
     result = was_bot_mentioned_in_thread_root("C123", "1234567890.123456", mock_client)
 
     assert result is True
+
+
+def test_should_reply_to_message_channel_without_thread():
+    """test should_reply_to_message returns False for channel messages without thread"""
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import should_reply_to_message
+
+    event = {
+        "channel_type": "channel",
+        "type": "message",
+        "channel": "C123",
+        "ts": "123",
+        # thread_ts is intentionally omitted (None)
+    }
+    result = should_reply_to_message(event)
+
+    assert result is False
