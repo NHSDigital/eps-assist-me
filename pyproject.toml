@@ -57,7 +57,7 @@ aws-lambda-powertools = "^3.26.0"
 
 
 [tool.poetry.group.preprocessingFunction.dependencies]
-botocore = {extras = ["crt"], version = "^1.42.88"}
+botocore = {extras = ["crt"], version = "^1.42.96"}
 boto3 = "^1.42.88"
 aws-lambda-powertools = "^3.26.0"
 markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.0.1a12"}
