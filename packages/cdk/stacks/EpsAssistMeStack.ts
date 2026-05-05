@@ -298,6 +298,11 @@ export class EpsAssistMeStack extends Stack {
       exportName: `${props.stackName}:lambda:SlackBot:FunctionName`
     })
 
+    new CfnOutput(this, "KnowledgeBaseId", {
+      value: vectorKB.knowledgeBase.attrKnowledgeBaseId,
+      exportName: `${props.stackName}:bedrock:KnowledgeBase:Id`
+    })
+
     new CfnOutput(this, "ModelInvocationLogGroupName", {
       value: bedrockLogging.modelInvocationLogGroup.logGroupName,
       description: "CloudWatch Log Group for Bedrock model invocations"
