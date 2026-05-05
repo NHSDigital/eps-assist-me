@@ -6,14 +6,16 @@ FUNCTION_NAME="epsam-FunctionsSlackBotLambdaepsamSlackBotFunction-oJmZsZb4CmPQ"
 
 # 1. Log into AWS
 echo -e "\nLogging into AWS SSO..."
-aws login
-if [ $? -ne 0 ]; then
+
+# FIX (SC2181): Check the command directly instead of using $?
+if ! aws login; then
     echo -e "\nWarning: AWS login may have failed or you are using standard IAM keys. Continuing anyway..."
 fi
 
 # 2. Ask for Channel ID
 echo ""
-read -p "Enter the Slack Channel ID (e.g., C12345678): " CHANNEL_ID
+# FIX (SC2162): Added -r to prevent mangling of backslashes
+read -r -p "Enter the Slack Channel ID (e.g., C12345678): " CHANNEL_ID
 
 echo -e "\nPreparing payloads with current time..."
 
@@ -23,7 +25,7 @@ THREAD_TS="${NOW}.000"
 MENTION_TS="${NOW}.050"
 MESSAGE_TS="${NOW}.100"
 
-# Generate random GUIDs (supports both macOS and Linux)
+# Generate random GUIDs
 if command -v uuidgen &> /dev/null; then
     MENTION_UUID=$(uuidgen | tr '[:upper:]' '[:lower:]')
     MESSAGE_UUID=$(uuidgen | tr '[:upper:]' '[:lower:]')
@@ -88,7 +90,7 @@ invoke_lambda() {
     aws lambda invoke \
       --function-name "$FUNCTION_NAME" \
       --region "$REGION" \
-      --profile "$AWS_PROFILE" \
+      --profile "${AWS_PROFILE:-default}" \
       --cli-binary-format raw-in-base64-out \
       --invocation-type RequestResponse \
       --payload "file://$payload_file" \
@@ -109,8 +111,8 @@ invoke_lambda "$MESSAGE_PAYLOAD_FILE" "$MESSAGE_OUT_FILE" "Message" &
 PID_MESSAGE=$!
 
 # Wait for both background processes to finish
-wait $PID_MENTION
-wait $PID_MESSAGE
+wait "$PID_MENTION"
+wait "$PID_MESSAGE"
 
 # Clean up temporary files
 rm -f "$MENTION_PAYLOAD_FILE" "$MESSAGE_PAYLOAD_FILE" "$MENTION_OUT_FILE" "$MESSAGE_OUT_FILE"
