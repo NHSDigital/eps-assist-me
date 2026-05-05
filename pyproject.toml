@@ -60,7 +60,7 @@ aws-lambda-powertools = "^3.26.0"
 botocore = {extras = ["crt"], version = "^1.42.88"}
 boto3 = "^1.42.96"
 aws-lambda-powertools = "^3.26.0"
-markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.0.1a12"}
+markitdown = {extras = ["pdf", "docx", "xlsx"], version = "^0.1.5"}
 
 
 [tool.black]
