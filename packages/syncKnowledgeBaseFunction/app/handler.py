@@ -552,32 +552,23 @@ class S3EventHandler:
             )
 
     @staticmethod
-    def start_ingestion_job():
-        try:
-            response = bedrock_agent.start_ingestion_job(
-                knowledgeBaseId=KNOWLEDGEBASE_ID,
-                dataSourceId=DATA_SOURCE_ID,
-                description=str(time.time()),
-            )
+    def start_ingestion_job() -> bool:
+        response = bedrock_agent.start_ingestion_job(
+            knowledgeBaseId=KNOWLEDGEBASE_ID,
+            dataSourceId=DATA_SOURCE_ID,
+            description=str(time.time()),
+        )
 
-            job_id = response["ingestionJob"]["ingestionJobId"]
-            job_status = response["ingestionJob"]["status"]
+        job_id = response["ingestionJob"]["ingestionJobId"]
+        job_status = response["ingestionJob"]["status"]
 
-            logger.info(
-                "Successfully started ingestion job",
-                extra={"job_id": job_id, "job_status": job_status},
-            )
-        except Exception as e:
-            logger.error(f"Error starting ingestion: {str(e)}")
+        logger.info(
+            "Successfully started ingestion job",
+            extra={"job_id": job_id, "job_status": job_status},
+        )
 
     def process_multiple_sqs_events(self, slack_handler: SlackHandler, s3_records):
         """Handle multiple individual events from SQS"""
-        if s3_records and len(s3_records):
-            # Start the ingestion job
-            S3EventHandler.start_ingestion_job()
-        else:
-            logger.info("skipping start_ingestion")
-
         valid_records = []
         for record in s3_records:
             if record.get("eventSource") != "aws:s3":
@@ -655,6 +646,10 @@ def process_events(event, context) -> list[str]:
     return failed_ids
 
 
+def batched_item_failures(failed_ids: list[str]):
+    return {"batchItemFailures": [{"itemIdentifier": msg_id} for msg_id in failed_ids]}
+
+
 @logger.inject_lambda_context(log_event=True, clear_state=True)
 def handler(event, context):
     """
@@ -681,6 +676,8 @@ def handler(event, context):
     )
 
     try:
+        S3EventHandler.start_ingestion_job()
+
         # Get the list of failed message IDs
         failed_ids = process_events(event, context)
 
@@ -688,7 +685,7 @@ def handler(event, context):
         logger.info("Completed processing of SQS events", extra={"process_time": total_duration})
 
         # Return the specific JSON schema required by SQS for partial batch responses
-        return {"batchItemFailures": [{"itemIdentifier": msg_id} for msg_id in failed_ids]}
+        return batched_item_failures(failed_ids)
 
     except Exception as e:
         logger.error(

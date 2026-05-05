@@ -329,7 +329,7 @@ def test_handler_slack_success(
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="1001",
+        description="1000",
     )
     mock_slack_client.auth_test.assert_called_once()
     mock_slack_client.conversations_list.assert_called_once_with(types=["private_channel"], limit=1000)
@@ -379,7 +379,7 @@ def test_handler_slack_silent_success(
     mock_bedrock.start_ingestion_job.assert_called_once_with(
         knowledgeBaseId="test-kb-id",
         dataSourceId="test-ds-id",
-        description="1002",
+        description="1001",
     )
 
     mock_slack_client.auth_test.assert_called_once()
@@ -897,7 +897,7 @@ def test_handler_slack_skip_recent_update(
         mock_bedrock.start_ingestion_job.assert_called_once_with(
             knowledgeBaseId="test-kb-id",
             dataSourceId="test-ds-id",
-            description="1002",
+            description="1001",
         )
 
         mock_slack_client.auth_test.assert_called_once()
@@ -949,7 +949,7 @@ def test_handler_slack_use_recent_update(
         mock_bedrock.start_ingestion_job.assert_called_once_with(
             knowledgeBaseId="test-kb-id",
             dataSourceId="test-ds-id",
-            description="1002",
+            description="1001",
         )
 
         mock_slack_client.auth_test.assert_called_once()
