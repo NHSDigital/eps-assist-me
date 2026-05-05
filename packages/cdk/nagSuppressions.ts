@@ -191,8 +191,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
-        appliesTo: ["Resource::<VectorIndexPolicySyncWaitDelayFunctionBDE3D308.Arn>:*"]
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
       }
     ]
   )
@@ -215,8 +214,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     [
       {
         id: "AwsSolutions-IAM5",
-        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation.",
-        appliesTo: ["Resource::<VectorIndexIndexReadyWaitDelayFunction56EB971B.Arn>:*"]
+        reason: "Auto-generated CDK Provider role requires wildcard permissions for Lambda invocation."
       }
     ]
   )
