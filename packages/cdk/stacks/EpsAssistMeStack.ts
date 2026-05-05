@@ -35,13 +35,13 @@ export class EpsAssistMeStack extends Stack {
 
     // imports
     const mainSlackBotLambdaExecutionRoleArn = Fn.importValue("epsam:lambda:SlackBot:ExecutionRole:Arn")
-    const deploymentRoleImport = Fn.importValue("ci-resources:CloudFormationDeployRole")
+    const deploymentRoleImport = Fn.importValue("iam-cdk:IAM:CloudFormationDeployRole:Arn")
     // regression testing needs direct lambda invoke — bypasses slack webhooks entirely
-    const regressionTestRoleArn = Fn.importValue("ci-resources:AssistMeRegressionTestRole")
-    const auditLoggingBucketImport = Fn.importValue("account-resources:AuditLoggingBucket")
+    const regressionTestRoleArn = Fn.importValue("iam-cdk:IAM:AssistMeRegressionTestRole:Arn")
+    const auditLoggingBucketImport = Fn.importValue("account-resources-cdk-uk:Bucket:AuditLoggingBucket:Arn")
 
     // document sync role
-    const assistMeDocumentSyncRoleArn = Fn.importValue("ci-resources:AssistMeDocumentSyncRole")
+    const assistMeDocumentSyncRoleArn = Fn.importValue("iam-cdk:IAM:AssistMeDocumentSyncRole:Arn")
 
     // Get variables from context
     const region = Stack.of(this).region

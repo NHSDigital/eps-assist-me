@@ -52,7 +52,7 @@ export class VectorKnowledgeBaseResources extends Construct {
   }
 
   cloudWatchLogsKmsKey = Key.fromKeyArn(
-    this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn"))
+    this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources-cdk-uk:KMS:CloudwatchLogsKmsKey:Arn"))
 
   constructor(scope: Construct, id: string, props: VectorKnowledgeBaseProps) {
     super(scope, id)

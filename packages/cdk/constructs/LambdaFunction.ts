@@ -46,19 +46,22 @@ export class LambdaFunction extends Construct {
 
     // Import shared cloud resources from cross-stack references
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
-      this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn"))
+      this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources-cdk-uk:KMS:CloudwatchLogsKmsKey:Arn"))
 
     const cloudwatchEncryptionKMSPolicy = ManagedPolicy.fromManagedPolicyArn(
-      this, "cloudwatchEncryptionKMSPolicyArn", Fn.importValue("account-resources:CloudwatchEncryptionKMSPolicyArn"))
+      this, "cloudwatchEncryptionKMSPolicyArn",
+      Fn.importValue("account-resources-cdk-uk:IAM:CloudwatchEncryptionKMSPolicy:Arn"))
 
     const splunkDeliveryStream = Stream.fromStreamArn(
-      this, "SplunkDeliveryStream", Fn.importValue("lambda-resources:SplunkDeliveryStream"))
+      this, "SplunkDeliveryStream", Fn.importValue("account-resources-cdk-uk:Firehose:SplunkDeliveryStream:Arn"))
 
     const splunkSubscriptionFilterRole = Role.fromRoleArn(
-      this, "splunkSubscriptionFilterRole", Fn.importValue("lambda-resources:SplunkSubscriptionFilterRole"))
+      this, "splunkSubscriptionFilterRole",
+      Fn.importValue("account-resources-cdk-uk:IAM:SplunkSubscriptionFilterRole:Arn"))
 
     const lambdaInsightsLogGroupPolicy = ManagedPolicy.fromManagedPolicyArn(
-      this, "lambdaInsightsLogGroupPolicy", Fn.importValue("lambda-resources:LambdaInsightsLogGroupPolicy"))
+      this, "lambdaInsightsLogGroupPolicy",
+      Fn.importValue("account-resources-cdk-uk:IAM:LambdaInsightsLogGroupPolicy:Arn"))
 
     const insightsLambdaLayer = LayerVersion.fromLayerVersionArn(
       this, "LayerFromArn", insightsLayerArn)
