@@ -172,9 +172,6 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     )
   })
 
-  // Suppress DelayResource IAM issues — handled by PythonLambdaFunction for Lambda role,
-  // but Provider framework still needs suppressions
-
   // Suppress DelayProvider framework ServiceRole issues
   safeAddNagSuppression(
     stack,
@@ -223,9 +220,6 @@ export const nagSuppressions = (stack: Stack, account: string) => {
       }
     ]
   )
-
-  // Suppress DelayFunction runtime version warnings — no longer needed as PythonLambdaFunction
-  // uses the latest runtime. Only Provider framework runtime warnings remain.
 
   safeAddNagSuppression(
     stack,
