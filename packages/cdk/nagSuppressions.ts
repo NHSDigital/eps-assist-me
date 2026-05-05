@@ -4,42 +4,6 @@ import {Stack} from "aws-cdk-lib"
 import {NagPackSuppression, NagSuppressions} from "cdk-nag"
 
 export const nagSuppressions = (stack: Stack, account: string) => {
-  // Suppress granular wildcard on log stream for SlackBot Lambda
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/SlackBotLambda/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
-      }
-    ]
-  )
-
-  // Suppress wildcard log permissions for SyncKnowledgeBase Lambda
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/SyncKnowledgeBaseFunction/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths."
-      }
-    ]
-  )
-
-  // Suppress wildcard log permissions for Preprocessing Lambda
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/Functions/PreprocessingFunction/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions are required for log stream access under known paths."
-      }
-    ]
-  )
-
   // Suppress API Gateway validation warning for Apis construct
   safeAddNagSuppression(
     stack,
@@ -208,30 +172,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     )
   })
 
-  // Suppress DelayResource IAM and runtime issues
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/LambdaExecutionRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
-        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
-      }
-    ]
-  )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/LambdaExecutionRole/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM4",
-        reason: "DelayResource Lambda uses AWS managed policy for basic Lambda execution role.",
-        appliesTo: ["Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
-      }
-    ]
-  )
+  // Suppress DelayResource IAM issues — handled by PythonLambdaFunction for Lambda role,
+  // but Provider framework still needs suppressions
 
   // Suppress DelayProvider framework ServiceRole issues
   safeAddNagSuppression(
@@ -282,28 +224,8 @@ export const nagSuppressions = (stack: Stack, account: string) => {
     ]
   )
 
-  // Suppress DelayFunction runtime version warnings
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/VectorIndex/PolicySyncWait/DelayFunction/Resource",
-    [
-      {
-        id: "AwsSolutions-L1",
-        reason: "DelayResource uses Python 3.12 which is the latest stable runtime available for the delay functionality."
-      }
-    ]
-  )
-
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/VectorIndex/IndexReadyWait/DelayFunction/Resource",
-    [
-      {
-        id: "AwsSolutions-L1",
-        reason: "DelayResource uses Python 3.12 which is the latest stable runtime available for the delay functionality."
-      }
-    ]
-  )
+  // Suppress DelayFunction runtime version warnings — no longer needed as PythonLambdaFunction
+  // uses the latest runtime. Only Provider framework runtime warnings remain.
 
   safeAddNagSuppression(
     stack,
@@ -386,16 +308,7 @@ export const nagSuppressions = (stack: Stack, account: string) => {
   )
 
   // Suppress BedrockLogging Lambda log group and put logs permissions
-  safeAddNagSuppression(
-    stack,
-    "/EpsAssistMeStack/BedrockLogging/LoggingConfigFunction/LambdaPutLogsManagedPolicy/Resource",
-    [
-      {
-        id: "AwsSolutions-IAM5",
-        reason: "Wildcard permissions for log stream access are required and scoped appropriately."
-      }
-    ]
-  )
+  // (Provider framework still needs suppressions)
 
   // Suppress BedrockLogging Provider framework role using AWS managed policy
   safeAddNagSuppression(
