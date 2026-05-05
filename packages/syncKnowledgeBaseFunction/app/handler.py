@@ -43,11 +43,11 @@ class DynamoDbHandler:
         dynamodb = boto3.resource("dynamodb")
         return dynamodb.Table(KNOWLEDGE_SYNC_STATE_TABLE)
 
-    def save_message(self, user_id, channel_id, ts):
+    def save_message(self, user_id, channel_id, ts, silent):
         """Saves a new message with default counters set to 0 and an empty document list."""
-        return self.update_message(user_id, channel_id, ts, 0, 0, 0, [])
+        return self.update_message(user_id, channel_id, ts, 0, 0, 0, silent, [])
 
-    def update_message(self, user_id, channel_id, ts, created, modified, deleted, document_names=None):
+    def update_message(self, user_id, channel_id, ts, created, modified, deleted, silent, document_names=None):
         """Updates an existing message or creates one with specific counters and documents."""
         if document_names is None:
             document_names = []
@@ -60,6 +60,7 @@ class DynamoDbHandler:
             "created": created,
             "modified": modified,
             "deleted": deleted,
+            "silent": silent,
             "document_names": document_names,
         }
 
@@ -87,6 +88,7 @@ class DynamoDbHandler:
                 return None
 
             latest_item = items[0]
+
             logger.info("Found latest item", extra={"ts": latest_item.get("last_ts")})
             return latest_item
 
@@ -262,6 +264,7 @@ class SlackHandler:
                     created=created,
                     modified=modified,
                     deleted=deleted,
+                    silent=self.silent,
                     document_names=document_names,
                 )
         except Exception as e:
@@ -315,6 +318,14 @@ class SlackHandler:
         if latest_message is None:
             return None
 
+        # Default to silent to post a message by default
+        was_silent = latest_message.get("silent", True)
+        is_silent = self.silent
+
+        # If it wasn't posted last time, but the newest event wants it to be posted, we should ignore the DB record.
+        if not is_silent and was_silent:
+            return None
+
         last_ts = latest_message.get("last_ts")
         if last_ts:
             time_since_last = time.time() - float(last_ts)
@@ -353,7 +364,7 @@ class SlackHandler:
 
         new_ts = response.get("ts")
         if new_ts:
-            self.db_handler.save_message(user_id, channel_id, new_ts)
+            self.db_handler.save_message(user_id, channel_id, new_ts, self.silent)
 
         return response
 
@@ -723,3 +734,5 @@ def handler(event, context):
                 "error": traceback.format_exc(),
             },
         )
+
+        raise e

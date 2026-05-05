@@ -5,6 +5,7 @@ import os
 import sys
 import itertools
 from unittest.mock import Mock, patch, MagicMock, DEFAULT, call
+from botocore.exceptions import ClientError
 
 TEST_BOT_TOKEN = "test-bot-token"
 
@@ -821,7 +822,7 @@ def test_dynamodb_handler_save_last_message(mock_boto, mock_boto_resource, mock_
     mock_boto_resource.return_value.Table.return_value = mock_table
 
     db_handler = DynamoDbHandler()
-    db_handler.save_message(user_id="U123", channel_id="C456", ts="1710581159.123456")
+    db_handler.save_message(user_id="U123", channel_id="C456", ts="1710581159.123456", silent=False)
 
     mock_table.put_item.assert_called_once_with(
         Item={
@@ -832,6 +833,7 @@ def test_dynamodb_handler_save_last_message(mock_boto, mock_boto_resource, mock_
             "created": 0,
             "modified": 0,
             "deleted": 0,
+            "silent": False,
             "document_names": [],
         }
     )
@@ -888,7 +890,12 @@ def test_handler_slack_skip_recent_update(
 
     with patch("app.handler.DynamoDbHandler") as mock_db_class:
         mock_db_instance = mock_db_class.return_value
-        mock_db_instance.get_sync_state.return_value = {"last_ts": 1000, "document_names": ["previous_file.pdf"]}
+        # Use 'silent': False instead of 'active': True
+        mock_db_instance.get_sync_state.return_value = {
+            "last_ts": 1000,
+            "silent": False,
+            "document_names": ["previous_file.pdf"],
+        }
 
         result = handler(receive_s3_event, lambda_context)
 
@@ -940,7 +947,12 @@ def test_handler_slack_use_recent_update(
 
     with patch("app.handler.DynamoDbHandler") as mock_db_class:
         mock_db_instance = mock_db_class.return_value
-        mock_db_instance.get_sync_state.return_value = {"last_ts": 1, "document_names": ["old_file.pdf"]}
+        # Use 'silent': False instead of 'active': True
+        mock_db_instance.get_sync_state.return_value = {
+            "last_ts": 1,
+            "silent": False,
+            "document_names": ["old_file.pdf"],
+        }
 
         result = handler(receive_s3_event, lambda_context)
 
@@ -975,3 +987,109 @@ def test_handler_timeout_scenario(mock_boto_client, mock_initialise_slack, mock_
 
     # Verify that the message ID is returned as a failure to be retried
     assert result == {"batchItemFailures": [{"itemIdentifier": "test-msg-id-1"}]}
+
+
+@patch("slack_sdk.WebClient")
+@patch("app.config.config.get_bot_token")
+@patch("boto3.client")
+@patch("time.time")
+def test_handler_slack_override_silent_recent_update(
+    mock_time,
+    mock_boto_client,
+    mock_get_bot_token,
+    mock_webclient_class,
+    mock_env,
+    lambda_context,
+    receive_s3_event,
+):
+    """Test that a non-silent execution overrides the cooldown of a recent silent execution."""
+    mock_time.side_effect = [1000, 1001, 1002, 1003, 1004, 1005]
+
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.return_value = {
+        "ingestionJob": {"ingestionJobId": "job-123", "status": "STARTING"}
+    }
+
+    mock_slack_client = MagicMock()
+    mock_webclient_class.return_value = mock_slack_client
+    mock_get_bot_token.return_value = "test-bot-token"
+
+    mock_slack_client.auth_test.return_value = {"user_id": "U123456"}
+    mock_slack_client.conversations_list.return_value = [{"channels": [{"id": "C123456", "is_archived": False}]}]
+    mock_slack_client.chat_update.return_value = {"ok": True}
+    mock_slack_client.create_default_response = {}
+
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    with patch("app.handler.DynamoDbHandler") as mock_db_class:
+        mock_db_instance = mock_db_class.return_value
+        # The previous message was recent (ts=1000), but it was SILENT.
+        mock_db_instance.get_sync_state.return_value = {
+            "last_ts": 1000,
+            "silent": True,
+            "document_names": ["previous_file.pdf"],
+        }
+
+        # Run handler (is_silent is false by default in this context)
+        result = handler(receive_s3_event, lambda_context)
+
+        assert result == {"batchItemFailures": []}
+
+        # It should ignore the DB record and post anyway because the new event is NOT silent.
+        mock_slack_client.chat_postMessage.assert_called_once()
+
+
+@patch("boto3.client")
+def test_handler_conflict_exception(mock_boto_client, mock_env, lambda_context, receive_s3_event):
+    """Test that a Bedrock ConflictException is caught, logged as a warning, and re-raised"""
+    mock_bedrock = mock_boto_client.return_value
+
+    # Simulate Bedrock ingestion job already running
+    error_response = {"Error": {"Code": "ConflictException", "Message": "Job already running"}}
+    mock_bedrock.start_ingestion_job.side_effect = ClientError(error_response, "StartIngestionJob")
+
+    # Force reload of the module to pick up the new boto3.client patch
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    with pytest.raises(ClientError) as exc_info:
+        handler(receive_s3_event, lambda_context)
+
+    assert exc_info.value.response["Error"]["Code"] == "ConflictException"
+
+
+@patch("boto3.client")
+def test_handler_generic_client_error(mock_boto_client, mock_env, lambda_context, receive_s3_event):
+    """Test that a generic Bedrock ClientError is caught, logged, and re-raised"""
+    mock_bedrock = mock_boto_client.return_value
+
+    error_response = {"Error": {"Code": "InternalServerError", "Message": "Something went wrong"}}
+    mock_bedrock.start_ingestion_job.side_effect = ClientError(error_response, "StartIngestionJob")
+
+    # Force reload of the module to pick up the new boto3.client patch
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    with pytest.raises(ClientError) as exc_info:
+        handler(receive_s3_event, lambda_context)
+
+    assert exc_info.value.response["Error"]["Code"] == "InternalServerError"
+
+
+@patch("boto3.client")
+def test_handler_generic_exception(mock_boto_client, mock_env, lambda_context, receive_s3_event):
+    """Test that a generic Exception in the main handler is caught, logged, and re-raised"""
+    mock_bedrock = mock_boto_client.return_value
+    mock_bedrock.start_ingestion_job.side_effect = Exception("Unexpected infrastructure failure")
+
+    # Force reload of the module to pick up the new boto3.client patch
+    if "app.handler" in sys.modules:
+        del sys.modules["app.handler"]
+    from app.handler import handler
+
+    with pytest.raises(Exception, match="Unexpected infrastructure failure"):
+        handler(receive_s3_event, lambda_context)
