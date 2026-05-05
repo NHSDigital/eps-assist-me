@@ -125,13 +125,12 @@ jobs:
           IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
           RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
 
-
       - name: Deploy code for stack
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
           cd .build
           npx cdk deploy \
-          --app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+          --app "npx tsx packages/cdk/bin/EpsAssistMeApp.ts" \
           --all \
           --require-approval=never \
           --ci true
@@ -140,7 +139,8 @@ jobs:
           CONFIG_FILE_NAME: "epsam_app.json"
 
       - name: Normalize Environment Name
-        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true ||
+          inputs.IS_PULL_REQUEST == true) }}
         run: |
           # Convert TARGET_ENVIRONMENT to Uppercase (e.g., 'prod' -> 'PROD')
           VAL=$(echo "$TARGET_ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
@@ -150,7 +150,8 @@ jobs:
 
       - name: Sync Documents
         uses: ./.github/actions/sync_documents
-        if: ${{ (inputs.TARGET_ENVIRONMENT != 'int') && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        if: ${{ (inputs.TARGET_ENVIRONMENT != 'int') && (inputs.DEPLOY_CODE == true ||
+          inputs.IS_PULL_REQUEST == true) }}
         with:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
@@ -160,8 +161,9 @@ jobs:
 
   update_github_pages:
     runs-on: ubuntu-22.04
-    if: ${{ inputs.IS_PULL_REQUEST == false && always() && !failure() && !cancelled() }}
-    needs: [release_all_code]
+    if: ${{ inputs.IS_PULL_REQUEST == false && always() && !failure() &&
+      !cancelled() }}
+    needs: [ release_all_code ]
     permissions:
       id-token: write
       contents: write
@@ -195,11 +197,12 @@ jobs:
   regression_tests:
     name: Regression Tests
     uses: ./.github/workflows/run_regression_tests.yml
-    if: ${{ always() && !failure() && !cancelled() && inputs.RUN_REGRESSION_TESTS == true }}
+    if: ${{ always() && !failure() && !cancelled() && inputs.RUN_REGRESSION_TESTS ==
+      true }}
     permissions:
       id-token: write
       contents: write
-    needs: [release_all_code]
+    needs: [ release_all_code ]
     with:
       ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
       VERSION_NUMBER: ${{ inputs.VERSION_NUMBER }}
