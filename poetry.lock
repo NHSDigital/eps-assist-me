@@ -545,7 +545,7 @@ version = "1.43.2"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.10"
-groups = ["bedrockloggingconfigfunction", "dev", "preprocessingfunction", "slackbotfunction", "syncknowledgebasefunction"]
+groups = ["bedrockloggingconfigfunction", "dev", "preprocessingfunction", "ragasevaluation", "slackbotfunction", "syncknowledgebasefunction"]
 files = [
     {file = "boto3-1.43.2-py3-none-any.whl", hash = "sha256:796e859cfb5e93c55276ce746f8020f691eda6b68a0ec4ce4f6fd07a1cca6859"},
     {file = "boto3-1.43.2.tar.gz", hash = "sha256:be951cc22769fbcda73fac523b031ee38db45c3ae2b0d828c76b8f6e8e683073"},
@@ -1016,7 +1016,7 @@ version = "1.43.2"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.10"
-groups = ["bedrockloggingconfigfunction", "dev", "preprocessingfunction", "slackbotfunction", "syncknowledgebasefunction"]
+groups = ["bedrockloggingconfigfunction", "dev", "preprocessingfunction", "ragasevaluation", "slackbotfunction", "syncknowledgebasefunction"]
 files = [
     {file = "botocore-1.43.2-py3-none-any.whl", hash = "sha256:b823454d751a1c24bb403b5b07ab65007689654abb21787df923684e0743976c"},
     {file = "botocore-1.43.2.tar.gz", hash = "sha256:7b2ec87b6d0720bff920451ce930e71c2a99cdea48d0eaa66ccf0b21ea747e03"},
@@ -4559,14 +4559,14 @@ tests = ["coverage (>=6.0.0)", "flake8", "mypy", "pytest (>=7.0.0)", "pytest-asy
 
 [[package]]
 name = "rich"
-version = "15.0.0"
+version = "14.3.4"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 optional = false
-python-versions = ">=3.9.0"
-groups = ["dev"]
+python-versions = ">=3.8.0"
+groups = ["dev", "ragasevaluation"]
 files = [
-    {file = "rich-15.0.0-py3-none-any.whl", hash = "sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb"},
-    {file = "rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"},
+    {file = "rich-14.3.4-py3-none-any.whl", hash = "sha256:07e7adb4690f68864777b1450859253bed81a99a31ac321ac1817b2313558952"},
+    {file = "rich-14.3.4.tar.gz", hash = "sha256:817e02727f2b25b40ef56f5aa2217f400c8489f79ca8f46ea2b70dd5e14558a9"},
 ]
 
 [package.dependencies]
@@ -4707,7 +4707,7 @@ version = "0.17.0"
 description = "An Amazon S3 Transfer Manager"
 optional = false
 python-versions = ">=3.10"
-groups = ["bedrockloggingconfigfunction", "dev", "preprocessingfunction", "slackbotfunction", "syncknowledgebasefunction"]
+groups = ["bedrockloggingconfigfunction", "dev", "preprocessingfunction", "ragasevaluation", "slackbotfunction", "syncknowledgebasefunction"]
 files = [
     {file = "s3transfer-0.17.0-py3-none-any.whl", hash = "sha256:ce3801712acf4ad3e89fb9990df97b4972e93f4b3b0004d214be5bce12814c20"},
     {file = "s3transfer-0.17.0.tar.gz", hash = "sha256:9edeb6d1c3c2f89d6050348548834ad8289610d886e5bf7b7207728bd43ce33a"},
@@ -5398,4 +5398,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.14"
-content-hash = "17f71bb93d5a79235e4cc4f3a8041e1ba600a85c1e44edc0cac8c17e2bc4a33b"
+content-hash = "40ea6c65ff86f34c254213a548164832497d54594e042c4a003accdac3498b62"
