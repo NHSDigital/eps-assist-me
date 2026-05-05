@@ -31,6 +31,9 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     Uses a file lock so only the first xdist worker calls CloudFormation;
     the rest read cached values from a shared JSON file.
     """
+    if not os.environ.get("CHATBOT_STACK_NAME"):
+        return
+
     # Use a stable path so all workers (separate processes) share it.
     cache_file = Path(tempfile.gettempdir()) / "eval_bootstrap_cache.json"
     lock_file = Path(tempfile.gettempdir()) / "eval_bootstrap_cache.json.lock"

@@ -51,23 +51,25 @@ def _resolve_lambda_name() -> str:
 
 @lru_cache(maxsize=1)
 def _resolve_knowledge_base_id() -> str:
-    """Read KNOWLEDGEBASE_ID from the SlackBot Lambda's environment config."""
+    """Look up the Knowledge Base ID from CloudFormation exports."""
     cached = os.environ.get("_EVAL_KB_ID")
     if cached:
         return cached
 
-    lambda_name = _resolve_lambda_name()
+    stack_name = os.environ["CHATBOT_STACK_NAME"]
     region = os.environ.get("AWS_REGION", "eu-west-2")
+    export_name = f"{stack_name}:bedrock:KnowledgeBase:Id"
 
-    lambda_client = boto3.client("lambda", region_name=region, config=_RETRY_CONFIG)
-    config = lambda_client.get_function_configuration(FunctionName=lambda_name)
-    kb_id = config.get("Environment", {}).get("Variables", {}).get("KNOWLEDGEBASE_ID")
+    cf_client = boto3.client("cloudformation", region_name=region, config=_RETRY_CONFIG)
 
-    if not kb_id:
-        raise RuntimeError(f"KNOWLEDGEBASE_ID not found in Lambda '{lambda_name}' environment variables.")
+    paginator = cf_client.get_paginator("list_exports")
+    for page in paginator.paginate():
+        for export in page["Exports"]:
+            if export["Name"] == export_name:
+                logger.info("Resolved KB ID: %s", export["Value"])
+                return export["Value"]
 
-    logger.info("Resolved KB ID: %s", kb_id)
-    return kb_id
+    raise RuntimeError(f"CloudFormation export '{export_name}' not found - is '{stack_name}' deployed?")
 
 
 def bootstrap() -> None:
@@ -102,7 +104,14 @@ def _retrieve_contexts(query: str) -> list[str]:
 
 
 def get_chatbot_response(query: str) -> tuple[str, list[str]]:
-    """Invoke the chatbot Lambda and return (answer, retrieved_contexts)."""
+    """Invoke the chatbot Lambda and return (answer, retrieved_contexts).
+
+    The Lambda internally uses Bedrock RetrieveAndGenerate, so the answer
+    already incorporates knowledge base context. We call Retrieve separately
+    to obtain the raw KB chunks that DeepEval needs for retrieval metrics
+    (faithfulness, relevancy, etc.), since the Lambda response does not
+    expose them.
+    """
     lambda_name = _resolve_lambda_name()
     region = os.environ.get("AWS_REGION", "eu-west-2")
 
