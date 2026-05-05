@@ -40,13 +40,14 @@ export class RestApiGateway extends Construct {
 
     // Imports
     const cloudWatchLogsKmsKey = Key.fromKeyArn(
-      this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources:CloudwatchLogsKmsKeyArn"))
+      this, "cloudWatchLogsKmsKey", Fn.importValue("account-resources-cdk-uk:KMS:CloudwatchLogsKmsKey:Arn"))
 
     const splunkDeliveryStream = Stream.fromStreamArn(
-      this, "SplunkDeliveryStream", Fn.importValue("lambda-resources:SplunkDeliveryStream"))
+      this, "SplunkDeliveryStream", Fn.importValue("account-resources-cdk-uk:Firehose:SplunkDeliveryStream:Arn"))
 
     const splunkSubscriptionFilterRole = Role.fromRoleArn(
-      this, "splunkSubscriptionFilterRole", Fn.importValue("lambda-resources:SplunkSubscriptionFilterRole"))
+      this, "splunkSubscriptionFilterRole",
+      Fn.importValue("account-resources-cdk-uk:IAM:SplunkSubscriptionFilterRole:Arn"))
 
     const epsDomainName: string = Fn.importValue("eps-route53-resources:EPS-domain")
     const hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone", {

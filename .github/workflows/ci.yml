@@ -8,7 +8,7 @@ permissions: {}
 
 jobs:
   get_config_values:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@bda627e2ce1a32ea56bcc815aec57b06cfa63c9d
+    uses: NHSDigital/eps-common-workflows/.github/workflows/get-repo-config.yml@889349f9d93e4846a642f7973b7c26b180bec5aa
     permissions:
       attestations: read
       contents: read
@@ -17,7 +17,7 @@ jobs:
       verify_published_from_main_image: true
 
   quality_checks:
-    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@bda627e2ce1a32ea56bcc815aec57b06cfa63c9d
+    uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@889349f9d93e4846a642f7973b7c26b180bec5aa
     needs: [get_config_values]
     permissions:
       contents: read
@@ -30,7 +30,7 @@ jobs:
 
   tag_release:
     needs: [quality_checks, get_config_values]
-    uses: NHSDigital/eps-common-workflows/.github/workflows/tag-release-devcontainer.yml@bda627e2ce1a32ea56bcc815aec57b06cfa63c9d
+    uses: NHSDigital/eps-common-workflows/.github/workflows/tag-release-devcontainer.yml@889349f9d93e4846a642f7973b7c26b180bec5aa
     permissions:
       id-token: write
       contents: write
