@@ -687,6 +687,32 @@ def handler(event, context):
         # Return the specific JSON schema required by SQS for partial batch responses
         return batched_item_failures(failed_ids)
 
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+
+        if error_code == "ConflictException":
+            logger.warning(
+                "Bedrock ingestion job is already running. Failing batch to retry later.",
+                extra={
+                    "knowledge_base_id": KNOWLEDGEBASE_ID,
+                    "data_source_id": DATA_SOURCE_ID,
+                    "error_message": str(e),
+                },
+            )
+        else:
+            logger.error(
+                "Unexpected error occurred. Failing entire batch.",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "duration_ms": round((time.time() - start_time) * 1000, 2),
+                    "error": traceback.format_exc(),
+                },
+            )
+
+        # Re-raise the exception so SQS knows the batch failed and will retry it
+        raise e
+
     except Exception as e:
         logger.error(
             "Unexpected error occurred. Failing entire batch.",
@@ -697,6 +723,3 @@ def handler(event, context):
                 "error": traceback.format_exc(),
             },
         )
-        # Re-raise the exception so SQS knows the entire execution failed
-        # and retries the whole batch according to the maxReceiveCount.
-        raise e
