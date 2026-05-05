@@ -1,9 +1,10 @@
 import {Construct} from "constructs"
-import {LambdaFunction} from "../constructs/LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam"
 import {StringParameter} from "aws-cdk-lib/aws-ssm"
 import {Secret} from "aws-cdk-lib/aws-secretsmanager"
 import {TableV2} from "aws-cdk-lib/aws-dynamodb"
+import {resolve} from "path"
 
 const LAMBDA_MEMORY_SIZE = "265"
 
@@ -41,17 +42,17 @@ export interface FunctionsProps {
 }
 
 export class Functions extends Construct {
-  public readonly slackBotLambda: LambdaFunction
-  public readonly syncKnowledgeBaseFunction: LambdaFunction
-  public readonly preprocessingFunction: LambdaFunction
+  public readonly slackBotLambda: PythonLambdaFunction
+  public readonly syncKnowledgeBaseFunction: PythonLambdaFunction
+  public readonly preprocessingFunction: PythonLambdaFunction
 
   constructor(scope: Construct, id: string, props: FunctionsProps) {
     super(scope, id)
 
     // Lambda function to handle Slack bot interactions (events and @mentions)
-    const slackBotLambda = new LambdaFunction(this, "SlackBotLambda", {
-      stackName: props.stackName,
+    const slackBotLambda = new PythonLambdaFunction(this, "SlackBotLambda", {
       functionName: `${props.stackName}-SlackBotFunction`,
+      projectBaseDir: resolve(__dirname, "../../.."),
       packageBasePath: "packages/slackBotFunction",
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,
@@ -101,9 +102,9 @@ export class Functions extends Construct {
     }
 
     // Lambda function to preprocess documents (convert to markdown)
-    const preprocessingFunction = new LambdaFunction(this, "PreprocessingFunction", {
-      stackName: props.stackName,
+    const preprocessingFunction = new PythonLambdaFunction(this, "PreprocessingFunction", {
       functionName: `${props.stackName}-PreprocessingFunction`,
+      projectBaseDir: resolve(__dirname, "../../.."),
       packageBasePath: "packages/preprocessingFunction",
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,
@@ -119,9 +120,9 @@ export class Functions extends Construct {
     })
 
     // Lambda function to sync knowledge base on S3 events
-    const syncKnowledgeBaseFunction = new LambdaFunction(this, "SyncKnowledgeBaseFunction", {
-      stackName: props.stackName,
+    const syncKnowledgeBaseFunction = new PythonLambdaFunction(this, "SyncKnowledgeBaseFunction", {
       functionName: `${props.stackName}-SyncKnowledgeBaseFunction`,
+      projectBaseDir: resolve(__dirname, "../../.."),
       packageBasePath: "packages/syncKnowledgeBaseFunction",
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,
@@ -134,8 +135,7 @@ export class Functions extends Construct {
         "DATA_SOURCE_ID": props.dataSourceId,
         "KNOWLEDGE_SYNC_STATE_TABLE": props.knowledgeSyncStateTable.tableName
       },
-      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy],
-      reservedConcurrentExecutions: 1
+      additionalPolicies: [props.syncKnowledgeBaseManagedPolicy]
     })
 
     this.slackBotLambda = slackBotLambda

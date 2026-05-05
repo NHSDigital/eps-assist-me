@@ -2,14 +2,14 @@ import {Construct} from "constructs"
 import {IResource, LambdaIntegration} from "aws-cdk-lib/aws-apigateway"
 import {HttpMethod} from "aws-cdk-lib/aws-lambda"
 import {IRole} from "aws-cdk-lib/aws-iam"
-import {LambdaFunction} from "../LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
 
 export interface LambdaEndpointProps {
   readonly parentResource: IResource
   readonly resourceName: string
   readonly method: HttpMethod
   readonly restApiGatewayRole: IRole
-  readonly lambdaFunction: LambdaFunction
+  readonly lambdaFunction: PythonLambdaFunction
 }
 
 export class LambdaEndpoint extends Construct {

@@ -3,12 +3,12 @@ import {Duration, RemovalPolicy} from "aws-cdk-lib"
 import {Queue, QueueEncryption} from "aws-cdk-lib/aws-sqs"
 import {Key} from "aws-cdk-lib/aws-kms"
 import {SqsEventSource} from "aws-cdk-lib/aws-lambda-event-sources"
-import {LambdaFunction} from "./LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
 
 export interface SimpleQueueServiceProps {
   readonly stackName: string
   readonly queueName: string
-  readonly functions: Array<LambdaFunction>
+  readonly functions: Array<PythonLambdaFunction>
 }
 
 /**
