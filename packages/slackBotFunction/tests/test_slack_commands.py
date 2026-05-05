@@ -1,6 +1,6 @@
 import sys
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import ANY, Mock, patch, MagicMock
 
 
 @pytest.fixture
@@ -259,7 +259,7 @@ def test_process_slack_command_test_questions_ai_request_to_slack(
 
     # perform operation
     slack_command_data = {
-        "text": "output",
+        "text": "--output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -293,7 +293,7 @@ def test_process_slack_command_test_questions_default_to_slack(
 
     # perform operation
     slack_command_data = {
-        "text": ".output",
+        "text": "--output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -332,7 +332,7 @@ def test_process_slack_command_test_questions_single_question_to_slack(
 
     # perform operation
     slack_command_data = {
-        "text": "q2 .output",
+        "text": "q2 --output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -369,7 +369,7 @@ def test_process_slack_command_test_questions_two_questions_to_slack(
 
     # perform operation
     slack_command_data = {
-        "text": "q2-3 .output",
+        "text": "q2-3 --output",
         "user_id": "U456",
         "channel_id": "C789",
         "ts": "1234567890.123",
@@ -465,3 +465,68 @@ def test_process_slack_command_test_help(
     # assertions
     mock_client.chat_postMessage.assert_not_called()
     mock_client.chat_postEphemeral.assert_called()
+
+
+def test_extract_test_command_params_with_skip_reformulation():
+    """Test that the skip-reformulation flag is extracted correctly."""
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import extract_test_command_params
+
+    # With flag
+    params = extract_test_command_params("pr: 123 q1-2 --skip-reformulation")
+    assert params.get("skip-reformulation") is True
+
+
+def test_extract_test_command_params_without_skip_reformulation():
+    """Test that the skip-reformulation flag is not set if omitted."""
+    if "app.utils.handler_utils" in sys.modules:
+        del sys.modules["app.utils.handler_utils"]
+    from app.utils.handler_utils import extract_test_command_params
+
+    # Without flag
+    params = extract_test_command_params("pr: 123 q1-2")
+    assert params.get("skip-reformulation") is not True
+
+
+@patch("app.slack.slack_events.process_formatted_bedrock_query")
+def test_process_command_test_ai_request_with_skip_reformulation(mock_process_formatted_bedrock_query: Mock):
+    """Test that the skip-reformulation parameter correctly passes the flag to Bedrock"""
+    mock_client = Mock()
+    from app.slack.slack_events import process_command_test_ai_request
+
+    question = (1, "What is the policy?")
+    response = {"ts": "1234567890.123", "channel": "C789"}
+    params = {"skip-reformulation": True}
+
+    mock_process_formatted_bedrock_query.return_value = ({}, "response text", [])
+
+    process_command_test_ai_request(
+        question=question, response=response, output=False, params=params, client=mock_client
+    )
+
+    # Assert that the flag array `["--skip-reformulation"]` is properly injected
+    # into the process_formatted_bedrock_query call
+    mock_process_formatted_bedrock_query.assert_called_once_with(
+        "What is the policy?", None, ["--skip-reformulation"], ANY
+    )
+
+
+@patch("app.slack.slack_events.process_formatted_bedrock_query")
+def test_process_command_test_ai_request_without_skip_reformulation(mock_process_formatted_bedrock_query: Mock):
+    """Test that the skip-reformulation parameter omits the flag when False/Missing"""
+    mock_client = Mock()
+    from app.slack.slack_events import process_command_test_ai_request
+
+    question = (1, "What is the policy?")
+    response = {"ts": "1234567890.123", "channel": "C789"}
+    params = {}  # Omitted
+
+    mock_process_formatted_bedrock_query.return_value = ({}, "response text", [])
+
+    process_command_test_ai_request(
+        question=question, response=response, output=False, params=params, client=mock_client
+    )
+
+    # Assert that an empty flag array `[]` is passed instead
+    mock_process_formatted_bedrock_query.assert_called_once_with("What is the policy?", None, [], ANY)

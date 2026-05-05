@@ -37,6 +37,7 @@ from app.utils.handler_utils import (
     is_duplicate_event,
     is_latest_message,
     strip_mentions,
+    strip_flags,
 )
 
 from app.services.ai_processor import process_ai_query
@@ -396,12 +397,15 @@ def process_async_slack_action(body: Dict[str, Any], client: WebClient) -> None:
 
 def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     logger.debug("Processing async Slack event", extra={"event_id": event_id, "event": event})
+
     original_message_text = (event.get("text") or "").strip()
     message_text = strip_mentions(message_text=original_message_text)
     conversation_key, thread_ts = conversation_key_and_root(event)
+
     user_id = event.get("user", "unknown")
     channel_id = event["channel"]
     conversation_key, thread_root = conversation_key_and_root(event=event)
+
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
             pull_request_id, _ = extract_pull_request_id(text=message_text)
@@ -535,6 +539,9 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         session_data = get_conversation_session_data(conversation_key)
         session_id = session_data.get("session_id") if session_data else None
 
+        # Get any user flags
+        user_query, flags = strip_flags(user_query=user_query)
+
         # Post the answer (plain) to get message_ts
         post_params = {"channel": channel, "text": "Processing..."}
         if thread_ts:  # Only add thread_ts for channel threads, not DMs
@@ -547,7 +554,10 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
 
         # Call Bedrock to process the user query
         kb_response, response_text, blocks = process_formatted_bedrock_query(
-            user_query=user_query, session_id=session_id, feedback_data={**feedback_data, "ck": conversation_key}
+            user_query=user_query,
+            session_id=session_id,
+            flags=flags,
+            feedback_data={**feedback_data, "ck": conversation_key},
         )
 
         _handle_session_management(
@@ -699,10 +709,12 @@ def store_feedback(
 
 
 def process_formatted_bedrock_query(
-    user_query: str, session_id: str | None, feedback_data: Dict[str, Any]
+    user_query: str, session_id: str | None, flags: list[str], feedback_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Process the user query with Bedrock and return the response dict"""
-    ai_response = process_ai_query(user_query, session_id)
+    skip_reformulation = "--skip-reformulation" in flags
+
+    ai_response = process_ai_query(user_query, session_id, skip_reformulation)
     kb_response = ai_response["kb_response"]
     response_text = ai_response["text"]
 
@@ -879,6 +891,7 @@ def process_command_test_questions(body: Dict[str, Any], client: WebClient) -> N
                     question=question,
                     response=response,  # Pass the response object we just got
                     output=output,
+                    params=params,
                     client=client,
                 )
                 futures.append(future)
@@ -919,7 +932,9 @@ def process_command_test_questions(body: Dict[str, Any], client: WebClient) -> N
         )
 
 
-def process_command_test_ai_request(question, response, output: bool, client: WebClient) -> dict:
+def process_command_test_ai_request(
+    question, response, output: bool, params: dict[str, Any], client: WebClient
+) -> dict:
     logger.debug("Processing test question", extra={"question": question})
 
     message_ts = response.get("ts")
@@ -932,7 +947,9 @@ def process_command_test_ai_request(question, response, output: bool, client: We
         "thread_ts": message_ts,
     }
 
-    _, response_text, blocks = process_formatted_bedrock_query(question[1], None, feedback_data)
+    _, response_text, blocks = process_formatted_bedrock_query(
+        question[1], None, ["--skip-reformulation"] if params.get("skip-reformulation") else [], feedback_data
+    )
     logger.debug("question complete", extra={"response_text": response_text, "blocks": blocks})
 
     if output:
@@ -957,18 +974,19 @@ def process_command_test_help(body: Dict[str, Any], client: WebClient) -> None:
     Once the test is complete, the bot will respond with a text file to view the results.
 
     - Usage:
-       - /test [q<start_index>-<end_index>] [.<output>]
+       - /test [q<start_index>-<end_index>] [--output]
 
     - Parameters:
-       - <start_index>: (optional) The starting and ending index of the sample questions (default is 1-{length}).
-       - <end-index>: (optional) The ending index of the sample questions (default is {length}).
-       - <output> (optional) If provided, will post questions and answers to slack (this won't effect if the file is returned)
+       - `<start_index>`: (optional) The starting and ending index of the sample questions (default is 1-{length}).
+       - `<end-index>`: (optional) The ending index of the sample questions (default is {length}).
+       - `--output`: (optional) If provided, will post questions and answers to slack (this won't effect if the file is returned)
 
     - Examples:
         - /test --> Sends questions 1 to {length}
         - /test q15 --> Sends question 15 only
         - /test q10-16 --> Sends questions 10 to 16
-        - /test .output -> Sends questions 1 to {length} and posts them to Slack
+        - /test --output -> Sends questions 1 to {length} and posts them to Slack
+        - /test --skip-reformulation -> Ignores the reformulation prompt before responding
     """  # noqa: E501
     client.chat_postEphemeral(channel=body["channel_id"], user=body["user_id"], text=help_text)
 
