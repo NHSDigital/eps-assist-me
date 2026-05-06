@@ -651,7 +651,7 @@ def process_events(event, context) -> list[str]:
     except Exception as e:
         slack_handler.complete_plan()
         logger.error("Critical failure during batch processing", extra={"Exception": e})
-        raise e  # Let the top-level handler catch it and fail the whole execution
+        raise
 
     slack_handler.complete_plan()
     return failed_ids
@@ -722,7 +722,7 @@ def handler(event, context):
             )
 
         # Re-raise the exception so SQS knows the batch failed and will retry it
-        raise e
+        raise
 
     except Exception as e:
         logger.error(
@@ -735,4 +735,4 @@ def handler(event, context):
             },
         )
 
-        raise e
+        raise

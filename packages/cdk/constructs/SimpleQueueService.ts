@@ -24,6 +24,7 @@ export class SimpleQueueService extends Construct {
     super(scope, id)
 
     const name = `${props.stackName}-${props.queueName}`.toLocaleLowerCase()
+    const defaultVisibilityTimeout = 60
 
     const kmsKey = new Key(this, `${name}-queue-key`, {
       enableKeyRotation: true,
@@ -42,7 +43,7 @@ export class SimpleQueueService extends Construct {
 
     // Get the longest timeout of the functions to prevent queue events due to visibility timeouts
     const allTimeouts = props.functions.map(item => item.function.timeout?.toSeconds() ?? 0)
-    const maxTimeout = Math.max(0, ...allTimeouts)
+    const maxTimeout = Math.max(defaultVisibilityTimeout, ...allTimeouts)
 
     // Create the main SQS Queue with DLQ configured
     const queue = new Queue(this, name,
@@ -54,14 +55,14 @@ export class SimpleQueueService extends Construct {
           queue: deadLetterQueue,
           maxReceiveCount: 5
         },
-        visibilityTimeout: Duration.seconds(maxTimeout ?? 60),
+        visibilityTimeout: Duration.seconds(maxTimeout),
         enforceSSL: true
       }
     )
 
     // Add queues as event source for the notify function and sync knowledge base function
     const eventSource = new SqsEventSource(queue, {
-      maxBatchingWindow: Duration.seconds(60),
+      maxBatchingWindow: Duration.seconds(maxTimeout),
       batchSize: 50,
       reportBatchItemFailures: true
     })
