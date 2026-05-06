@@ -26,14 +26,14 @@ files = [
 
 [[package]]
 name = "aws-lambda-powertools"
-version = "3.26.0"
+version = "3.29.0"
 description = "Powertools for AWS Lambda (Python) is a developer toolkit to implement Serverless best practices and increase developer velocity."
 optional = false
 python-versions = "<4.0.0,>=3.10"
 groups = ["bedrockloggingconfigfunction", "preprocessingfunction", "slackbotfunction", "syncknowledgebasefunction"]
 files = [
-    {file = "aws_lambda_powertools-3.26.0-py3-none-any.whl", hash = "sha256:a32d4bfa29aa806cca2eba2c607cf2d10f092506518b7a0bb7d894459998f3a1"},
-    {file = "aws_lambda_powertools-3.26.0.tar.gz", hash = "sha256:b1fc9f52ea2a179eb97e8b74ce1658b3dc67591566ec03402213943012406abf"},
+    {file = "aws_lambda_powertools-3.29.0-py3-none-any.whl", hash = "sha256:e9ca87b5a8a835a7f7e327d5bafa43b6e0c150c6cb8c6b42158b0814377edc7a"},
+    {file = "aws_lambda_powertools-3.29.0.tar.gz", hash = "sha256:a81ce122356343878e095a11bd38f3e9a70f3fa0fea57b10b327d1e8dfe82b6e"},
 ]
 
 [package.dependencies]
@@ -41,12 +41,12 @@ jmespath = ">=1.0.1,<2.0.0"
 typing-extensions = ">=4.11.0,<5.0.0"
 
 [package.extras]
-all = ["aws-encryption-sdk (>=3.1.1,<5.0.0)", "aws-xray-sdk (>=2.8.0,<3.0.0)", "fastjsonschema (>=2.14.5,<3.0.0)", "jsonpath-ng (>=1.6.0,<2.0.0)", "pydantic (>=2.4.0,<3.0.0)", "pydantic-settings (>=2.6.1,<3.0.0)"]
+all = ["aws-encryption-sdk (>=3.3.1,!=4.0.0,!=4.0.1,!=4.0.2,!=4.0.3,!=4.0.4,<5.0.0)", "aws-xray-sdk (>=2.8.0,<3.0.0)", "fastjsonschema (>=2.14.5,<3.0.0)", "jsonpath-ng (>=1.6.0,<2.0.0)", "pydantic (>=2.4.0,<3.0.0)", "pydantic-settings (>=2.6.1,<3.0.0)"]
 aws-sdk = ["boto3 (>=1.34.32,<2.0.0)"]
 datadog = ["datadog-lambda (>=8.114.0,<9.0.0)"]
-datamasking = ["aws-encryption-sdk (>=3.1.1,<5.0.0)", "jsonpath-ng (>=1.6.0,<2.0.0)"]
+datamasking = ["aws-encryption-sdk (>=3.3.1,!=4.0.0,!=4.0.1,!=4.0.2,!=4.0.3,!=4.0.4,<5.0.0)", "jsonpath-ng (>=1.6.0,<2.0.0)"]
 kafka-consumer-avro = ["avro (>=1.12.0,<2.0.0)"]
-kafka-consumer-protobuf = ["protobuf (>=6.30.2,<7.0.0)"]
+kafka-consumer-protobuf = ["protobuf (>=6.30.2,<8.0.0)"]
 parser = ["pydantic (>=2.4.0,<3.0.0)"]
 redis = ["redis (>=4.4,<8.0)"]
 tracer = ["aws-xray-sdk (>=2.8.0,<3.0.0)"]
@@ -3680,4 +3680,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.14"
-content-hash = "b46225f84fb5a294850104c81b59a0e4a4f87eb24f0d368ac5badc143e7787fc"
+content-hash = "89c5e8d66fd673db93a1060fff54dad0d59a0de47c328508d7e0491c4f62e84b"
