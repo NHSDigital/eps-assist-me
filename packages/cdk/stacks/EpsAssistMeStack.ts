@@ -243,8 +243,7 @@ export class EpsAssistMeStack extends Stack {
         statements: [
           new PolicyStatement({
             actions: [
-              "lambda:InvokeFunction",
-              "lambda:GetFunctionConfiguration"
+              "lambda:InvokeFunction"
             ],
             resources: [
               functions.slackBotLambda.function.functionArn
@@ -252,10 +251,24 @@ export class EpsAssistMeStack extends Stack {
           }),
           new PolicyStatement({
             actions: [
+              "cloudformation:ListExports"
+            ],
+            resources: ["*"]
+          }),
+          new PolicyStatement({
+            actions: [
               "cloudformation:ListStacks",
               "cloudformation:DescribeStacks"
             ],
             resources: [`arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`]
+          }),
+          new PolicyStatement({
+            actions: [
+              "bedrock:Retrieve"
+            ],
+            resources: [
+              `arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`
+            ]
           })
         ]
       })
