@@ -56,6 +56,8 @@ on:
         required: false
       REGRESSION_TESTS_PEM:
         required: false
+      ASSIST_ME_REGRESSION_TEST_ROLE:
+        required: false
       SLACK_BOT_TOKEN:
         required: false
       SLACK_SIGNING_SECRET:
@@ -125,7 +127,6 @@ jobs:
           IS_PULL_REQUEST: ${{ inputs.IS_PULL_REQUEST }}
           RUN_REGRESSION_TESTS: ${{ inputs.RUN_REGRESSION_TESTS }}
 
-
       - name: Deploy code for stack
         if: ${{ inputs.DEPLOY_CODE == true }}
         run: |
@@ -140,7 +141,8 @@ jobs:
           CONFIG_FILE_NAME: "epsam_app.json"
 
       - name: Normalize Environment Name
-        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        if: ${{ inputs.TARGET_ENVIRONMENT != 'int' && (inputs.DEPLOY_CODE == true ||
+          inputs.IS_PULL_REQUEST == true) }}
         run: |
           # Convert TARGET_ENVIRONMENT to Uppercase (e.g., 'prod' -> 'PROD')
           VAL=$(echo "$TARGET_ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
@@ -150,7 +152,8 @@ jobs:
 
       - name: Sync Documents
         uses: ./.github/actions/sync_documents
-        if: ${{ (inputs.TARGET_ENVIRONMENT != 'int') && (inputs.DEPLOY_CODE == true || inputs.IS_PULL_REQUEST == true) }}
+        if: ${{ (inputs.TARGET_ENVIRONMENT != 'int') && (inputs.DEPLOY_CODE == true ||
+          inputs.IS_PULL_REQUEST == true) }}
         with:
           TARGET_ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
           STACK: ${{ inputs.STACK_NAME }}
@@ -160,8 +163,9 @@ jobs:
 
   update_github_pages:
     runs-on: ubuntu-22.04
-    if: ${{ inputs.IS_PULL_REQUEST == false && always() && !failure() && !cancelled() }}
-    needs: [release_all_code]
+    if: ${{ inputs.IS_PULL_REQUEST == false && always() && !failure() &&
+      !cancelled() }}
+    needs: [ release_all_code ]
     permissions:
       id-token: write
       contents: write
@@ -195,14 +199,58 @@ jobs:
   regression_tests:
     name: Regression Tests
     uses: ./.github/workflows/run_regression_tests.yml
-    if: ${{ always() && !failure() && !cancelled() && inputs.RUN_REGRESSION_TESTS == true }}
+    if: ${{ always() && !failure() && !cancelled() && inputs.RUN_REGRESSION_TESTS ==
+      true }}
     permissions:
       id-token: write
       contents: write
-    needs: [release_all_code]
+    needs: [ release_all_code ]
     with:
       ENVIRONMENT: ${{ inputs.TARGET_ENVIRONMENT }}
       VERSION_NUMBER: ${{ inputs.VERSION_NUMBER }}
       pinned_image: ${{ inputs.pinned_image }}
     secrets:
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+
+  chatbot_evaluation:
+    name: Chatbot RAG Evaluation
+    runs-on: ubuntu-22.04
+    container:
+      image: ${{ inputs.pinned_image }}
+      options: --user 1001:1001 --group-add 128
+    defaults:
+      run:
+        shell: bash
+    if: ${{ always() && !failure() && !cancelled() && inputs.IS_PULL_REQUEST == true
+      }}
+    needs: [ release_all_code ]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: copy .tool-versions
+        run: |
+          cp /home/vscode/.tool-versions "$HOME/.tool-versions"
+
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
+        with:
+          aws-region: eu-west-2
+          role-to-assume: ${{ secrets.ASSIST_ME_REGRESSION_TEST_ROLE }}
+          role-session-name: eps-assist-me-evaluation
+
+      - name: Install dependencies
+        run: |
+          make install-python
+
+      - name: Run evaluation
+        env:
+          CHATBOT_STACK_NAME: ${{ inputs.STACK_NAME }}
+          AWS_REGION: eu-west-2
+        run: |
+          make eval-full

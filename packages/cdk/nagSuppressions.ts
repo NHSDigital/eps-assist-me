@@ -316,6 +316,28 @@ export const nagSuppressions = (stack: Stack, account: string) => {
           "Resource::arn:aws:cloudformation:eu-west-2:<AWS::AccountId>:stack/epsam*",
           `Resource::arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`
         ]
+      },
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "cloudformation:ListExports is a global API that does not support resource-level permissions.",
+        appliesTo: [
+          "Resource::*"
+        ]
+      },
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "Knowledge base ID is dynamically generated and not known at synth time.",
+        appliesTo: [
+          "Resource::arn:aws:bedrock:eu-west-2:<AWS::AccountId>:knowledge-base/*",
+          `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`
+        ]
+      },
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "DeepEval judge model requires bedrock:InvokeModel on foundation models which are not account-scoped.",
+        appliesTo: [
+          "Resource::arn:aws:bedrock:eu-west-2::foundation-model/*"
+        ]
       }
     ]
   )

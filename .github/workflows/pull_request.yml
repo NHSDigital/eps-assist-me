@@ -1,7 +1,7 @@
 name: deploy_pr
 on:
   pull_request:
-    branches: [main]
+    branches: [ main ]
 permissions: {}
 jobs:
   get_config_values:
@@ -28,12 +28,13 @@ jobs:
           echo "commit_message=$(git show -s --format=%s)" >> "$GITHUB_OUTPUT"
   quality_checks:
     uses: NHSDigital/eps-common-workflows/.github/workflows/quality-checks-devcontainer.yml@889349f9d93e4846a642f7973b7c26b180bec5aa
-    needs: [get_config_values, get_commit_message]
+    needs: [ get_config_values, get_commit_message ]
     permissions:
       contents: read
       id-token: write
       packages: read
-    if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc') }}
+    if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc')
+      }}
     with:
       pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
     secrets:
@@ -44,7 +45,8 @@ jobs:
     if: always()
     steps:
       - name: Wait for quality checks to succeed
-        if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc') }}
+        if: ${{ ! contains(needs.get_commit_message.outputs.commit_message, '#skip-qc')
+          }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -128,7 +130,7 @@ jobs:
             }
           result-encoding: string
   package_code:
-    needs: [get_issue_number, quality_gate, get_config_values]
+    needs: [ get_issue_number, quality_gate, get_config_values ]
     if: |
       always() &&
       ! contains(needs.*.result, 'failure') &&
@@ -144,7 +146,7 @@ jobs:
       COMMIT_ID: ${{ github.sha }}
       pinned_image: ${{ needs.get_config_values.outputs.pinned_image }}
   release_code:
-    needs: [get_issue_number, package_code, get_config_values]
+    needs: [ get_issue_number, package_code, get_config_values ]
     if: |
       always() &&
       ! contains(needs.*.result, 'failure') &&
@@ -174,5 +176,6 @@ jobs:
       PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE: ${{ secrets.PROD_CLOUD_FORMATION_CHECK_VERSION_ROLE }}
       DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE: ${{ secrets.DEV_CLOUD_FORMATION_EXECUTE_LAMBDA_ROLE }}
       REGRESSION_TESTS_PEM: ${{ secrets.REGRESSION_TESTS_PEM }}
+      ASSIST_ME_REGRESSION_TEST_ROLE: ${{ secrets.DEV_ASSIST_ME_REGRESSION_TEST_ROLE }}
       SLACK_BOT_TOKEN: ${{ secrets.DEV_SLACK_BOT_TOKEN }}
       SLACK_SIGNING_SECRET: ${{ secrets.DEV_SLACK_SIGNING_SECRET }}

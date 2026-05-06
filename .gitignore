@@ -37,3 +37,4 @@ cdk.out
 .poetry/
 .trivy_out/
 .sbom/
+.deepeval/

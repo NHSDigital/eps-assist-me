@@ -251,10 +251,32 @@ export class EpsAssistMeStack extends Stack {
           }),
           new PolicyStatement({
             actions: [
+              "cloudformation:ListExports"
+            ],
+            resources: ["*"]
+          }),
+          new PolicyStatement({
+            actions: [
               "cloudformation:ListStacks",
               "cloudformation:DescribeStacks"
             ],
             resources: [`arn:aws:cloudformation:eu-west-2:${account}:stack/epsam*`]
+          }),
+          new PolicyStatement({
+            actions: [
+              "bedrock:Retrieve"
+            ],
+            resources: [
+              `arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`
+            ]
+          }),
+          new PolicyStatement({
+            actions: [
+              "bedrock:InvokeModel"
+            ],
+            resources: [
+              "arn:aws:bedrock:eu-west-2::foundation-model/*"
+            ]
           })
         ]
       })
@@ -295,6 +317,11 @@ export class EpsAssistMeStack extends Stack {
     new CfnOutput(this, "SlackBotLambdaName", {
       value: functions.slackBotLambda.function.functionName,
       exportName: `${props.stackName}:lambda:SlackBot:FunctionName`
+    })
+
+    new CfnOutput(this, "KnowledgeBaseId", {
+      value: vectorKB.knowledgeBase.attrKnowledgeBaseId,
+      exportName: `${props.stackName}:bedrock:KnowledgeBase:Id`
     })
 
     new CfnOutput(this, "ModelInvocationLogGroupName", {
