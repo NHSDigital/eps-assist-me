@@ -121,7 +121,9 @@ export class EpsAssistMeStack extends Stack {
 
     const vectorIndex = new VectorIndex(this, "VectorIndex", {
       stackName: props.stackName,
-      collection: openSearchResources.collection
+      collection: openSearchResources.collection,
+      logRetentionInDays,
+      logLevel
     })
 
     // This dependency ensures the OpenSearch access policy is created before the VectorIndex

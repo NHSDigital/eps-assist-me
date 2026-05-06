@@ -65,7 +65,7 @@ cdk-deploy: guard-STACK_NAME
 	VERSION_NUMBER="$${VERSION_NUMBER:-undefined}" && \
 	COMMIT_ID="$${COMMIT_ID:-undefined}" && \
 		npx cdk deploy \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--app "npx tsx packages/cdk/bin/EpsAssistMeApp.ts" \
 		--all \
 		--ci true \
 		--require-approval $${REQUIRE_APPROVAL} \
@@ -97,7 +97,7 @@ cdk-synth-non-pr:
 		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
 	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
 		--quiet \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
+		--app "npx tsx packages/cdk/bin/EpsAssistMeApp.ts"
 
 cdk-synth-pr:
 	mkdir -p .dependencies/slackBotFunction
@@ -117,11 +117,11 @@ cdk-synth-pr:
 		 ./.github/scripts/fix_cdk_json.sh .local_config/epsam.config.json
 	CONFIG_FILE_NAME=.local_config/epsam.config.json npx cdk synth \
 		--quiet \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts"
+		--app "npx tsx packages/cdk/bin/EpsAssistMeApp.ts"
 
 cdk-diff:
 	npx cdk diff \
-		--app "npx ts-node --prefer-ts-exts packages/cdk/bin/EpsAssistMeApp.ts" \
+		--app "npx tsx packages/cdk/bin/EpsAssistMeApp.ts" \
 		--context accountId=$$ACCOUNT_ID \
 		--context stackName=$$STACK_NAME \
 		--context versionNumber=$$VERSION_NUMBER \

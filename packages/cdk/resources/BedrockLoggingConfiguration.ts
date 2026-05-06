@@ -9,7 +9,8 @@ import {
 import {LogGroup, RetentionDays} from "aws-cdk-lib/aws-logs"
 import {Provider} from "aws-cdk-lib/custom-resources"
 import {Key} from "aws-cdk-lib/aws-kms"
-import {LambdaFunction} from "../constructs/LambdaFunction"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
+import {resolve} from "path"
 
 export interface BedrockLoggingConfigurationProps {
   readonly stackName: string
@@ -102,9 +103,9 @@ export class BedrockLoggingConfiguration extends Construct {
     })
 
     // Create Lambda function for custom resource
-    const loggingConfigFunction = new LambdaFunction(this, "LoggingConfigFunction", {
-      stackName: props.stackName,
+    const loggingConfigFunction = new PythonLambdaFunction(this, "LoggingConfigFunction", {
       functionName: `${props.stackName}-BedrockLoggingConfig`,
+      projectBaseDir: resolve(__dirname, "../../.."),
       packageBasePath: "packages/bedrockLoggingConfigFunction",
       handler: "app.handler.handler",
       logRetentionInDays: props.logRetentionInDays,

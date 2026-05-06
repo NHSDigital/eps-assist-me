@@ -1,8 +1,8 @@
 import {Construct} from "constructs"
-import {Duration, CustomResource} from "aws-cdk-lib"
-import {Function, Runtime, Code} from "aws-cdk-lib/aws-lambda"
-import {Role, ServicePrincipal, ManagedPolicy} from "aws-cdk-lib/aws-iam"
+import {CustomResource} from "aws-cdk-lib"
 import {Provider} from "aws-cdk-lib/custom-resources"
+import {PythonLambdaFunction} from "@nhsdigital/eps-cdk-constructs"
+import {resolve} from "path"
 
 export interface DelayResourceProps {
   /**
@@ -14,6 +14,21 @@ export interface DelayResourceProps {
    * Optional description for the delay resource
    */
   readonly description?: string
+
+  /**
+   * Name prefix for the delay Lambda function
+   */
+  readonly functionName: string
+
+  /**
+   * The number of days to retain logs in CloudWatch Logs
+   */
+  readonly logRetentionInDays: number
+
+  /**
+   * The log level for the delay Lambda function
+   */
+  readonly logLevel: string
 }
 
 /**
@@ -24,63 +39,25 @@ export class DelayResource extends Construct {
   public readonly customResource: CustomResource
   public readonly delaySeconds: number
 
-  constructor(scope: Construct, id: string, props: DelayResourceProps = {}) {
+  constructor(scope: Construct, id: string, props: DelayResourceProps) {
     super(scope, id)
 
     this.delaySeconds = props.delaySeconds || 30
 
-    // create IAM role for the delay Lambda function
-    const lambdaExecutionRole = new Role(this, "LambdaExecutionRole", {
-      assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-      description: "Execution role for delay custom resource Lambda function",
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
-      ]
-    })
-
-    // create the delay Lambda function with inline Python code
-    const delayFunction = new Function(this, "DelayFunction", {
-      runtime: Runtime.PYTHON_3_12,
-      handler: "index.handler",
-      role: lambdaExecutionRole,
-      timeout: Duration.minutes(15), // max Lambda timeout to handle long delays
-      description: props.description || `Delay resource for ${this.delaySeconds} seconds`,
-      code: Code.fromInline(`
-from time import sleep
-import json
-import cfnresponse
-import uuid
-
-def handler(event, context):
-    wait_seconds = 0
-    id = str(uuid.uuid1())
-
-    print(f"Received event: {json.dumps(event, default=str)}")
-
-    try:
-        if event["RequestType"] in ["Create"]:
-            wait_seconds = int(event["ResourceProperties"].get("WaitSeconds", 0))
-            print(f"Waiting for {wait_seconds} seconds...")
-            sleep(wait_seconds)
-            print(f"Wait complete")
-
-        response = {
-            "TimeWaited": wait_seconds,
-            "Id": id,
-            "Status": "SUCCESS"
-        }
-
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, response, f"Waiter-{id}")
-
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)}, f"Waiter-{id}")
-`)
+    // create the delay Lambda function using PythonLambdaFunction for standard monitoring
+    const delayFunction = new PythonLambdaFunction(this, "DelayFunction", {
+      functionName: props.functionName,
+      projectBaseDir: resolve(__dirname, "../../.."),
+      packageBasePath: "packages/delayFunction",
+      handler: "app.handler.handler",
+      logRetentionInDays: props.logRetentionInDays,
+      logLevel: props.logLevel,
+      timeoutInSeconds: 900 // max Lambda timeout to handle long delays
     })
 
     // create the custom resource provider
     const provider = new Provider(this, "DelayProvider", {
-      onEventHandler: delayFunction
+      onEventHandler: delayFunction.function
     })
 
     // create the custom resource that triggers the delay
