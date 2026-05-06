@@ -13,23 +13,34 @@ from app.services.prompt_loader import load_prompt
 logger = get_logger()
 
 
-def process_ai_query(user_query: str, session_id: str | None = None) -> AIProcessorResponse:
+def process_ai_query(
+    user_query: str, session_id: str | None = None, skip_reformulation: bool = False
+) -> AIProcessorResponse:
     """shared AI processing logic for both slack and direct invocation"""
     # session_id enables conversation continuity across multiple queries
     config = get_retrieve_generate_config()
 
-    reformulation_prompt_template = load_prompt(
-        config.REFORMULATION_PROMPT_NAME,
-        config.REFORMULATION_PROMPT_VERSION,
-    )
-    # Don't provide sessionId as this conflicts with the sessions knowledgebase settings
-    reformulation_prompt = query_bedrock(user_query, reformulation_prompt_template, config)
-    reformulation_text = reformulation_prompt["output"]["text"]
+    if not skip_reformulation:
+        reformulation_prompt_template = load_prompt(
+            config.REFORMULATION_PROMPT_NAME,
+            config.REFORMULATION_PROMPT_VERSION,
+        )
 
-    logger.debug("reformulation_text", extra={"text": reformulation_text})
+        # Don't provide sessionId as this conflicts with the sessions knowledgebase settings
+        reformulation_prompt = query_bedrock(user_query, reformulation_prompt_template, config)
+        reformulated_user_query = reformulation_prompt["output"]["text"]
+
+        logger.debug(
+            "User query has been reformulated", extra={"original": user_query, "reformulation": reformulated_user_query}
+        )
+
+        # Override user_query with reformulated prompt
+        user_query = reformulated_user_query
+    else:
+        logger.debug("Skipping reformulation prompt")
 
     rag_prompt_template = load_prompt(config.RAG_RESPONSE_PROMPT_NAME, config.RAG_RESPONSE_PROMPT_VERSION)
-    kb_response = query_bedrock(reformulation_text, rag_prompt_template, config, session_id)
+    kb_response = query_bedrock(user_query, rag_prompt_template, config, session_id)
 
     logger.info(
         "response from bedrock",

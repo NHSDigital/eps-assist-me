@@ -156,6 +156,19 @@ def strip_mentions(message_text: str) -> str:
     return re.sub(r"<@[UW][A-Z0-9]+(\|[^>]+)?>", "", message_text or "").strip()
 
 
+def strip_flags(user_query: str):
+    """Remove flags like "---flag" from text and return them"""
+    # Pattern looks for '--' followed by word characters or hyphens
+    pattern = r"--[\w-]+"
+
+    flags = re.findall(pattern, user_query) or []
+
+    new_string = re.sub(pattern, "", user_query)
+    new_string = re.sub(r"\s+", " ", new_string).strip()
+
+    return new_string, flags
+
+
 def extract_pull_request_id(text: str) -> Tuple[str | None, str]:
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
     pattern = rf"^(<[^>]+>\s*)?{prefix}\s*(\d+)\b"
@@ -177,7 +190,7 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
     """
     Extract parameters from the /test command text.
 
-    Expected format: /test pr: 123 q1-2 .output
+    Expected format: /test pr: 123 q1-2 --output
     """
     params = {}
     prefix = re.escape(constants.PULL_REQUEST_PREFIX)  # safely escape for regex
@@ -193,8 +206,11 @@ def extract_test_command_params(text: str) -> Dict[str, str]:
         params["start"] = q_match.group(1)
         params["end"] = q_match.group(2) if q_match.group(2) else q_match.group(1)
 
-    if ".output" in text.lower():
+    if "--output" in text.lower():
         params["output"] = True
+
+    if "--skip-reformulation" in text.lower():
+        params["skip-reformulation"] = True
 
     logger.debug("Extracted test command parameters", extra={"params": params})
     return params
