@@ -56,6 +56,8 @@ on:
         required: false
       REGRESSION_TESTS_PEM:
         required: false
+      ASSIST_ME_REGRESSION_TEST_ROLE:
+        required: false
       SLACK_BOT_TOKEN:
         required: false
       SLACK_SIGNING_SECRET:
@@ -239,7 +241,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
           aws-region: eu-west-2
-          role-to-assume: ${{ secrets.CLOUD_FORMATION_DEPLOY_ROLE }}
+          role-to-assume: ${{ secrets.ASSIST_ME_REGRESSION_TEST_ROLE }}
           role-session-name: eps-assist-me-evaluation
 
       - name: Install dependencies
