@@ -17,7 +17,6 @@ from app.config.config import (
     KNOWLEDGEBASE_ID,
     DATA_SOURCE_ID,
     SUPPORTED_FILE_TYPES,
-    SQS_URL,
     KNOWLEDGE_SYNC_STATE_TABLE,
     get_bot_active,
     get_bot_token,
@@ -29,9 +28,9 @@ from slack_sdk.web import SlackResponse
 from functools import cached_property
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
 bedrock_agent = boto3.client("bedrock-agent")
-sqs = boto3.client("sqs")
 
 TaskStatus = Literal["in_progress", "complete"]
 
@@ -44,12 +43,15 @@ class DynamoDbHandler:
         dynamodb = boto3.resource("dynamodb")
         return dynamodb.Table(KNOWLEDGE_SYNC_STATE_TABLE)
 
-    def save_message(self, user_id, channel_id, ts):
-        """Saves a new message with default counters set to 0."""
-        return self.update_message(user_id, channel_id, ts, 0, 0, 0)
+    def save_message(self, user_id, channel_id, ts, silent):
+        """Saves a new message with default counters set to 0 and an empty document list."""
+        return self.update_message(user_id, channel_id, ts, 0, 0, 0, silent, [])
 
-    def update_message(self, user_id, channel_id, ts, created, modified, deleted):
-        """Updates an existing message or creates one with specific counters."""
+    def update_message(self, user_id, channel_id, ts, created, modified, deleted, silent, document_names=None):
+        """Updates an existing message or creates one with specific counters and documents."""
+        if document_names is None:
+            document_names = []
+
         item = {
             "user_channel_composite": f"{user_id}#{channel_id}",
             "user_id": user_id,
@@ -58,6 +60,8 @@ class DynamoDbHandler:
             "created": created,
             "modified": modified,
             "deleted": deleted,
+            "silent": silent,
+            "document_names": document_names,
         }
 
         try:
@@ -84,6 +88,7 @@ class DynamoDbHandler:
                 return None
 
             latest_item = items[0]
+
             logger.info("Found latest item", extra={"ts": latest_item.get("last_ts")})
             return latest_item
 
@@ -230,7 +235,10 @@ class SlackHandler:
 
             self.update_message(channel_id=channel_id, ts=ts, blocks=blocks)
 
-    def update_task_db(self, created, modified, deleted):
+    def update_task_db(self, created, modified, deleted, document_names=None):
+        if document_names is None:
+            document_names = []
+
         try:
             for slack_message in self.messages:
                 channel_id = slack_message["channel"]
@@ -244,6 +252,7 @@ class SlackHandler:
                         "records_created": created,
                         "records_modified": modified,
                         "records_deleted": deleted,
+                        "document_count": len(document_names),
                     },
                 )
 
@@ -255,6 +264,8 @@ class SlackHandler:
                     created=created,
                     modified=modified,
                     deleted=deleted,
+                    silent=self.silent,
+                    document_names=document_names,
                 )
         except Exception as e:
             # Handle unexpected errors
@@ -279,8 +290,8 @@ class SlackHandler:
         channel_ids = []
         try:
             for result in self.slack_client.conversations_list(types=["private_channel"], limit=1000):
-                for channel in result["channels"]:
-                    channel_ids.append(channel["id"])
+                # Filters out archived channels and extracts the ID
+                channel_ids.extend(c["id"] for c in result["channels"] if not c["is_archived"])
         except Exception as e:
             logger.error(f"Network error listing channels: {str(e)}")
             return []
@@ -307,6 +318,14 @@ class SlackHandler:
         if latest_message is None:
             return None
 
+        # Default to silent to post a message by default
+        was_silent = latest_message.get("silent", True)
+        is_silent = self.silent
+
+        # If it wasn't posted last time, but the newest event wants it to be posted, we should ignore the DB record.
+        if not is_silent and was_silent:
+            return None
+
         last_ts = latest_message.get("last_ts")
         if last_ts:
             time_since_last = time.time() - float(last_ts)
@@ -319,6 +338,11 @@ class SlackHandler:
                 s3_event_handler.created = int(latest_message.get("created", 0))
                 s3_event_handler.modified = int(latest_message.get("modified", 0))
                 s3_event_handler.deleted = int(latest_message.get("deleted", 0))
+
+                existing_docs = latest_message.get("document_names", [])
+                for doc in existing_docs:
+                    if doc not in s3_event_handler.document_names:
+                        s3_event_handler.document_names.append(doc)
 
                 default = self.create_default_response(
                     channel_id=channel_id, user_id=user_id, ts=last_ts, blocks=blocks
@@ -340,7 +364,7 @@ class SlackHandler:
 
         new_ts = response.get("ts")
         if new_ts:
-            self.db_handler.save_message(user_id, channel_id, new_ts)
+            self.db_handler.save_message(user_id, channel_id, new_ts, self.silent)
 
         return response
 
@@ -516,48 +540,46 @@ class S3EventHandler:
                     self.document_names.append(file_name)
 
         if self.document_names:
+            # Only show last three
+            display_names = self.document_names[-3:]
+            remaining_count = len(self.document_names) - 3
+
+            message_text = "\n".join(display_names)
+            if remaining_count > 0:
+                message_text += f"\nAnd {remaining_count} more"
+
+            total = self.created + self.modified + self.deleted
+            output_message = f"Processed {total} file {'update' if total == 1 else 'updates'}"
+
             slack_handler.update_task(
-                id=slack_handler.update_block_id, message="Update pending", output_message="Processing...", replace=True
+                id=slack_handler.update_block_id, message=message_text, output_message=output_message, replace=True
             )
-            for i, name in enumerate(self.document_names):
-                total = self.created + self.modified + self.deleted
-                output_message = (
-                    f"Processed {total} file {'update' if total == 1 else 'updates'}"
-                    if (i + 1 == len(self.document_names))
-                    else None
-                )
-                slack_handler.update_task(
-                    id=slack_handler.update_block_id, message=name, output_message=output_message, replace=(i == 0)
-                )
-            slack_handler.update_task_db(created=self.created, modified=self.modified, deleted=self.deleted)
+
+            slack_handler.update_task_db(
+                created=self.created,
+                modified=self.modified,
+                deleted=self.deleted,
+                document_names=self.document_names,  # Pass the combined list
+            )
 
     @staticmethod
-    def start_ingestion_job():
-        try:
-            response = bedrock_agent.start_ingestion_job(
-                knowledgeBaseId=KNOWLEDGEBASE_ID,
-                dataSourceId=DATA_SOURCE_ID,
-                description=str(time.time()),
-            )
+    def start_ingestion_job() -> bool:
+        response = bedrock_agent.start_ingestion_job(
+            knowledgeBaseId=KNOWLEDGEBASE_ID,
+            dataSourceId=DATA_SOURCE_ID,
+            description=str(time.time()),
+        )
 
-            job_id = response["ingestionJob"]["ingestionJobId"]
-            job_status = response["ingestionJob"]["status"]
+        job_id = response["ingestionJob"]["ingestionJobId"]
+        job_status = response["ingestionJob"]["status"]
 
-            logger.info(
-                "Successfully started ingestion job",
-                extra={"job_id": job_id, "job_status": job_status},
-            )
-        except Exception as e:
-            logger.error(f"Error starting ingestion: {str(e)}")
+        logger.info(
+            "Successfully started ingestion job",
+            extra={"job_id": job_id, "job_status": job_status},
+        )
 
     def process_multiple_sqs_events(self, slack_handler: SlackHandler, s3_records):
         """Handle multiple individual events from SQS"""
-        if s3_records and len(s3_records):
-            # Start the ingestion job
-            S3EventHandler.start_ingestion_job()
-        else:
-            logger.info("skipping start_ingestion")
-
         valid_records = []
         for record in s3_records:
             if record.get("eventSource") != "aws:s3":
@@ -572,93 +594,71 @@ class S3EventHandler:
         if valid_records:
             self.process_multiple_s3_events(records=valid_records, slack_handler=slack_handler)
 
-    def process_batched_queue_events(self, slack_handler: SlackHandler, events: list):
-        """Handle collection of batched queue events"""
+    def process_batched_queue_events(
+        self, slack_handler: SlackHandler, events: list, context: LambdaContext
+    ) -> list[str]:
+        """Handle collection of batched queue events natively triggered by Lambda"""
+        failed_message_ids = [event.get("messageId") for event in events]
+
         for i, event in enumerate(events):
-            body = json.loads(event.get("body", "{}"))
-            sqs_records = body.get("Records", [])
-
-            if not sqs_records:
-                logger.warning("No records in event")
-                continue
-
-            logger.info(f"Processing {len(sqs_records)} record(s)")
-
-            self.process_multiple_sqs_events(slack_handler, sqs_records)
-
-        logger.info(f"Completed {len(sqs_records)} event(s)")
-
-    @staticmethod
-    def close_sqs_events(events):
-        logger.info(f"Closing {len(events)} sqs events")
-        for event in events:
-            receipt_handle = event.get("receiptHandle") or event.get("ReceiptHandle")
-
-            if not receipt_handle:
-                logger.warning("No receipt handle found in event, skipping deletion.")
-                continue
-
             try:
-                sqs.delete_message(QueueUrl=SQS_URL, ReceiptHandle=receipt_handle)
-                logger.info("Successfully deleted sqs message from queue")
+                # Safely return incomplete items before timeout
+                # "Failed" items will be processed in the retry
+                remaining_time = context.get_remaining_time_in_millis()
+                if remaining_time < 1000:
+                    logger.warning(f"Context remaining time {remaining_time}, returning all remaining events for retry")
+                    break
+                body = json.loads(event.get("body", "{}"))
+                sqs_records = body.get("Records", [])
+
+                if not sqs_records:
+                    logger.warning("No records in event body")
+                    continue
+
+                logger.info(f"Processing {len(sqs_records)} record(s)")
+                self.process_multiple_sqs_events(slack_handler, sqs_records)
+
+                # Remove successful event from failed Ids
+                message_id = event.get("messageId")
+                if message_id:
+                    failed_message_ids.remove(message_id)
             except Exception as e:
-                logger.error("Failed to delete sqs message from queue", extra={"Exception": e})
+                logger.error("Failed to process queue event", extra={"Exception": e})
 
-    @staticmethod
-    def search_sqs_for_events():
-        logger.info("Searching for new events")
-        response = sqs.receive_message(QueueUrl=SQS_URL, MaxNumberOfMessages=10, WaitTimeSeconds=20)
-
-        events = []
-        messages = response.get("Messages", [])
-        if not messages:
-            logger.warning("No messages found", extra={"response": response, "messages": messages})
-            return events
-
-        logger.info(f"Found {len(messages)} messages in SQS", extra={"response": response, "messages": messages})
-        for message in messages:
-            body = message.get("Body", "{}")
-            message_events = json.loads(body)
-            if message_events:
-                events.append({"body": message.get("Body", "{}"), "receiptHandle": message.get("ReceiptHandle")})
-
-        logger.info(f"Found {len(messages)} total event(s) in SQS messages")
-        return events
+        logger.info(f"Completed processing batch of {len(events)} SQS event(s)")
+        return failed_message_ids
 
 
-def search_and_process_sqs_events(event):
+def process_events(event, context) -> list[str]:
     """
-    Check if there are waiting SQS events.
-    While SQS keep appearing, keep looking - limit to 20 iterations.
+    Process the exact batch of SQS events provided by the Lambda trigger.
     """
-    events = event.get("Records", [])
-    loop_count = 20
+    sqs_records = event.get("Records", [])
+    if not sqs_records:
+        logger.info("No SQS records found in trigger event.")
+        return []
 
-    s3_event_handler = S3EventHandler()
+    failed_ids = []
 
-    is_silent = not get_bot_active()  # Mute Slack for PRs
-    slack_handler = SlackHandler(silent=is_silent)
-    slack_handler.initialise_slack_messages(s3_event_handler=s3_event_handler)
+    try:
+        s3_event_handler = S3EventHandler()
+        is_silent = not get_bot_active()
+        slack_handler = SlackHandler(silent=is_silent)
+        slack_handler.initialise_slack_messages(s3_event_handler=s3_event_handler)
 
-    for i in range(loop_count):
-        logger.info(f"Starting process round {i + 1}")
-
-        # If we don't have events in hand, search the queue
-        if not events:
-            break
-
-        # If we have events (either from the initial seed or the search above), process them
-        if events and len(events) > 0:
-            logger.info("Found events, process")
-            s3_event_handler.process_batched_queue_events(slack_handler, events)
-            if i > 0:  # Only close if fetched, not received
-                s3_event_handler.close_sqs_events(events)
-
-        # Clear the list so the NEXT loop iteration knows to search again
-        logger.info("Search for any prompts left in the queue")
-        events = s3_event_handler.search_sqs_for_events()
+        logger.info(f"Starting process for {len(sqs_records)} triggered records")
+        failed_ids = s3_event_handler.process_batched_queue_events(slack_handler, sqs_records, context)
+    except Exception as e:
+        slack_handler.complete_plan()
+        logger.error("Critical failure during batch processing", extra={"Exception": e})
+        raise
 
     slack_handler.complete_plan()
+    return failed_ids
+
+
+def batched_item_failures(failed_ids: list[str]):
+    return {"batchItemFailures": [{"itemIdentifier": msg_id} for msg_id in failed_ids]}
 
 
 @logger.inject_lambda_context(log_event=True, clear_state=True)
@@ -672,12 +672,11 @@ def handler(event, context):
         logger.exception(
             "Missing required environment variables",
             extra={
-                "status_code": 500,
                 "knowledge_base_id": bool(KNOWLEDGEBASE_ID),
                 "data_source_id": bool(DATA_SOURCE_ID),
             },
         )
-        return {"statusCode": 500, "body": "Configuration error"}
+        raise ValueError("Configuration error: Missing KNOWLEDGEBASE_ID or DATA_SOURCE_ID")
 
     logger.info(
         "Starting knowledge base sync process",
@@ -688,24 +687,52 @@ def handler(event, context):
     )
 
     try:
-        search_and_process_sqs_events(event)
+        S3EventHandler.start_ingestion_job()
+
+        # Get the list of failed message IDs
+        failed_ids = process_events(event, context)
 
         total_duration = time.time() - start_time
-        logger.info("Completed search and processing of sqs events", extra={"process_time": total_duration})
-        return {
-            "statusCode": 200,
-            "body": ("Successfully polled and processed sqs events"),
-        }
+        logger.info("Completed processing of SQS events", extra={"process_time": total_duration})
+
+        # Return the specific JSON schema required by SQS for partial batch responses
+        return batched_item_failures(failed_ids)
+
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+
+        if error_code == "ConflictException":
+            logger.warning(
+                "Bedrock ingestion job is already running. Failing batch to retry later.",
+                extra={
+                    "knowledge_base_id": KNOWLEDGEBASE_ID,
+                    "data_source_id": DATA_SOURCE_ID,
+                    "error_message": str(e),
+                },
+            )
+        else:
+            logger.error(
+                "Unexpected error occurred. Failing entire batch.",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "duration_ms": round((time.time() - start_time) * 1000, 2),
+                    "error": traceback.format_exc(),
+                },
+            )
+
+        # Re-raise the exception so SQS knows the batch failed and will retry it
+        raise
+
     except Exception as e:
-        # Handle unexpected errors
         logger.error(
-            "Unexpected error occurred",
+            "Unexpected error occurred. Failing entire batch.",
             extra={
-                "status_code": 500,
                 "error_type": type(e).__name__,
                 "error_message": str(e),
                 "duration_ms": round((time.time() - start_time) * 1000, 2),
                 "error": traceback.format_exc(),
             },
         )
-        return {"statusCode": 500, "body": f"Unexpected error: {str(e)}"}
+
+        raise
