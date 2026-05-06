@@ -3,6 +3,7 @@ Slack event processing
 Handles conversation memory, Bedrock queries, and responding back to Slack
 """
 
+from decimal import Decimal
 import re
 import time
 import traceback
@@ -401,6 +402,7 @@ def process_async_slack_event(event: Dict[str, Any], event_id: str, client: WebC
     conversation_key, thread_ts = conversation_key_and_root(event)
     user_id = event.get("user", "unknown")
     channel_id = event["channel"]
+
     conversation_key, thread_root = conversation_key_and_root(event=event)
     if message_text.lower().startswith(constants.PULL_REQUEST_PREFIX):
         try:
@@ -496,6 +498,76 @@ def process_pull_request_slack_action(slack_body_data: Dict[str, Any]) -> None:
 # ================================================================
 
 
+def _notify_diverged_conversation(client, channel: str, user_id: str, thread_ts: str, event_id: str) -> None:
+    """Helper to post an ephemeral message if the conversation diverged."""
+    try:
+        client.chat_postEphemeral(
+            channel=channel,
+            user=user_id,
+            thread_ts=thread_ts,
+            text="It looks like the conversation has diverged, please start a new conversation",
+        )
+    except Exception as e:
+        logger.error(
+            f"Couldn't post ephemeral message: {e}",
+            extra={"event_id": event_id, "error": traceback.format_exc()},
+        )
+
+
+def _handle_modified_messages(
+    client,  # Type hint with your WebClient
+    channel: str,
+    thread_ts: str,
+    original_ts: str,
+    edited_event: Dict[str, Any],
+    event_id: str,
+    user_id: str,
+) -> bool:
+    """Clear subsequent bot replies in a thread when the original message is edited."""
+    try:
+        logger.info("Existing conversation found", extra={"event": edited_event})
+        current_thread = client.conversations_replies(channel=channel, ts=thread_ts)
+        thread_messages = current_thread.get("messages", [])
+
+        # Early return if there are no subsequent messages
+        if len(thread_messages) <= 1:
+            return True
+
+        previous_edit_ts = Decimal(original_ts)
+        subsequent_messages = [msg for msg in thread_messages if Decimal(msg.get("ts", "0")) > previous_edit_ts]
+
+        has_user_replies = any(msg.get("user") == user_id for msg in subsequent_messages)
+
+        if has_user_replies:
+            _notify_diverged_conversation(client, channel, user_id, thread_ts, event_id)
+            return False
+
+        # If no user replies, proceed with deletion
+        logger.info(
+            "Found existing thread, clearing replies",
+            extra={"channel": channel, "thread_ts": thread_ts, "previous_edit_ts": previous_edit_ts},
+        )
+
+        reply_ts = subsequent_messages[-1].get("ts")
+        if reply_ts:
+            try:
+                client.chat_delete(channel=channel, ts=reply_ts)
+            except Exception as e:
+                logger.error(
+                    f"Couldn't delete message: {e}",
+                    extra={"event_id": event_id, "error": traceback.format_exc()},
+                )
+
+        return True
+
+    except Exception as e:
+        logger.error(
+            f"Error modifying existing messages: {e}",
+            extra={"event_id": event_id, "error": traceback.format_exc()},
+        )
+        return False
+
+
 def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClient) -> None:
     """
     Process Slack events asynchronously after initial acknowledgment
@@ -508,6 +580,7 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         channel = event["channel"]
         event_ts = event["event_ts"]
         conversation_key, thread_ts = conversation_key_and_root(event)
+        edited_event = event.get("edited")
 
         if channel and event_ts:
             message_duplication_id = f"msg_{channel}_{event_ts}"
@@ -530,6 +603,20 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
                 post_params["thread_ts"] = thread_ts
             client.chat_postMessage(**post_params)
             return
+
+        if edited_event:
+            has_modified = _handle_modified_messages(
+                client=client,
+                channel=channel,
+                thread_ts=thread_ts,
+                original_ts=event["ts"],
+                edited_event=edited_event,
+                event_id=event_id,
+                user_id=user_id,
+            )
+
+            if not has_modified:
+                return
 
         # conversation continuity: reuse bedrock session across slack messages
         session_data = get_conversation_session_data(conversation_key)
@@ -563,7 +650,8 @@ def process_slack_message(event: Dict[str, Any], event_id: str, client: WebClien
         store_qa_pair(conversation_key, user_query, response_text, message_ts, kb_response.get("sessionId"), user_id)
 
         try:
-            client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
+            response = client.chat_update(channel=channel, ts=message_ts, text=response_text, blocks=blocks)
+            logger.info("Chat Updated", extra={"response": response})
         except Exception as e:
             logger.error(
                 f"Failed to update message: {e}",
