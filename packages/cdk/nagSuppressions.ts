@@ -331,6 +331,13 @@ export const nagSuppressions = (stack: Stack, account: string) => {
           "Resource::arn:aws:bedrock:eu-west-2:<AWS::AccountId>:knowledge-base/*",
           `Resource::arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`
         ]
+      },
+      {
+        id: "AwsSolutions-IAM5",
+        reason: "DeepEval judge model requires bedrock:InvokeModel on foundation models which are not account-scoped.",
+        appliesTo: [
+          "Resource::arn:aws:bedrock:eu-west-2::foundation-model/*"
+        ]
       }
     ]
   )

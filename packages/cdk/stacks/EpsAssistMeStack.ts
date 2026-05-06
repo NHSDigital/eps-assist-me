@@ -269,6 +269,14 @@ export class EpsAssistMeStack extends Stack {
             resources: [
               `arn:aws:bedrock:eu-west-2:${account}:knowledge-base/*`
             ]
+          }),
+          new PolicyStatement({
+            actions: [
+              "bedrock:InvokeModel"
+            ],
+            resources: [
+              "arn:aws:bedrock:eu-west-2::foundation-model/*"
+            ]
           })
         ]
       })
