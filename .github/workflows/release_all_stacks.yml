@@ -248,9 +248,9 @@ jobs:
         run: |
           make install-python
 
-      - name: Run smoke evaluation
+      - name: Run evaluation
         env:
           CHATBOT_STACK_NAME: ${{ inputs.STACK_NAME }}
           AWS_REGION: eu-west-2
         run: |
-          make eval-smoke
+          make eval-full
