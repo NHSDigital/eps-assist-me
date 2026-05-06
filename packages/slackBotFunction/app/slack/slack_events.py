@@ -912,8 +912,9 @@ def process_command_test_questions(body: Dict[str, Any], client: WebClient) -> N
 
         # Create the file content
         name_timestamp = datetime.now().strftime("%y%m%d%M%H")
+        skip_reformulation = "_NoReform" if params.get("skip-reformulation") else ""
 
-        filename = f"EpsamTestResults_{name_timestamp}_.txt"
+        filename = f"EpsamTestResults_{name_timestamp}{skip_reformulation}"
         final_file_content = "\n".join(aggregated_results)
 
         # Upload the file to Slack
