@@ -42,7 +42,7 @@ export class SimpleQueueService extends Construct {
     })
 
     // Get the longest timeout of the functions to prevent queue events due to visibility timeouts
-    const allTimeouts = props.functions.map(item => item.function.timeout?.toSeconds() ?? 0)
+    const allTimeouts = props.functions.map(item => item.function.timeout?.toSeconds() ?? defaultVisibilityTimeout)
     const maxTimeout = Math.max(defaultVisibilityTimeout, ...allTimeouts)
 
     // Create the main SQS Queue with DLQ configured
