@@ -138,16 +138,20 @@ def gate_common(event: Dict[str, Any], body: Dict[str, Any]) -> str | None:
     """
     event_id = body.get("event_id")
     if not event_id:
-        logger.info("Skipping event without event_id")
+        logger.warning("Skipping event", extra={"reason": "Event has no event_id", "event": event, "body": body})
         return None
 
     if event.get("bot_id") or event.get("subtype"):
+        logger.warning(
+            "Skipping event", extra={"reason": "No `bot_id` or `subtype` found", "event": event, "body": body}
+        )
         return None
 
     if is_duplicate_event(event_id):
-        logger.info(f"Skipping duplicate event: {event_id}")
+        logger.warning("Skipping event", extra={"reason": "duplicate event", "event": event, "body": body})
         return None
 
+    logger.info("Gate_Common passed")
     return event_id
 
 
@@ -318,26 +322,39 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
     """
     logger.debug("Checking if should reply to message", extra={"event": event, "client": client})
 
-    # we don't reply to non-threaded messages in group chats
+    # We don't reply to non-threaded messages in group chats
     if (
         (event.get("channel_type") == "group" or event.get("channel_type") == "channel")
         and event.get("type") == "message"
         and event.get("thread_ts") is None
     ):
+        logger.warning(
+            "Should Not Reply",
+            extra={
+                "reason": "Non-threaded messages are ignored in group changes",
+                "channel": channel,
+                "thread_ts": thread_ts,
+            },
+        )
         return False
 
     # for channel or group threads, check if bot was mentioned anywhere in the thread history
     if event.get("channel_type") in ["channel", "group"] and event.get("thread_ts"):
         if not client:
             logger.warning("No Slack client provided to check thread participation")
-            return True
+            return False
 
         channel = event.get("channel")
         thread_ts = event.get("thread_ts")
 
         if not was_bot_mentioned_in_thread_root(channel, thread_ts, client):
             logger.debug(
-                "Bot not mentioned in thread, ignoring message", extra={"channel": channel, "thread_ts": thread_ts}
+                "Should Not Reply",
+                extra={
+                    "reason": "Bot not mentioned in thread, ignoring message",
+                    "channel": channel,
+                    "thread_ts": thread_ts,
+                },
             )
             return False
 

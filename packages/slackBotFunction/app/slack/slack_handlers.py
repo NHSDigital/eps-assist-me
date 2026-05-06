@@ -113,17 +113,20 @@ def unified_message_handler(client: WebClient, event: Dict[str, Any], body: Dict
 
     """
     event_id = gate_common(event=event, body=body)
-    logger.debug("logging result of gate_common", extra={"event_id": event_id, "body": body})
+    logger.debug("logging result of gate_common", extra={"event_id": f"{event_id}", "body": body})
     if not event_id:
+        logger.warning("Skipping message", extra={"reason": "No event_id found"})
         return
     # if its in a group chat
     # and its a message
     # and its not in a thread
     # then ignore it as it will be handled as an app_mention event
     if not should_reply_to_message(event, client):
-        logger.debug("Ignoring message in group chat not in a thread or bot not in thread", extra={"event": event})
+        logger.debug("Ignoring message", extra={"event": event})
         # ignore messages in group chats or threads where bot wasn't mentioned
         return
+    logger.info("Preparing conversation", extra={"event": event})
+
     user_id = event.get("user", "unknown")
     conversation_key, _ = conversation_key_and_root(event=event)
     session_pull_request_id = extract_session_pull_request_id(conversation_key)
