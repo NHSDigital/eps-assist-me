@@ -322,11 +322,14 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
     """
     logger.debug("Checking if should reply to message", extra={"event": event, "client": client})
 
+    channel = event.get("channel")
+    thread_ts = event.get("thread_ts")
+
     # We don't reply to non-threaded messages in group chats
     if (
         (event.get("channel_type") == "group" or event.get("channel_type") == "channel")
         and event.get("type") == "message"
-        and event.get("thread_ts") is None
+        and thread_ts is None
     ):
         logger.warning(
             "Should Not Reply",
@@ -343,9 +346,6 @@ def should_reply_to_message(event: Dict[str, Any], client: WebClient = None) -> 
         if not client:
             logger.warning("No Slack client provided to check thread participation")
             return False
-
-        channel = event.get("channel")
-        thread_ts = event.get("thread_ts")
 
         if not was_bot_mentioned_in_thread_root(channel, thread_ts, client):
             logger.debug(

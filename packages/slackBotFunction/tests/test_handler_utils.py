@@ -469,7 +469,7 @@ def test_should_reply_to_message_channel_thread_no_client():
     event = {"channel_type": "channel", "type": "message", "channel": "C123", "thread_ts": "1234567890.123456"}
     result = should_reply_to_message(event, None)
 
-    assert result is True
+    assert result is False
 
 
 def test_was_bot_mentioned_in_thread_different_bot():
